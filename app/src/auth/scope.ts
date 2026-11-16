@@ -87,11 +87,13 @@ export function boardScope(role: EmployeeRole, section: Section | null): BoardSc
     case 'production':
       return {
         ...FACTORY_SCOPE,
-        title: 'ทั้งกระบวนการผลิต',
-        sub: 'ตั้งแต่รับใบสั่งงาน วัตถุดิบ ตัวอย่าง ทุกสถานีทั้ง 2 เฟส จนเสร็จ',
+        title: 'งานฝ่ายผลิต · พิมพ์ถึง QC',
+        sub: 'ฝ่ายผลิตคุมทุกสถานี ตั้งแต่รับงาน พิมพ์ รีด ตัด เย็บ จนถึง QC + Packing',
         tabs: ['todo', 'board', 'sewing'],
         summary: 'production',
-        // คนหน้างานเจอจักรเสียก่อน จึงแจ้งเสีย / ซ่อมเสร็จได้ (ตัดสินใจ 16 พ.ย.) · เริ่มเย็บยังเป็นของเฟส 2
+        // ฝ่ายผลิตแทนผู้ควบคุมงานทั้ง 2 เฟส (ตัดสินใจ 16 พ.ย. บ่าย · migration 20261118000004)
+        // จึงเริ่มเย็บ / รายงานปัญหา / เย็บเสร็จ ได้เอง และยังจองจักร แจ้งเสีย กำหนดเวลาซ่อมได้เหมือนเดิม
+        canSew: true,
         canReportMachines: true,
         canSetRepairEta: true,
         canBook: true,

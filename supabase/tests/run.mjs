@@ -128,6 +128,10 @@ await workflowTests({ db, ok, as })
 const { sectionTests } = await import('./sections.mjs')
 await sectionTests({ db, ok, as })
 
+// ---- 8.1 ฝ่ายผลิตคุมหน้างานทั้งหมด ----
+const { productionTests } = await import('./production.mjs')
+await productionTests({ db, ok, as })
+
 // ---- 9. จักรเย็บ (S14) ----
 const { sewingTests } = await import('./sewing.mjs')
 await sewingTests({ db, ok, as })
