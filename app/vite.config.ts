@@ -11,7 +11,7 @@ export default defineConfig({
     // ติดตั้งบนแท็บเล็ต/มือถือได้ (Add to Home Screen)
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['logo.webp'],
+      includeAssets: ['logo.webp', 'favicon.ico', 'favicon-32.png', 'favicon-48.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'ภาพพิมพ์ 142 · ติดตามการผลิต',
         short_name: 'PP142 ผลิต',
@@ -21,7 +21,12 @@ export default defineConfig({
         background_color: '#f4f5f2',
         display: 'standalone',
         start_url: '/',
-        icons: [{ src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+        // ไอคอนสร้างจากโลโก้ด้วย assets/make_icons.py
+        icons: [
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
     }),
   ],
