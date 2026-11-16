@@ -849,6 +849,8 @@ function route(){
   else if(m.some(x=>/ซับ|ดิจิทัล/.test(x))) r={ code:'normal', text:'ปกติ: พิมพ์ → รีด → ตัด → เย็บ → QC+Packing' };
   else r={ code:'plain', text:'ตัด → เย็บ → QC+Packing' };
   const extra=m.filter(x=>!/DTF|ซับ|ดิจิทัล|ไม่มีลาย/.test(x)).map(x=>x.replace(/\s*\(.*\)/,'').replace(/^งาน/,''));
+  // docText = ข้อความที่พิมพ์ลง PDF (ไม่มีหมายเหตุภายในของระบบ) · งานปักส่งร้านนอกทั้งหมด
+  r.docText=r.text+(extra.length?` · ${extra.map(e=>/ปัก/.test(e)?'ปัก (ส่งร้านนอก)':e).join(', ')}`:'');
   if(extra.length) r.text+=` · มีงาน${extra.join(', ')} (ยังไม่มีสถานีนี้ในระบบ)`;
   return r;
 }
@@ -1066,15 +1068,18 @@ $('#alert').addEventListener('click',e=>{ const a=e.target.closest('[data-goto]'
 
 /* ================= เอกสาร PDF ================= */
 function thDate(s){ if(!s) return '—'; const [y,m,d]=s.split('-'); return `${+d}/${+m}/${+y+543}`; }
+// ค่าที่แปลว่า "ไม่มี / ไม่ต้องทำ" ไม่พิมพ์ลง PDF เพื่อไม่ให้ฝ่ายผลิตสับสน
+// ตัด: "ไม่มี", "ไม่มีซับใน", "ไม่มี (ปากเปิด)", "-" · เก็บ: "ไม่มีซิป (เย็บปิด)" (บอกวิธีทำ), "ทรงแบน (ไม่มีก้น…)" (ชื่อทรง)
+const isNone = s => { const t=String(s??'').trim(); return !t || /^(-|—|ไม่มี|ไม่ต้อง)$/.test(t) || /^ไม่มี\s*\(/.test(t) || (/^ไม่มี/.test(t) && !/\(/.test(t)); };
 function valText(f,v){
   const val=v[f.id], o=x=>x===OTHER?`${OTHER}: ${v[f.id+'__other']||''}`:x;
   switch(f.type){
     case 'date': return val?thDate(val):'';
     case 'number': return num(val)>0?`${val}${f.unit?' '+f.unit:''}`:'';
-    case 'radio': return val?o(val):'';
-    case 'check': return (val||[]).map(o).join(', ');
+    case 'radio': return val&&!isNone(val)?o(val):'';
+    case 'check': return (val||[]).filter(x=>!isNone(x)).map(o).join(', ');
     case 'dims': { const ps=f.parts.map((p,i)=>[p,v[f.id+'_'+i]]).filter(([,x])=>num(x)>0); return ps.length?ps.map(([p,x])=>`${p} ${x}`).join(' × ')+(f.unit?' '+f.unit:''):''; }
-    default: return String(val??'').trim();
+    default: { const t=String(val??'').trim(); return isNone(t)?'':t; }
   }
 }
 function kvHTML(fs,v){
@@ -1092,13 +1097,14 @@ function renderDoc(){
     <div class="job"><span>ลูกค้า <b>${esc(h.customer||'—')}</b></span><span>งาน <b>${esc(h.job_name||'—')}</b></span><span>จำนวน <b>${qty}</b></span></div>
   </div>`;
 
-  let x=`<section class="ds"><div class="kv">
-    <div><span>ผู้ติดต่อ</span><b>${esc(h.contact||'—')}</b></div><div><span>เบอร์โทร</span><b>${esc(h.phone||'—')}</b></div>
-    <div><span>วันที่ออกใบ</span><b>${thDate(h.issue_date)}</b></div><div><span>วันนัดส่งตัวอย่าง</span><b>${thDate(h.sample_date)}</b></div>
-    <div><span>การรับสินค้า</span><b>${esc(h.delivery||'—')}</b></div><div><span>แอดมินผู้ดูแล</span><b>${esc(h.admin||'—')}</b></div>
-    ${h.delivery==='จัดส่งตามที่อยู่'?`<div class="w"><span>ที่อยู่จัดส่ง</span><b>${esc(h.address||'—')}</b></div>`:''}
-  </div>
-  <div class="d-prod"><span>จำนวนรวม <b>${qty}</b>${num(v.spare)>0?` (+ เผื่อเสีย ${esc(v.spare)} ${P.unit})`:''}</span><span>เส้นทางผลิต <b>${esc(r.text)}</b></span></div></section>`;
+  // ข้อมูลหัวใบ: พิมพ์เฉพาะช่องที่กรอก
+  const hk=(label,val,w)=>isNone(val)?'':`<div${w?' class="w"':''}><span>${label}</span><b>${esc(val)}</b></div>`;
+  const hItems=[hk('ผู้ติดต่อ',h.contact), hk('เบอร์โทร',h.phone),
+    hk('วันที่ออกใบ',h.issue_date?thDate(h.issue_date):''), hk('วันนัดส่งตัวอย่าง',h.sample_date?thDate(h.sample_date):''),
+    hk('การรับสินค้า',h.delivery), hk('แอดมินผู้ดูแล',h.admin),
+    h.delivery==='จัดส่งตามที่อยู่'?hk('ที่อยู่จัดส่ง',h.address,true):''].join('');
+  let x=`<section class="ds">${hItems?`<div class="kv">${hItems}</div>`:''}
+  <div class="d-prod"><span>จำนวนรวม <b>${qty}</b>${num(v.spare)>0?` (+ เผื่อเสีย ${esc(v.spare)} ${P.unit})`:''}</span><span>เส้นทางผลิต <b>${esc(r.docText||r.text)}</b></span></div></section>`;
 
   let n=0;
   allSecs().forEach(sec=>{
@@ -1114,12 +1120,14 @@ function renderDoc(){
           `</tbody><tfoot><tr><td>รวม</td>${cols.map(c=>`<td>${rs.reduce((a,r)=>a+num(r.q[c]),0)}</td>`).join('')}<td>${totalQty()}</td></tr></tfoot></table>`;
       }
       if(f.type==='itemTable'){
-        const rs=rows(v,f.id,!!f.none).filter(r=>f.cols.some(c=>String(r[c.c]??'').trim()));
+        const rs=rows(v,f.id,!!f.none).filter(r=>f.cols.some(c=>!isNone(r[c.c])));
         const lab=f.none?`<div class="tlabel">${esc(f.label)}</div>`:'';
-        if(rs.length) body+=lab+`<table class="dt"><thead><tr><th>#</th>${f.cols.map(c=>`<th>${c.label}</th>`).join('')}</tr></thead><tbody>`+
-          rs.map((r,i)=>`<tr><td>${i+1}</td>${f.cols.map(c=>`<td class="${c.t!=='number'?'l':''}">${esc(r[c.c])}</td>`).join('')}</tr>`).join('')+
-          `</tbody>${f.cols.some(c=>c.sum)?`<tfoot><tr><td colspan="${f.cols.length}">รวม</td><td>${totalQty()}</td></tr></tfoot>`:''}</table>`;
-        else if(f.none) body+=`<div class="kv"><div class="w"><span>${esc(f.label)}</span><b>${esc(f.none)}</b></div></div>`;
+        // ไม่มีรายการ (เช่น ไม่มีกระเป๋า) = ไม่พิมพ์หัวข้อนี้เลย · ช่องที่เลือก "ไม่มี" ในแถว = เว้นว่าง
+        // คอลัมน์ที่ว่าง/ไม่มีทุกแถว (เช่น การปิดกระเป๋า = ไม่มี) ไม่ต้องแสดง · คอลัมน์ยอดรวมแสดงเสมอ
+        const cols=f.cols.filter(c=>c.sum||rs.some(r=>!isNone(r[c.c])));
+        if(rs.length) body+=lab+`<table class="dt"><thead><tr><th>#</th>${cols.map(c=>`<th>${c.label}</th>`).join('')}</tr></thead><tbody>`+
+          rs.map((r,i)=>`<tr><td>${i+1}</td>${cols.map(c=>`<td class="${c.t!=='number'?'l':''}">${isNone(r[c.c])?'':esc(r[c.c])}</td>`).join('')}</tr>`).join('')+
+          `</tbody>${cols.some(c=>c.sum)?`<tfoot><tr><td colspan="${cols.length}">รวม</td><td>${totalQty()}</td></tr></tfoot>`:''}</table>`;
       }
       if(f.type==='placements'){
         const on=Object.entries(v[f.id]||{}).filter(([,p])=>p.on);
@@ -1137,7 +1145,7 @@ function renderDoc(){
 
   const sig=t=>`<div><div class="t">${t}</div><div class="ln"></div>(.......................................)<br>วันที่ ....../....../......</div>`;
   x+=`<div class="close"><div class="d-note"><b>ข้อตกลง:</b> ลูกค้าตรวจสอบรายละเอียดทั้งหมดในใบนี้แล้ว ฝ่ายผลิตจะผลิตตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง
-    และผลิตตามรายละเอียดในใบนี้เท่านั้น การแก้ไขหลังเซ็นต้องออกใบยืนยันฉบับใหม่ และอาจมีผลต่อกำหนดส่ง</div>
+    และผลิตตามรายละเอียดในใบนี้เท่านั้น <b>รายการที่ไม่ได้ระบุในใบนี้ถือว่าไม่มี / ไม่ต้องทำ</b> การแก้ไขหลังเซ็นต้องออกใบยืนยันฉบับใหม่ และอาจมีผลต่อกำหนดส่ง</div>
     <div class="sign">${sig('ลูกค้ายืนยันรายละเอียด')}${sig('แอดมินผู้ทำใบ')}${sig('ผู้ควบคุมงาน (รับงานเข้าโรงงาน)')}</div></div>`;
 
   // ใช้ thead ของตารางเป็นหัวกระดาษ: เบราว์เซอร์จะพิมพ์ thead ซ้ำทุกหน้าเมื่อเนื้อหายาวเกิน 1 หน้า
