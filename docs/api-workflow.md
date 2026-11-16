@@ -33,6 +33,12 @@ QC ส่งแก้: send_rework → กลับสถานีต้นเ�
 | `close_issue` | `p_job, p_note = null` | supervisor / qc / admin / production | แก้แล้ว · กลับสถานะก่อนพัก |
 | `submit_delay_report` | `p_job, p_reasons text[], p_detail, p_new_eta, p_need_help = null` | supervisor / qc / admin / production | รายงานปัญหา (ส่งล่วงหน้าได้) · รหัสสาเหตุต้องมีใน `reason_codes` · วันเสร็จใหม่ต้องอยู่ในอนาคต |
 | `correct_event` | `p_job, p_event_id, p_reason` | supervisor | บันทึกการแก้ไขย้อนหลัง (event `correction`) |
+| `book_machines` | `p_job, p_starts, p_ends` → `text[]` รหัสจักรที่จอง | supervisor เฟส 2 / ทุกเฟส · owner | **จองจักรเป็นวัน-เวลา** ครบทุกชนิดตาม `product_machine_needs` · งานยังอยู่เฟส 1 ก็จองได้ · ปฏิเสธ: เวลาจบไม่หลังเวลาเริ่ม, ผ่านไปแล้ว, เริ่มวันอาทิตย์, เกิน 14 วัน, งานจองไว้แล้ว, ผลิตจริงที่ผ่านเย็บแล้ว, "ช่วงเวลานี้จักรไม่พอ: โพ้ง 4 เส้น ขาด 1 ตัว (OL4-01 จองให้ SC… 17/11 08:00–17:00)" · จองชนจากการกดพร้อมกัน = "สถานะเปลี่ยนแล้ว" |
+| `cancel_booking` | `p_job` | supervisor เฟส 2 / ทุกเฟส · owner | ยกเลิกช่วงที่ยังไม่เริ่ม · ช่วงที่กำลังใช้ = ตัดจบที่ตอนนี้ · งานออกจากเย็บ = คืนช่วงที่เหลืออัตโนมัติ |
+| `start_sewing` | `p_job` → คืน `text[]` รหัสจักรที่ได้ | supervisor เฟส 2 / ทุกเฟส | **ปุ่มเริ่มเย็บ** · เลือกจักรว่างตามรหัสให้ครบทุกชนิดตาม `product_machine_needs` แล้วเริ่มสถานีเย็บในคำสั่งเดียว · ปฏิเสธ: ยังไม่ถึงเย็บ, พักอยู่, สินค้าไม่มีสูตรจักร, "จักรไม่ว่าง เริ่มเย็บไม่ได้: โพ้ง 4 เส้น ขาด 1 ตัว (OL4-01 ใช้กับ SC…, OL4-06 เสีย)" · **trigger บน jobs**: สถานีเย็บเป็น "กำลังทำ" ได้เมื่อจักรครบเท่านั้น (รวม `start_station` และ `close_issue`) · ยังไม่มีจักรในระบบเลย = ไม่บังคับ |
+| `assign_machines` | `p_job, p_machine_codes text[]` | supervisor เฟส 2 / ทุกเฟส | จ่ายจักรเย็บ (S14) · event `machines_assigned` · ปฏิเสธ: งานไม่อยู่สถานีเย็บ, จักรเสีย/ปิด, จักรใช้กับงานอื่นอยู่ (บอกเลขที่ใบ) · ปฏิเสธทั้งชุดถ้ามีตัวใดไม่ผ่าน |
+| `release_machines` | `p_job, p_machine_codes text[] = null` | supervisor เฟส 2 / ทุกเฟส | คืนจักร (null = ทุกตัว) · event `machines_released` · งานออกจากสถานีเย็บ/เสร็จ = คืนอัตโนมัติ · พักงานไม่คืน |
+| `set_machine_status` | `p_machine_code, p_status (ready/broken/off), p_note` | supervisor เฟส 2 / ทุกเฟส · owner (เฟส 1 / แอดมิน / QC / ฝ่ายผลิต / ผู้บริหาร = ปฏิเสธ) | ปุ่ม **แจ้งเสีย / ปิดใช้งาน / ซ่อมเสร็จ** · เสียต้องมีอาการ · กดซ้ำสถานะเดิม = "สถานะเปลี่ยนแล้ว" · เสียระหว่างใช้ = คืนจักรจากงาน + **พักงานอัตโนมัติ** (สาเหตุ "จักร OL4-01 เสีย: อาการ") · บันทึก `machine_status_log` ทุกครั้ง · **แก้ `sewing_machines.status` ตรงไม่ได้แม้ owner** (trigger) |
 
 ### ขั้นย่อยที่บังคับก่อน `finish_station`
 - **ผลิตจริง:** ทุกขั้น `req`, `num`, `appr`, `lock` · `sew_count` = ยอดเย็บ ≥ qty · `first_piece` = อนุมัติตัวแรกแล้ว · `inspect` (QC) = ยอดผ่านสะสม ≥ qty · `lock` = ได้รับฟิล์มแล้ว
@@ -51,8 +57,9 @@ QC ส่งแก้: send_rework → กลับสถานีต้นเ�
 | `station_visits` (view) | งาน × สถานี × รอบ: `started_at`, `done_at`, `rework` (สำหรับรายงานเวลา) |
 | `job_materials`, `job_substeps`, `qc_results`, `sample_results`, `issues`, `delay_reports`, `events` | รายละเอียดและไทม์ไลน์ |
 | `stations` (`substeps`, `sla_days`, `warn_pct`), `routes`, `route_stations`, `sla_segments`, `reason_codes`, `material_templates` | ข้อมูลตั้งค่า (owner แก้ได้ตรงตาม RLS) |
+| `machine_types`, `sewing_machines` (รหัส = prefix ประเภท-เลข เช่น OL4-01 บังคับด้วย trigger · ชนิด · `status`), `product_machine_needs` (สินค้า → ชนิดจักร × จำนวน), `machine_assignments` (`released_at` null = ใช้อยู่), `machine_status_log` (ประวัติแจ้งเสีย/ซ่อม: ใคร · เมื่อไร · อาการ · งานที่ใช้อยู่), `machine_bookings` (`starts_at`–`ends_at` · `cancelled_at` null = ยังจองอยู่) | จักรเย็บ S14 · `20261118000002_sewing_machines.sql` · ทดสอบ `supabase/tests/sewing.mjs` · หน้าเว็บคำนวณงานที่ขึ้นเย็บได้ด้วย `app/src/proto/sewing.ts` (`planSewing`) |
 
-Realtime: `jobs`, `job_materials`, `issues`, `job_substeps`, `sample_results`, `qc_results`, `events`, `delay_reports`
+Realtime: `jobs`, `job_materials`, `issues`, `job_substeps`, `sample_results`, `qc_results`, `events`, `delay_reports`, `sewing_machines`, `machine_assignments`, `machine_status_log`, `machine_bookings`
 
 ## ค่าร่าง (รอ PP-SOP-01)
 `stations.sla_days` พิมพ์/รีด/ตัด = 1 วัน (สถานีอื่นยังไม่จับเวลา) · `sla_segments.subli_ppc` = 3 วัน · `reason_codes` M1–O9 · แก้ผ่านหน้าตั้งค่า (C2) ได้โดยไม่ต้องแก้โค้ด

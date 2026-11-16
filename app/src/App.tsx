@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState, type ComponentType } from 'react'
 import { isConfigured } from './lib/supabase'
 import EmployeeLogin, { AccountScreen, ChangePasswordForm, SignOutButton, primaryButton } from './auth/EmployeeLogin'
 import { useEmployeeAccount } from './auth/useEmployeeAccount'
 import { canOpenPage, roleLabel as labelFor, type EmployeeRole, type PageKey, type Section } from './auth/access'
+import { boardScope, homePage } from './auth/scope'
 import ReportsPage from './pages/reports'
 import SettingsPage from './pages/settings'
 import { Card, CardHeader } from './components/ui'
@@ -56,7 +57,7 @@ export default function App() {
   return <Workspace key={session.user.id} page={page} profile={result.profile} email={session.user.email} />
 }
 
-function Workspace({ page, profile, email }: {
+function Workspace({ page: requested, profile, email }: {
   page: PageKey
   profile: { name: string; role: EmployeeRole; section: Section | null }
   email?: string
@@ -64,7 +65,12 @@ function Workspace({ page, profile, email }: {
   const [today] = useState(() => new Date().toLocaleDateString('th-TH', {
     timeZone: 'Asia/Bangkok', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   }))
-  const visibleNav = NAV.filter(item => canOpenPage(profile.role, item.key))
+  // เปิดเว็บมาที่ #/ แล้วบทบาทนั้นไม่ใช้ภาพรวม → ไปหน้างานของตัวเองแทน ไม่ขึ้นหน้า "ไม่มีสิทธิ์"
+  const page = requested === 'overview' && !canOpenPage(profile.role, 'overview') ? homePage(profile.role) : requested
+  const scope = useMemo(() => boardScope(profile.role, profile.section), [profile.role, profile.section])
+  const visibleNav = NAV
+    .filter(item => canOpenPage(profile.role, item.key))
+    .map(item => item.key === 'board' && scope.columns ? { ...item, name: 'งานของฉัน', short: 'งานของฉัน' } : item)
   const roleLabel = labelFor(profile.role, profile.section)
 
   return (
@@ -99,7 +105,7 @@ function Workspace({ page, profile, email }: {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 bg-brand px-4 py-2.5 text-white lg:hidden">
           <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-8 rounded-md" />
-          <span className="font-semibold">ติดตามการผลิต</span>
+          <span className="hidden font-semibold whitespace-nowrap sm:inline">ติดตามการผลิต</span>
           {/* แท็บเล็ตใช้ร่วมกันหลายคน ต้องเห็นตลอดว่าใครล็อกอินอยู่ เพราะทุกการกดบันทึกชื่อผู้กด */}
           <a href="#/system" className="ml-auto flex min-h-12 min-w-0 items-center gap-2 rounded-xl px-2 hover:bg-white/10">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-gold text-brand-700"><IconUser className="size-4" /></span>
@@ -124,7 +130,7 @@ function Workspace({ page, profile, email }: {
             <>
               <p className="border-b border-line bg-gold-soft px-4 py-2 text-sm text-ink">หน้าทดลอง · ใช้ข้อมูลจำลอง</p>
               <Suspense fallback={<main className="p-5"><p role="status">กำลังโหลดหน้าติดตามการผลิต…</p></main>}>
-                <Dashboard view={page} today={today} />
+                <Dashboard view={page} today={today} scope={scope} />
               </Suspense>
             </>
           ) : (

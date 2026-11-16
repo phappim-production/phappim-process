@@ -38,6 +38,9 @@ export function canOpenPage(role: EmployeeRole, page: PageKey): boolean {
       return role === 'owner'
     case 'reports':
       return role === 'owner' || role === 'manager'
+    // ภาพรวม (รับงานเพิ่มได้ไหม · งานเสี่ยงทั้งโรงงาน) เป็นข้อมูลสำหรับคนตัดสินใจ · คนหน้างานใช้บอร์ดของตัวเอง
+    case 'overview':
+      return role === 'owner' || role === 'admin' || role === 'manager'
     default:
       return true
   }

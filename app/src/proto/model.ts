@@ -31,6 +31,7 @@ export type Job = {
   no: string                 // เลขที่ใบยืนยัน
   customer: string
   product: string
+  productCode?: string       // product_types.code · ใช้หาจักรที่สินค้าต้องใช้
   unit: string
   qty: number
   due: Date

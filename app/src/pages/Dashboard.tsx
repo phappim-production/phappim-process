@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { makeMockJobs } from '../proto/mockJobs'
+import { makeMockBookings, makeMockJobs, makeMockMachines } from '../proto/mockJobs'
 import {
   COLUMNS, DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME,
   columnOf, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
@@ -11,14 +11,58 @@ import { DueLabel, Pill, RouteBadge, StatTile } from '../components/ui'
 import { TONE, type Tone } from '../components/tone'
 import { IconAlert, IconCalendar, IconCheck, IconClock, IconFactory, IconFilm, IconPause, IconSearch, IconX } from '../components/icons'
 import Overview from './Overview'
+import { DASH_TAB_NAME, FACTORY_SCOPE, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
+import { SewingFloor, TodoPanel } from './WorkPanels'
+import { applyBooking, applyMachineStatus, applyStartSewing, cancelBookings, SEW_NEEDS, type MachineStatus } from '../proto/sewing'
+import { BookingPanel } from './BookingPanel'
 
 type Filter = 'all' | 'overdue' | 'hold' | 'film' | 'doneToday'
 type View = 'overview' | 'board'
 
 // เฟส 1: ภาพรวมแอดมิน + บอร์ดสถานี (ข้อมูลจำลอง) · DEVELOPMENT.md หัวข้อ 8
-export default function Dashboard({ view, today }: { view: View; today: string }) {
+export default function Dashboard({ view, today, scope: myScope = FACTORY_SCOPE }: { view: View; today: string; scope?: BoardScope }) {
   const now = useNow(30_000)
-  const [jobs] = useState(() => makeMockJobs(new Date()))
+  // ข้อมูลจำลองเปลี่ยนได้ เพื่อให้กดเริ่มเย็บแล้วเห็นผลจริงบนจอ (A4 เปลี่ยนเป็นเรียก public.start_sewing)
+  const [{ allJobs, machines, bookings }, setData] = useState(() => {
+    const list = makeMockJobs(new Date())
+    const ms = makeMockMachines(list)
+    return { allJobs: list, machines: ms, bookings: makeMockBookings(list, ms, new Date()) }
+  })
+  const startSewing = (jobId: string) => {
+    const r = applyStartSewing(allJobs, machines, jobId, SEW_NEEDS, new Date(), bookings)
+    if (!r.ok) return { ok: false as const, reason: r.reason }
+    setData({ allJobs: r.jobs, machines: r.machines, bookings })
+    return { ok: true as const, picked: r.picked }
+  }
+  const book = (jobId: string, starts: Date, ends: Date) => {
+    const job = allJobs.find(j => j.id === jobId)
+    if (!job) return { ok: false as const, reason: 'ไม่พบงานนี้' }
+    const r = applyBooking(job, machines, bookings, starts, ends, SEW_NEEDS, new Date())
+    if (!r.ok) return { ok: false as const, reason: r.reason }
+    setData({ allJobs, machines, bookings: r.bookings })
+    return { ok: true as const, picked: r.picked }
+  }
+  const cancelBook = (jobId: string) => {
+    const r = cancelBookings(bookings, jobId, new Date())
+    if (!r.ok) return { ok: false as const, reason: r.reason }
+    setData({ allJobs, machines, bookings: r.bookings })
+    return { ok: true as const }
+  }
+  const setMachineStatus = (code: string, status: MachineStatus, note: string) => {
+    const r = applyMachineStatus(allJobs, machines, code, status, note, new Date())
+    if (!r.ok) return { ok: false as const, reason: r.reason }
+    setData({ allJobs: r.jobs, machines: r.machines, bookings })
+    return { ok: true as const, heldJob: r.heldJob }
+  }
+  // คนหน้างานเห็นเฉพาะงานของตัวเองก่อน · กดดูทั้งโรงงานได้เมื่ออยากรู้ว่างานกำลังจะมาถึง
+  const [wholeFactory, setWholeFactory] = useState(false)
+  const scoped = myScope.columns !== null
+  const scope = useMemo<BoardScope>(() => view !== 'board' ? FACTORY_SCOPE
+    : scoped && wholeFactory ? { ...FACTORY_SCOPE, title: myScope.title, sub: 'ดูทั้งโรงงาน', tabs: myScope.tabs } : myScope,
+  [view, scoped, wholeFactory, myScope])
+  const [tab, setTab] = useState<DashTab>(myScope.tabs[0])
+  const jobs = useMemo(() => allJobs.filter(j => jobInScope(j, scope)), [allJobs, scope])
+  const columns = scope.columns ? COLUMNS.filter(c => scope.columns!.includes(c.key)) : COLUMNS
   const [filter, setFilter] = useState<Filter>('all')
   const [route, setRoute] = useState<RouteCode | 'all'>('all')
   const [query, setQuery] = useState('')
@@ -65,10 +109,10 @@ export default function Dashboard({ view, today }: { view: View; today: string }
 
   const tiles = (
     <div className="scroll-thin -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0 xl:grid-cols-5 [&>*]:w-44 [&>*]:shrink-0 [&>*]:snap-start sm:[&>*]:w-auto">
-      <StatTile icon={IconFactory} label="งานในโรงงาน" value={counts.active} tone="brand" active={view === 'board' && filter === 'all'} onClick={() => go('all')} />
+      <StatTile icon={IconFactory} label={scope.columns ? 'งานของฉัน' : 'งานในโรงงาน'} value={counts.active} tone="brand" active={view === 'board' && filter === 'all'} onClick={() => go('all')} />
       <StatTile icon={IconCalendar} label="เลยกำหนดส่ง" value={counts.overdue} tone="danger" active={filter === 'overdue'} onClick={() => go('overdue')} />
       <StatTile icon={IconPause} label="ติดปัญหา / พักงาน" value={counts.hold} tone="danger" active={filter === 'hold'} onClick={() => go('hold')} />
-      <StatTile icon={IconFilm} label="รอฟิล์ม DTF" value={counts.film} tone="warn" note={counts.filmLate ? `เลย ETA ${counts.filmLate}` : undefined} active={filter === 'film'} onClick={() => go('film')} />
+      {scope.showFilm && <StatTile icon={IconFilm} label="รอฟิล์ม DTF" value={counts.film} tone="warn" note={counts.filmLate ? `เลย ETA ${counts.filmLate}` : undefined} active={filter === 'film'} onClick={() => go('film')} />}
       <StatTile icon={IconCheck} label="เสร็จวันนี้" value={counts.doneToday.length} tone="ok" note={doneQty ? `${doneQty.toLocaleString('th-TH')} ชิ้น` : undefined} active={filter === 'doneToday'} onClick={() => go('doneToday')} />
     </div>
   )
@@ -88,7 +132,30 @@ export default function Dashboard({ view, today }: { view: View; today: string }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-6">
-      <PageHeader title="บอร์ดสถานี" sub="งานทุกงานเรียงตามสถานี · กดการ์ดเพื่อดูรายละเอียด" today={today} now={now} />
+      <PageHeader title={scope.title} sub={scope.sub} today={today} now={now} />
+      {scope.tabs.length > 1 && (
+        <div role="tablist" aria-label="มุมมอง" className="flex gap-1 rounded-2xl border border-line bg-white p-1 shadow-card sm:self-start">
+          {scope.tabs.map(t => (
+            <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
+              className={`min-h-12 flex-1 rounded-xl px-2 font-semibold whitespace-nowrap transition sm:flex-none sm:px-4 ${tab === t ? 'bg-brand text-white shadow-card' : 'text-muted hover:text-ink'}`}>
+              {DASH_TAB_NAME[t]}
+            </button>
+          ))}
+        </div>
+      )}
+      {tab === 'sewing' && scope.tabs.includes('sewing') ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <SewingFloor jobs={allJobs} machines={machines} bookings={bookings} now={now} onOpen={setOpenId}
+            onStart={myScope.canSew ? startSewing : undefined} onStatus={myScope.canReportMachines ? setMachineStatus : undefined}
+            booking={<BookingPanel jobs={allJobs} machines={machines} bookings={bookings} now={now} onOpen={setOpenId}
+              onBook={myScope.canSew ? book : undefined} onCancel={myScope.canSew ? cancelBook : undefined} />} />
+        </div>
+      ) : tab === 'todo' && scope.tabs.includes('todo') ? (
+        <div className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto">
+          {tiles}
+          <TodoPanel jobs={jobs} now={now} onOpen={setOpenId} />
+        </div>
+      ) : (<>
       {tiles}
 
       {/* ตัวกรอง */}
@@ -98,6 +165,10 @@ export default function Dashboard({ view, today }: { view: View; today: string }
           <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาเลขที่ใบ / ลูกค้า / สินค้า"
             className="w-full rounded-xl border border-line bg-white py-2 pr-3 pl-9 text-sm shadow-card outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15" />
         </label>
+        {scoped && myScope.allowFactory && (
+          <Segmented value={wholeFactory ? 'all' : 'mine'} onChange={v => { setWholeFactory(v === 'all'); setFilter('all') }}
+            options={[['mine', 'งานของฉัน'], ['all', 'ทั้งโรงงาน']]} />
+        )}
         <Segmented value={route} onChange={setRoute} options={[['all', 'ทุกเส้นทาง'], ['normal', ROUTES.normal.short], ['dtf', ROUTES.dtf.short], ['plain', ROUTES.plain.short]]} />
         {filter !== 'all' && (
           <button onClick={() => setFilter('all')} className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand">
@@ -108,7 +179,7 @@ export default function Dashboard({ view, today }: { view: View; today: string }
 
       {/* บอร์ด */}
       <div className="scroll-thin -mx-4 flex min-h-0 flex-1 snap-x gap-3 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6">
-        {COLUMNS.map(c => {
+        {columns.map(c => {
           const list = byColumn.get(c.key)!
           const accent = c.key === 'done' ? 'bg-ok' : ['materials', 'sample', 'sample_review'].includes(c.key) ? 'bg-gold' : 'bg-brand'
           return (
@@ -126,6 +197,7 @@ export default function Dashboard({ view, today }: { view: View; today: string }
           )
         })}
       </div>
+      </>)}
 
       {drawer}
     </div>

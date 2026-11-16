@@ -128,5 +128,9 @@ await workflowTests({ db, ok, as })
 const { sectionTests } = await import('./sections.mjs')
 await sectionTests({ db, ok, as })
 
+// ---- 9. จักรเย็บ (S14) ----
+const { sewingTests } = await import('./sewing.mjs')
+await sewingTests({ db, ok, as })
+
 console.log(`\nผ่าน ${pass} · ไม่ผ่าน ${fail}`)
 process.exit(fail ? 1 : 0)

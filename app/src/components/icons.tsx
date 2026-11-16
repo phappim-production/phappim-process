@@ -31,3 +31,14 @@ export const IconLayers = icon(<><path d="m12 2 10 5-10 5L2 7z" /><path d="m2 17
 export const IconChevronRight = icon(<path d="m9 18 6-6-6-6" />)
 export const IconUser = icon(<><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>)
 export const IconTrendingUp = icon(<><path d="m22 7-8.5 8.5-5-5L2 17" /><path d="M16 7h6v6" /></>)
+
+// จักรเย็บผ้า: แขนจักร · หัวเข็ม · หลอดด้ายด้านบน · ฐาน · ตะเข็บใต้เข็ม
+export const IconSewing = icon(<>
+  <path d="M5 11V7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v11" />
+  <path d="M5 11h10a1 1 0 0 1 1 1v6" />
+  <path d="M7 11v3.5" />
+  <path d="M10.5 5V3.2h3V5" />
+  <circle cx="17.5" cy="8" r="1.2" />
+  <rect x="2" y="18" width="20" height="3" rx="1" />
+  <path d="M3.5 16h2M8.5 16h2" />
+</>)
