@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>มาตรฐานสถานีการผลิต · ภาพพิมพ์ 142</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:#1b2320; --muted:#5d6862; --faint:#8c968f; --rule:#cfd6d0; --rule-strong:#9fb0a6;
+    --band:#f1f4f1; --brand:#0f4a42; --brand-2:#e4efeb; --accent:#a8691b; --accent-2:#fbf1e1; --red:#a8261d;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body { margin:0; background:#d9ddd8; color:var(--ink); font:12px/1.42 "Sarabun", system-ui, sans-serif; }
+
+  /* แถบเครื่องมือ (เฉพาะจอ) */
+  .toolbar { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:12px; padding:10px 18px; background:var(--brand); color:#fff; }
+  .toolbar strong { font-size:15px; }
+  .toolbar button { margin-left:auto; padding:7px 16px; border:0; border-radius:6px; background:#fff; color:var(--brand); font:600 13px "Sarabun"; cursor:pointer; }
+
+  /* หน้า A4 */
+  .page { position:relative; display:flex; flex-direction:column; width:210mm; height:297mm; margin:18px auto; padding:13mm 15mm 11mm; background:#fff; box-shadow:0 1px 8px rgba(0,0,0,.15); overflow:hidden; }
+  .running { display:flex; justify-content:space-between; padding-bottom:5px; margin-bottom:12px; border-bottom:1px solid var(--rule); font-size:10.5px; color:var(--muted); }
+  .running b { color:var(--brand); font-weight:600; }
+  .foot { margin-top:auto; padding-top:6px; border-top:1px solid var(--rule); display:flex; justify-content:space-between; font-size:10.5px; color:var(--faint); }
+
+  h1 { margin:0; font-size:26px; line-height:1.25; color:var(--brand); }
+  h2 { margin:0 0 8px; font-size:18px; color:var(--brand); }
+  h2 .no { display:inline-block; min-width:30px; color:var(--accent); }
+  h3 { margin:12px 0 5px; font-size:13.5px; font-weight:700; }
+  p { margin:0 0 5px; }
+  .muted { color:var(--muted); } .small { font-size:11px; }
+  .lead { font-size:13.5px; color:var(--muted); }
+
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:3px 6px; border:1px solid var(--rule); vertical-align:top; text-align:left; }
+  thead th { background:var(--brand); border-color:var(--brand); color:#fff; font-weight:600; font-size:11.5px; }
+  tbody th { background:var(--band); font-weight:600; }
+  tr.group td { background:var(--brand-2); color:var(--brand); font-weight:700; font-size:11.5px; padding:3px 6px; }
+  td.n { width:26px; text-align:center; color:var(--muted); }
+  td.chk, th.chk { width:52px; text-align:center; white-space:nowrap; }
+  td.rec { width:84px; }
+  td.blank { height:22px; }
+  td.detail { font-size:11.5px; color:#2c3530; }
+  .step { font-weight:600; }
+  .num { font-variant-numeric:tabular-nums; }
+
+  .rec-tag { display:inline-block; padding:0 6px; border-radius:3px; font-size:10.5px; font-weight:600; white-space:nowrap; }
+  .r-req { background:#f8e3e0; color:var(--red); } .r-num { background:#e3ecf6; color:#23578c; }
+  .r-appr { background:var(--accent-2); color:var(--accent); } .r-lock { background:#ece4f4; color:#5f3784; }
+  .r-opt { background:var(--band); color:var(--muted); }
+
+  .field { display:inline-block; min-width:110px; border-bottom:1px solid var(--rule-strong); }
+  .field.s { min-width:46px; } .field.l { min-width:190px; }
+  .cb::before { content:"☐"; margin-right:3px; }
+  .cb { margin-right:12px; white-space:nowrap; }
+
+  .meta { display:grid; grid-template-columns:repeat(4, 1fr); border:1px solid var(--rule); margin-bottom:8px; }
+  .meta div { padding:5px 8px; border-right:1px solid var(--rule); }
+  .meta div:last-child { border-right:0; }
+  .meta span { display:block; font-size:10.5px; color:var(--muted); }
+  .meta b { font-weight:600; }
+  .io { display:grid; grid-template-columns:1fr 18px 1fr; align-items:stretch; margin-bottom:6px; }
+  .io > div { padding:5px 8px; border:1px solid var(--rule); background:var(--band); }
+  .io > i { display:grid; place-items:center; font-style:normal; color:var(--brand); font-weight:700; }
+  .io span { display:block; font-size:10.5px; color:var(--muted); }
+
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .panel { border:1px solid var(--rule); }
+  .panel h4 { margin:0; padding:4px 8px; background:var(--band); border-bottom:1px solid var(--rule); font-size:11.5px; }
+  .panel ul { margin:0; padding:5px 8px 6px 24px; }
+  .panel li { margin:1px 0; }
+  .panel .body { padding:5px 8px; }
+  .notes { border:1px solid var(--rule); padding:4px 8px; }
+  .notes .ln { height:20px; border-bottom:1px dotted var(--rule-strong); }
+  .notes .ln:last-child { border-bottom:0; }
+  .callout { padding:8px 10px; border-left:4px solid var(--accent); background:var(--accent-2); }
+  .callout.brand { border-color:var(--brand); background:var(--brand-2); }
+
+  /* ผังขั้นตอน */
+  .flow { display:flex; align-items:stretch; gap:0; margin:6px 0 4px; }
+  .flow .st { flex:1; padding:6px 4px; border:1px solid var(--rule-strong); border-radius:4px; text-align:center; font-weight:600; font-size:11.5px; background:#fff; }
+  .flow .st small { display:block; font-weight:400; color:var(--muted); font-size:10px; }
+  .flow .arw { width:14px; display:grid; place-items:center; color:var(--muted); }
+  .flow .grp { flex:3.4; display:flex; flex-direction:column; border:2px solid var(--brand); border-radius:6px; padding:4px; background:var(--brand-2); }
+  .flow .grp .row { display:flex; }
+  .flow .grp .cap { text-align:center; font-weight:700; color:var(--brand); font-size:11.5px; margin-top:3px; }
+  .flow .st.pre { background:var(--band); }
+
+  .cover-title { margin:26mm 0 6mm; }
+  .cover-title .kicker { font-size:13px; letter-spacing:.06em; color:var(--accent); font-weight:600; }
+  .doc-control td, .doc-control th { padding:6px 8px; }
+  .sign td { height:46px; }
+
+  @media print {
+    body { background:#fff; }
+    .toolbar { display:none; }
+    .page { margin:0; box-shadow:none; width:auto; height:auto; min-height:277mm; padding:0; overflow:visible; break-after:page; }
+    .page:last-child { break-after:auto; }
+    @page { size:A4; margin:11mm 13mm 9mm; }
+  }
+  @media screen and (max-width:840px) {
+    .page { width:auto; height:auto; margin:8px; padding:16px; overflow-x:auto; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar"><strong>มาตรฐานสถานีการผลิต</strong><span>PP-SOP-01 · ร่างเพื่อยืนยันกับหน้างาน</span><button onclick="print()">พิมพ์ / บันทึก PDF</button></div>
+<main id="doc"></main>
+
+<script>
+/* =====================================================================
+   ข้อมูลของเอกสาร · แก้ที่นี่แล้วเปิดใหม่ (หน้าเอกสารสร้างจากข้อมูลชุดนี้)
+   rec: req = ต้องติ๊กก่อนกดเสร็จ · num = ต้องกรอกตัวเลข · appr = ต้องมีคนอนุมัติ · lock = รอเงื่อนไข · opt = เช็คลิสต์ (ไม่บังคับ)
+   ===================================================================== */
+const DOC = { no:'PP-SOP-01', rev:'ร่าง 0.2', date:'16 พ.ย. 2569', title:'มาตรฐานสถานีการผลิต' }
+const REC = { req:'ต้องติ๊ก', num:'กรอกค่า', appr:'ต้องอนุมัติ', lock:'รอเงื่อนไข', opt:'เช็คลิสต์' }
+
+const STATIONS = [
+  {
+    code:'ST-01', name:'พิมพ์ซับลิเมชั่น', en:'Sublimation Printing', line:'สายซับลิเมชั่น', budget:'≤ 1 วันทำงาน',
+    purpose:'พิมพ์ลายลงกระดาษทรานเฟอร์ตามไฟล์ที่ลูกค้ายืนยัน ให้สีตรงตัวอย่างและครบทุกชิ้น',
+    input:'ใบยืนยันฉบับเซ็น · ไฟล์งานที่อนุมัติ · ม้วนกระดาษทรานเฟอร์ · หมึกซับลิเมชั่น',
+    output:'ม้วนกระดาษพิมพ์ที่ตรวจแล้ว ติดป้ายเลขงาน ส่งสถานีรีด',
+    steps:[
+      ['เตรียมงาน'],
+      ['รับใบงานและไฟล์','ตรวจเลขที่ใบยืนยัน จำนวน ไซซ์ ชื่อ/เบอร์ ตรงกับใบยืนยันฉบับเซ็น','req'],
+      ['ตรวจไฟล์','ขนาดจริง 1:1 · ความละเอียดพอ · เผื่อขอบตัด (bleed) · สะกดชื่อ/ตัวเลขถูก','req'],
+      ['จัดเลย์เอาต์ (Nesting)','วางชิ้นแพทเทิร์นให้เต็มหน้ากว้างกระดาษ ลดกระดาษเสีย · คำนวณความยาวที่ต้องใช้','num'],
+      ['ตั้งค่า RIP','โปรไฟล์สี (ICC) ตามชนิดผ้า · กลับด้าน (Mirror) · โหมดคุณภาพ/ความเร็ว','req'],
+      ['เตรียมเครื่องและม้วนกระดาษ'],
+      ['ตรวจหมึก','ระดับหมึกทุกสีพอทั้งงาน · เปลี่ยน/เติมก่อนเริ่ม','opt'],
+      ['ตรวจหัวพิมพ์','พิมพ์ Nozzle check · เส้นขาดให้ล้างหัว (Cleaning) แล้วตรวจซ้ำ','req'],
+      ['เลือกม้วนกระดาษ','ชนิดและแกรมตามงาน · หน้ากว้างพอกับเลย์เอาต์ · ม้วนไม่ชื้น ไม่ยับ','opt'],
+      ['นำม้วนกระดาษเข้าเครื่อง','ใส่แกนม้วน → ร้อยกระดาษผ่านชุดป้อน ด้านเคลือบหันขึ้น → จัดแนวให้ตรง ไม่เอียง','opt'],
+      ['ตั้งม้วนเก็บ (Take-up)','ยึดปลายกระดาษกับแกนเก็บ ตั้งความตึง · ตั้งชนิดสื่อในเครื่องให้ตรงกระดาษ','opt'],
+      ['พิมพ์ทดสอบ','พิมพ์แถบสี/ชิ้นทดสอบ เทียบกับตัวอย่างที่ลูกค้าผ่าน','appr'],
+      ['พิมพ์'],
+      ['พิมพ์งานจริงและเฝ้าเครื่อง','สั่งพิมพ์ตามคิว · ดูเส้นขีด (banding) หมึกหยด กระดาษย่น/ติด · พบปัญหาหยุดเครื่องและแจ้งทันที','opt'],
+      ['ตรวจและส่งต่อ'],
+      ['ตรวจงานพิมพ์','ปล่อยหมึกแห้ง · สีตรง · ครบทุกชิ้น/ไซซ์ · ไม่มีเส้น/รอยเปื้อน · กลับด้านถูก','req'],
+      ['ตัดแยกม้วน ติดป้าย บันทึก','ตัดแยกม้วนตามงาน · ป้ายเลขงาน · ความยาวที่ใช้ · กระดาษเสีย → ส่งสถานีรีด','num'],
+    ],
+    records:['ความยาวกระดาษที่ใช้ (เมตร)','กระดาษเสีย (เมตร) และสาเหตุ','จำนวนครั้งที่ล้างหัว','ผลพิมพ์ทดสอบ: ผ่าน / ไม่ผ่าน'],
+    defects:['สีเพี้ยนจากตัวอย่าง','เส้นขีด / banding','หมึกหยด / เปื้อน','ลืมกลับด้าน (Mirror)','ขนาดผิด / ชิ้นไม่ครบ','กระดาษย่น / ติดเครื่อง'],
+    capacity:[['เครื่องพิมพ์ (รุ่น · จำนวน)',''],['หน้ากว้างกระดาษที่ใช้ (ซม.)',''],['ความเร็วพิมพ์โหมดปกติ (ตร.ม./ชม.)',''],['งานเสื้อ 100 ตัว ใช้กระดาษประมาณ (ม.)','']],
+  },
+  {
+    code:'ST-02', name:'รีดซับลิเมชั่น', en:'Heat Transfer (Calender)', line:'สายซับลิเมชั่น', budget:'≤ 1 วันทำงาน',
+    purpose:'ถ่ายลายจากกระดาษพิมพ์ลงผ้าด้วยความร้อน ให้สีสด ติดแน่น ไม่ย่น ไม่ซ้อน',
+    input:'ม้วนกระดาษพิมพ์ที่ตรวจแล้ว · ผ้าม้วน/ผ้าชิ้นตามใบยืนยัน · กระดาษรองกันหมึก',
+    output:'ผ้าพิมพ์ลายที่ตรวจสีแล้ว ม้วนเก็บ ติดป้ายเลขงาน ส่งสถานีตัด',
+    steps:[
+      ['รับงาน'],
+      ['รับม้วนกระดาษพิมพ์','ป้ายม้วนตรงเลขงาน · สภาพม้วนไม่ยับ ไม่ชื้น','req'],
+      ['รับผ้า','ชนิดผ้า สี ความยาวตรงใบยืนยัน · ผ้าโพลีเอสเตอร์ · หน้าผ้าถูกด้าน','req'],
+      ['เตรียมเครื่อง'],
+      ['อุ่นเครื่องรีดโรล','ตั้งอุณหภูมิตามชนิดผ้า (ทั่วไป 190–210 °C) รอจนคงที่','num'],
+      ['ตั้งความเร็ว / เวลาสัมผัส / แรงกด','ตามตารางค่ามาตรฐานของผ้าแต่ละชนิด','num'],
+      ['รีดทดสอบ','รีดชิ้นเล็ก เทียบสีกับชิ้นทดสอบที่ผ่าน · ปรับค่าก่อนรีดจริง','appr'],
+      ['รีด'],
+      ['ป้อนผ้า + กระดาษพิมพ์ + กระดาษรอง','ด้านพิมพ์ประกบหน้าผ้า · จัดแนวตรง · ไม่มีรอยย่น','opt'],
+      ['รีดทั้งม้วน','เฝ้าการป้อนตลอด ไม่ให้เลื่อนหรือย่น','opt'],
+      ['ม้วนเก็บผ้าและลอกกระดาษ','ลอกตามชนิดผ้า · พักให้เย็นก่อนพับหรือม้วนแน่น','opt'],
+      ['ตรวจและส่งต่อ'],
+      ['ตรวจสีและการติด','สีสด ไม่ซีด · ไม่มีเงาซ้อน (ghosting) รอยย่น จุดขาว · ผ้าไม่เหลือง/หด','req'],
+      ['บันทึกและติดป้าย','เมตรผ้าที่ใช้ · ผ้าเสีย → ส่งสถานีตัด','num'],
+    ],
+    records:['อุณหภูมิ (°C) / ความเร็ว ที่ใช้จริง','เมตรผ้าที่ใช้','ผ้าเสีย (เมตร) และสาเหตุ','ผลรีดทดสอบ: ผ่าน / ไม่ผ่าน'],
+    defects:['สีซีด ไม่สด (ความร้อน/เวลาไม่พอ)','เงาซ้อน (ghosting)','รอยย่น / รอยพับ','ผ้าเหลือง หด หรือไหม้','จุดขาวจากฝุ่น / เศษด้าย','ลายเบี้ยวจากการป้อนเอียง'],
+    capacity:[['เครื่องรีด (ชนิด · หน้ากว้าง · จำนวน)',''],['ความเร็วรีดโดยเฉลี่ย (ม./ชม.)',''],['เวลาอุ่นเครื่อง (นาที)',''],['ผ้าที่ต้องใช้ค่าพิเศษ','']],
+  },
+  {
+    code:'ST-03', name:'ตัดชิ้นงาน', en:'Cutting', line:'สายซับลิเมชั่น · ใช้ทุกเส้นทาง', budget:'≤ 1 วันทำงาน',
+    purpose:'ตัดผ้าพิมพ์เป็นชิ้นตามแพทเทิร์นและไซซ์ ให้ลายตรงตำแหน่ง ขนาดถูก นับครบ',
+    input:'ผ้าพิมพ์ที่ตรวจแล้ว (หรือผ้าเปล่าในเส้นทาง DTF / ไม่พิมพ์) · แพทเทิร์นตามไซซ์',
+    output:'ชิ้นงานมัดชุดแยกไซซ์ พร้อมใบนับ ส่งสถานีเย็บ (หรือรีด DTF)',
+    steps:[
+      ['เตรียม'],
+      ['รับผ้า','เลขงานและความยาวตรง · ตรวจตำหนิผ้าก่อนตัด','req'],
+      ['เตรียมแพทเทิร์น / ไฟล์ตัด','ครบทุกไซซ์ตามใบยืนยัน · ตรวจขนาดแพทเทิร์นก่อนใช้','opt'],
+      ['ปูผ้า','ปูทีละชั้นให้ลายตรง ไม่ดึงจนผ้ายืด','opt'],
+      ['ตัด'],
+      ['ตัดตามขอบลาย / แพทเทิร์น','ตัดมือ เลเซอร์ หรือมีดร้อน ตามชนิดงาน','opt'],
+      ['ตรวจชิ้นตัด','ขนาดตามแพทเทิร์น · ขอบเรียบ ไม่ลุ่ย · ลายไม่ขาด','req'],
+      ['คัดแยกและส่งต่อ'],
+      ['คัดแยกและมัดชุด','แยกตามไซซ์และส่วน (หน้า หลัง แขน ปก) · ติดป้ายไซซ์','opt'],
+      ['นับชิ้น','ชิ้นดี / ชิ้นเสีย แยกไซซ์ · ตรงจำนวนสั่ง + เผื่อเสีย','num'],
+      ['ส่งต่อพร้อมใบนับ','ส่งสถานีเย็บ (DTF ส่งรีด DTF)','req'],
+    ],
+    records:['จำนวนชิ้นดีแยกไซซ์','ชิ้นเสียและสาเหตุ','ผ้าเหลือ (เมตร)'],
+    defects:['ตัดเบี้ยว / ผิดขนาด','ลายขาดหรือไม่ต่อกันที่ตะเข็บ','ขอบลุ่ย','ไซซ์ปนกัน','ชิ้นไม่ครบชุด'],
+    capacity:[['วิธีตัดที่ใช้ (มือ / เลเซอร์ / อื่น)',''],['เสื้อ 100 ตัว ตัดเสร็จใน (ชม.)',''],['ป้ายผ้า 1 ผืน ใหญ่สุด ตัดใน (นาที)',''],['จำนวนคนตัด','']],
+  },
+  {
+    code:'ST-04', name:'รีด DTF', en:'DTF Heat Press', line:'สาย DTF', budget:'กำหนดหลังเก็บข้อมูล',
+    purpose:'รีดฟิล์ม DTF ลงชิ้นผ้าตามตำแหน่งในใบยืนยัน ให้ติดแน่น ขอบไม่ยก',
+    input:'ฟิล์ม DTF ที่ได้รับแล้ว · ชิ้นผ้าตัดพร้อมใบนับ',
+    output:'ชิ้นงานรีดฟิล์มแล้ว ตรวจการติด นับครบ ส่งสถานีเย็บ',
+    steps:[
+      ['เตรียม'],
+      ['ได้รับฟิล์ม DTF','สถานีล็อกจนแอดมินกด "ได้รับฟิล์มแล้ว" · ตรวจขนาด สี จำนวนตามไฟล์','lock'],
+      ['รับชิ้นผ้าตัด','ยอดตรงใบนับจากสถานีตัด','req'],
+      ['ตั้งเครื่องรีดแบน','อุณหภูมิ เวลา แรงกด ตามชนิดฟิล์มและผ้า','num'],
+      ['รีดทดสอบ','ชิ้นทดสอบ 1 ชิ้น ตรวจการติดและตำแหน่ง','appr'],
+      ['รีด'],
+      ['รีดไล่ความชื้น (Pre-press)','รีดชิ้นผ้าเปล่าสั้นๆ ให้เรียบและแห้ง','opt'],
+      ['วางฟิล์มตามตำแหน่ง','ใช้แม่แบบ/ไม้บรรทัด วัดระยะตามใบยืนยัน','opt'],
+      ['รีดและลอกฟิล์ม','ลอกร้อนหรือลอกเย็นตามชนิดฟิล์ม','opt'],
+      ['รีดทับ (Post-press)','รีดซ้ำเพื่อให้ติดแน่นและผิวเรียบ','opt'],
+      ['ตรวจและส่งต่อ'],
+      ['ตรวจการติด','ดึงทดสอบ · ขอบไม่ยก · ตำแหน่งตรง · ไม่มีฟอง','req'],
+      ['นับและส่งเย็บ','ชิ้นดี / ชิ้นเสีย','num'],
+    ],
+    records:['อุณหภูมิ / เวลา / แรงกด ที่ใช้','ชิ้นดี / ชิ้นเสีย','ฟิล์มเสีย (ชิ้น)'],
+    defects:['ฟิล์มไม่ติด / ขอบยก','ตำแหน่งเบี้ยว','ฟิล์มแตกหลังยืด','รอยเงาจากเครื่องรีด','ฟิล์มผิดขนาด / ผิดสี'],
+    capacity:[['เครื่องรีดแบน (ขนาด · จำนวน)',''],['รีดได้ (ชิ้น/ชม.) ต่อเครื่อง',''],['ร้านฟิล์มส่งของใช้เวลา (วัน)','']],
+  },
+  {
+    code:'ST-05', name:'เย็บประกอบ', en:'Sewing', line:'ทุกเส้นทาง', budget:'กำหนดหลังเก็บข้อมูล',
+    purpose:'ประกอบชิ้นงานตามแบบ ผ่านด่านตัวแรกก่อนเย็บทั้งก้อน และเก็บงานให้เรียบร้อยก่อนส่ง QC',
+    input:'ชิ้นงานมัดชุดพร้อมใบนับ · ด้ายสีตามสเปก · ป้าย ซิป กระดุม อุปกรณ์',
+    output:'สินค้าเย็บเสร็จ เก็บเศษด้ายแล้ว นับยอดครบ ส่ง QC',
+    steps:[
+      ['จ่ายงานเข้าเย็บ'],
+      ['รับชิ้นงานและนับ','นับให้ตรงยอดจากสถานีตัด · จับคู่ชิ้นตามไซซ์/สี','req'],
+      ['เตรียมด้ายและอุปกรณ์','ด้ายสีตามสเปก · ป้ายคอ ป้ายไซซ์ ซิป กระดุม ครบ','opt'],
+      ['ตั้งจักรและจ่ายทีม','เข็ม ฝีเข็ม ความตึงด้าย · ระบุทีม/ช่างที่รับงาน','opt'],
+      ['ด่านตัวแรก (First piece)'],
+      ['เย็บตัวแรก','เย็บ 1 ตัวตามลำดับมาตรฐานของสินค้า','opt'],
+      ['ตรวจและอนุมัติตัวแรก','เทียบใบยืนยัน + ตัวอย่างที่ผ่าน: ขนาด ตำแหน่งลาย ตะเข็บ ตำแหน่งป้าย · ไม่ผ่านต้องแก้และเย็บใหม่','appr'],
+      ['เย็บทั้งก้อน'],
+      ['เย็บตามลำดับมาตรฐาน','ตามเช็คลิสต์เย็บของประเภทสินค้า (เสื้อ / ป้ายผ้า / กระเป๋า)','opt'],
+      ['กรอกยอดสะสม','อัปเดตเป็นระยะ เช่น ทุกครึ่งวัน (ห้ามกรอกก่อนตัวแรกผ่าน)','num'],
+      ['ปลายไลน์'],
+      ['เก็บงาน','ตัดเศษด้าย · ตรวจตะเข็บหลุด/ข้าม · กลับด้านถูก','req'],
+      ['นับยอดและส่ง QC','ยอดเย็บเสร็จทั้งก้อน','num'],
+    ],
+    records:['ทีม / ช่างที่รับงาน','ผลตัวแรก: ผ่าน / ไม่ผ่าน (กี่รอบ)','ยอดเย็บสะสม','ชิ้นเสียจากการเย็บ'],
+    defects:['ตะเข็บหลุด / ข้าม','ไซซ์สลับ','ป้ายติดผิดตำแหน่ง','ลายไม่ต่อที่ตะเข็บ','ด้ายสีไม่ตรงสเปก','เศษด้ายไม่เก็บ'],
+    capacity:[['จำนวนช่างเย็บ (คน) · จักรดูหน้าถัดไป',''],['เสื้อยืด 1 ตัว ใช้เวลาเย็บ (นาที)',''],['ป้ายผ้า 1 ผืน (นาที)',''],['ถุงผ้า 1 ใบ (นาที)','']],
+  },
+  {
+    code:'ST-06', name:'ตรวจคุณภาพและแพ็ค', en:'QC & Packing', line:'ทุกเส้นทาง', budget:'กำหนดหลังเก็บข้อมูล',
+    purpose:'ตรวจสินค้าทุกชิ้นก่อนส่ง แยกงานแก้กลับสถานีต้นเหตุ แพ็คและติดป้ายให้ตรงใบยืนยัน',
+    input:'สินค้าเย็บเสร็จพร้อมใบนับ · ถุง กล่อง ป้าย ใบปะหน้า',
+    output:'สินค้าผ่าน QC แพ็คลงลัง ยอดครบ พร้อมส่ง',
+    steps:[
+      ['ตรวจ'],
+      ['รับงานจากเย็บ','ยอดตรงใบนับ','req'],
+      ['ตรวจทีละชิ้น','ขนาด · ลาย/สี · ตะเข็บ · ป้าย · คราบ/รอยเปื้อน','num'],
+      ['แยกงานไม่ผ่าน','ส่งแก้: ระบุจำนวน + สาเหตุ + สถานีต้นเหตุ (บังคับเมื่อมีงานไม่ผ่าน)','req'],
+      ['แพ็ค'],
+      ['รีด / ทำความสะอาดก่อนแพ็ค','เฉพาะงานที่กำหนด','opt'],
+      ['พับตามมาตรฐาน','ขนาดพับเท่ากันทุกชิ้น','opt'],
+      ['บรรจุถุงและติดป้ายไซซ์','แยกไซซ์ตามใบยืนยัน','opt'],
+      ['ปิดงาน'],
+      ['นับยอดรวม','เทียบจำนวนสั่ง + เผื่อเสีย','num'],
+      ['ลงลังและติดใบปะหน้า','เลขงาน · ลูกค้า · จำนวน · ลังที่ x/y','req'],
+      ['ถ่ายรูปก่อนปิดลัง','เก็บเป็นหลักฐานการส่ง','opt'],
+    ],
+    records:['ผ่าน / ไม่ผ่าน (ชิ้น)','สาเหตุไม่ผ่าน + สถานีต้นเหตุ','จำนวนลัง'],
+    defects:['คราบ / รอยเปื้อน','ตะเข็บหลุด','ไซซ์ผิดถุง','ยอดไม่ครบ','ป้ายผิด'],
+    capacity:[['จำนวนคน QC / แพ็ค',''],['ตรวจและแพ็คเสื้อ (ตัว/ชม.)',''],['ตรวจและแพ็คป้ายผ้า (ผืน/ชม.)','']],
+  },
+]
+
+const OUTSOURCE = {
+  code:'ST-07', name:'ส่งปักร้านนอก', en:'Outsourced Embroidery',
+  steps:[
+    ['ก่อนส่ง'],
+    ['เตรียมไฟล์ปักและใบสั่งงาน','ตำแหน่ง ขนาด สีด้าย จำนวนต่อไซซ์ ตามใบยืนยัน · แนบรูปตำแหน่ง','req'],
+    ['ตกลงวันนัดรับกับร้าน','บันทึกร้านที่ส่ง + วันนัดรับ (ETA) · ระบบใช้วันนี้คุมเวลา','num'],
+    ['นับชิ้นส่งออก','นับแยกไซซ์ · เซ็นใบส่งของ 2 ฝ่าย','num'],
+    ['ระหว่างอยู่ที่ร้าน'],
+    ['ตรวจชิ้นทดสอบจากร้าน','ร้านส่งรูป/ชิ้นแรกให้ตรวจก่อนปักทั้งก้อน','appr'],
+    ['ติดตามความคืบหน้า','ถามร้านก่อนวันนัด 1 วัน · ร้านเลื่อนต้องบันทึกวันใหม่ + สาเหตุ','opt'],
+    ['รับกลับ'],
+    ['รับงานกลับและนับ','ยอดตรงกับที่ส่งออก · ชิ้นหาย/เสียต้องบันทึก','num'],
+    ['ตรวจงานปัก','ตำแหน่ง · สีด้าย · ด้ายหลุด/ย่น · ขนาดตรงใบยืนยัน','req'],
+  ],
+}
+const SCREEN = { code:'ST-08', name:'ซิลค์สกรีน', en:'Screen Printing', steps:[['ทำบล็อกสกรีน','opt'],['ผสมสีตามที่ระบุ','opt'],['สกรีนชิ้นทดสอบ','appr'],['สกรีนทั้งก้อน','opt'],['อบ / รีดให้สีติด','opt'],['ตรวจงานสกรีน','req']] }
+
+/* จักรเย็บ: ชนิด · ชื่ออังกฤษ · ใช้ทำ (ร่าง) */
+const MACHINES = [
+  ['จักรเย็บเข็มเดี่ยว','Single needle lockstitch','เย็บทั่วไป ติดป้าย ติดกระเป๋า ป้ายผ้า ถุงผ้า'],
+  ['จักรสองเข็ม','Double needle','ทับตะเข็บสองแนว กางเกง เสื้อเชิ้ต'],
+  ['จักรโพ้ง 3 เส้น','Overlock 3 thread','โพ้งขอบกันลุ่ย ป้ายผ้า ผ้าผืน'],
+  ['จักรโพ้ง 4 เส้น','Overlock 4 thread','ประกอบเสื้อยืด/กีฬา เย็บไหล่ ข้าง ใต้แขน'],
+  ['จักรโพ้ง 5 เส้น','Safety stitch','ผ้าหนา ผ้าทอ กางเกง'],
+  ['จักรลา (คัฟเวอร์สติช)','Coverstitch','ลาแขน ลาชาย'],
+  ['จักรลาคอ / ฟลัตล็อก','Flatlock','ทับคอ เสื้อกีฬาตะเข็บแบน'],
+  ['จักรติดกระดุม','Button sewing','โปโล เสื้อเชิ้ต กาวน์'],
+  ['จักรเจาะรังดุม','Buttonhole','โปโล เสื้อเชิ้ต กาวน์'],
+  ['จักรเย็บยางยืด / หลายเข็ม','Elastic / Multi-needle','เอวกางเกง ชุดนอน กางเกงช้าง'],
+  ['จักรเข้าขอบ / ติดเทป','Binding','ขอบป้าย ผ้ากันเปื้อน ริสแบนด์'],
+]
+const SEW_PRODUCTS = [
+  ['เสื้อยืด / กีฬา / วิ่ง','โพ้ง 4 เส้น · จักรลา · ลาคอ · เข็มเดี่ยว (ป้าย)'],
+  ['เสื้อโปโล','โพ้ง 4 เส้น · เข็มเดี่ยว · สองเข็ม · ติดกระดุม · เจาะรังดุม'],
+  ['วอร์ม / แจ็คเก็ต / ฮู้ด','โพ้ง 4 เส้น · เข็มเดี่ยว (ซิป) · จักรลา · ยางยืด'],
+  ['กางเกง (ช้าง / มวย / ชุดนอน)','โพ้ง 4–5 เส้น · ยางยืด · จักรลา'],
+  ['ป้ายผ้า / ผ้าเชียร์ / ธง','โพ้ง 3 เส้น · เข็มเดี่ยว (พับริม รางสอด) · เข้าขอบ'],
+  ['ถุงผ้า / กระเป๋า','เข็มเดี่ยว · โพ้ง 4 เส้น · สองเข็ม'],
+]
+
+
+const REASONS = [
+  ['M','เครื่องจักร',[['M1','เครื่องเสีย / รอซ่อม'],['M2','หัวพิมพ์ตัน / ต้องล้างหัว'],['M3','ไฟดับ / ระบบล่ม']]],
+  ['W','วัตถุดิบ',[['W1','ผ้าไม่พอ / ผ้ายังไม่มา'],['W2','กระดาษ / หมึกหมด'],['W3','ฟิล์ม DTF ยังไม่มา'],['W4','อุปกรณ์ (ซิป ป้าย ด้าย) ไม่ครบ']]],
+  ['F','ไฟล์และข้อมูล',[['F1','ไฟล์ผิด / ไฟล์ยังไม่มา'],['F2','ข้อมูลใบยืนยันไม่ชัด'],['F3','ลูกค้าขอแก้ระหว่างผลิต']]],
+  ['P','คนและคิวงาน',[['P1','คนไม่พอ / ลา'],['P2','มีงานด่วนแทรก'],['P3','รองานจากสถานีก่อนหน้า']]],
+  ['Q','คุณภาพ',[['Q1','สีเพี้ยน ต้องทำใหม่'],['Q2','งานเสีย ต้องผลิตเพิ่ม'],['Q3','ชิ้นทดสอบ / ตัวแรกไม่ผ่าน']]],
+  ['O','อื่นๆ',[['O1','ร้านนอกส่งช้า (ปัก / ฟิล์ม / อื่นๆ)'],['O9','อื่นๆ (ระบุในรายงาน)']]],
+]
+
+/* ============================ ตัวสร้างหน้า ============================ */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]))
+const rec = k => `<span class="rec-tag r-${k}">${REC[k]}</span>`
+const pages = []
+const page = (section, body) => pages.push({ section, body })
+
+function sopTable(steps) {
+  let n = 0
+  const rows = steps.map(s => {
+    if (s.length === 1) return `<tr class="group"><td colspan="5">${esc(s[0])}</td></tr>`
+    n++
+    return `<tr><td class="n">${n}</td><td class="step">${esc(s[0])}</td><td class="detail">${s[1]}</td><td class="rec">${rec(s[2])}</td><td class="chk"><span class="cb"></span><span class="cb" style="margin:0"></span></td></tr>`
+  }).join('')
+  return `<table>
+    <thead><tr><th style="width:26px">#</th><th style="width:23%">ขั้นตอน</th><th>รายละเอียด / จุดควบคุม</th><th style="width:84px">บันทึกในระบบ</th><th class="chk">ถูก · แก้</th></tr></thead>
+    <tbody>${rows}</tbody></table>`
+}
+
+const pairs = a => a.reduce((r, x, i) => (i % 2 ? r[r.length - 1].push(x) : r.push([x]), r), [])
+
+function stationPage(s, i) {
+  page(`2.${i + 1} สถานี ${s.code}`, `
+    <h2><span class="no">${s.code}</span> ${s.name} <span class="muted small" style="font-weight:400">· ${s.en}</span></h2>
+    <div class="meta">
+      <div><span>สายการผลิต</span><b>${s.line}</b></div>
+      <div><span>เวลามาตรฐาน (ร่าง)</span><b>${s.budget}</b></div>
+      <div><span>หัวหน้าสถานี</span><span class="field"></span></div>
+      <div><span>คนกดในระบบ</span><span class="field"></span></div>
+    </div>
+    <p class="muted">${s.purpose}</p>
+    <div class="io"><div><span>รับเข้า</span>${s.input}</div><i>→</i><div><span>ส่งออก</span>${s.output}</div></div>
+    ${sopTable(s.steps)}
+    <div class="two" style="margin-top:8px">
+      <div class="panel"><h4>ค่าที่ต้องบันทึก</h4><ul>${s.records.map(r => `<li>${r}</li>`).join('')}</ul></div>
+      <div class="panel"><h4>ปัญหาคุณภาพที่พบบ่อย (ติ๊กที่เจอจริง)</h4><div class="body">${s.defects.map(d => `<span class="cb">${d}</span>`).join(' ')}</div></div>
+    </div>
+    <table style="margin-top:8px"><thead><tr><th colspan="4">ข้อมูลกำลังผลิต (กรอกจากหน้างาน)</th></tr></thead>
+      <tbody>${pairs(s.capacity.map(([k]) => k)).map(([a, b]) => `<tr><th style="width:30%">${a}</th><td style="width:20%"></td><th style="width:30%">${b ?? ''}</th><td style="width:20%"></td></tr>`).join('')}</tbody></table>
+    <h3>ขั้นตอนที่ขาด / แก้ไข</h3>
+    <div class="notes"><div class="ln"></div><div class="ln"></div></div>
+  `)
+}
+
+/* ---------- หน้า 1: ปก ---------- */
+page('', `
+  <div class="cover-title">
+    <div class="kicker">ภาพพิมพ์ 142 · ระบบติดตามการผลิต</div>
+    <h1>มาตรฐานสถานีการผลิต<br>และเวลามาตรฐาน</h1>
+    <p class="lead" style="margin-top:8px">ขั้นตอนย่อย จุดควบคุม เวลามาตรฐาน และการรายงานปัญหาของทุกสถานี<br>ฉบับร่างสำหรับยืนยันกับหัวหน้าสถานี</p>
+  </div>
+  <table class="doc-control">
+    <tbody>
+      <tr><th style="width:28%">เลขที่เอกสาร</th><td>${DOC.no}</td><th style="width:20%">ฉบับ</th><td>${DOC.rev}</td></tr>
+      <tr><th>วันที่จัดทำ</th><td>${DOC.date}</td><th>สถานะ</th><td>รอยืนยันจากหน้างาน</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:18px">วัตถุประสงค์</h3>
+  <p>กำหนดให้ทุกขั้นตอนการผลิตเป็น <b>สถานี</b> ที่มีขั้นตอนย่อยและเวลามาตรฐานชัดเจน เพื่อให้ระบบติดตามได้ว่างานอยู่ตรงไหน ช้ากว่ามาตรฐานหรือไม่ และเมื่อช้าต้องมีรายงานสาเหตุทุกครั้ง</p>
+
+  <h3>วิธีใช้เอกสารนี้</h3>
+  <table>
+    <tbody>
+      <tr><th style="width:28%">1. ตรวจขั้นตอน</th><td>ขั้นตอนในแต่ละสถานีเป็นร่าง ให้ติ๊ก <b>ถูก</b> หรือ <b>แก้</b> ทีละข้อ และเขียนขั้นที่ขาดในช่องท้ายหน้า</td></tr>
+      <tr><th>2. ยืนยันเวลา</th><td>ตรวจเวลามาตรฐานในหัวข้อ 1.1 · <b>พิมพ์ + รีด + ตัด ไม่เกิน 3 วันทำงาน</b> เป็นค่าที่กำหนดแล้ว</td></tr>
+      <tr><th>3. กรอกกำลังผลิต</th><td>กรอกตารางกำลังผลิตของแต่ละสถานีจากการทำงานจริง</td></tr>
+      <tr><th>4. ส่งกลับ</th><td>ถ่ายรูปหรือสแกนทุกหน้าส่งกลับ ข้อมูลจะใช้ตั้งค่าในระบบ</td></tr>
+    </tbody>
+  </table>
+
+  <h3>ความหมายของช่อง "บันทึกในระบบ"</h3>
+  <table><tbody>
+    <tr><td style="width:96px">${rec('req')}</td><td>ต้องติ๊กก่อนกดเสร็จสถานี</td><td style="width:96px">${rec('appr')}</td><td>หัวหน้าต้องกดอนุมัติก่อนทำต่อ</td></tr>
+    <tr><td>${rec('num')}</td><td>ต้องกรอกจำนวน วันที่ หรือค่าที่วัดได้</td><td>${rec('lock')}</td><td>ล็อกจนเงื่อนไขครบ เช่น ได้รับฟิล์ม</td></tr>
+    <tr><td>${rec('opt')}</td><td colspan="3">แสดงเป็นเช็คลิสต์ให้ดู ไม่บังคับติ๊ก</td></tr>
+  </tbody></table>
+
+  <h3>ผู้รับรองเอกสาร</h3>
+  <table class="sign">
+    <thead><tr><th>จัดทำ</th><th>ตรวจสอบ (ผู้ควบคุมงาน)</th><th>อนุมัติ (เจ้าของกิจการ)</th></tr></thead>
+    <tbody><tr><td></td><td></td><td></td></tr>
+    <tr><td class="small muted">วันที่</td><td class="small muted">วันที่</td><td class="small muted">วันที่</td></tr></tbody>
+  </table>
+`)
+
+/* ---------- หน้า 2: ผังและเวลามาตรฐาน ---------- */
+page('1.1 ภาพรวมและเวลามาตรฐาน', `
+  <h2><span class="no">1.1</span> ภาพรวมสายการผลิตและเวลามาตรฐาน</h2>
+  <p class="muted">เส้นทางปกติ (ซับลิเมชั่น) · งานเดินทั้งก้อน สถานีถัดไปเริ่มเมื่อสถานีก่อนเสร็จครบ</p>
+  <div class="flow">
+    <div class="st pre">รับงาน<small>+ วัตถุดิบ</small></div><div class="arw">›</div>
+    <div class="st pre">ตัวอย่าง<small>+ ลูกค้ายืนยัน</small></div><div class="arw">›</div>
+    <div class="grp">
+      <div class="row"><div class="st">ST-01<small>พิมพ์</small></div><div class="arw">›</div><div class="st">ST-02<small>รีด</small></div><div class="arw">›</div><div class="st">ST-03<small>ตัด</small></div></div>
+      <div class="cap">รวมไม่เกิน 3 วันทำงาน</div>
+    </div><div class="arw">›</div>
+    <div class="st">ST-05<small>เย็บ</small></div><div class="arw">›</div>
+    <div class="st">ST-06<small>QC + แพ็ค</small></div>
+  </div>
+  <p class="small muted">เส้นทาง DTF: ตัด (ST-03) → รีด DTF (ST-04) → เย็บ → QC · เส้นทางไม่มีงานพิมพ์: ตัด → เย็บ → QC · งานปักส่งร้านนอก (ST-07) คุมเวลาด้วยวันนัดรับของร้าน · ซิลค์สกรีน (ST-08) รอยืนยัน</p>
+
+  <h3>ตารางเวลามาตรฐาน</h3>
+  <table>
+    <thead><tr><th style="width:24%">ช่วง</th><th>เริ่มนับ → จบ</th><th style="width:17%">เวลามาตรฐาน</th><th style="width:22%">ยืนยัน / แก้เป็น</th></tr></thead>
+    <tbody>
+      <tr class="group"><td colspan="4">ก่อนผลิต</td></tr>
+      <tr><td>รับงาน + วัตถุดิบ</td><td>รับงาน → วัตถุดิบครบทุกฝ่าย</td><td>ร่าง 2 วัน</td><td></td></tr>
+      <tr><td>ขึ้นตัวอย่าง</td><td>วัตถุดิบครบ → ส่งตัวอย่างให้แอดมิน</td><td>ร่าง 1 วัน</td><td></td></tr>
+      <tr><td>ลูกค้ายืนยันตัวอย่าง</td><td>ส่งให้ลูกค้า → ลูกค้าตอบ</td><td>ร่าง 1 วัน</td><td></td></tr>
+      <tr class="group"><td colspan="4">สายซับลิเมชั่น</td></tr>
+      <tr><th>พิมพ์ + รีด + ตัด</th><th>เริ่มพิมพ์ → ตัดเสร็จ ส่งเย็บ</th><th style="color:var(--red)">ไม่เกิน 3 วัน</th><th class="muted" style="font-weight:400">กำหนดแล้ว</th></tr>
+      <tr><td style="padding-left:18px">ST-01 พิมพ์</td><td>เริ่มพิมพ์ → ส่งม้วนให้รีด</td><td>ร่าง ≤ 1 วัน</td><td></td></tr>
+      <tr><td style="padding-left:18px">ST-02 รีด</td><td>รับม้วน → ส่งผ้าให้ตัด</td><td>ร่าง ≤ 1 วัน</td><td></td></tr>
+      <tr><td style="padding-left:18px">ST-03 ตัด</td><td>รับผ้า → ส่งชิ้นงานให้เย็บ</td><td>ร่าง ≤ 1 วัน</td><td></td></tr>
+      <tr class="group"><td colspan="4">สาย DTF</td></tr>
+      <tr><td>ตัด + รีด DTF</td><td>เริ่มตัด → ส่งเย็บ (ไม่นับเวลารอฟิล์ม)</td><td></td><td></td></tr>
+      <tr class="group"><td colspan="4">งานส่งร้านนอก</td></tr>
+      <tr><td>ST-07 ส่งปักร้านนอก</td><td>ส่งของให้ร้าน → รับกลับและตรวจแล้ว</td><td>ตามวันนัดรับของร้าน</td><td></td></tr>
+      <tr class="group"><td colspan="4">ประกอบและปิดงาน</td></tr>
+      <tr><td>ST-05 เย็บ</td><td>จ่ายงานเข้าเย็บ → ส่ง QC</td><td></td><td></td></tr>
+      <tr><td>ST-06 QC + แพ็ค</td><td>รับงาน → ลงลังพร้อมส่ง</td><td></td><td></td></tr>
+      <tr><th>รวมทั้งงาน</th><th>รับงาน → พร้อมส่ง</th><th></th><th></th></tr>
+    </tbody>
+  </table>
+
+  <h3>เงื่อนไขของเวลา</h3>
+  <table><tbody>
+    <tr><th style="width:40%">นับเฉพาะวันทำงาน</th><td><span class="cb">จันทร์–เสาร์</span><span class="cb">จันทร์–ศุกร์</span><span class="cb">อื่น</span><span class="field s"></span></td></tr>
+    <tr><th>งานใหญ่ที่ 3 วันไม่พอ</th><td>งานเกิน <span class="field s"></span> ชิ้น ให้เวลาเพิ่ม <span class="field s"></span> วัน</td></tr>
+    <tr><th>งานด่วน (ลูกค้าเร่ง)</th><td>พิมพ์ + รีด + ตัด ภายใน <span class="field s"></span> วัน · ใครอนุมัติงานด่วน <span class="field"></span></td></tr>
+    <tr><th>ไม่นับเวลา</th><td>เวลาพักงานที่รายงานสาเหตุแล้ว · เวลารอฟิล์ม DTF · เวลาที่งานอยู่ร้านปัก · <span class="field"></span></td></tr>
+  </tbody></table>
+`)
+
+/* ---------- หน้า 3: การติดตามและรายงานปัญหา ---------- */
+page('1.2 การรายงานปัญหา', `
+  <h2><span class="no">1.2</span> การติดตามเวลาและการรายงานปัญหา</h2>
+  <p class="muted">ระบบจับเวลาทุกสถานีและทุกช่วงอัตโนมัติจากเวลาที่กดเริ่มและกดเสร็จ</p>
+
+  <h3>ระดับสถานะ</h3>
+  <table>
+    <thead><tr><th style="width:18%">สถานะ</th><th style="width:24%">เงื่อนไข</th><th style="width:24%">ระบบแสดง</th><th>ผู้รับผิดชอบต้องทำ</th></tr></thead>
+    <tbody>
+      <tr><th>ปกติ</th><td>ใช้เวลาไม่ถึง 80% ของมาตรฐาน</td><td>การ์ดปกติ</td><td>—</td></tr>
+      <tr><th style="color:var(--accent)">ใกล้ครบเวลา</th><td>ใช้เวลาตั้งแต่ <span class="field s"></span> % (ร่าง 80%)</td><td>การ์ดสีส้ม</td><td>หัวหน้าสถานีประเมินว่าจะทันหรือไม่ ถ้าไม่ทันรายงานล่วงหน้าได้</td></tr>
+      <tr><th style="color:var(--red)">เกินเวลา</th><td>เกินเวลามาตรฐานของสถานี</td><td>การ์ดสีแดง</td><td><b>ต้องส่งรายงานปัญหา</b> ภายใน <span class="field s"></span> ชม. ก่อนกดเสร็จสถานีได้</td></tr>
+      <tr><th style="color:var(--red)">เกินช่วง</th><td>พิมพ์ + รีด + ตัด เกิน 3 วัน (หรือช่วงอื่นเกินมาตรฐาน)</td><td>แจ้งเตือนแอดมินและผู้บริหาร</td><td>ผู้ควบคุมงานรายงาน · แอดมินประเมินผลกระทบวันส่ง และแจ้งลูกค้าถ้าจำเป็น</td></tr>
+    </tbody>
+  </table>
+
+  <h3>รายงานปัญหาต้องมี</h3>
+  <table>
+    <thead><tr><th style="width:26%">หัวข้อ</th><th>รายละเอียด</th><th class="chk">ถูก · แก้</th></tr></thead>
+    <tbody>
+      <tr><th>รหัสสาเหตุ</th><td>เลือกจากตารางด้านล่าง (เลือกได้มากกว่า 1)</td><td class="chk"><span class="cb"></span><span class="cb" style="margin:0"></span></td></tr>
+      <tr><th>อธิบายเพิ่ม</th><td>เกิดอะไรขึ้น กระทบกี่ชิ้น</td><td class="chk"><span class="cb"></span><span class="cb" style="margin:0"></span></td></tr>
+      <tr><th>คาดว่าเสร็จใหม่</th><td>วันและเวลาที่คาดว่าสถานีจะเสร็จ</td><td class="chk"><span class="cb"></span><span class="cb" style="margin:0"></span></td></tr>
+      <tr><th>ต้องการความช่วยเหลือ</th><td>จากใคร เช่น ช่างซ่อม แอดมินตามวัตถุดิบ</td><td class="chk"><span class="cb"></span><span class="cb" style="margin:0"></span></td></tr>
+      <tr><th>รูปถ่าย</th><td>แนบรูปปัญหา (ถ้ามี)</td><td class="chk"><span class="cb"></span><span class="cb" style="margin:0"></span></td></tr>
+    </tbody>
+  </table>
+  <p class="small" style="margin-top:4px">ผู้รับรายงาน <span class="cb">แอดมิน</span><span class="cb">ผู้ควบคุมงาน</span><span class="cb">ผู้บริหาร</span> · ต้องตอบรับภายใน <span class="field s"></span> ชม. · แจ้งทาง LINE <span class="cb">ไม่</span><span class="cb">ใช่</span></p>
+
+  <h3>รหัสสาเหตุมาตรฐาน <span class="small muted" style="font-weight:400">· ติ๊ก ☐ ข้อที่ใช้จริง</span></h3>
+  <div class="two">
+    ${[REASONS.slice(0, 3), REASONS.slice(3)].map(col => `<table><tbody>
+      ${col.map(([g, name, items]) => `<tr class="group"><td colspan="3">${g} · ${name}</td></tr>` + items.map(([c, t]) => `<tr><td class="num" style="width:36px">${c}</td><td>${t}</td><td class="chk" style="width:30px"><span class="cb" style="margin:0"></span></td></tr>`).join('')).join('')}
+    </tbody></table>`).join('')}
+  </div>
+  <p class="small" style="margin-top:4px">สาเหตุอื่นที่เจอบ่อย <span class="field l"></span> <span class="field l"></span></p>
+`)
+
+/* ---------- หน้าสถานี ---------- */
+STATIONS.forEach((s, i) => { stationPage(s, i); if (s.code === 'ST-05') sewResourcePage() })
+
+function sewResourcePage() {
+  page('2.5 (ต่อ) จักรและไลน์เย็บ', `
+    <h2><span class="no">ST-05</span> จักรเย็บและไลน์เย็บ</h2>
+    <p class="muted">ใช้จัดงานเข้าไลน์เย็บ: ระบบดูว่าสินค้าต้องใช้จักรอะไร แล้วเลือกไลน์ที่มีจักรครบและว่างอยู่</p>
+    <h3>ก. จักรเย็บที่มี (นับทุกเครื่อง)</h3>
+    <table>
+      <thead><tr><th style="width:29%">ชนิดจักร</th><th>ใช้ทำ (ร่าง)</th><th style="width:9%" class="chk">ทั้งหมด</th><th style="width:9%" class="chk">ใช้ได้</th><th style="width:12%" class="chk">ช่างที่ใช้เป็น</th></tr></thead>
+      <tbody>
+        ${MACHINES.map(([th, en, use]) => `<tr><td><b>${th}</b> <span class="small muted">${en}</span></td><td>${use}</td><td></td><td></td><td></td></tr>`).join('')}
+        <tr><td class="blank"></td><td></td><td></td><td></td><td></td></tr>
+      </tbody>
+    </table>
+    <h3>ข. ไลน์เย็บ / ทีมช่าง</h3>
+    <table>
+      <thead><tr><th style="width:18%">ไลน์ / ทีม</th><th style="width:10%" class="chk">ช่าง (คน)</th><th>จักรประจำไลน์ (ชนิด × จำนวน)</th><th style="width:26%">ถนัดสินค้า</th></tr></thead>
+      <tbody>${'<tr><td class="blank"></td><td></td><td></td><td></td></tr>'.repeat(4)}</tbody>
+    </table>
+    <p class="small" style="margin-top:4px">ย้ายจักรข้ามไลน์ได้ <span class="cb">ใช่</span><span class="cb">ไม่</span> · ช่าง 1 คนใช้ได้หลายจักร <span class="cb">ใช่</span><span class="cb">ไม่</span> · 1 ไลน์ทำหลายงานพร้อมกัน <span class="cb">ใช่</span><span class="cb">ไม่</span></p>
+    <h3>ค. สินค้าแต่ละแบบต้องใช้จักรอะไร</h3>
+    <table>
+      <thead><tr><th style="width:29%">สินค้า</th><th>จักรที่ต้องใช้ (ร่าง)</th><th class="chk">ถูก · แก้</th></tr></thead>
+      <tbody>${SEW_PRODUCTS.map(([p, m]) => `<tr><th>${p}</th><td>${m}</td><td class="chk"><span class="cb"></span><span class="cb" style="margin:0"></span></td></tr>`).join('')}
+      <tr><td class="blank"></td><td></td><td></td></tr></tbody>
+    </table>
+  `)
+}
+
+/* ---------- สถานีร่าง + ขั้นก่อนผลิต ---------- */
+page('2.7 งานส่งร้านนอก', `
+  <h2><span class="no">${OUTSOURCE.code}</span> ${OUTSOURCE.name} <span class="muted small" style="font-weight:400">· ${OUTSOURCE.en}</span></h2>
+  <div class="callout" style="margin-bottom:8px">โรงงานไม่มีงานปัก · ส่งปักร้านนอกทั้งหมด จึงคุมเวลาด้วย <b>วันนัดรับที่ร้านให้ไว้</b> (แบบเดียวกับรอฟิล์ม DTF) · ระหว่างอยู่ร้าน การ์ดขึ้น "อยู่ที่ร้านปัก · นัดรับ ..." · เลยวันนัด = สีแดง ต้องรายงานสาเหตุ (O1 ร้านนอกส่งช้า) และแอดมินตามร้าน</div>
+  ${sopTable(OUTSOURCE.steps)}
+  <table style="margin-top:8px">
+    <thead><tr><th colspan="2">ข้อมูลงานส่งปัก (กรอกจากหน้างาน)</th></tr></thead>
+    <tbody>
+      <tr><th style="width:34%">ร้านปักที่ใช้ประจำ (ชื่อ · ติดต่อ)</th><td></td></tr>
+      <tr><th>ร้านใช้เวลาปกติ</th><td>ไม่เกิน 100 ชิ้น <span class="field s"></span> วัน · 101–500 ชิ้น <span class="field s"></span> วัน · เกิน 500 <span class="field s"></span> วัน</td></tr>
+      <tr><th>ส่งปักตอนไหน</th><td><span class="cb">ชิ้นตัด (ก่อนเย็บ)</span><span class="cb">สินค้าเย็บเสร็จ</span><span class="cb">แล้วแต่งาน</span></td></tr>
+      <tr><th>ใครติดต่อและรับ-ส่งของ</th><td><span class="cb">แอดมิน</span><span class="cb">ผู้ควบคุมงาน</span><span class="cb">อื่น</span><span class="field"></span></td></tr>
+      <tr><th>ร้านส่งช้าบ่อยแค่ไหน</th><td><span class="cb">แทบไม่เคย</span><span class="cb">บางครั้ง</span><span class="cb">บ่อย</span> · ช้าเฉลี่ย <span class="field s"></span> วัน</td></tr>
+    </tbody>
+  </table>
+
+  <h3>${SCREEN.code} ${SCREEN.name} <span class="muted small" style="font-weight:400">· ${SCREEN.en} · ยังไม่อยู่ในเส้นทาง</span></h3>
+  <table><tbody>
+    <tr><th style="width:34%">ทำที่ไหน</th><td><span class="cb">ในโรงงาน</span><span class="cb">ส่งร้านนอก (แบบเดียวกับงานปัก)</span><span class="cb">ไม่รับงานสกรีน</span></td></tr>
+    <tr><th>ถ้าทำในโรงงาน ขั้นตอนร่าง</th><td>${SCREEN.steps.map(([t]) => t).join(' → ')} &nbsp;<span class="cb">ถูก</span><span class="cb">แก้</span></td></tr>
+  </tbody></table>
+
+  <h3>งานอื่นที่ส่งร้านนอก / สถานีที่ยังไม่อยู่ในเอกสาร</h3>
+  <table>
+    <thead><tr><th style="width:30%">งาน / สถานี</th><th>ในโรงงาน หรือ ร้านนอก</th><th style="width:18%">อยู่หลังสถานี</th><th style="width:16%">เวลาปกติ</th></tr></thead>
+    <tbody>${'<tr><td class="blank"></td><td></td><td></td><td></td></tr>'.repeat(3)}</tbody>
+  </table>
+  <p class="small muted">ตัวอย่าง: ติดตาไก่ / อุปกรณ์ · พิมพ์ป้ายคอ · รีดเรียบก่อนแพ็ค</p>
+`)
+
+page('3 ขั้นก่อนผลิต', `
+  <h2><span class="no">3</span> ขั้นก่อนผลิต</h2>
+  <p class="muted">ไม่ใช่สถานีในไลน์ แต่ระบบจับเวลาและต้องรายงานปัญหาเมื่อเกินมาตรฐานเช่นกัน</p>
+  <table>
+    <thead><tr><th style="width:20%">ขั้น</th><th style="width:15%">ผู้รับผิดชอบ</th><th>สิ่งที่ต้องทำ / เงื่อนไขผ่าน</th><th style="width:13%">เวลา (ร่าง)</th><th class="chk">ถูก · แก้</th></tr></thead>
+    <tbody>
+      <tr><th>P-01 รับงาน</th><td>ผู้ควบคุมงาน</td><td>${rec('req')} PDF ใบยืนยันเซ็นครบ · ${rec('req')} เลือกเส้นทางผลิต · ${rec('req')} ลงวันกำหนดส่ง</td><td>ภายในวันที่ได้รับ PDF</td><td class="chk"><span class="cb"></span><span class="cb" style="margin:0"></span></td></tr>
+      <tr><th rowspan="3">P-02 วัตถุดิบ</th><td>แอดมิน</td><td>${rec('req')} ผ้า/วัสดุหลักครบตามสเปก + เผื่อเสีย · ${rec('req')} ไฟล์งานล่าสุดตรงใบยืนยัน · ${rec('req')} (DTF) สั่งฟิล์ม + วันคาดว่าได้รับ</td><td rowspan="3">2 วัน</td><td class="chk"><span class="cb"></span><span class="cb" style="margin:0"></span></td></tr>
+      <tr><td>QC</td><td>${rec('req')} สีและเนื้อผ้าตรงใบยืนยัน</td><td class="chk"><span class="cb"></span><span class="cb" style="margin:0"></span></td></tr>
+      <tr><td>ฝ่ายผลิต</td><td>${rec('req')} ด้ายสีตามสเปก · ${rec('req')} ป้าย ซิป กระดุม ตาไก่ ครบ</td><td class="chk"><span class="cb"></span><span class="cb" style="margin:0"></span></td></tr>
+      <tr><th>P-03 ขึ้นตัวอย่าง</th><td>ผู้ควบคุมงาน</td><td>เดินผ่านสถานีเดียวกับงานจริง 1 ชิ้น (ไม่กรอกยอด ไม่มีด่านตัวแรก) · ${rec('req')} ส่งตัวอย่างให้แอดมิน</td><td>1 วัน</td><td class="chk"><span class="cb"></span><span class="cb" style="margin:0"></span></td></tr>
+      <tr><th>P-04 ลูกค้ายืนยัน</th><td>แอดมิน</td><td>ส่งรูป/ตัวอย่างให้ลูกค้า · ${rec('req')} บันทึกผล ผ่าน / ไม่ผ่าน + หมายเหตุ · ไม่ผ่าน = ขึ้นตัวอย่างรอบใหม่</td><td>1 วัน</td><td class="chk"><span class="cb"></span><span class="cb" style="margin:0"></span></td></tr>
+    </tbody>
+  </table>
+  <h3>รายการวัตถุดิบเฉพาะสินค้า</h3>
+  <table>
+    <thead><tr><th style="width:30%">สินค้า</th><th>รายการที่ต้องเช็คเพิ่ม</th><th style="width:16%">ฝ่ายที่เช็ค</th></tr></thead>
+    <tbody>${'<tr><td class="blank"></td><td></td><td></td></tr>'.repeat(5)}</tbody>
+  </table>
+  <h3>ข้อสังเกตเพิ่มเติม</h3>
+  <div class="notes">${'<div class="ln"></div>'.repeat(6)}</div>
+`)
+
+/* ---------- ประกอบเอกสาร ---------- */
+const total = pages.length
+document.getElementById('doc').innerHTML = pages.map((p, i) => `
+  <section class="page">
+    <div class="running"><span><b>ภาพพิมพ์ 142</b> · ${DOC.title}${p.section ? ` · ${p.section}` : ''}</span><span>${DOC.no} · ${DOC.rev}</span></div>
+    ${p.body}
+    <div class="foot"><span>ร่างเพื่อยืนยันกับหน้างาน · ห้ามใช้เป็นมาตรฐานจนกว่าจะอนุมัติ</span><span>หน้า ${i + 1} / ${total}</span></div>
+  </section>`).join('')
+</script>
+</body>
+</html>
