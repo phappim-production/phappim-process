@@ -27,6 +27,7 @@
 3. สร้างตาราง: เมนู **SQL Editor** → New query → คัดลอกเนื้อหาไฟล์ทีละไฟล์ แล้วกด Run ตามลำดับ
    1. `supabase/migrations/20261116000001_schema.sql`
    2. `supabase/migrations/20261116000002_master_data.sql`
+   3. `supabase/migrations/20261116000003_hardening.sql` (ปรับตามคำเตือนความปลอดภัยของ Supabase)
    - ตรวจ: เมนู **Table Editor** ต้องเห็นตาราง `product_types` 37 แถว, `stations` 8 แถว, `routes` 3 แถว
 4. ปิดการสมัครเอง: **Authentication → Sign In / Providers → Email** → ปิด *Allow new users to sign up* (ผู้ใช้ทุกคนสร้างโดยเจ้าของระบบ)
 5. สร้างผู้ใช้คนแรก (เจ้าของระบบ): **Authentication → Users → Add user → Create new user** · ใส่อีเมล + รหัสผ่าน · ติ๊ก *Auto Confirm User*
@@ -62,7 +63,7 @@ npm run dev
    | Root directory | `app` |
    | Build command | `npm run build` |
    | Build output directory | `dist` |
-4. Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (ค่าจากข้อ 2.7) และ `NODE_VERSION` = `24`
+4. Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (ค่าจากข้อ 2.7) (เวอร์ชัน Node กำหนดไว้แล้วในไฟล์ `app/.node-version` = 22 ไม่ต้องตั้ง `NODE_VERSION`)
 5. Deploy → ได้ลิงก์ `https://<ชื่อ>.pages.dev` · ทุกครั้งที่ push โค้ดขึ้น GitHub จะ deploy ใหม่อัตโนมัติ
 6. กลับไป Supabase **Authentication → URL Configuration** ใส่ Site URL เป็นลิงก์ `.pages.dev`
 
