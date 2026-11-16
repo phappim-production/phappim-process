@@ -1,0 +1,630 @@
+<title>Workflow สายการผลิต</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one reading column of "job sheets"; diagrams first, then a stage-by-stage spec sheet. Process colors: cyan = normal print route, magenta = DTF route, amber = gate/lock, red = blocked/rework path, green = pass. */
+:root{
+  --paper:#F3F5F8; --sheet:#FFFFFF; --ink:#14171C; --muted:#5B6472; --rule:#D8DEE6;
+  --cyan:#0B7FA3; --magenta:#B5246B; --gate:#A86B0C; --stop:#C0392B; --ok:#2E7D4F;
+  --cyan-wash:#E3F3F8; --magenta-wash:#F9E6EF; --gate-wash:#FBF0DC;
+  --f-display:"Bai Jamjuree","IBM Plex Sans Thai",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans Thai",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0D1015; --sheet:#161A21; --ink:#E8ECF1; --muted:#9AA4B2; --rule:#2A313B;
+  --cyan:#4CC3E6; --magenta:#F06AA8; --gate:#E3B04B; --stop:#F07063; --ok:#5CC48A;
+  --cyan-wash:#10303B; --magenta-wash:#3A1427; --gate-wash:#3A2C10; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0D1015; --sheet:#161A21; --ink:#E8ECF1; --muted:#9AA4B2; --rule:#2A313B;
+  --cyan:#4CC3E6; --magenta:#F06AA8; --gate:#E3B04B; --stop:#F07063; --ok:#5CC48A;
+  --cyan-wash:#10303B; --magenta-wash:#3A1427; --gate-wash:#3A2C10; color-scheme:dark}
+
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.65}
+.wrap{max-width:1160px;margin:0 auto;padding-block:32px 56px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:clamp(28px,4vw,40px)}
+h2{font-size:21px}
+h3{font-size:17px}
+p{margin:0}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{color:var(--muted);max-width:70ch}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:end}
+.regmark{width:28px;height:28px;color:var(--ink);flex:none}
+.titlerow{display:flex;gap:12px;align-items:center}
+.ticket{background:var(--sheet);border:1px solid var(--rule);border-radius:6px;padding:12px 16px;font-size:13px;min-width:0}
+.ticket dl{display:grid;grid-template-columns:auto auto;gap:2px 14px;margin:6px 0 0}
+.ticket dt{color:var(--muted)} .ticket dd{margin:0;font-weight:500}
+
+nav.toc{display:flex;flex-wrap:wrap;gap:6px}
+nav.toc a{font-size:13px;color:var(--ink);text-decoration:none;border:1px solid var(--rule);background:var(--sheet);border-radius:999px;padding:3px 12px}
+nav.toc a:hover,nav.toc a:focus-visible{border-color:var(--ink);outline:none}
+
+.sheet{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;padding:22px 22px 20px;display:flex;flex-direction:column;gap:14px;min-width:0;scroll-margin-top:12px}
+.sheet > p{max-width:78ch}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+figure{margin:0;display:flex;flex-direction:column;gap:10px}
+figcaption{font-size:13.5px;color:var(--muted);max-width:82ch}
+svg.dg{display:block;width:100%;height:auto;color:var(--ink)}
+.dg-main{min-width:900px} .dg-route{min-width:820px} .dg-state{min-width:640px} .dg-sew{min-width:860px}
+.dg text{font-family:var(--f-body);fill:var(--ink)}
+.dg .t{font-size:15px;font-weight:600}
+.dg .s{font-size:12px;fill:var(--muted)}
+.dg .role{font-size:12px;fill:var(--muted);font-weight:500}
+.dg .lbl{font-size:12px;font-weight:600}
+.dg .box{fill:var(--sheet);stroke:var(--ink);stroke-width:1.5}
+.dg .box-in{fill:var(--paper);stroke:var(--muted);stroke-width:1.5;stroke-dasharray:5 4}
+.dg .gate{fill:var(--gate-wash);stroke:var(--gate);stroke-width:2}
+.dg .hold{fill:var(--sheet);stroke:var(--stop);stroke-width:1.5;stroke-dasharray:5 4}
+.dg .film{fill:var(--gate-wash);stroke:var(--gate);stroke-width:1.5;stroke-dasharray:5 4}
+.dg .cyanbox{fill:var(--cyan-wash);stroke:var(--cyan);stroke-width:2}
+.dg .magbox{fill:var(--magenta-wash);stroke:var(--magenta);stroke-width:2}
+.dg .done{fill:var(--sheet);stroke:var(--ok);stroke-width:2}
+.dg .ln{stroke:var(--ink);stroke-width:1.6;fill:none}
+.dg .ln-stop{stroke:var(--stop);stroke-width:1.6;fill:none;stroke-dasharray:5 4}
+.dg .ln-ok{stroke:var(--ok);stroke-width:1.6;fill:none}
+.dg .ln-gate{stroke:var(--gate);stroke-width:1.6;fill:none;stroke-dasharray:5 4}
+.dg .c-stop{fill:var(--stop)} .dg .c-ok{fill:var(--ok)} .dg .c-gate{fill:var(--gate)}
+.dg .c-cyan{fill:var(--cyan)} .dg .c-mag{fill:var(--magenta)}
+.dg .mk{fill:var(--ink)} .dg .mk-stop{fill:var(--stop)} .dg .mk-ok{fill:var(--ok)} .dg .mk-gate{fill:var(--gate)}
+
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--rule)}
+th{font-size:12px;letter-spacing:.04em;color:var(--muted);font-weight:600}
+tbody tr:last-child td{border-bottom:0}
+.chip{display:inline-block;font-size:12.5px;font-weight:600;padding:1px 9px;border-radius:999px;border:1px solid var(--rule);white-space:nowrap;margin:2px 4px 2px 0}
+.chip.sup{border-color:var(--cyan);color:var(--cyan)}
+.chip.adm{border-color:var(--magenta);color:var(--magenta)}
+.chip.qc{border-color:var(--ok);color:var(--ok)}
+.chip.prd{border-color:var(--gate);color:var(--gate)}
+.route{display:inline-block;font-size:11.5px;font-weight:600;letter-spacing:.03em;padding:0 8px;border-radius:3px;margin:2px 4px 2px 0}
+.route.n{background:var(--cyan-wash);color:var(--cyan)}
+.route.d{background:var(--magenta-wash);color:var(--magenta)}
+.route.b{background:var(--paper);color:var(--muted);border:1px solid var(--rule)}
+
+/* Stage spec sheet */
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.group-h{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:10px}
+.stage{display:grid;grid-template-columns:230px minmax(0,1fr);gap:18px;padding:16px 0;border-top:1px solid var(--rule)}
+.stage .meta{display:flex;flex-direction:column;gap:6px;min-width:0}
+.stage .num{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.stage .body{display:flex;flex-direction:column;gap:10px;min-width:0}
+.stage dl{display:grid;grid-template-columns:110px minmax(0,1fr);gap:4px 12px;margin:0;font-size:14px}
+.stage dt{color:var(--muted)} .stage dd{margin:0}
+.stage .exit{color:var(--ok);font-weight:500}
+.stage .draft{font-size:12px;color:var(--gate);font-weight:600}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px 4px;align-items:center}
+.steps li{display:flex;align-items:center;gap:4px}
+.steps li:not(:last-child)::after{content:"→";color:var(--muted);margin:0 2px 0 4px}
+.pill{border:1px solid var(--rule);border-radius:4px;padding:3px 10px;font-size:13.5px;display:inline-flex;gap:7px;align-items:center;background:var(--paper)}
+.pill::before{content:"";flex:none;width:9px;height:9px;border-radius:2px;border:1.5px solid var(--muted)}
+.pill.req{border-color:var(--ink);font-weight:500}
+.pill.req::before{background:var(--ink);border-color:var(--ink)}
+.pill.num::before{border-color:var(--cyan);background:var(--cyan)}
+.pill.num{border-color:var(--cyan)}
+.pill.lock{border-color:var(--gate);color:var(--gate);background:var(--gate-wash)}
+.pill.lock::before{border-color:var(--gate);transform:rotate(45deg)}
+.pill.appr{border-color:var(--ok)}
+.pill.appr::before{border-color:var(--ok);background:var(--ok);border-radius:50%}
+.sample{display:inline-flex;align-items:center;gap:7px}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;border:1.5px solid var(--muted)}
+.sw.req{background:var(--ink);border-color:var(--ink)}
+.sw.num{background:var(--cyan);border-color:var(--cyan)}
+.sw.appr{background:var(--ok);border-color:var(--ok);border-radius:50%}
+.sw.lock{border-color:var(--gate);background:var(--gate-wash);transform:rotate(45deg)}
+
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px}
+.rule{border:1px solid var(--rule);border-left:4px solid var(--gate);border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.rule.stop{border-left-color:var(--stop)}
+.rule b{font-family:var(--f-display);font-size:16px}
+.rule span{color:var(--muted);font-size:14px}
+.rule .where{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+ul.plain{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+ol.seq{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:3px;font-size:14px}
+.note{font-size:13px;color:var(--muted)}
+@media (max-width:720px){header{grid-template-columns:1fr} .sheet{padding:18px 14px} .stage{grid-template-columns:1fr;gap:10px} .stage dl{grid-template-columns:1fr} .stage dt{margin-top:4px}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+      <div class="titlerow">
+        <svg class="regmark" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="14" y1="1" x2="14" y2="27" stroke="currentColor" stroke-width="1.5"/><line x1="1" y1="14" x2="27" y2="14" stroke="currentColor" stroke-width="1.5"/></svg>
+        <span class="eyebrow">ระบบติดตามการผลิต · Workflow v2</span>
+      </div>
+      <h1>Workflow สายการผลิต</h1>
+      <p class="lede">งานเริ่มจากใบยืนยันผลิตที่แอดมินส่งมาพร้อมลายเซ็นครบ แล้วต้องผ่านด่านวัตถุดิบและด่านตัวอย่างก่อนผลิตจริง หลังจากนั้นงานเดินทั้งก้อนทีละสถานีตามเส้นทางปกติหรือ DTF แต่ละสถานีมีขั้นย่อย และมีจุดที่ต้องติ๊กก่อนกดเสร็จ ระบบไม่ให้ข้ามด่าน และบันทึกเวลากับชื่อคนกดทุกครั้ง</p>
+      <nav class="toc" aria-label="สารบัญ">
+        <a href="#overview">ภาพรวม</a><a href="#routes">เส้นทาง</a><a href="#sewing">ขั้นเย็บ</a><a href="#states">สถานะในสถานี</a><a href="#stages">รายละเอียดทีละขั้น</a><a href="#who">ใครกดอะไร</a><a href="#rules">กฎ</a><a href="#materials">วัตถุดิบ</a><a href="#numbers">ตัวเลข</a>
+      </nav>
+    </div>
+    <aside class="ticket" aria-label="ตัวอย่างข้อมูลที่กรอกตอนรับงาน">
+      <div class="eyebrow">ตัวอย่างตอนรับงาน</div>
+      <dl>
+        <dt>รหัสลูกค้า</dt><dd class="mono">SC691451</dd>
+        <dt>เลขที่งาน</dt><dd class="mono">0001</dd>
+        <dt>ประเภท</dt><dd>ป้ายผ้า · ผ้าไซลอน</dd>
+        <dt>ขนาด / จำนวน</dt><dd><span class="mono">200×115</span> ซม. · 2 ผืน</dd>
+        <dt>เก็บ / ส่งงาน</dt><dd>รวมลงลัง · พัสดุ</dd>
+        <dt>เส้นทาง</dt><dd>ปกติ</dd>
+        <dt>กำหนดเสร็จ</dt><dd>ต้องกรอกเพิ่ม</dd>
+      </dl>
+    </aside>
+  </header>
+
+  <!-- 1. Main flow -->
+  <section class="sheet" id="overview" aria-labelledby="h-main">
+    <span class="eyebrow">ภาพรวม</span>
+    <h2 id="h-main">เส้นทางของงาน 1 เลขที่งาน</h2>
+    <figure>
+      <div class="scroll">
+      <svg class="dg dg-main" viewBox="0 0 1115 292" role="img" aria-label="งานเริ่มจากใบยืนยันที่เซ็นครบ รับเข้าโรงงาน ผ่านด่านวัตถุดิบ ขึ้นตัวอย่าง ผ่านด่านผลตัวอย่าง แล้วผลิตจริงจนเสร็จ ถ้าวัตถุดิบไม่ครบงานค้างที่รอวัตถุดิบ ถ้าตัวอย่างไม่ผ่านต้องขึ้นตัวอย่างรอบใหม่">
+        <defs>
+          <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk"/></marker>
+          <marker id="a-stop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk-stop"/></marker>
+          <marker id="a-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk-ok"/></marker>
+        </defs>
+        <text class="role" x="70" y="106" text-anchor="middle">แอดมินส่งมา</text>
+        <text class="role" x="230" y="106" text-anchor="middle">ผู้ควบคุมงาน</text>
+        <text class="role" x="385" y="92" text-anchor="middle">แอดมิน · QC · ฝ่ายผลิต</text>
+        <text class="role" x="540" y="106" text-anchor="middle">ผู้ควบคุมงาน</text>
+        <text class="role" x="695" y="92" text-anchor="middle">แอดมิน + ลูกค้า</text>
+        <text class="role" x="850" y="106" text-anchor="middle">ผู้ควบคุมงาน</text>
+        <text class="role" x="1035" y="106" text-anchor="middle">ผู้ควบคุมงาน</text>
+
+        <rect class="box-in" x="10" y="118" width="120" height="64" rx="6"/>
+        <text class="t" x="70" y="146" text-anchor="middle">ใบยืนยันผลิต</text>
+        <text class="s" x="70" y="166" text-anchor="middle">PDF เซ็นครบ</text>
+        <line class="ln" x1="130" y1="150" x2="163" y2="150" marker-end="url(#a)"/>
+        <rect class="box" x="165" y="118" width="130" height="64" rx="6"/>
+        <text class="t" x="230" y="146" text-anchor="middle">รับงานเข้าโรงงาน</text>
+        <text class="s" x="230" y="166" text-anchor="middle">ข้อมูลงาน + เส้นทาง</text>
+        <line class="ln" x1="295" y1="150" x2="337" y2="150" marker-end="url(#a)"/>
+        <polygon class="gate" points="385,104 431,150 385,196 339,150"/>
+        <text class="lbl" x="385" y="146" text-anchor="middle">ด่าน</text>
+        <text class="lbl" x="385" y="163" text-anchor="middle">วัตถุดิบ</text>
+        <line class="ln-ok" x1="431" y1="150" x2="473" y2="150" marker-end="url(#a-ok)"/>
+        <text class="lbl c-ok" x="452" y="140" text-anchor="middle">ครบ</text>
+        <line class="ln-stop" x1="385" y1="196" x2="385" y2="232" marker-end="url(#a-stop)"/>
+        <text class="lbl c-stop" x="393" y="219">ไม่ครบ</text>
+        <rect class="hold" x="315" y="234" width="140" height="48" rx="6"/>
+        <text class="t" x="385" y="256" text-anchor="middle" style="font-size:14px">รอวัตถุดิบ</text>
+        <text class="s" x="385" y="273" text-anchor="middle">โชว์ว่ารอฝ่ายไหน</text>
+        <rect class="box" x="475" y="118" width="130" height="64" rx="6"/>
+        <text class="t" x="540" y="146" text-anchor="middle">ขึ้นตัวอย่าง</text>
+        <text class="s" x="540" y="166" text-anchor="middle">เดินตามเส้นทางงาน</text>
+        <line class="ln" x1="605" y1="150" x2="647" y2="150" marker-end="url(#a)"/>
+        <polygon class="gate" points="695,104 741,150 695,196 649,150"/>
+        <text class="lbl" x="695" y="146" text-anchor="middle">ผล</text>
+        <text class="lbl" x="695" y="163" text-anchor="middle">ตัวอย่าง</text>
+        <line class="ln-ok" x1="741" y1="150" x2="773" y2="150" marker-end="url(#a-ok)"/>
+        <text class="lbl c-ok" x="757" y="140" text-anchor="middle">ผ่าน</text>
+        <path class="ln-stop" d="M695 196 V250 H540 V186" marker-end="url(#a-stop)"/>
+        <text class="lbl c-stop" x="617" y="270" text-anchor="middle">ไม่ผ่าน · แก้แล้วขึ้นรอบใหม่ (นับรอบ)</text>
+        <rect class="box" x="775" y="118" width="150" height="64" rx="6"/>
+        <text class="t" x="850" y="146" text-anchor="middle">ผลิตจริง</text>
+        <text class="s" x="850" y="166" text-anchor="middle">ทั้งก้อน · ทีละสถานี</text>
+        <line class="ln" x1="925" y1="150" x2="968" y2="150" marker-end="url(#a)"/>
+        <rect class="done" x="970" y="118" width="130" height="64" rx="6"/>
+        <text class="t" x="1035" y="146" text-anchor="middle">เสร็จ</text>
+        <text class="s" x="1035" y="166" text-anchor="middle">พร้อมส่ง</text>
+        <text class="s" x="10" y="30">ไม่มี PDF ที่เซ็นครบ = รับงานเข้าโรงงานไม่ได้</text>
+        <text class="s" x="10" y="50">ทุกขั้นหลังรับงานกด “ติดปัญหา / พักงาน” ได้ (ต้องระบุสาเหตุ)</text>
+      </svg>
+      </div>
+      <figcaption>รูปเพชรคือด่านที่ระบบล็อกไว้ งานผ่านได้เมื่อเงื่อนไขครบเท่านั้น ด่านวัตถุดิบอยู่ก่อนขึ้นตัวอย่าง เพราะตัวอย่างต้องใช้วัตถุดิบชุดเดียวกับงานจริง รวมถึงฟิล์ม DTF ที่แอดมินต้องสั่งไว้แล้ว ทั้งขั้นขึ้นตัวอย่างและขั้นผลิตจริงเดินผ่านสถานีตามเส้นทางในแผนภาพถัดไป</figcaption>
+    </figure>
+  </section>
+
+  <!-- 2. Routes -->
+  <section class="sheet" id="routes" aria-labelledby="h-route">
+    <span class="eyebrow">เส้นทางการผลิต</span>
+    <h2 id="h-route">ปกติ กับ DTF ต่างกันตรงไหน</h2>
+    <figure>
+      <div class="scroll">
+      <svg class="dg dg-route" viewBox="0 0 1060 326" role="img" aria-label="เส้นทางปกติ: พิมพ์ รีด ตัด เย็บ QC และ Packing เส้นทาง DTF ไม่มีขั้นพิมพ์ เริ่มจากตัด แล้วรีด DTF ซึ่งเริ่มได้เมื่อแอดมินกดได้รับฟิล์มแล้ว จากนั้นเย็บ และ QC กับ Packing">
+        <defs>
+          <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk"/></marker>
+          <marker id="b-gate" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk-gate"/></marker>
+        </defs>
+        <text class="t c-cyan" x="16" y="80">ปกติ</text>
+        <text class="s" x="16" y="98">5 สถานี</text>
+        <rect class="cyanbox" x="110" y="56" width="140" height="56" rx="6"/><text class="t" x="180" y="89" text-anchor="middle">พิมพ์งาน</text>
+        <line class="ln" x1="250" y1="84" x2="308" y2="84" marker-end="url(#b)"/>
+        <rect class="box" x="310" y="56" width="140" height="56" rx="6"/><text class="t" x="380" y="89" text-anchor="middle">รีดงาน</text>
+        <line class="ln" x1="450" y1="84" x2="508" y2="84" marker-end="url(#b)"/>
+        <rect class="box" x="510" y="56" width="140" height="56" rx="6"/><text class="t" x="580" y="89" text-anchor="middle">ตัดงาน</text>
+        <line class="ln" x1="650" y1="84" x2="708" y2="84" marker-end="url(#b)"/>
+        <rect class="box" x="710" y="56" width="140" height="56" rx="6"/><text class="t" x="780" y="89" text-anchor="middle">เย็บงาน</text>
+        <line class="ln" x1="850" y1="84" x2="908" y2="84" marker-end="url(#b)"/>
+        <rect class="box" x="910" y="56" width="140" height="56" rx="6"/><text class="t" x="980" y="89" text-anchor="middle">QC + Packing</text>
+        <line x1="16" y1="150" x2="1050" y2="150" stroke="var(--rule)" stroke-width="1"/>
+        <text class="t c-mag" x="16" y="216">DTF</text>
+        <text class="s" x="16" y="234">4 สถานี</text>
+        <rect class="box" x="110" y="192" width="140" height="56" rx="6"/><text class="t" x="180" y="225" text-anchor="middle">ตัดงาน</text>
+        <line class="ln" x1="250" y1="220" x2="268" y2="220"/>
+        <polygon class="gate" points="280,208 292,220 280,232 268,220"/>
+        <line class="ln" x1="292" y1="220" x2="308" y2="220" marker-end="url(#b)"/>
+        <text class="lbl c-gate" x="280" y="182" text-anchor="middle">ล็อกจนได้รับฟิล์ม</text>
+        <rect class="magbox" x="310" y="192" width="140" height="56" rx="6"/><text class="t" x="380" y="225" text-anchor="middle">รีด DTF</text>
+        <line class="ln" x1="450" y1="220" x2="508" y2="220" marker-end="url(#b)"/>
+        <rect class="box" x="510" y="192" width="140" height="56" rx="6"/><text class="t" x="580" y="225" text-anchor="middle">เย็บงาน</text>
+        <line class="ln" x1="650" y1="220" x2="708" y2="220" marker-end="url(#b)"/>
+        <rect class="box" x="710" y="192" width="140" height="56" rx="6"/><text class="t" x="780" y="225" text-anchor="middle">QC + Packing</text>
+        <rect class="film" x="190" y="272" width="180" height="46" rx="6"/>
+        <text class="lbl" x="280" y="291" text-anchor="middle">ฟิล์ม DTF (แอดมิน)</text>
+        <text class="s" x="280" y="308" text-anchor="middle">สั่งก่อนเริ่ม → กดได้รับ</text>
+        <line class="ln-gate" x1="280" y1="272" x2="280" y2="235" marker-end="url(#b-gate)"/>
+      </svg>
+      </div>
+      <figcaption>เส้นทาง DTF ไม่มีขั้นพิมพ์ผ้า ตัดก่อน แล้วรีดฟิล์มลงชิ้นงาน จากนั้นส่งเย็บ แอดมินต้องสั่งฟิล์มให้เสร็จตั้งแต่ด่านวัตถุดิบ ถ้าตัดเสร็จแล้วแต่ฟิล์มยังไม่มา การ์ดงานจะขึ้นสถานะ “รอฟิล์ม DTF” พร้อมวันที่คาดว่าจะมาถึง และเปลี่ยนเป็นสีเตือนเมื่อเลยวันนั้น ผู้ควบคุมงานเลือกเส้นทางตอนรับงาน</figcaption>
+    </figure>
+  </section>
+
+  <!-- 3. Sewing -->
+  <section class="sheet" id="sewing" aria-labelledby="h-sew">
+    <span class="eyebrow">สถานีที่ซับซ้อนที่สุด</span>
+    <h2 id="h-sew">ขั้นเย็บ: 4 ช่วง และด่านตัวแรก</h2>
+    <figure>
+      <div class="scroll">
+      <svg class="dg dg-sew" viewBox="0 0 1020 236" role="img" aria-label="ขั้นเย็บแบ่งเป็น จ่ายงานเข้าเย็บ ด่านตัวแรกที่หัวหน้าตรวจ เย็บทั้งก้อนพร้อมกรอกยอด และเก็บงานปลายไลน์ ก่อนส่ง QC ถ้าตัวแรกไม่ผ่านให้แก้แล้วเย็บตัวแรกใหม่ ถ้า QC ตีกลับ งานกลับมาที่เย็บทั้งก้อนเป็นงานแก้">
+        <defs>
+          <marker id="s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk"/></marker>
+          <marker id="s-stop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk-stop"/></marker>
+          <marker id="s-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk-ok"/></marker>
+        </defs>
+        <text class="role" x="105" y="40" text-anchor="middle">ติ๊ก</text>
+        <text class="role" x="270" y="30" text-anchor="middle">หัวหน้าอนุมัติ</text>
+        <text class="role" x="435" y="40" text-anchor="middle">กรอกยอดเป็นระยะ</text>
+        <text class="role" x="690" y="40" text-anchor="middle">ติ๊ก</text>
+        <rect class="box" x="20" y="50" width="170" height="60" rx="6"/>
+        <text class="t" x="105" y="76" text-anchor="middle">จ่ายงานเข้าเย็บ</text>
+        <text class="s" x="105" y="96" text-anchor="middle">นับชิ้น · ด้าย · ตั้งจักร</text>
+        <line class="ln" x1="190" y1="80" x2="228" y2="80" marker-end="url(#s)"/>
+        <polygon class="gate" points="270,40 310,80 270,120 230,80"/>
+        <text class="lbl" x="270" y="77" text-anchor="middle">ตัวแรก</text>
+        <text class="lbl" x="270" y="93" text-anchor="middle">ผ่าน?</text>
+        <line class="ln-ok" x1="310" y1="80" x2="338" y2="80" marker-end="url(#s-ok)"/>
+        <path class="ln-stop" d="M262 119 C 236 178, 304 178, 278 121" marker-end="url(#s-stop)"/>
+        <text class="lbl c-stop" x="270" y="196" text-anchor="middle">ไม่ผ่าน: แก้ แล้วเย็บตัวแรกใหม่</text>
+        <rect class="box" x="340" y="50" width="190" height="60" rx="6"/>
+        <text class="t" x="435" y="76" text-anchor="middle">เย็บทั้งก้อน</text>
+        <text class="s" x="435" y="96" text-anchor="middle">เช่น เย็บแล้ว 120 / 300</text>
+        <line class="ln" x1="530" y1="80" x2="598" y2="80" marker-end="url(#s)"/>
+        <rect class="box" x="600" y="50" width="180" height="60" rx="6"/>
+        <text class="t" x="690" y="76" text-anchor="middle">เก็บงานปลายไลน์</text>
+        <text class="s" x="690" y="96" text-anchor="middle">เศษด้าย · ตะเข็บ · นับ</text>
+        <line class="ln" x1="780" y1="80" x2="848" y2="80" marker-end="url(#s)"/>
+        <rect class="done" x="850" y="50" width="150" height="60" rx="6"/>
+        <text class="t" x="925" y="76" text-anchor="middle">ส่ง QC</text>
+        <text class="s" x="925" y="96" text-anchor="middle">ทั้งก้อน</text>
+        <path class="ln-stop" d="M925 110 V214 H435 V112" marker-end="url(#s-stop)"/>
+        <text class="lbl c-stop" x="680" y="206" text-anchor="middle">QC ตีกลับ: จำนวน + สาเหตุ → งานแก้</text>
+      </svg>
+      </div>
+      <figcaption>ด่านตัวแรกช่วยกันเย็บผิดทั้งล็อต หัวหน้าเทียบชิ้นแรกกับใบยืนยันและตัวอย่างที่ผ่านแล้ว แล้วจึงปล่อยให้เย็บทั้งก้อน ระหว่างเย็บ ผู้ควบคุมงานกรอกยอดเป็นระยะเพื่อให้ Dashboard เห็นความคืบหน้า แต่งานยังส่ง QC ทีเดียวทั้งก้อนตามเดิม ขั้นย่อยของแต่ละประเภทสินค้าด้านล่างเป็นเช็คลิสต์ให้ช่างดู ไม่บังคับติ๊ก</figcaption>
+    </figure>
+    <h3>ขั้นย่อยตอนเย็บทั้งก้อน แยกตามประเภทสินค้า</h3>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>เสื้อยืด</th><th>ป้ายผ้า</th><th>กระเป๋าผ้า</th></tr></thead>
+      <tbody><tr>
+        <td><ol class="seq"><li>เย็บไหล่</li><li>ติดคอ / ทับคอ</li><li>ติดแขน</li><li>เย็บข้าง + ใต้แขน</li><li>ลาแขน / ลาชาย</li><li>ติดป้ายคอ / ป้ายไซซ์</li></ol></td>
+        <td><ol class="seq"><li>พับริม / โพ้งขอบ</li><li>เก็บขอบ 4 ด้าน</li><li>ทำรางสอด (ตามสเปก เช่น 2.5 ซม.)</li><li>ติดตาไก่ / อุปกรณ์ (ถ้ามี)</li><li>ตรวจขนาดเทียบใบยืนยัน</li></ol></td>
+        <td><ol class="seq"><li>เย็บหูหิ้ว</li><li>เย็บซับใน (ถ้ามี)</li><li>ติดซิป / ช่องใน (ถ้ามี)</li><li>ประกอบตัวกระเป๋า</li><li>ติดหู + ทับขอบปาก</li><li>กลับด้าน + รีดทรง</li></ol></td>
+      </tr></tbody>
+    </table>
+    </div>
+    <p class="note">ตั้งค่าเพิ่มหรือแก้ได้ในหน้าตั้งค่า เช่น เพิ่มชุดขั้นย่อยของเสื้อโปโล หรือของสินค้าประเภทใหม่</p>
+  </section>
+
+  <!-- 4. Station states -->
+  <section class="sheet" id="states" aria-labelledby="h-state">
+    <span class="eyebrow">ทุกสถานีใช้เหมือนกัน</span>
+    <h2 id="h-state">สถานะของงานในหนึ่งสถานี</h2>
+    <figure>
+      <div class="scroll">
+      <svg class="dg dg-state" viewBox="0 0 790 226" role="img" aria-label="งานในสถานีเริ่มที่รอคิว ผู้ควบคุมงานกดเริ่มเป็นกำลังทำ ติ๊กขั้นตรวจแล้วกดเสร็จเมื่อครบทั้งก้อน แล้วงานไปรอคิวที่สถานีถัดไป ระหว่างทำแจ้งติดปัญหาหรือพักงานได้ และกลับมาทำต่อเมื่อแก้แล้ว">
+        <defs>
+          <marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk"/></marker>
+          <marker id="c-stop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk-stop"/></marker>
+          <marker id="c-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk-ok"/></marker>
+        </defs>
+        <path class="ln" d="M675 46 V24 H95 V44" marker-end="url(#c)"/>
+        <text class="s" x="385" y="16" text-anchor="middle">ส่งต่ออัตโนมัติ → รอคิวที่สถานีถัดไป</text>
+        <rect class="box" x="20" y="46" width="150" height="50" rx="6"/><text class="t" x="95" y="76" text-anchor="middle">รอคิว</text>
+        <line class="ln" x1="170" y1="71" x2="298" y2="71" marker-end="url(#c)"/>
+        <text class="lbl" x="234" y="62" text-anchor="middle">กดเริ่ม</text>
+        <rect class="box" x="300" y="46" width="150" height="50" rx="6"/><text class="t" x="375" y="76" text-anchor="middle">กำลังทำ</text>
+        <line class="ln" x1="450" y1="71" x2="588" y2="71" marker-end="url(#c)"/>
+        <text class="lbl" x="519" y="62" text-anchor="middle">ติ๊กขั้นตรวจ + กดเสร็จ</text>
+        <rect class="done" x="590" y="46" width="170" height="50" rx="6"/><text class="t" x="675" y="76" text-anchor="middle">เสร็จทั้งก้อน</text>
+        <line class="ln-stop" x1="355" y1="96" x2="355" y2="164" marker-end="url(#c-stop)"/>
+        <text class="lbl c-stop" x="347" y="134" text-anchor="end">แจ้งปัญหา + สาเหตุ</text>
+        <line class="ln-ok" x1="395" y1="166" x2="395" y2="98" marker-end="url(#c-ok)"/>
+        <text class="lbl c-ok" x="403" y="134">แก้แล้ว ทำต่อ</text>
+        <rect class="hold" x="290" y="166" width="170" height="50" rx="6"/><text class="t" x="375" y="196" text-anchor="middle">ติดปัญหา / พักงาน</text>
+      </svg>
+      </div>
+      <figcaption>เวลาระหว่าง “เสร็จ” ของสถานีก่อน กับ “เริ่ม” ของสถานีนี้ คือเวลารอคิว ส่วนเวลาระหว่าง “เริ่ม” กับ “เสร็จ” คือเวลาทำงาน เวลาที่พักงานจะถูกแยกออกมาต่างหาก สามตัวเลขนี้ใช้หาคอขวด</figcaption>
+    </figure>
+  </section>
+
+  <!-- 5. Stage-by-stage -->
+  <section class="sheet" id="stages" aria-labelledby="h-stages">
+    <span class="eyebrow">สเปกทีละขั้น</span>
+    <h2 id="h-stages">รายละเอียดทีละขั้น</h2>
+    <div class="legend" aria-label="คำอธิบายสัญลักษณ์">
+      <span class="sample"><i class="sw req"></i>ต้องติ๊กก่อนกดเสร็จ</span>
+      <span class="sample"><i class="sw num"></i>ต้องกรอกตัวเลข</span>
+      <span class="sample"><i class="sw appr"></i>ต้องมีคนอนุมัติ</span>
+      <span class="sample"><i class="sw lock"></i>ล็อกจนเงื่อนไขครบ</span>
+      <span class="sample"><i class="sw"></i>เช็คลิสต์ให้ดู ไม่บังคับ</span>
+    </div>
+
+    <div class="group-h">ก่อนผลิต</div>
+
+    <article class="stage">
+      <div class="meta"><span class="num">ขั้น 1</span><h3>รับงานเข้าโรงงาน</h3><div><span class="chip sup">ผู้ควบคุมงาน</span></div></div>
+      <div class="body">
+        <ol class="steps">
+          <li><span class="pill req">แนบ PDF ใบยืนยันที่เซ็นครบ</span></li>
+          <li><span class="pill req">กรอกข้อมูลหัวใบ</span></li>
+          <li><span class="pill req">เลือกประเภทสินค้า</span></li>
+          <li><span class="pill req">เลือกเส้นทาง ปกติ / DTF</span></li>
+          <li><span class="pill req">ใส่วันกำหนดเสร็จ</span></li>
+        </ol>
+        <dl>
+          <dt>บันทึก</dt><dd>รหัสลูกค้า, เลขที่งาน, ชื่อลูกค้า, ผู้ประสานงาน, ประเภทสินค้า, วัสดุ, จำนวน + หน่วย, Size, การเก็บงาน, การส่งงาน, กำหนดเสร็จ</dd>
+          <dt>ไปต่อได้เมื่อ</dt><dd class="exit">แนบ PDF แล้ว และช่องบังคับครบ</dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="stage">
+      <div class="meta"><span class="num">ขั้น 2</span><h3>ด่านวัตถุดิบ</h3><div><span class="chip adm">แอดมิน</span><span class="chip qc">QC</span><span class="chip prd">ฝ่ายผลิต</span></div></div>
+      <div class="body">
+        <ol class="steps">
+          <li><span class="pill">ระบบสร้างรายการตามประเภท + เส้นทาง</span></li>
+          <li><span class="pill req">แต่ละฝ่ายติ๊กรายการของตัวเอง</span></li>
+          <li><span class="pill req">งาน DTF: แอดมินสั่งฟิล์ม + วันคาดว่าได้รับ</span></li>
+        </ol>
+        <dl>
+          <dt>บันทึก</dt><dd>ใครติ๊ก, เวลาที่ติ๊ก, ฝ่ายที่ยังค้าง, วันที่สั่งฟิล์ม DTF</dd>
+          <dt>ไปต่อได้เมื่อ</dt><dd class="exit">ครบทุกรายการของทุกฝ่าย</dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="stage">
+      <div class="meta"><span class="num">ขั้น 3</span><h3>ขึ้นตัวอย่าง</h3><div><span class="chip sup">ผู้ควบคุมงาน</span></div></div>
+      <div class="body">
+        <ol class="steps">
+          <li><span class="pill">เดินตามสถานีของเส้นทางงาน</span></li>
+          <li><span class="pill req">ทำครบทุกสถานี (1 ชิ้น)</span></li>
+          <li><span class="pill req">ส่งตัวอย่างให้แอดมิน</span></li>
+        </ol>
+        <dl>
+          <dt>บันทึก</dt><dd>รอบที่, เวลาเริ่มและเสร็จของแต่ละสถานี</dd>
+          <dt>หมายเหตุ</dt><dd>ใช้ขั้นย่อยเดียวกับผลิตจริง แต่ไม่ต้องกรอกยอด และไม่มีด่านตัวแรก</dd>
+          <dt>ไปต่อได้เมื่อ</dt><dd class="exit">กดส่งตัวอย่างแล้ว</dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="stage">
+      <div class="meta"><span class="num">ขั้น 4</span><h3>ผลตัวอย่าง</h3><div><span class="chip adm">แอดมิน</span></div></div>
+      <div class="body">
+        <ol class="steps">
+          <li><span class="pill">ส่งตัวอย่าง / รูปให้ลูกค้า</span></li>
+          <li><span class="pill appr">ลูกค้ายืนยัน</span></li>
+          <li><span class="pill req">บันทึก ผ่าน / ไม่ผ่าน</span></li>
+        </ol>
+        <dl>
+          <dt>บันทึก</dt><dd>ผล, วันที่ลูกค้ายืนยัน, สิ่งที่ต้องแก้ (ถ้าไม่ผ่าน)</dd>
+          <dt>ไม่ผ่าน</dt><dd>กลับไปขั้น 3 เป็นรอบใหม่ (ค่าใช้จ่ายรอบเพิ่ม แอดมินคุยกับลูกค้าเอง)</dd>
+          <dt>ไปต่อได้เมื่อ</dt><dd class="exit">ผลเป็น “ผ่าน”</dd>
+        </dl>
+      </div>
+    </article>
+
+    <div class="group-h">สถานีผลิต (ผลิตจริง ทั้งก้อน)</div>
+
+    <article class="stage">
+      <div class="meta"><span class="num">สถานี</span><h3>พิมพ์งาน</h3><div><span class="route n">ปกติ</span></div><div><span class="chip sup">ผู้ควบคุมงาน</span></div></div>
+      <div class="body">
+        <ol class="steps">
+          <li><span class="pill">เตรียมไฟล์</span></li>
+          <li><span class="pill">เตรียมเครื่อง</span></li>
+          <li><span class="pill">พิมพ์</span></li>
+          <li><span class="pill req">ตรวจงานพิมพ์</span></li>
+        </ol>
+        <dl>
+          <dt>บันทึก</dt><dd>เวลาเริ่ม/เสร็จ, ผลตรวจงานพิมพ์</dd>
+          <dt>ไปต่อได้เมื่อ</dt><dd class="exit">ติ๊กตรวจงานพิมพ์ และพิมพ์ครบทั้งก้อน</dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="stage">
+      <div class="meta"><span class="num">สถานี</span><h3>รีดงาน</h3><div><span class="route n">ปกติ</span></div><div><span class="chip sup">ผู้ควบคุมงาน</span></div></div>
+      <div class="body">
+        <ol class="steps">
+          <li><span class="pill">ตั้งอุณหภูมิ</span></li>
+          <li><span class="pill">รีด</span></li>
+          <li><span class="pill req">ตรวจสีและการติด</span></li>
+        </ol>
+        <dl>
+          <dt>บันทึก</dt><dd>เวลาเริ่ม/เสร็จ, ผลตรวจสีและการติด</dd>
+          <dt>ไปต่อได้เมื่อ</dt><dd class="exit">ติ๊กตรวจสีและการติด และรีดครบทั้งก้อน</dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="stage">
+      <div class="meta"><span class="num">สถานี</span><h3>ตัดงาน</h3><div><span class="route b">ทั้งสองเส้นทาง</span></div><div><span class="chip sup">ผู้ควบคุมงาน</span></div></div>
+      <div class="body">
+        <ol class="steps">
+          <li><span class="pill">วางแพทเทิร์น</span></li>
+          <li><span class="pill">ตัด</span></li>
+          <li><span class="pill num">คัดแยกชิ้นและนับ</span></li>
+        </ol>
+        <dl>
+          <dt>บันทึก</dt><dd>เวลาเริ่ม/เสร็จ, จำนวนชิ้นที่ตัดได้</dd>
+          <dt>ไปต่อได้เมื่อ</dt><dd class="exit">กรอกจำนวนชิ้นแล้ว และตัดครบทั้งก้อน (ปกติ → เย็บ · DTF → รีด DTF)</dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="stage">
+      <div class="meta"><span class="num">สถานี</span><h3>รีด DTF</h3><div><span class="route d">DTF</span></div><div><span class="chip sup">ผู้ควบคุมงาน</span></div><span class="draft">ขั้นย่อยร่างไว้ ต้องยืนยัน</span></div>
+      <div class="body">
+        <ol class="steps">
+          <li><span class="pill lock">ได้รับฟิล์มแล้ว (แอดมินกด)</span></li>
+          <li><span class="pill">ตั้งอุณหภูมิ</span></li>
+          <li><span class="pill">วางฟิล์มตามตำแหน่ง</span></li>
+          <li><span class="pill">รีด</span></li>
+          <li><span class="pill">ลอกฟิล์ม</span></li>
+          <li><span class="pill req">ตรวจการติด</span></li>
+        </ol>
+        <dl>
+          <dt>บันทึก</dt><dd>วันที่ได้รับฟิล์ม, เวลารอฟิล์ม, เวลาเริ่ม/เสร็จ</dd>
+          <dt>ไปต่อได้เมื่อ</dt><dd class="exit">ติ๊กตรวจการติด และรีดครบทั้งก้อน → ส่งเย็บ</dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="stage">
+      <div class="meta"><span class="num">สถานี</span><h3>เย็บงาน</h3><div><span class="route b">ทั้งสองเส้นทาง</span></div><div><span class="chip sup">ผู้ควบคุมงาน</span></div></div>
+      <div class="body">
+        <ol class="steps">
+          <li><span class="pill req">จ่ายงานเข้าเย็บ</span></li>
+          <li><span class="pill appr">ตัวแรกผ่าน</span></li>
+          <li><span class="pill num">เย็บทั้งก้อน (กรอกยอด)</span></li>
+          <li><span class="pill req">เก็บงานปลายไลน์</span></li>
+        </ol>
+        <dl>
+          <dt>จ่ายงาน</dt><dd>นับชิ้นให้ตรงกับยอดจากขั้นตัด, จับคู่ชิ้นตามไซซ์/สี, เตรียมด้ายสีตามสเปก, ตั้งจักร, ระบุทีมหรือช่างที่รับงาน</dd>
+          <dt>ตัวแรก</dt><dd>หัวหน้าเทียบกับใบยืนยันและตัวอย่างที่ผ่านแล้ว: ขนาด, ตำแหน่งลาย, ตะเข็บ, ตำแหน่งป้าย</dd>
+          <dt>เก็บงาน</dt><dd>ตัดเศษด้าย, ตรวจตะเข็บหลุด/ข้าม, นับยอด</dd>
+          <dt>บันทึก</dt><dd>ทีม/ช่างที่เย็บ, ผลตัวแรก, ยอดเย็บแล้วเป็นระยะ, เวลาเริ่ม/เสร็จ</dd>
+          <dt>ไปต่อได้เมื่อ</dt><dd class="exit">ยอดเย็บครบ และติ๊กเก็บงานปลายไลน์แล้ว</dd>
+        </dl>
+      </div>
+    </article>
+
+    <article class="stage">
+      <div class="meta"><span class="num">สถานี</span><h3>QC + Packing</h3><div><span class="route b">ทั้งสองเส้นทาง</span></div><div><span class="chip sup">ผู้ควบคุมงาน</span><span class="chip qc">QC</span></div></div>
+      <div class="body">
+        <ol class="steps">
+          <li><span class="pill num">ตรวจ (ผ่าน / ไม่ผ่าน)</span></li>
+          <li><span class="pill num">นับ</span></li>
+          <li><span class="pill">พับ / แพ็ค</span></li>
+          <li><span class="pill">ติดป้าย</span></li>
+          <li><span class="pill req">ลงลัง</span></li>
+        </ol>
+        <dl>
+          <dt>บันทึก</dt><dd>จำนวนผ่าน, จำนวนไม่ผ่าน + สาเหตุ, สถานีต้นเหตุ, จำนวนลัง</dd>
+          <dt>ไม่ผ่าน</dt><dd>กด “ส่งกลับแก้” ระบุจำนวน สาเหตุ และสถานีที่ต้องแก้ (ส่วนใหญ่คือเย็บ) งานจะกลับไปพร้อมป้าย “งานแก้”</dd>
+          <dt>ไปต่อได้เมื่อ</dt><dd class="exit">ยอดผ่านครบตามจำนวนสั่ง และติ๊กลงลังแล้ว</dd>
+        </dl>
+      </div>
+    </article>
+
+    <div class="group-h">ปิดงาน</div>
+
+    <article class="stage">
+      <div class="meta"><span class="num">ขั้นสุดท้าย</span><h3>เสร็จ / พร้อมส่ง</h3><div><span class="chip sup">ผู้ควบคุมงาน</span></div></div>
+      <div class="body">
+        <ol class="steps">
+          <li><span class="pill">เตรียมส่งตามการส่งงานในใบ (เช่น พัสดุ)</span></li>
+          <li><span class="pill req">กดพร้อมส่ง</span></li>
+        </ol>
+        <dl>
+          <dt>บันทึก</dt><dd>วันที่เสร็จจริง เทียบกับกำหนดเสร็จ, Lead time รวม</dd>
+        </dl>
+      </div>
+    </article>
+  </section>
+
+  <!-- 6. Who -->
+  <section class="sheet" id="who" aria-labelledby="h-who">
+    <span class="eyebrow">ความรับผิดชอบ</span>
+    <h2 id="h-who">ใครกดอะไร</h2>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>จุดในระบบ</th><th>คนกด</th><th>สิ่งที่บันทึก</th></tr></thead>
+      <tbody>
+        <tr><td>รับงานเข้าโรงงาน</td><td><span class="chip sup">ผู้ควบคุมงาน</span></td><td>แนบ PDF, ข้อมูลหัวใบ, ประเภทสินค้า, เส้นทาง, วันกำหนดเสร็จ</td></tr>
+        <tr><td>เช็ควัตถุดิบ</td><td><span class="chip adm">แอดมิน</span><span class="chip qc">QC</span><span class="chip prd">ฝ่ายผลิต</span></td><td>ติ๊กรายการที่ฝ่ายตัวเองรับผิดชอบ</td></tr>
+        <tr><td>สั่งฟิล์ม DTF / ได้รับฟิล์ม</td><td><span class="chip adm">แอดมิน</span></td><td>วันที่สั่ง, วันที่คาดว่าจะมาถึง, วันที่ได้รับจริง</td></tr>
+        <tr><td>ขึ้นตัวอย่าง: เริ่ม / เสร็จแต่ละสถานี</td><td><span class="chip sup">ผู้ควบคุมงาน</span></td><td>เวลาเริ่มและเสร็จ, รอบที่</td></tr>
+        <tr><td>ผลตัวอย่าง ผ่าน / ไม่ผ่าน</td><td><span class="chip adm">แอดมิน</span></td><td>ผลหลังลูกค้ายืนยัน, สิ่งที่ต้องแก้</td></tr>
+        <tr><td>สถานีผลิต: เริ่ม / ติ๊กขั้นตรวจ / เสร็จ</td><td><span class="chip sup">ผู้ควบคุมงาน</span></td><td>เวลาแต่ละสถานี, ผลตรวจ, จำนวนชิ้นที่ตัด</td></tr>
+        <tr><td>เย็บ: อนุมัติตัวแรก</td><td><span class="chip sup">ผู้ควบคุมงาน (หัวหน้า)</span></td><td>ผ่าน / ไม่ผ่าน, สิ่งที่ต้องแก้</td></tr>
+        <tr><td>เย็บ: กรอกยอดเย็บแล้ว</td><td><span class="chip sup">ผู้ควบคุมงาน</span></td><td>ยอดสะสม, เวลาที่กรอก</td></tr>
+        <tr><td>QC: ผลตรวจ / ส่งกลับแก้</td><td><span class="chip sup">ผู้ควบคุมงาน</span><span class="chip qc">QC</span></td><td>จำนวนผ่าน/ไม่ผ่าน, สาเหตุ, สถานีต้นเหตุ</td></tr>
+        <tr><td>ติดปัญหา / พักงาน</td><td><span class="chip sup">ผู้ควบคุมงาน</span></td><td>สาเหตุ, เวลาเริ่มพัก, เวลาแก้เสร็จ</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <!-- 7. Rules -->
+  <section class="sheet" id="rules" aria-labelledby="h-rules">
+    <span class="eyebrow">กฎที่ระบบบังคับ</span>
+    <h2 id="h-rules">สิ่งที่ระบบไม่ยอมให้ทำ</h2>
+    <div class="rules">
+      <div class="rule stop"><span class="where">รับงาน</span><b>ไม่มี PDF เซ็นครบ รับงานไม่ได้</b><span>ปุ่มรับงานจะกดไม่ได้ จนกว่าแนบใบยืนยันฉบับที่ลูกค้าและเจ้าหน้าที่เซ็นแล้ว</span></div>
+      <div class="rule"><span class="where">ด่านวัตถุดิบ</span><b>ไม่ครบทุกฝ่าย ขึ้นตัวอย่างไม่ได้</b><span>ถ้ายังติ๊กไม่ครบ งานจะค้างที่ “รอวัตถุดิบ” และแสดงว่ารอฝ่ายไหน</span></div>
+      <div class="rule"><span class="where">ด่านตัวอย่าง</span><b>ตัวอย่างยังไม่ผ่าน ผลิตจริงไม่ได้</b><span>ต้องมีผล “ผ่าน” จากแอดมินก่อน ถ้าไม่ผ่าน งานกลับไปขึ้นตัวอย่างรอบใหม่</span></div>
+      <div class="rule"><span class="where">ทุกสถานี</span><b>ข้ามสถานีไม่ได้</b><span>สถานีถัดไปเริ่มได้เมื่อสถานีก่อนหน้ากด “เสร็จ” ครบทั้งก้อนแล้ว</span></div>
+      <div class="rule"><span class="where">ทุกสถานี</span><b>ยังไม่ติ๊กขั้นตรวจ กดเสร็จไม่ได้</b><span>เช่น ตรวจงานพิมพ์, ตรวจสีและการติด, กรอกจำนวนชิ้นที่ตัด</span></div>
+      <div class="rule"><span class="where">เส้นทาง DTF</span><b>ยังไม่ได้รับฟิล์ม รีด DTF ไม่ได้</b><span>ปลดล็อกเมื่อแอดมินกด “ได้รับฟิล์มแล้ว” และระหว่างรอ การ์ดงานจะขึ้นวันที่คาดว่าฟิล์มจะมาถึง</span></div>
+      <div class="rule"><span class="where">เย็บ</span><b>ตัวแรกยังไม่ผ่าน เย็บทั้งก้อนไม่ได้</b><span>หัวหน้าต้องอนุมัติชิ้นแรกก่อน ยอดเย็บจึงเริ่มกรอกได้</span></div>
+      <div class="rule"><span class="where">QC</span><b>ส่งกลับแก้ต้องมีจำนวนและสาเหตุ</b><span>ระบุสถานีต้นเหตุด้วย เพื่อดูย้อนได้ว่าปัญหาเกิดซ้ำที่จุดไหน</span></div>
+      <div class="rule stop"><span class="where">พักงาน</span><b>พักงานต้องมีสาเหตุ</b><span>เวลาพักจะแยกออกจากเวลาทำงาน เพื่อให้วัดคอขวดได้ถูก</span></div>
+    </div>
+  </section>
+
+  <!-- 8. Materials -->
+  <section class="sheet" id="materials" aria-labelledby="h-mat">
+    <span class="eyebrow">ด่านวัตถุดิบ</span>
+    <h2 id="h-mat">รายการวัตถุดิบแบ่งตามฝ่าย</h2>
+    <p class="note">รายการด้านล่างเป็นตัวอย่าง ของจริงตั้งค่าแยกตามประเภทสินค้า (เสื้อ / ป้ายผ้า / กระเป๋า) และเส้นทางได้ในหน้าตั้งค่า</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>วัตถุดิบ (ตัวอย่าง)</th><th>ฝ่ายที่เช็ค</th><th>ใช้กับเส้นทาง</th></tr></thead>
+      <tbody>
+        <tr><td>ผ้าตามสเปก (เช่น ผ้าไซลอน)</td><td><span class="chip adm">แอดมิน</span></td><td><span class="route b">ทั้งสองเส้นทาง</span></td></tr>
+        <tr><td>ไฟล์งานพร้อมพิมพ์</td><td><span class="chip adm">แอดมิน</span></td><td><span class="route n">ปกติ</span></td></tr>
+        <tr><td>ฟิล์ม DTF (สั่งแล้ว)</td><td><span class="chip adm">แอดมิน</span></td><td><span class="route d">DTF</span></td></tr>
+        <tr><td>หมึก / กระดาษพิมพ์</td><td><span class="chip prd">ฝ่ายผลิต</span></td><td><span class="route n">ปกติ</span></td></tr>
+        <tr><td>ด้ายสีตามสเปก / อุปกรณ์เย็บ (รางสอด, ตาไก่, ซิป)</td><td><span class="chip prd">ฝ่ายผลิต</span></td><td><span class="route b">ทั้งสองเส้นทาง</span></td></tr>
+        <tr><td>ป้ายคอ / แท็ก / ถุงแพ็ค / ลัง</td><td><span class="chip qc">QC</span></td><td><span class="route b">ทั้งสองเส้นทาง</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <!-- 9. Numbers -->
+  <section class="sheet" id="numbers" aria-labelledby="h-data">
+    <span class="eyebrow">สิ่งที่ได้จากการกด</span>
+    <h2 id="h-data">ตัวเลขที่ระบบคำนวณให้</h2>
+    <div class="cols">
+      <div><b>ดูสด (Dashboard)</b>
+        <ul class="plain"><li>งานในแต่ละสถานี: รอคิว / กำลังทำ</li><li>ความคืบหน้าขั้นเย็บ (ยอดเย็บแล้ว / ยอดทั้งหมด)</li><li>งานที่ค้างรอวัตถุดิบ และรอฝ่ายไหน</li><li>งานที่รอฟิล์ม DTF และงานที่เลยวันคาดว่าจะได้รับ</li><li>งานรอผลตัวอย่าง</li><li>งานที่ติดปัญหา และงานเลยกำหนด</li><li>ยอดงานเสร็จวันนี้</li></ul></div>
+      <div><b>รายงานย้อนหลัง</b>
+        <ul class="plain"><li>เวลาทำงานและเวลารอคิวเฉลี่ยของแต่ละสถานี (หาคอขวด)</li><li>จำนวนรอบตัวอย่างต่องาน</li><li>อัตราตัวแรกไม่ผ่าน แยกตามประเภทสินค้า</li><li>งานแก้จาก QC แยกตามสาเหตุและสถานีต้นเหตุ</li><li>เวลารอฟิล์ม DTF เทียบกับวันที่แอดมินแจ้ง</li><li>สาเหตุพักงานที่เจอบ่อย</li><li>% งานเสร็จทันกำหนด</li></ul></div>
+    </div>
+  </section>
+</div>

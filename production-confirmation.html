@@ -1,0 +1,1194 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ใบยืนยันการผลิต</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f5f2; --card:#fff; --ink:#1d2420; --muted:#5f6a63; --line:#dfe3dd;
+  --accent:#0f4a42; --accent-soft:#e3efec; --warn:#b4231b; --warn-soft:#fdecea; --gold:#c08a3e;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Sarabun",system-ui,sans-serif;font-size:15px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+
+/* top bar */
+.bar{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.bar-logo{height:38px;width:auto;display:block}
+.bar h1{font-size:17px;margin:0;flex:1;min-width:180px}
+.bar h1 small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.qty-badge{background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:4px 12px;font-weight:600;font-size:14px;white-space:nowrap}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.small{padding:4px 10px;font-size:13px}
+.btn.ghost{border-style:dashed;color:var(--accent)}
+.btn.x{border:none;background:none;color:var(--muted);padding:4px 8px}
+.btn.x:hover{color:var(--warn)}
+
+main.layout{max-width:1200px;margin:0 auto;padding:16px;display:grid;grid-template-columns:220px minmax(0,1fr);gap:18px;align-items:start}
+body.preview main.layout{grid-template-columns:minmax(0,1fr)}
+#nav{position:sticky;top:76px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;font-size:14px;max-height:calc(100vh - 92px);overflow:auto}
+#nav .nh{font-weight:700;padding:4px 8px 8px;color:var(--muted);font-size:13px}
+#nav a{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;color:var(--ink);text-decoration:none}
+#nav a:hover{background:var(--accent-soft)}
+#nav a .n{flex:none;display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#e9ecea;font-size:12px}
+#nav a.ok .n{background:var(--accent);color:#fff}
+#nav a span.t{flex:1}
+#nav a em{font-style:normal;font-size:12px;color:var(--warn);font-weight:600;white-space:nowrap}
+#nav a.ok em{color:var(--accent)}
+.progress{font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--warn-soft);color:var(--warn);white-space:nowrap}
+.progress.done{background:var(--accent-soft);color:var(--accent)}
+.card{scroll-margin-top:80px}
+.field{scroll-margin-top:90px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;z-index:10;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+.btn-group{display:flex;gap:6px;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+.card h2{font-size:16px;margin:0 0 12px;display:flex;gap:8px;align-items:center}
+.card h2 .n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+.field.wide{grid-column:1/-1}
+.lab{font-weight:600;font-size:14px;margin-bottom:4px}
+.lab small{font-weight:400;color:var(--muted)}
+.req{color:var(--warn);font-style:normal;margin-left:2px}
+.hint{color:var(--muted);font-size:13px;margin:-2px 0 6px}
+input[type=text],input[type=number],input[type=date],textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff}
+input:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+input:disabled{background:#f2f3f1;color:#9aa39d}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer;background:#fff;user-select:none}
+.opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.opt input{accent-color:var(--accent);margin:0}
+.opt.big{padding:10px 16px;font-size:15px}
+.other{margin-top:6px}
+.dims{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.dims label{display:flex;flex-direction:column;font-size:13px;color:var(--muted);width:120px}
+.dims b{padding-bottom:8px;color:var(--muted)}
+.route{margin:12px 0 0;padding:10px 12px;border-radius:8px;background:#faf6ec;border:1px solid #efe2c2;font-size:14px}
+.route b{color:var(--gold)}
+
+/* tables in form */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table.ft{border-collapse:collapse;width:100%;min-width:560px;font-size:14px}
+table.ft th,table.ft td{border-bottom:1px solid var(--line);padding:4px;text-align:center}
+table.ft th{background:#f7f8f6;font-weight:600;padding:6px 4px;white-space:nowrap}
+table.ft td input{padding:5px 6px;text-align:center;min-width:52px}
+table.ft td.l input{text-align:left;min-width:150px}
+table.ft select{width:100%;min-width:130px;border:1px solid var(--line);border-radius:6px;padding:5px 4px;background:#fff}
+.tlabel{font-weight:700;font-size:11.5px;margin:6px 0 0;color:#333}
+table.ft th:first-child,table.ft td.l:first-child,table.ft tfoot td:first-child{position:sticky;left:0;z-index:1;background:#fff;box-shadow:1px 0 0 var(--line)}
+table.ft th:first-child,table.ft tfoot td:first-child{background:#f7f8f6}
+table.ft tfoot td{font-weight:700;background:#f7f8f6}
+.tbl-actions{margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.pl{display:grid;gap:6px}
+.pl-row{display:grid;grid-template-columns:170px 1fr 1fr 1fr;gap:8px;align-items:center}
+.pl-head{display:grid;grid-template-columns:170px 1fr 1fr 1fr;gap:8px;font-size:12px;color:var(--muted);padding:0 2px}
+#psearch{width:100%;max-width:420px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:2px 0 10px;background:#fff}
+.pcat{margin-bottom:10px}
+.pcat-t{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:5px}
+.picked{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.picked .sel{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700;border-radius:8px;padding:10px 16px}
+.imgs{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.imgs figure{margin:0;width:150px;border:1px solid var(--line);border-radius:8px;overflow:hidden;position:relative;background:#fff}
+.imgs img{width:100%;height:120px;object-fit:contain;background:#f7f8f6;display:block}
+.imgs figcaption{font-size:12px;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.imgs .btn.x{position:absolute;top:2px;right:2px;background:#fff;border-radius:6px}
+
+/* validation */
+.field.missing .lab{color:var(--warn)}
+.field.missing input,.field.missing .tbl-wrap,.field.missing .opts .opt{border-color:#e6a49f}
+.alert{background:var(--warn-soft);border:1px solid #f0b9b4;color:var(--warn);border-radius:12px;padding:12px 16px;margin-bottom:14px}
+.alert b{display:block;margin-bottom:4px}
+.alert ul{margin:0;padding-left:20px}
+.alert a{color:var(--warn)}
+
+/* document (PDF) */
+#doc{display:none}
+body.preview #form,body.preview .edit-only{display:none}
+body.preview #doc{display:block}
+.doc{width:210mm;min-height:297mm;margin:0 auto 24px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:10mm 10mm 14mm;font-size:12px;line-height:1.45;color:#111}
+table.pg{width:100%;border-collapse:collapse}
+table.pg>thead>tr>td,table.pg>tbody>tr>td{padding:0;vertical-align:top}
+table.pg>thead>tr>td{padding-bottom:3mm}
+/* หัวกระดาษ: พิมพ์ซ้ำทุกหน้า */
+.ph{display:grid;grid-template-columns:auto 1fr auto;gap:4px 14px;align-items:center;border-bottom:2px solid var(--accent);padding-bottom:5px}
+.ph .logo{height:13mm;width:auto;display:block}
+.ph .tt{font-size:19px;font-weight:700;line-height:1.2;padding-left:14px;border-left:1px solid #c9cec8}
+.ph .tt small{display:block;font-size:12.5px;font-weight:600;color:var(--accent);margin-top:2px}
+.ph .no{text-align:right;line-height:1.3;font-size:11.5px;color:#444}
+.ph .no .big{display:block;font-size:19px;font-weight:700;color:var(--accent);letter-spacing:.3px}
+.ph .no .rev{color:var(--warn);font-weight:700}
+.ph .job{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:2px 20px;background:var(--accent-soft);border-radius:5px;padding:4px 10px;font-size:11.5px;margin-top:3px}
+.ph .job span{color:#555}
+.ph .job b{color:#111}
+/* เนื้อหา */
+.d-prod{display:flex;flex-wrap:wrap;gap:3px 18px;background:#faf6ec;border:1px solid #efe2c2;border-radius:5px;padding:5px 10px;margin:6px 0 2px;font-size:12px}
+.d-prod b{color:var(--accent)}
+.ds{break-inside:avoid;page-break-inside:avoid}
+.page-note{display:none;max-width:210mm;margin:0 auto 8px;font-size:13px;color:var(--accent);text-align:right}
+body.preview .page-note{display:block}
+.page-note.warn{color:var(--warn);font-weight:600}
+.doc h3{font-size:13px;margin:10px 0 4px;padding:3px 8px;background:#eef0ec;border-left:4px solid var(--accent);break-after:avoid;page-break-after:avoid}
+.kv{display:grid;grid-template-columns:1fr 1fr;column-gap:16px}
+.kv div{display:grid;grid-template-columns:112px 1fr;gap:6px;border-bottom:1px dotted #c9cec8;padding:2.5px 2px;break-inside:avoid}
+.kv div.w{grid-column:1/-1}
+.kv span{color:#555}
+.kv b{font-weight:600;white-space:pre-wrap}
+table.dt{border-collapse:collapse;width:100%;font-size:11.5px;margin:5px 0 2px;break-inside:avoid}
+table.dt th,table.dt td{border:1px solid #bfc5be;padding:2.5px 5px;text-align:center}
+table.dt th{background:#f1f3ef}
+table.dt td.l{text-align:left}
+table.dt tfoot td{font-weight:700;background:#f7f8f6}
+.d-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.d-imgs figure{margin:0;border:1px solid #ccc;border-radius:4px;padding:4px;width:calc(50% - 4px);break-inside:avoid;page-break-inside:avoid}
+.d-imgs img{width:100%;height:66mm;object-fit:contain;display:block;background:#fafafa}
+.d-imgs figcaption{font-size:10.5px;color:#555;text-align:center;margin-top:2px}
+.close{break-inside:avoid;page-break-inside:avoid;margin-top:12px}
+.d-note{border:1px solid #e3d3a8;background:#fbf7ec;border-radius:5px;padding:6px 10px;font-size:11.5px}
+.sign{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}
+.sign>div{border:1px solid #bfc5be;border-radius:5px;padding:7px;text-align:center;font-size:11.5px}
+.sign .t{font-weight:700;margin-bottom:24px}
+.sign .ln{border-bottom:1px dotted #777;margin:0 6px 4px;height:1px}
+@media (max-width:900px){
+  main.layout{grid-template-columns:minmax(0,1fr)}
+  #nav{display:none}
+}
+@media (max-width:1100px){
+  .bar h1 small{display:none}
+}
+@media (max-width:700px){
+  .bar{position:static}
+  .bar .btn{padding:6px 10px;font-size:14px}
+  .grid{grid-template-columns:1fr}
+  .pl-row,.pl-head{grid-template-columns:1fr}
+  .pl-head{display:none}
+  .doc{width:auto;min-height:0;padding:16px;margin:0 0 16px}
+  .kv{grid-template-columns:1fr}
+  .ph{grid-template-columns:auto 1fr}
+  .ph .no{grid-column:1/-1;text-align:left}
+}
+@media print{
+  body{background:#fff}
+  .bar,#form,#nav,.alert,.toast,.page-note{display:none!important}
+  main.layout{display:block;padding:0}
+  #doc{display:block!important}
+  .doc{width:auto;min-height:0;margin:0;padding:0;box-shadow:none}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<div class="bar">
+  <img class="bar-logo" id="barLogo" alt="ภาพพิมพ์ 142">
+  <h1 id="barTitle">ใบยืนยันการผลิต<small>แอดมินกรอก → ตรวจครบ → ส่งออก PDF ให้ลูกค้าเซ็น</small></h1>
+  <span class="qty-badge" id="qtyBadge">0</span>
+  <span class="progress edit-only" id="progress"></span>
+  <div class="btn-group edit-only">
+    <button class="btn" data-act="new" title="ล้างฟอร์มเพื่อเริ่มใบใหม่">ใบใหม่</button>
+    <button class="btn" data-act="open" title="เปิดไฟล์ใบงานที่บันทึกไว้ (.json)">เปิดไฟล์</button>
+    <button class="btn" data-act="savefile" title="บันทึกเป็นไฟล์ไว้เปิดแก้ไขหรือออกฉบับใหม่ภายหลัง">บันทึกไฟล์</button>
+  </div>
+  <button class="btn" data-act="preview" id="btnPreview">ดูตัวอย่าง PDF</button>
+  <button class="btn primary" data-act="export">ส่งออก PDF</button>
+  <input type="file" id="openFile" accept=".json,application/json" hidden>
+</div>
+<main class="layout">
+  <nav id="nav" class="edit-only" aria-label="หัวข้อในฟอร์ม"></nav>
+  <div>
+    <div id="alert"></div>
+    <div id="form"></div>
+    <div id="doc" class="doc"></div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= ตั้งค่า (แก้ตรงนี้เพื่อเพิ่ม/ลดตัวเลือก) ================= */
+const COMPANY = { name: 'ภาพพิมพ์ 142', logo: 'data:image/webp;base64,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' }; // โลโก้ต้นฉบับ: assets/logo.webp
+const OTHER = 'อื่นๆ';
+const ADULT = ['SS','S','M','L','XL','2XL','3XL','4XL','5XL','6XL','7XL','8XL','9XL','10XL'];
+const KIDS  = ['เด็ก SS','เด็ก S','เด็ก M','เด็ก L','เด็ก XL'];
+
+const HEADER = [
+  { title: 'ข้อมูลใบงาน', fields: [
+    { id:'doc_no', type:'text', label:'เลขที่ใบยืนยัน', req:true, ph:'เช่น SC691451' },
+    { id:'rev', type:'number', label:'แก้ไขครั้งที่', hint:'ใบแรกเว้นว่าง · ถ้าแก้หลังลูกค้าเซ็นแล้ว ให้ใส่ 1, 2, ...' },
+    { id:'job_name', type:'text', label:'ชื่องาน', req:true, ph:'เช่น เสื้อทีมกีฬาสี 2569', wide:true },
+    { id:'issue_date', type:'date', label:'วันที่ออกใบ', req:true },
+    { id:'admin', type:'text', label:'แอดมินผู้ดูแล', req:true },
+    { id:'sample_date', type:'date', label:'วันนัดส่งตัวอย่าง', hint:'ทุกงานต้องขึ้นตัวอย่างก่อนผลิตจริง' },
+    { id:'due_date', type:'date', label:'กำหนดส่งงาน', req:true },
+  ]},
+  { title: 'ข้อมูลลูกค้า', fields: [
+    { id:'customer', type:'text', label:'ชื่อลูกค้า / บริษัท', req:true, wide:true },
+    { id:'contact', type:'text', label:'ผู้ติดต่อ', req:true },
+    { id:'phone', type:'text', label:'เบอร์โทร', req:true },
+    { id:'delivery', type:'radio', label:'การรับสินค้า', req:true, options:['ลูกค้ารับเองที่โรงงาน','จัดส่งตามที่อยู่'] },
+    { id:'address', type:'textarea', label:'ที่อยู่จัดส่ง', req:true, when:v=>v.delivery==='จัดส่งตามที่อยู่' },
+  ]},
+];
+
+/* ---------- ตัวช่วยสร้างช่อง (R=เลือก 1, C=เลือกหลาย, T=ข้อความ, N=ตัวเลข, D=ขนาด, A=ข้อความยาว) ---------- */
+const R=(id,label,options,x={})=>({ id, type:'radio', label, options, req:true, ...x });
+const C=(id,label,options,x={})=>({ id, type:'check', label, options, ...x });
+const T=(id,label,x={})=>({ id, type:'text', label, ...x });
+const N=(id,label,unit,x={})=>({ id, type:'number', label, unit, ...x });
+const D=(id,label,parts,x={})=>({ id, type:'dims', label, parts, unit:'ซม.', req:true, ...x });
+const A=(id,label,x={})=>({ id, type:'textarea', label, ...x });
+const has=(v,id,re)=>[].concat(v[id]||[]).some(x=>re.test(x));
+
+/* ชุดไซซ์ (ชื่อชุด → คอลัมน์ในตาราง) */
+const SIZESETS = {
+  'ไซซ์ผู้ใหญ่': ADULT,
+  'ไซซ์เด็ก': KIDS,
+  'ไซซ์ตามรอบอก (นิ้ว)': ['อก 28','อก 30','อก 32','อก 34','อก 36','อก 38','อก 40','อก 42','อก 44','อก 46','อก 48'],
+  'ไซซ์เด็กเล็ก': ['0–3 ด.','3–6 ด.','6–12 ด.','1–2 ปี','2–3 ปี','3–4 ปี'],
+  'Free size': ['Free size'],
+  'ไซซ์สัตว์เลี้ยง': ['สัตว์ XS','สัตว์ S','สัตว์ M','สัตว์ L','สัตว์ XL','สัตว์ 2XL'],
+};
+
+/* เทคนิคพิมพ์/ตกแต่ง */
+const M_GARMENT = ['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)','ซับลิเมชั่น เฉพาะจุด','DTF (ฟิล์มรีดร้อน)','ซิลค์สกรีน','งานปัก','ไม่มีลาย'];
+const M_FLAT = ['ซับลิเมชั่น พิมพ์เต็มผืน','ดิจิทัลพริ้นท์','DTF (ฟิล์มรีดร้อน)','ซิลค์สกรีน','ไม่มีลาย'];
+const POS_SHIRT = ['หน้าอกซ้าย','หน้าอกขวา','กลางอกหน้า','เต็มด้านหน้า','หลังคอ','กลางหลัง','เต็มด้านหลัง','แขนซ้าย','แขนขวา','ปกเสื้อ'];
+const POS_PANTS = ['ขาซ้ายด้านหน้า','ขาขวาด้านหน้า','ขอบเอว','ด้านหลัง','ปลายขา'];
+const ALLOVER = /ทั้งตัว|ทั้งใบ|เต็มผืน/;
+const hasPrint = v => [].concat(v.print_method||[]).some(m=>!/ไม่มีลาย/.test(m));
+const spotPrint = v => [].concat(v.print_method||[]).some(m=>!/ไม่มีลาย/.test(m)&&!ALLOVER.test(m));
+
+const THREAD = R('thread','สีด้าย',['ตามสีผ้า','ขาว','ดำ'],{ other:true });
+const COLOR_MATCH = R('color_match','การเทียบสี',['ตามไฟล์ (คลาดเคลื่อนได้ตามปกติของงานพิมพ์)','ตามตัวอย่างจริง / Pantone ที่ลูกค้าให้'],{ when:hasPrint });
+/* กระเป๋า: 1 แถว = 1 ใบ ระบุตำแหน่ง แบบ การปิด ขนาด และระยะอ้างอิง */
+const POCKET_SHIRT = ['อกซ้าย','อกขวา','อกทั้งสองข้าง','ล่างซ้าย','ล่างขวา','ล่างทั้งสองข้าง','หน้าท้อง (กระเป๋าจิงโจ้)','ข้างลำตัว (ซ่อนในตะเข็บ)','แขนซ้าย','แขนขวา','ด้านใน (ซับใน)'];
+const POCKET_PANTS = ['ข้างซ้าย','ข้างขวา','ข้างทั้งสองข้าง','หลังซ้าย','หลังขวา','หลังทั้งสองข้าง','ข้างขาซ้าย (คาร์โก้)','ข้างขาขวา (คาร์โก้)'];
+const POCKET_BAG = ['ด้านในตัวกระเป๋า','ด้านนอก ด้านหน้า','ด้านนอก ด้านหลัง','ด้านข้าง'];
+const POCKET_APRON = ['อกกลาง','อกซ้าย','อกขวา','กลางตัว','ล่างซ้าย','ล่างขวา','ล่างเต็มแนว (แบ่งช่อง)'];
+const POCKET_KINDS = ['กระเป๋าแปะ','กระเป๋าเจาะ (ซ่อน)','กระเป๋าแปะมีฝาปิด','ช่องปากกา','กระเป๋าซิป','กระเป๋าจิงโจ้'];
+function POCKETS(positions, x={}){
+  return { id:x.id||'pocket_rows', type:'itemTable', label:x.label||'กระเป๋า', req:!!x.req, when:x.when, none:'ไม่มีกระเป๋า', addLabel:'+ เพิ่มกระเป๋า',
+    hint:'ไม่มีกระเป๋า = เว้นว่าง · 1 แถวต่อ 1 ตำแหน่ง · ซ้าย/ขวา = ฝั่งของคนใส่ · ระยะอ้างอิงเช่น "ห่างไหล่ 20 ซม. ห่างสาบ 6 ซม."',
+    cols:[
+      { c:'pos', label:'ตำแหน่ง', t:'select', options:positions },
+      { c:'kind', label:'แบบ', t:'select', options:x.kinds||POCKET_KINDS },
+      { c:'close', label:'การปิด', t:'select', options:['ไม่มี','กระดุม','กระดุมแป๊ก','ซิป','ตีนตุ๊กแก'] },
+      { c:'size', label:'ขนาด ก × ส (ซม.)', t:'text' },
+      { c:'note', label:'ระยะอ้างอิง / สี / หมายเหตุ', t:'text', opt:true },
+    ]};
+}
+/* รายละเอียดที่ต้องมีเมื่อเลือกเทคนิคนั้น */
+const TECH_DETAIL = [
+  T('emb_colors','งานปัก: สีด้ายปัก / จำนวนสี',{ req:true, wide:true, ph:'เช่น 3 สี: ขาว ทอง กรมท่า (เทียบเบอร์ด้าย)', when:v=>has(v,'print_method',/ปัก/) }),
+  T('ink_colors','งานสกรีน: สีหมึก / จำนวนสี',{ req:true, wide:true, ph:'เช่น 2 สี: ขาว + ทอง', when:v=>has(v,'print_method',/ซิลค์|สกรีนบน|^สกรีน$/) }),
+  T('foil_color','สีฟอยล์',{ req:true, when:v=>has(v,'print_method',/ฟอยล์/) }),
+];
+const PERSONAL = [
+  C('personal','ข้อความรายตัว',['ชื่อรายตัว','เบอร์รายตัว','ตำแหน่ง/แผนก'],{ hint:'ถ้ามี ต้องแนบรายชื่อพร้อมไซซ์', when:hasPrint }),
+  T('personal_pos','ตำแหน่ง ขนาด และเทคนิคของข้อความรายตัว',{ req:true, wide:true, when:v=>(v.personal||[]).length>0 }),
+];
+const QTY = unit => N('qty','จำนวน',unit,{ req:true });
+const SPARE = unit => N('spare','ผลิตเผื่อเสีย',unit,{ hint:'ไม่นับรวมในยอดส่งลูกค้า' });
+
+function printSec(methods, positions, x={}){
+  return { title: x.title||'งานพิมพ์ / ตกแต่ง', fields:[
+    C('print_method','เทคนิค (เลือกได้หลายแบบ)',methods,{ req:true, other:true, hint:x.hint, def:x.def }),
+    ...(positions?[{ id:'placements', type:'placements', label:'ตำแหน่ง เทคนิค และขนาดของแต่ละจุด', req:true, positions, hint:'ซ้าย/ขวา = ฝั่งของคนใส่ (มองเสื้อจากด้านหน้า อกซ้ายจะอยู่ทางขวามือของคนดู)', when:spotPrint }]:[]),
+    ...(x.extra||[]),
+    ...TECH_DETAIL.filter(t=>!(x.extra||[]).some(e=>e.id===t.id)),
+    COLOR_MATCH,
+  ]};
+}
+function sizeSec(sets, unit, x={}){
+  return { title:'ไซซ์และจำนวน', fields:[
+    C('size_sets','ชุดไซซ์',sets,{ req:true, def:[sets[0]] }),
+    { id:'sizes', type:'sizeTable', label:'จำนวนแยกตามไซซ์', req:true, rowLabel:x.rowLabel||'แบบ / สี', hint:'แยกบรรทัดตามแบบหรือสี ถ้ามีหลายแบบในงานเดียว' },
+    R('size_chart','ตารางไซซ์',['ตารางไซซ์มาตรฐานโรงงาน','ตารางไซซ์ของลูกค้า (แนบมา)']),
+    SPARE(unit),
+  ]};
+}
+function itemsSec(unit, x={}){
+  const cols=[{ c:'name', label:x.nameLabel||'ลาย / ชื่อรายการ', t:'text' }];
+  if(x.size!==false) cols.push({ c:'w', label:'กว้าง (ซม.)', t:'number' },{ c:'h', label:x.hLabel||'สูง (ซม.)', t:'number' });
+  cols.push({ c:'qty', label:`จำนวน (${unit})`, t:'number', sum:true });
+  return { title:x.title||'ขนาดและจำนวน', fields:[
+    ...(x.before||[]),
+    { id:'items', type:'itemTable', label:'รายการ', req:true, hint:x.hint||'ขนาดเป็นขนาดสำเร็จ', cols },
+    SPARE(unit),
+    ...(x.after||[]),
+  ]};
+}
+function packSec(opts, extra=[]){
+  return { title:'แพ็คกิ้ง', fields:[ R('pack','วิธีแพ็ค',opts,{ other:true }), ...extra, T('box_note','หมายเหตุการแพ็ค / จัดส่ง',{ wide:true }) ] };
+}
+const GARMENT_PACK = { title:'แพ็คกิ้ง', fields:[
+  R('fold','การพับ',['พับแยกตัว','ไม่พับ (วางซ้อน)']),
+  R('bag','ใส่ถุง',['ถุงแยกตัว (1/1)','ถุงรวมตามไซซ์','ไม่ใส่ถุง']),
+  C('sort','การจัดเรียง',['แยกตามไซซ์','เรียงตามรายชื่อ','ติดสติ๊กเกอร์ไซซ์หน้าถุง']),
+  T('box_note','ลัง / หมายเหตุการแพ็ค',{ wide:true }),
+]};
+const LABEL_SEC = { title:'ป้ายและอุปกรณ์', fields:[
+  R('neck_label','ป้ายคอ',['ไม่มี','พิมพ์ในคอ','ป้ายทอ','ป้ายของลูกค้า (ลูกค้าส่งมา)']),
+  R('size_label','ป้ายไซซ์',['ไม่มี','ป้ายไซซ์ติดคอ','พิมพ์ไซซ์ในคอ']),
+  C('other_labels','ป้ายอื่น',['ป้ายข้างตะเข็บ','ป้ายวิธีดูแล (Care label)','ป้ายแขวน (Hang tag)'],{ other:true }),
+]};
+const FIT = C('fit','ทรง (เลือกได้หลายแบบ)',['ทรงตรง (ชาย/ยูนิเซ็กส์)','ทรงเข้ารูป (หญิง)','ทรงเด็ก'],{ req:true, other:true });
+
+/* เสื้อผ้า: ผ้า → แบบ → ไซซ์ → งานพิมพ์ → เย็บ → ป้าย → แพ็ค */
+function garment(o){
+  const unit=o.unit||'ตัว';
+  return { cat:'garment', name:o.name, unit, route:o.route, sections:[
+    { title:'ผ้า', fields:[
+      R('fabric','ชนิดผ้า',o.fabrics,{ other:true, hint:o.fabricHint }),
+      T('fabric_color','สีผ้าพื้น',{ req:true, hint:o.colorHint }),
+      N('gsm','น้ำหนักผ้า','แกรม/ตร.ม.'),
+      ...(o.fabricExtra||[]),
+    ]},
+    { title:'แบบและแพทเทิร์น', fields:[...o.style, ...(o.pockets===false?[]:[POCKETS(o.pockets||POCKET_SHIRT)]), ...(o.styleAfter||[])] },
+    sizeSec(o.sizes||['ไซซ์ผู้ใหญ่','ไซซ์เด็ก'], unit, { rowLabel:o.rowLabel }),
+    printSec(o.methods||M_GARMENT, o.positions===null?null:(o.positions||POS_SHIRT), { extra:[...(o.personal===false?[]:PERSONAL), ...(o.printExtra||[])], hint:o.printHint, def:o.printDef }),
+    { title:'การเย็บ', fields:o.sew||[ R('hem','ชายเสื้อ',['ลา 1 เข็ม','ลา 2 เข็ม','โพ้งริม']), THREAD ] },
+    ...(o.labels===false?[]:[LABEL_SEC]),
+    ...(o.extraSecs||[]),
+    GARMENT_PACK,
+  ]};
+}
+
+const CATS = [
+  ['garment','เสื้อผ้า / ชุด'],
+  ['flat','ผ้าผืน / ป้าย / ธง'],
+  ['bag','ถุงและกระเป๋า'],
+  ['hat','หมวก'],
+  ['other','ของพรีเมียม / อื่นๆ'],
+];
+
+const PRODUCTS = {
+  /* ====================== เสื้อผ้า / ชุด ====================== */
+  tshirt: garment({ name:'เสื้อยืด (คอกลม / คอวี)',
+    fabrics:['คอตตอน 100%','TC (คอตตอน/โพลี)','TK (โพลี 65 / ฝ้าย 35)','ไมโครสปอร์ต (โพลีเอสเตอร์ 100%)','ไมโครเรียบ','ผ้าเม็ดข้าวสาร','ผ้าจูติ'],
+    fabricHint:'ขั้นต่ำ 10 ตัว · เลือกเนื้อผ้าพิเศษได้เมื่อสั่ง 100 ตัวขึ้นไป', colorHint:'งานซับลิเมชั่นใช้ผ้าขาว · DTF/สกรีนใช้ผ้าสีได้',
+    style:[ FIT,
+      R('neck','คอเสื้อ',['คอกลม','คอวี'],{ other:true }),
+      R('neck_fabric','ผ้าคอ',['ผ้าเดียวกับตัว','ผ้าริบ','ผ้าจั๊ม']),
+      T('neck_color','สีคอ',{ ph:'เว้นว่าง = สีเดียวกับตัว' }),
+      R('sleeve','แขน',['แขนสั้น','แขนยาว','แขนกุด','แขนจั๊ม (Raglan)'],{ other:true }),
+      R('sleeve_end','ปลายแขน',['ลาแขนปกติ','จั๊มปลายแขน (ริบ)'],{ when:v=>v.sleeve!=='แขนกุด' }),
+    ],
+    sew:[ R('side_seam','ตะเข็บข้าง',['โพ้งปกติ','โพ้ง + ลาทับ']), R('hem','ชายเสื้อ',['ลา 1 เข็ม','ลา 2 เข็ม','โพ้งริม']), THREAD ],
+  }),
+  sport: garment({ name:'เสื้อกีฬา / เสื้อองค์กรพิมพ์ลาย',
+    fabrics:['ไมโครเรียบ','ไมโครสปอร์ต','ผ้าเม็ดข้าวสาร','ผ้าจูติ','ผ้ารังผึ้ง'], fabricHint:'ขั้นต่ำ 10 ตัว · พิมพ์ซับลิเมชั่นเต็มตัว 360°',
+    style:[ R('cut','แบบเสื้อ',['คอกลม แขนสั้น','คอวี แขนสั้น','คอปก แขนสั้น','แขนกุด','เสื้อกล้ามวิ่ง','แขนยาว'],{ other:true }), FIT,
+      R('neck_fabric','ผ้าคอ',['ผ้าเดียวกับตัว (พิมพ์ลาย)','ผ้าริบสีพื้น']),
+      R('set','ชุด',['เสื้ออย่างเดียว','เสื้อ + กางเกง']),
+      T('pants_spec','สเปกกางเกง',{ req:true, wide:true, ph:'เช่น ขาสั้น เอวยางยืด มีเชือก กระเป๋าข้าง', when:v=>v.set==='เสื้อ + กางเกง' }) ],
+    printDef:['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)'],
+  }),
+  running: garment({ name:'เสื้อวิ่ง / ชุดงานวิ่ง',
+    fabrics:['ไมโครเรียบ','ไมโครสปอร์ต','ผ้ารังผึ้ง'], fabricHint:'ขั้นต่ำ 10 ตัว',
+    style:[ R('cut','แบบเสื้อ',['คอกลม แขนสั้น','คอวี แขนสั้น','แขนกุด','เสื้อกล้ามวิ่ง','แขนยาว'],{ other:true }), FIT ],
+    printDef:['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)'],
+    extraSecs:[{ title:'แพ็กเกจงานวิ่ง', fields:[
+      R('package','แพ็กเกจ',['สั่งเสื้ออย่างเดียว','Package A (เซ็ตเริ่มต้น)','Package B (เซ็ตยอดนิยม)','Package C (เซ็ตจัดเต็ม)','Package D (เซ็ตพรีเมียม)']),
+      C('addons','ของในเซ็ต / Add-on',['BIB (ป้ายเบอร์วิ่ง)','เหรียญรางวัล','ถุงผ้า','สายคล้องคอ','ริสแบนด์'],{ other:true, hint:'ของแต่ละชนิดต้องออกใบยืนยันของสินค้านั้นแยกอีกใบ' }),
+      T('addon_note','เลขที่ใบยืนยันของในเซ็ต / หมายเหตุ',{ wide:true, when:v=>(v.addons||[]).length>0 }),
+    ]}],
+  }),
+  polo: garment({ name:'เสื้อโปโล',
+    fabrics:['TK','ลาครอส (Lacoste)','Dry Tech','Recycle Polyester (rPET)','ไมโครเรียบ (พิมพ์ลาย)'], fabricHint:'ขั้นต่ำ 10 ตัว',
+    style:[ FIT,
+      R('collar','ปก',['ปกผ้าเดียวกับตัว','ปกริบทอ','ปกจีน'],{ other:true }),
+      T('collar_color','สีปก / ขลิบปก',{ ph:'เว้นว่าง = สีเดียวกับตัว' }),
+      R('sleeve','แขน',['แขนสั้น','แขนยาว']),
+      R('sleeve_end','ปลายแขน',['ปลายแขนจั๊ม (ริบ)','ปลายแขนพับ']),
+      R('placket','สาบเสื้อ',['สาบสีเดียวกับตัว','แต่งสีสาบ']),
+      T('placket_color','สีสาบ',{ req:true, when:v=>v.placket==='แต่งสีสาบ' }),
+      R('buttons','กระดุม',['2 เม็ด','3 เม็ด'],{ other:true }),
+      T('button_color','สีกระดุม',{ ph:'เว้นว่าง = ตามสีผ้า' }),
+      ],
+    printDef:['งานปัก'],
+    sew:[ R('hem','ชายเสื้อ',['ชายตรง','ชายหน้าสั้นหลังยาว','ผ่าข้างชายเสื้อ']), THREAD ],
+  }),
+  worker: garment({ name:'เสื้อคนงาน / เสื้อปุ๋ย',
+    fabrics:['TC','TK','โพลีเอสเตอร์ (ผ้าปุ๋ย)','คอตตอน'], fabricHint:'ขั้นต่ำ 12 ตัว',
+    style:[ R('cut','แบบเสื้อ',['คอกลม','คอปก']), R('sleeve','แขน',['แขนสั้น','แขนยาว']), FIT ],
+    printDef:['ซิลค์สกรีน'],
+  }),
+  pe: garment({ name:'เสื้อพละ / ชุดพละนักเรียน',
+    fabrics:['ผ้าโทเร','ผ้าจูติ','ไมโครเรียบ'],
+    style:[ R('pe_style','แบบ',['สีเดียวทั้งตัว','2 สี (แต่งสีที่แขนและปก)','2 สี (แต่งสีที่สาบและปก)'],{ other:true }),
+      T('trim_color','สีที่แต่ง',{ req:true, when:v=>v.pe_style&&v.pe_style!=='สีเดียวทั้งตัว' }),
+      R('cut','คอเสื้อ',['คอปก','คอกลม','คอวี']),
+      R('set','ชุด',['เสื้ออย่างเดียว','เสื้อ + กางเกงพละ']),
+      T('pants_spec','สเปกกางเกงพละ',{ req:true, wide:true, ph:'เช่น ขายาว เอวยางยืด แถบข้างสีกรม', when:v=>v.set==='เสื้อ + กางเกงพละ' }) ],
+    sizes:['ไซซ์ตามรอบอก (นิ้ว)','ไซซ์ผู้ใหญ่','ไซซ์เด็ก'],
+    methods:['งานปัก','ซิลค์สกรีน','DTF (ฟิล์มรีดร้อน)','ซับลิเมชั่น เฉพาะจุด'], printDef:['งานปัก'],
+    printHint:'ปักตราโรงเรียน: ขึ้นบล็อกปัก 1 ครั้ง',
+  }),
+  jacket: garment({ name:'เสื้อวอร์ม / แจ็คเก็ต / ฮู้ด',
+    fabrics:['ผ้าวอร์ม 1 หน้า (Tricot)','ผ้าวอร์ม 2 หน้า (Interlock)','ผ้าร่ม (Nylon / Taffeta)','ผ้าสำลี (Fleece)'], fabricHint:'ขั้นต่ำ 10 ตัว',
+    style:[ R('cut','แบบ',['คอตั้ง ซิปหน้า','มีฮู้ด ซิปหน้า','ฮู้ดสวมหัว (ไม่มีซิป)'],{ other:true }), FIT,
+      R('lining','ซับใน',['ไม่มีซับใน','ซับในตาข่าย','ซับในผ้า']),
+      C('details','รายละเอียด',['ขอบแขนจั๊ม','ชายเสื้อจั๊ม','เชือกรูดฮู้ด','รูนิ้วโป้งที่ปลายแขน'],{ other:true }),
+      R('zip_type','ซิปหน้า',['ซิปพลาสติก (ฟันกระดูกงู)','ซิปไนลอน','ซิปโลหะ'],{ other:true, when:v=>/ซิป/.test(v.cut||'') }),
+      T('zip_color','สีซิป / หัวซิป',{ req:true, when:v=>/ซิป/.test(v.cut||'') }),
+      R('set','ชุด',['เสื้ออย่างเดียว','เสื้อ + กางเกงวอร์ม']),
+      T('pants_spec','สเปกกางเกงวอร์ม',{ req:true, wide:true, when:v=>v.set==='เสื้อ + กางเกงวอร์ม' }) ],
+  }),
+  hawaii: garment({ name:'เสื้อฮาวาย / เสื้อสงกรานต์',
+    fabrics:['ผ้าไหมอิตาลี','ผ้าเรยอน','ผ้าคอตตอน'], fabricHint:'ขั้นต่ำ 100 ตัว · พิมพ์ผ้าก่อนตัดเย็บ',
+    style:[ FIT, R('collar','ปก',['ปกฮาวาย (ปกเปิด)','ปกเชิ้ต']), R('sleeve','แขน',['แขนสั้น','แขนยาว']),
+      R('button','กระดุม',['กระดุมพลาสติกสีเข้ากับผ้า','กระดุมกะลา','กระดุมมุก'],{ other:true }),
+      R('pattern_match','การต่อลาย',['ต่อลายตรงกระเป๋า / สาบ','ไม่ต้องต่อลาย']) ],
+    printDef:['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)'],
+  }),
+  gown: garment({ name:'เสื้อกาวน์ทางการแพทย์',
+    fabrics:['ผ้าโทเร','ผ้า TC','ผ้าคอตตอน','ผ้าวาเลนติโน่'],
+    style:[ R('gown_style','แบบ',['แขนยาว ตัวยาว','แขนสั้น ตัวสั้น','แขนสั้น ตัวยาว']), FIT,
+      R('collar','ปก',['ปกสูท','ปกเชิ้ต'],{ other:true }),
+      R('button','กระดุม',['กระดุมพลาสติก','กระดุมแป๊ก'],{ other:true }) ],
+    methods:['งานปัก','ซิลค์สกรีน','DTF (ฟิล์มรีดร้อน)','ไม่มีลาย'], printDef:['งานปัก'],
+  }),
+  scrub: garment({ name:'ชุดสครับ / ชุดผ่าตัด', unit:'ชุด',
+    fabrics:['ผ้านิวตัน (NEWTON)','ผ้าอินฟินิตี้ (INFINITY)','ผ้าปาเก้ (PAKE)','ผ้าอัลตราสมูท (ULTRASMOOTH)'],
+    style:[ R('set','ชุด',['เสื้อ + กางเกง','เสื้ออย่างเดียว','กางเกงอย่างเดียว']), FIT,
+      R('cut','คอเสื้อ',['คอวี'],{ other:true, when:v=>v.set!=='กางเกงอย่างเดียว' }),
+      R('pants','กางเกง',['เอวยางยืด + เชือกปรับ ทรงตรง'],{ other:true, when:v=>v.set!=='เสื้ออย่างเดียว' }) ],
+    styleAfter:[ POCKETS(POCKET_PANTS,{ id:'pant_pocket_rows', label:'กระเป๋ากางเกง', when:v=>v.set!=='เสื้ออย่างเดียว' }) ],
+    methods:['งานปัก','ซิลค์สกรีน','DTF (ฟิล์มรีดร้อน)','ไม่มีลาย'], printDef:['งานปัก'], sizes:['ไซซ์ผู้ใหญ่'],
+  }),
+  student: garment({ name:'เสื้อนักศึกษา',
+    fabrics:['ผ้าโทเร','ผ้าวาเลนติโน่','ผ้า TC','ผ้าคอตตอน','ไมโครเรียบ (พิมพ์ลาย)'],
+    style:[ R('cut','แบบเสื้อ',['เสื้อเชิ้ต','เสื้อโปโล','เสื้อยืดคอกลม'],{ other:true }), FIT, R('sleeve','แขน',['แขนสั้น','แขนยาว']) ],
+    methods:['งานปัก','ซับลิเมชั่น + ตัดเลเซอร์','ซิลค์สกรีน','DTF (ฟิล์มรีดร้อน)'], printDef:['งานปัก'],
+  }),
+  mourning: garment({ name:'เสื้อดำ / เสื้อไว้ทุกข์',
+    fabrics:['คอตตอน 100%','TC (คอตตอน/โพลี)','ไมโครเรียบ'],
+    style:[ R('cut','แบบเสื้อ',['เสื้อยืดคอกลม','เสื้อยืดคอวี','เสื้อโปโล']), FIT, R('sleeve','แขน',['แขนสั้น','แขนยาว']) ],
+    printDef:['ไม่มีลาย'],
+  }),
+  kids: garment({ name:'ชุดเด็ก / เสื้อผ้าเด็กอ่อน',
+    fabrics:['คอตตอน 100%','คอตตอนสแปนเด็กซ์','ไมโครเรียบ'],
+    style:[ R('item','ชนิดชุด',['เสื้อยืด','บอดี้สูท','ชุดเซ็ตเสื้อ + กางเกง','ชุดนอน','เดรส'],{ other:true }),
+      C('closure','การปิด / เปิด',['กระดุมแป๊ก','ซิป','ยางยืด'],{ other:true }) ],
+    sizes:['ไซซ์เด็กเล็ก','ไซซ์เด็ก'],
+  }),
+  pajama: garment({ name:'ชุดนอน', unit:'ชุด',
+    fabrics:['ผ้าคอตตอน','ผ้าซาติน (เงาคล้ายไหม)','ผ้าไหมอิตาลี'],
+    style:[ R('style','แบบ',['แขนสั้น-ขาสั้น','แขนยาว-ขายาว','แขนสั้น-ขายาว','ชุดนอนกระโปรง (เดรส)','สายเดี่ยว','Braless'],{ other:true }),
+      R('collar','คอ',['คอปกเชิ้ต (ปกฮาวาย)','คอกลม','คอวี']),
+      C('details','รายละเอียด',['ขลิบขอบสีตัดกัน','เอวยางยืด + เชือกผูก'],{ other:true }),
+      T('piping_color','สีขลิบ',{ req:true, when:v=>(v.details||[]).includes('ขลิบขอบสีตัดกัน') }) ],
+    positions:[...POS_SHIRT,...POS_PANTS], sizes:['ไซซ์ผู้ใหญ่','ไซซ์เด็ก'],
+    styleAfter:[ POCKETS(POCKET_PANTS,{ id:'pant_pocket_rows', label:'กระเป๋ากางเกง', when:v=>!/กระโปรง|สายเดี่ยว|Braless/.test(v.style||'') }) ],
+  }),
+  elephant: garment({ name:'กางเกงช้าง',
+    fabrics:['ผ้าไหมอิตาลี','ผ้าเรยอน'], fabricHint:'ขั้นต่ำ 100 ตัว',
+    style:[ R('cut','ทรง',['ขาสั้น','ขายาว ขาจั๊ม','ขายาว ขาปล่อย']),
+      R('waist','เอว',['เอวยางยืด','เอวยางยืด + เชือกผูก']),
+      R('pattern','ลายผ้า',['ลายผ้ามาตรฐานของโรงงาน','ลายพิมพ์เฉพาะ (Custom)']),
+      T('pattern_code','รหัส / ชื่อลายมาตรฐาน',{ req:true, when:v=>v.pattern==='ลายผ้ามาตรฐานของโรงงาน' }) ],
+    sizes:['Free size','ไซซ์ผู้ใหญ่'], positions:POS_PANTS, personal:false, labels:false, pockets:POCKET_PANTS,
+    methods:['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)','DTF (ฟิล์มรีดร้อน)','งานปัก','ไม่มีลาย'], printDef:['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)'],
+    sew:[ R('hem','ปลายขา',['ลาปลายขา','จั๊มปลายขา (ยางยืด)']), THREAD ],
+  }),
+  muaythai: garment({ name:'กางเกงมวยไทย',
+    fabrics:['ผ้าซาติน'], fabricHint:'ขั้นต่ำ 100 ตัว',
+    style:[ R('cut','ทรง',['ทรงมวยไทยมาตรฐาน','ทรงสั้นพิเศษ']),
+      T('waist_color','สีขอบเอว',{ req:true }),
+      R('side_slit','ผ่าข้าง',['ผ่าข้าง','ไม่ผ่าข้าง']),
+      R('trim','แต่งขอบขา',['ไม่แต่ง','แต่งขอบสีตัดกัน']),
+      T('trim_color','สีขอบขา',{ req:true, when:v=>v.trim==='แต่งขอบสีตัดกัน' }) ],
+    positions:['ขอบเอวด้านหน้า','ขาซ้าย','ขาขวา','ด้านหลัง'], personal:false, pockets:false,
+    methods:['งานปัก','ซับลิเมชั่น เฉพาะจุด','ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)','DTF (ฟิล์มรีดร้อน)'], printDef:['งานปัก'],
+    sew:[ R('waist','ขอบเอว',['ยางยืดกว้างมาตรฐาน'],{ other:true }), THREAD ],
+  }),
+  pet: garment({ name:'เสื้อผ้าสัตว์เลี้ยง', unit:'ชิ้น',
+    fabrics:['ไมโครเรียบ','คอตตอน','ผ้าไหมอิตาลี'],
+    style:[ R('item','ชนิดสินค้า',['เสื้อยืดคอกลม','เสื้อฮาวาย','ชุดนอน','ผ้าพันคอ','หมวกบักเก็ต','หมวกแก๊ป'],{ other:true }),
+      R('animal','สัตว์',['สุนัข','แมว'],{ other:true }),
+      R('owner_set','เซ็ตคู่เจ้าของ',['ไม่มี','มี (ออกใบยืนยันชุดเจ้าของแยก)']) ],
+    sizes:['ไซซ์สัตว์เลี้ยง'], positions:['ด้านหลัง','ด้านหน้า','ทั้งตัว'], personal:false, labels:false, pockets:false,
+  }),
+
+  /* ====================== ผ้าผืน / ป้าย / ธง ====================== */
+  banner: { cat:'flat', name:'ป้ายผ้า / ฉากผ้า', unit:'ผืน', sections:[
+    { title:'ผ้า', fields:[ R('fabric','ชนิดผ้า',['ผ้าไซลอน','ผ้าแคนวาส','ผ้าไหมอิตาลี','ผ้าดิบ','ผ้าร่ม (โพลีเอสเตอร์)','ผ้าซาติน'],{ other:true }) ]},
+    itemsSec('ผืน',{ hint:'ขนาดสำเร็จหลังเก็บขอบ' }),
+    printSec(M_FLAT,null,{ title:'งานพิมพ์', def:['ซับลิเมชั่น พิมพ์เต็มผืน'],
+      extra:[ R('sides','จำนวนหน้า',['พิมพ์หน้าเดียว (สีซึมด้านหลัง)','สองหน้าประกบ 2 ชั้น']) ] }),
+    { title:'เก็บขอบและรางสอด', fields:[
+      R('edge','การเก็บขอบ',['พับริมเย็บ 4 ด้าน','โพ้งขอบ 4 ด้าน','ตัดร้อน (ไม่เย็บ)'],{ other:true }),
+      N('edge_w','ความกว้างพับริม','ซม.',{ when:v=>v.edge==='พับริมเย็บ 4 ด้าน' }),
+      C('rail','รางสอด',['ด้านบน','ด้านล่าง','ด้านซ้าย','ด้านขวา'],{ hint:'ไม่ติ๊ก = ไม่มีรางสอด' }),
+      N('rail_w','ขนาดรางสอด','ซม.',{ req:true, when:v=>(v.rail||[]).length>0 }),
+      R('rail_end','ปลายราง',['เปิดสองด้าน','เย็บปิดหนึ่งด้าน'],{ when:v=>(v.rail||[]).length>0 }),
+      THREAD ]},
+    { title:'อุปกรณ์', fields:[
+      R('eyelet','ตาไก่',['ไม่มี','4 มุม','รอบผืนตามระยะ','เฉพาะด้านบน']),
+      N('eyelet_gap','ระยะห่างตาไก่','ซม.',{ req:true, when:v=>/ตามระยะ|ด้านบน/.test(v.eyelet||'') }),
+      R('eyelet_color','สีตาไก่',['เงิน','ทอง','ดำ'],{ when:v=>v.eyelet&&v.eyelet!=='ไม่มี' }),
+      C('acc','อุปกรณ์เสริม',['เชือก','ไม้/ท่อแขวน','หูเทป','เวลโคร'],{ other:true }),
+      T('acc_detail','รายละเอียดอุปกรณ์',{ ph:'เช่น เชือกยาว 1 ม. มุมละเส้น', wide:true, when:v=>(v.acc||[]).length>0 }) ]},
+    packSec(['พับใส่ถุง','ม้วนแกนกระดาษ','ม้วนใส่ถุง']),
+  ]},
+  yan: { cat:'flat', name:'ผ้ายันต์ / ธงกฐิน', unit:'ผืน', sections:[
+    { title:'แบบและผ้า', fields:[
+      R('yan_type','แบบ',['ผ้ายันต์ (ผืน)','ธงกฐินแบบแขวนยาว (1.30 ม. × 19 นิ้ว)','ธงกฐินรุ่นกลาง (19 × 12 นิ้ว)','ธงกฐินไวนิลรุ่นกลาง (19 × 12 นิ้ว)','ธงกฐินแบบเล็ก (แขวนหน้ารถ / แจก)'],{ other:true }),
+      R('fabric','วัสดุ',['ผ้าดิบ','ผ้าไหมอิตาลี','ผ้าซาติน','ผ้าโทเร','ไวนิล'],{ other:true }),
+      T('fabric_color','สีผ้าพื้น',{ req:true }) ]},
+    itemsSec('ผืน',{ hint:'ใส่ขนาดสำเร็จ (ซม.) แม้เป็นขนาดมาตรฐาน' }),
+    printSec(['ดิจิทัลพริ้นท์ (ไม่จำกัดสี/ขนาด)','ซิลค์สกรีน (1–2 สี, ไม่เกิน 40 × 60 ซม.)','DTF (ไม่เกิน 60 × 100 ซม.)'],null,{ title:'งานพิมพ์',
+      extra:[ R('sides','จำนวนหน้า',['หน้าเดียว','สองหน้า']) ] }),
+    { title:'เก็บขอบและอุปกรณ์', fields:[
+      R('edge','การเก็บขอบ',['พับริมเย็บ','โพ้งขอบ','ตัดร้อน','ตัดลุ่ย (ไม่เก็บขอบ)'],{ other:true }),
+      C('acc','อุปกรณ์',['ไม้แขวน','เชือกแขวน','รางสอดไม้','พู่'],{ other:true }),
+      THREAD ]},
+    packSec(['พับใส่ถุงแยกผืน','มัดรวมทุก 10 ผืน','ม้วน']),
+  ]},
+  scarf: { cat:'flat', name:'ผ้าคลุมไหล่ / ผ้าพันคอ / ผ้าเช็ดหน้า / ผ้าโพกหัว', unit:'ผืน', sections:[
+    { title:'แบบและผ้า', fields:[
+      R('item','ชนิดสินค้า',['ผ้าเช็ดหน้า','ผ้าโพกหัว (Bandana)','ผ้าพันคอ','ผ้าคลุมไหล่'],{ other:true }),
+      R('fabric','ชนิดผ้า',['ผ้าคอตตอน','ผ้าไหมอิตาลี','ผ้าซาติน','ผ้าชีฟอง'],{ other:true }) ]},
+    itemsSec('ผืน',{ hint:'ขนาดยอดนิยม 50 × 50, 60 × 60, 100 × 100 ซม.' }),
+    printSec(M_FLAT,null,{ title:'งานพิมพ์', def:['ซับลิเมชั่น พิมพ์เต็มผืน'], extra:[ R('sides','จำนวนหน้า',['หน้าเดียว','สองหน้าประกบ']) ] }),
+    { title:'เก็บขอบ', fields:[ R('edge','การเก็บขอบ',['โพ้งริม (ริมเล็ก)','พับริมเย็บ','ตัดลุ่ย (ฟรินจ์)','ตัดเลเซอร์'],{ other:true }), THREAD ]},
+    packSec(['พับใส่ถุงแยกผืน','พับใส่ซอง + การ์ด','ไม่ใส่ถุง']),
+  ]},
+  cheer: { cat:'flat', name:'ผ้าเชียร์กีฬา', unit:'ผืน', sections:[
+    { title:'ผ้า', fields:[ R('fabric','ชนิดผ้า',['ผ้าซาติน','ผ้าไหมอิตาลี','ผ้าร่ม','ผ้าโพลีเอสเตอร์'],{ other:true }) ]},
+    itemsSec('ผืน',{ hint:'ขนาดยอดนิยม 14 × 130 ซม. และ 15 × 150 ซม.', hLabel:'ยาว (ซม.)' }),
+    printSec(M_FLAT,null,{ title:'งานพิมพ์', def:['ซับลิเมชั่น พิมพ์เต็มผืน'], extra:[ R('sides','จำนวนหน้า',['หน้าเดียว','สองหน้า (ประกบ 2 ชั้น)']) ] }),
+    { title:'การตัดเย็บและพู่', fields:[
+      R('edge','การตัดเย็บ',['พับริมเย็บ','โพ้งขอบ','เย็บประกบ 2 ชั้น'],{ other:true }),
+      R('tassel','พู่',['ไม่มีพู่','มีพู่']),
+      T('tassel_detail','แบบและสีพู่',{ req:true, when:v=>v.tassel==='มีพู่' }),
+      THREAD ]},
+    packSec(['พับใส่ถุงแยกผืน','ม้วนใส่ถุง','มัดรวม']),
+  ]},
+  glasses: { cat:'flat', name:'ผ้าเช็ดแว่น', unit:'ผืน', sections:[
+    { title:'ผ้า', fields:[ R('fabric','ชนิดผ้า',['Poly 100%','Poly 80/20','Suede','Velvet'],{ other:true }), T('fabric_color','สีผ้า',{ req:true }) ]},
+    itemsSec('ผืน',{ hint:'ใส่ขนาดสำเร็จ (ซม.)' }),
+    printSec(['ดิจิทัลพริ้นท์ (เต็มผืน)','ซิลค์สกรีน','ปั๊มจม','สกรีนฟอยล์ทอง'],null,{ title:'งานพิมพ์',
+      extra:[ R('logo_pos','ตำแหน่งโลโก้',['กลางผืน','มุมล่างขวา','มุมล่างซ้าย','เต็มผืน'],{ other:true }) ] }),
+    { title:'ขอบผ้า', fields:[ R('edge','ขอบผ้า',['โพ้งริม','ตัดเลเซอร์ (ไม่เย็บ)','ตัดร้อน'],{ other:true }) ]},
+    packSec(['ซองพลาสติกใส','ซองผ้า / ซองกำมะหยี่','กล่องกระดาษ','ไม่บรรจุ']),
+  ]},
+  blanket: { cat:'flat', name:'ผ้านาโน / ผ้าห่ม', unit:'ผืน', sections:[
+    { title:'ผ้า', fields:[ R('fabric','ชนิดผ้า',['ผ้านาโน (Microfiber)','ผ้าขนนุ่ม (Flannel)'],{ other:true }) ]},
+    itemsSec('ผืน',{ hint:'Size M 75 × 120 ซม. · Size L 100 × 150 ซม.', hLabel:'ยาว (ซม.)' }),
+    printSec(['ซับลิเมชั่น พิมพ์เต็มผืน','DTF (ฟิล์มรีดร้อน)','งานปัก'],null,{ title:'งานพิมพ์', def:['ซับลิเมชั่น พิมพ์เต็มผืน'] }),
+    { title:'เก็บขอบ', fields:[ R('edge','การเก็บขอบ',['กุ๊นขอบ','โพ้งขอบ'],{ other:true }), T('edge_color','สีขอบ / สีกุ๊น'), THREAD ]},
+    packSec(['พับใส่ถุงใส','ม้วนผูกริบบิ้น','ใส่ถุงหูรูด','กล่อง']),
+  ]},
+  apron: { cat:'flat', name:'ผ้ากันเปื้อน', unit:'ผืน', sections:[
+    { title:'แบบและผ้า', fields:[
+      R('style','แบบ',['เต็มตัว คล้องคอ','ครึ่งตัว ผูกเอว']),
+      R('fabric','ชนิดผ้า',['ผ้าแคนวาส','ผ้าดิบ','ผ้าโทเร','ผ้า TC','ผ้ากันน้ำ'],{ other:true }),
+      T('fabric_color','สีผ้า',{ req:true }),
+      D('dims','ขนาดตัวผ้า',['กว้าง','ยาว'],{ hint:'มาตรฐาน 23.5 × 28 นิ้ว (ประมาณ 60 × 71 ซม.)' }),
+      R('neck_strap','สายคล้องคอ',['ปรับความยาวได้','ผูก','สายไขว้หลัง'],{ when:v=>v.style==='เต็มตัว คล้องคอ' }),
+      N('waist_len','ความยาวสายผูกเอวรวม','ซม.',{ hint:'มาตรฐาน 63 นิ้ว (ประมาณ 160 ซม.)' }),
+      T('strap_color','สีสาย',{ ph:'เว้นว่าง = สีเดียวกับตัว' }),
+      POCKETS(POCKET_APRON,{ kinds:['กระเป๋าแปะ','กระเป๋าแปะแบ่งช่อง','ช่องปากกา','กระเป๋าแปะมีฝาปิด'] }),
+      QTY('ผืน'), SPARE('ผืน') ]},
+    printSec(['งานปัก','ซิลค์สกรีน','ดิจิทัลพริ้นท์','DTF (ฟิล์มรีดร้อน)','ไม่มีลาย'],['อก','กลางตัว','กระเป๋า','สาย'],{ def:['งานปัก'] }),
+    { title:'การเย็บ', fields:[ THREAD ]},
+    packSec(['พับใส่ถุงแยกผืน','พับรวม','ไม่ใส่ถุง']),
+  ]},
+  wristband: { cat:'flat', name:'ริสแบนด์ผ้า (Wristband)', unit:'เส้น', route:'ปกติ: พิมพ์ → รีด → ตัด → ประกอบตัวล็อก → QC+Packing', sections:[
+    { title:'วัสดุและขนาด', fields:[
+      R('material','วัสดุสาย',['ผ้าโพลีเอสเตอร์ (พิมพ์ซับลิเมชั่น)','ผ้าทอ'],{ other:true }),
+      D('dims','ขนาดสาย',['ยาว','กว้าง']),
+      R('lock','ตัวล็อก',['ล็อกพลาสติกรูดทางเดียว (One-way)','ตัวปรับระดับถอดได้'],{ other:true }),
+      T('lock_color','สีตัวล็อก',{ req:true }) ]},
+    itemsSec('เส้น',{ size:false, nameLabel:'สี / ลาย / กลุ่มผู้เข้างาน', title:'จำนวน' }),
+    printSec(['ซับลิเมชั่น พิมพ์เต็มผืน','ซิลค์สกรีน'],null,{ title:'งานพิมพ์', def:['ซับลิเมชั่น พิมพ์เต็มผืน'], extra:[ R('sides','จำนวนหน้า',['ด้านเดียว','2 ด้าน']) ] }),
+    packSec(['ถุงแยกเส้น','มัดรวมทุก 50 เส้น','มัดรวมทุก 100 เส้น']),
+  ]},
+  lanyard: { cat:'flat', name:'สายคล้องคอ / สายคล้องบัตร', unit:'เส้น', route:'ปกติ: พิมพ์ → รีด → ตัด → เย็บ/ประกอบอุปกรณ์ → QC+Packing', sections:[
+    { title:'สเปกสาย', fields:[
+      R('width','ความกว้างสาย',['15 มม.','20 มม.','25 มม.']),
+      N('length','ความยาวสาย','ซม.',{ req:true, hint:'มาตรฐาน 40 ซม.' }),
+      R('sides','การพิมพ์',['พิมพ์ด้านเดียว','พิมพ์ 2 ด้าน']),
+      C('hardware','อุปกรณ์',['ก้ามปูโลหะ','ห่วงพวงกุญแจ','ตัวปรับสาย','ตัวล็อกเซฟตี้ (Safety Buckle)','ซองใส่บัตร'],{ req:true, other:true }),
+      R('card','บัตร',['ไม่มีบัตร','บัตร PVC','บัตร NFC','บัตร RFID Mifare','บัตร RFID Proximity']),
+      T('card_spec','รายละเอียดบัตร',{ req:true, wide:true, ph:'ขนาด พิมพ์ 1/2 หน้า ข้อมูลรายคน', when:v=>v.card&&v.card!=='ไม่มีบัตร' }) ]},
+    itemsSec('เส้น',{ size:false, nameLabel:'ลาย / สี', title:'จำนวน' }),
+    printSec(['ซับลิเมชั่น พิมพ์เต็มผืน'],null,{ title:'งานพิมพ์', def:['ซับลิเมชั่น พิมพ์เต็มผืน'] }),
+    packSec(['ถุงแยกเส้น','มัดรวมทุก 50 เส้น','มัดรวมทุก 100 เส้น']),
+  ]},
+
+  /* ====================== ถุงและกระเป๋า ====================== */
+  bag: { cat:'bag', name:'ถุงผ้า / กระเป๋าผ้า / ถุงยังชีพ / ของชำร่วย', unit:'ใบ', sections:[
+    { title:'แบบและขนาด', fields:[
+      R('usage','การใช้งาน',['ถุงผ้าทั่วไป / ถุงช้อปปิ้ง','ถุงยังชีพ','กระเป๋าของชำร่วย'],{ other:true }),
+      R('style','ทรง',['ทรงแบน (ไม่มีก้น ไม่มีข้าง)','ขยายเฉพาะก้น','ขยายก้นและข้าง (ทรงกล่อง)','ถุงหูรูด','ทรงสะพายข้าง','ทรงเป้หูรูด'],{ other:true }),
+      D('dims','ขนาดสำเร็จ',['กว้าง','สูง','ข้าง/ก้น'],{ hint:'ทรงแบน ใส่ข้าง/ก้น = 0' }),
+      QTY('ใบ'), SPARE('ใบ') ]},
+    { title:'ผ้า', fields:[
+      R('fabric','ผ้าตัวกระเป๋า',['ผ้าแคนวาส','ผ้าดิบ','ผ้าไมโคร (ซับลิเมชั่น)','ผ้าร่ม','ผ้าสปันบอนด์ (Non-woven)'],{ other:true }),
+      T('fabric_color','สีผ้า',{ req:true }),
+      R('lining','ซับใน',['ไม่มีซับใน','มีซับใน']),
+      T('lining_fabric','ผ้าซับใน / สี',{ req:true, when:v=>v.lining==='มีซับใน' }) ]},
+    { title:'หูหิ้ว / สาย', fields:[
+      R('handle_style','รูปแบบ',['หูหิ้ว 2 หู','สายสะพายยาว','หูหิ้ว + สายสะพาย','เชือกหูรูด']),
+      R('handle_mat','วัสดุ',['หูผ้าในตัว (ผ้าเดียวกับตัว)','เทปก้างปลา','สายสแปนเด็กซ์','เทปไนลอน','สายสำเร็จรูป','เชือก'],{ other:true }),
+      D('handle_dims','ขนาดหู',['ยาว','กว้าง']),
+      T('handle_color','สีหู',{ ph:'เว้นว่าง = สีเดียวกับตัว' }) ]},
+    { title:'ปิดปากและช่องใส่ของ', fields:[
+      R('closure','การปิดปาก',['ไม่มี (ปากเปิด)','ซิปปาก','กระดุมแป๊ก','เชือกหูรูด']),
+      POCKETS(POCKET_BAG,{ label:'ช่องใส่ของ', kinds:['ช่องแปะแบบเปิด','ช่องซิป','ช่องใส่ขวดน้ำ','ช่องใส่ปากกา'] }) ]},
+    printSec(['ซิลค์สกรีน','งานปัก','ดิจิทัลพริ้นท์','ซับลิเมชั่น พิมพ์ทั้งใบ','ซับลิเมชั่น เฉพาะจุด','DTF (ฟิล์มรีดร้อน)','ไม่มีลาย'],['ด้านหน้า','ด้านหลัง','ข้าง/ก้น','หูหิ้ว']),
+    { title:'การเย็บ', fields:[
+      R('seam','ตะเข็บตัวกระเป๋า',['เย็บกลับด้าน (ซ่อนตะเข็บ)','โพ้งตะเข็บด้านใน','กุ๊นขอบ']),
+      C('reinforce','เสริมความแข็งแรง',['ย้ำหูหิ้วแบบกากบาท (X)','ทับขอบปากกระเป๋า','เย็บย้ำมุมก้น','เย็บซ้ำ 2 รอบ (งานรับน้ำหนัก)']),
+      THREAD ]},
+    { title:'แพ็คกิ้ง', fields:[
+      R('fold','การพับ',['พับแยกใบ','วางซ้อนไม่พับ']),
+      R('bag','ใส่ถุง',['ถุงแยกใบ','มัดรวมทุก 10 ใบ','ไม่ใส่ถุง']),
+      T('box_note','หมายเหตุการแพ็ค',{ wide:true }) ]},
+  ]},
+  spunbond: { cat:'bag', name:'ถุงสปันบอนด์', unit:'ใบ', sections:[
+    { title:'แบบและขนาด', fields:[
+      R('style','ทรง',['ทรงแบน','ขยายก้น','ขยายข้าง','ขยายก้นและข้าง','ทรงเจาะหู'],{ other:true }),
+      D('dims','ขนาดสำเร็จ',['กว้าง','สูง','ข้าง/ก้น']),
+      N('gsm','ความหนาผ้า','แกรม',{ req:true }),
+      T('fabric_color','สีถุง',{ req:true }),
+      R('handle','หู',['หูหิ้วสั้น','สายสะพายยาว','เจาะหู (ไม่มีสาย)']),
+      QTY('ใบ'), SPARE('ใบ') ]},
+    printSec(['ดิจิทัลพริ้นท์ (ไม่จำกัดสี)','ซิลค์สกรีน','Photo HD','ไม่มีลาย'],['ด้านหน้า','ด้านหลัง','ข้าง']),
+    packSec(['มัดรวมทุก 50 ใบ','มัดรวมทุก 100 ใบ','ใส่ถุงแยกใบ']),
+  ]},
+  foldable: { cat:'bag', name:'ถุงผ้าร่มพับได้ / ถุงช้อปปิ้งพกพา', unit:'ใบ', sections:[
+    { title:'แบบและขนาด', fields:[
+      R('fabric','ผ้า',['ผ้าร่ม (กันน้ำ)','ผ้าไนลอน','ผ้าโพลีเอสเตอร์'],{ other:true }),
+      T('fabric_color','สีผ้า',{ req:true }),
+      R('fold','แบบพับเก็บ',['พับเก็บใส่กระเป๋าจิ๋วในตัว','ซองสวมแยก','กระดุม / ยางยืดรัด']),
+      D('dims','ขนาดตอนกาง',['กว้าง','สูง','ข้าง/ก้น']),
+      D('fold_dims','ขนาดตอนพับ',['กว้าง','สูง'],{ req:false }),
+      QTY('ใบ'), SPARE('ใบ') ]},
+    printSec(['ซิลค์สกรีน','ดิจิทัลพริ้นท์','ซับลิเมชั่น พิมพ์ทั้งใบ','DTF (ฟิล์มรีดร้อน)','ไม่มีลาย'],['ตัวถุงด้านหน้า','ตัวถุงด้านหลัง','ซอง / กระเป๋าพับ']),
+    { title:'การเย็บ', fields:[ C('reinforce','เสริมความแข็งแรง',['ย้ำหูหิ้วแบบกากบาท (X)','เย็บย้ำมุมก้น']), THREAD ]},
+    packSec(['พับเก็บในซองแยกใบ','มัดรวมทุก 10 ใบ','ใส่ถุงแยกใบ']),
+  ]},
+  sachet: { cat:'bag', name:'ถุงหอม', unit:'ถุง', sections:[
+    { title:'แบบและขนาด', fields:[
+      R('fabric','ผ้าถุง',['ผ้าลายสำเร็จรูปของโรงงาน','ผ้าพิมพ์ลายตามแบบ','ผ้าโปร่ง (ออแกนซ่า)'],{ other:true }),
+      T('pattern_code','รหัส / ชื่อลายผ้า',{ req:true, when:v=>v.fabric==='ผ้าลายสำเร็จรูปของโรงงาน' }),
+      D('dims','ขนาดถุง',['กว้าง','สูง']),
+      R('closure','การปิด',['หูรูดเชือก','หูรูดริบบิ้น'],{ other:true }),
+      T('closure_color','สีเชือก / ริบบิ้น',{ req:true }),
+      QTY('ถุง'), SPARE('ถุง') ]},
+    { title:'ไส้และกลิ่น', fields:[
+      R('filling','ไส้',['ดอกไม้แห้ง','หินภูเขาไฟ','เม็ดน้ำหอม','ไม่ใส่ไส้ (ถุงเปล่า)'],{ other:true }),
+      T('scent','กลิ่น',{ req:true, when:v=>v.filling&&!/ไม่ใส่/.test(v.filling) }),
+      N('fill_weight','น้ำหนักไส้ต่อถุง','กรัม',{ when:v=>v.filling&&!/ไม่ใส่/.test(v.filling) }) ]},
+    printSec(['ซับลิเมชั่น พิมพ์ทั้งใบ','ซับลิเมชั่น เฉพาะจุด','DTF (ฟิล์มรีดร้อน)','ซิลค์สกรีน','ไม่มีลาย'],['ด้านหน้า','ด้านหลัง']),
+    packSec(['ใส่ถุงใสแยกชิ้น','ใส่กล่อง','มัดรวม'],[ C('tag','ป้าย',['ป้ายแขวน (Hang tag)','สติ๊กเกอร์ติดถุง'],{ other:true }) ]),
+  ]},
+  kajood: { cat:'bag', name:'กระเป๋ากระจูด / กระเป๋าสาน', unit:'ใบ', route:'งานจัดซื้อ/ประกอบ: รับกระเป๋าสาน → ตกแต่ง → QC+Packing', sections:[
+    { title:'แบบและขนาด', fields:[
+      R('style','แบบ',['กระเป๋าถือ','กระเป๋าสะพาย','ตะกร้า','กระเป๋าใส่เอกสาร'],{ other:true }),
+      D('dims','ขนาด',['กว้าง','สูง','ข้าง/ก้น']),
+      R('color','สีกระจูด',['สีธรรมชาติ','ย้อมสี']),
+      T('dye_color','สีที่ย้อม',{ req:true, when:v=>v.color==='ย้อมสี' }),
+      R('handle','หู',['หูหนัง','หูกระจูดสาน','หูเชือก','สายสะพายผ้า'],{ other:true }),
+      R('lining','ซับใน',['ไม่มีซับใน','มีซับใน']),
+      T('lining_fabric','ผ้าซับใน / สี',{ req:true, when:v=>v.lining==='มีซับใน' }),
+      R('closure','การปิดปาก',['ไม่มี','ซิป','กระดุมแป๊ก','หูรูด']),
+      POCKETS(POCKET_BAG,{ label:'ช่องใส่ของ', kinds:['ช่องแปะแบบเปิด','ช่องซิป','ช่องใส่ปากกา'] }),
+      QTY('ใบ'), SPARE('ใบ') ]},
+    printSec(['สกรีนบนกระจูด','ป้ายหนังติดโลโก้','ป้ายผ้า / งานปักบนซับ','ไม่มีลาย'],['ด้านหน้า','ด้านหลัง','ป้ายที่หู'],{ title:'ตกแต่ง / โลโก้' }),
+    packSec(['ถุงแยกใบ','ใส่กล่อง','มัดรวม']),
+  ]},
+
+  /* ====================== หมวก ====================== */
+  hat: { cat:'hat', name:'หมวก (แก๊ป / ตาข่าย / บักเก็ต)', unit:'ใบ', sections:[
+    { title:'ทรงและผ้า', fields:[
+      R('style','ทรง',['หมวกแก๊ป','หมวกแก๊ปตาข่าย (Trucker)','หมวกบักเก็ต','หมวกปีกรอบ (Safari)','หมวกไวเซอร์ (ไม่มีกระหม่อม)'],{ other:true }),
+      R('panels','จำนวนแผ่น',['5 แผ่น','6 แผ่น'],{ when:v=>/แก๊ป/.test(v.style||'') }),
+      R('crown','กระหม่อม',['ทรงสูง (มีฟองน้ำหน้า)','ทรงต่ำ (ไม่มีฟองน้ำ)'],{ when:v=>/แก๊ป/.test(v.style||'') }),
+      R('brim','ปีก',['ปีกโค้ง','ปีกตรง (Snapback)'],{ when:v=>/แก๊ป|ไวเซอร์/.test(v.style||'') }),
+      R('fabric','ผ้า',['ผ้าคอตตอนทวิล','ผ้าโพลีเอสเตอร์','ผ้าไมโคร (ซับลิเมชั่น)','ผ้าร่ม','ผ้าลูกฟูก'],{ other:true }),
+      T('colors','สีหมวก (ตัว / ปีก / ตาข่าย / กระดุมบน)',{ req:true, wide:true }),
+      R('closure','ตัวปรับด้านหลัง',['บัคเคิลเหล็ก','เวลโคร (ตีนตุ๊กแก)','สแน็ปพลาสติก','ยางยืด (ปิดหลัง)'],{ when:v=>!/บักเก็ต|ปีกรอบ/.test(v.style||'') }),
+      R('head_size','ขนาด',['Free size (ปรับได้)','ผู้ใหญ่ 56–60 ซม.','เด็ก 52–54 ซม.'],{ other:true }),
+      C('inner','ด้านใน',['เทปพิมพ์โลโก้ซับตะเข็บ','ป้ายแบรนด์ด้านใน','แถบซับเหงื่อ'],{ other:true }) ]},
+    itemsSec('ใบ',{ size:false, nameLabel:'สี / แบบ', title:'จำนวน' }),
+    printSec(['งานปัก','งานปัก 3D (นูน)','ซิลค์สกรีน (1–2 สี)','ซับลิเมชั่น','DTF (ฟิล์มรีดร้อน)','ไม่มีลาย'],['ด้านหน้า','ข้างซ้าย','ข้างขวา','ด้านหลัง','บนปีก','ใต้ปีก'],{ def:['งานปัก'] }),
+    packSec(['ถุงแยกใบ','ซ้อนใส่กล่อง (คงทรง)','มัดรวม']),
+  ]},
+
+  /* ====================== ของพรีเมียม / อื่นๆ ====================== */
+  pillow: { cat:'other', name:'หมอน / พวงกุญแจหมอน', unit:'ใบ', sections:[
+    { title:'แบบและผ้า', fields:[
+      R('type','ประเภท',['หมอนไดคัทตามรูปทรง','หมอนอิงสี่เหลี่ยม (ซิปซ่อน)','หมอนผ้าห่ม','หมอนรองคอ','พวงกุญแจหมอน'],{ other:true }),
+      R('fabric','ผ้า',['ผ้าไหมอิตาลี','ผ้าโซลอน','ผ้าขนนุ่ม','ผ้าแคนวาสพรีเมียม'],{ other:true }),
+      R('filling','ไส้',['ใยสังเคราะห์','ไม่ใส่ไส้ (ปลอกอย่างเดียว)'],{ other:true }),
+      R('zip','ซิป',['ซิปซ่อน','ไม่มีซิป (เย็บปิด)'],{ when:v=>v.type!=='พวงกุญแจหมอน' }),
+      R('keyring','อุปกรณ์พวงกุญแจ',['ห่วงพวงกุญแจเหล็ก','ตะขอก้ามปู','สายคล้องมือ'],{ other:true, when:v=>v.type==='พวงกุญแจหมอน' }),
+      T('blanket_size','ขนาดผ้าห่มด้านใน',{ req:true, ph:'เช่น 100 × 150 ซม.', when:v=>v.type==='หมอนผ้าห่ม' }) ]},
+    itemsSec('ใบ',{ hint:'ตัวอย่าง: หมอนอิง 60 × 60 ซม.' }),
+    printSec(['ซับลิเมชั่น พิมพ์เต็มผืน','DTF (ฟิล์มรีดร้อน)','งานปัก'],null,{ title:'งานพิมพ์', def:['ซับลิเมชั่น พิมพ์เต็มผืน'],
+      extra:[ R('sides','ด้านพิมพ์',['2 ด้าน ลายต่างกัน','2 ด้าน ลายเดียวกัน','ด้านหน้า (ด้านหลังสีพื้น)']) ] }),
+    { title:'การเย็บ', fields:[ THREAD ]},
+    packSec(['ถุงแยกใบ','ซีลสุญญากาศ','กล่อง']),
+  ]},
+  medal: { cat:'other', name:'เหรียญรางวัล', unit:'เหรียญ', route:'งานอะคริลิค/ไม้: พิมพ์หรือสลัก → ไดคัท → ประกอบสาย → QC+Packing', sections:[
+    { title:'ตัวเหรียญ', fields:[
+      R('material','วัสดุ',['อะคริลิค หนา 5 มม. (พิมพ์สี)','ไม้ยางพารา หนา 10 มม. (สลักเลเซอร์)']),
+      R('shape','รูปทรง',['วงกลม 6 × 6 ซม.','ไดคัทตามรูป (ไม่เกิน 6 × 6 ซม.)'],{ other:true }),
+      R('sides','ด้านพิมพ์ / สลัก',['ด้านเดียว','2 ด้าน']) ]},
+    itemsSec('เหรียญ',{ size:false, nameLabel:'ลาย / ชื่อรางวัล', title:'จำนวน' }),
+    { title:'สายคล้อง', fields:[
+      R('ribbon','สายคล้อง',['มีสายคล้อง','ไม่มีสาย']),
+      R('ribbon_w','ความกว้างสาย',['2 ซม.','2.5 ซม.'],{ when:v=>v.ribbon==='มีสายคล้อง' }),
+      N('ribbon_len','ความยาวสาย','ซม.',{ hint:'มาตรฐาน 90 ซม.', when:v=>v.ribbon==='มีสายคล้อง' }),
+      T('ribbon_design','ลาย / สีสาย',{ req:true, ph:'พิมพ์ลายซับลิเมชั่น หรือสีพื้น', when:v=>v.ribbon==='มีสายคล้อง' }) ]},
+    packSec(['ถุงแยกเหรียญ','กล่องแยกเหรียญ','มัดรวม']),
+  ]},
+  plaque: { cat:'other', name:'โล่รางวัล', unit:'ชิ้น', route:'งานอะคริลิค/ไม้: พิมพ์หรือสลัก → ตัด → ประกอบฐาน → QC+Packing', sections:[
+    { title:'แบบ', fields:[
+      R('material','วัสดุ',['อะคริลิค','ไม้'],{ other:true }),
+      T('shape','รูปทรง / รุ่น',{ req:true }),
+      D('dims','ขนาด',['กว้าง','สูง','หนา (มม.)'],{ hint:'หนาเป็นมิลลิเมตร' }),
+      R('base','ฐาน',['ฐานอะคริลิค','ฐานไม้','ไม่มีฐาน']) ]},
+    itemsSec('ชิ้น',{ size:false, nameLabel:'ข้อความ / ชื่อผู้ได้รับรางวัล', title:'รายการและจำนวน' }),
+    printSec(['พิมพ์ UV สี','สลักเลเซอร์','สติกเกอร์'],null,{ title:'การพิมพ์ / สลัก' }),
+    packSec(['กล่องกระดาษ','กล่องกำมะหยี่','ห่อบับเบิ้ล']),
+  ]},
+  premium: { cat:'other', name:'ของพรีเมียมอื่นๆ (แก้ว ปฏิทิน ร่ม สมุด ฯลฯ)', unit:'ชิ้น', route:'งานจัดหา/ของพรีเมียม: สั่งสินค้า → พิมพ์/สกรีน → QC+Packing', sections:[
+    { title:'สินค้า', fields:[
+      R('item','สินค้า',['แก้วน้ำ / แก้วเปลี่ยนสี','ปฏิทิน','ร่ม','สมุด / หนังสือ','หน้ากากอนามัย','Power bank'],{ other:true }),
+      A('spec','สเปกสินค้า',{ req:true, hint:'รุ่น ขนาด วัสดุ สี ความจุ จำนวนหน้า ฯลฯ' }) ]},
+    itemsSec('ชิ้น',{ size:false, nameLabel:'แบบ / สี', title:'จำนวน' }),
+    printSec(['ซิลค์สกรีน','พิมพ์ UV','ซับลิเมชั่น','สลักเลเซอร์','พิมพ์ออฟเซ็ท'],null,{
+      extra:[ T('print_pos','ตำแหน่งและขนาดโลโก้',{ req:true, wide:true }) ] }),
+    packSec(['กล่องแยกชิ้น','ถุงแยกชิ้น','แพ็คตามที่ซัพพลายเออร์ส่งมา']),
+  ]},
+  service: { cat:'other', name:'งานบริการ (ลูกค้าส่งวัสดุ / ชิ้นงานมาเอง)', unit:'ชิ้น', route:'งานบริการ: กำหนดสถานีตามบริการที่เลือก', sections:[
+    { title:'บริการ', fields:[
+      C('services','บริการที่ต้องการ',['พิมพ์ผ้าซับลิเมชั่น (ผ้าเมตร)','ตัดผ้าเลเซอร์','ตัดสกรีนผ้า','สกรีน DTF','สกรีน UV DTF','รีดแพค','แซกรางดุม / ติดกระดุม','พิมพ์/สกรีนผ้าหลังตัดเย็บ','พิมพ์หนัง','พิมพ์/ตัดเฟล็ก'],{ req:true, other:true }),
+      A('material','วัสดุ / ชิ้นงานที่ลูกค้าส่งมา',{ req:true, hint:'ชนิด สี จำนวนที่รับเข้า สภาพ' }),
+      N('meters','จำนวนเมตร (ถ้าเป็นผ้าเมตร)','เมตร') ]},
+    itemsSec('ชิ้น',{ nameLabel:'รายการ / ลาย', hint:'ขนาดงานพิมพ์หรือขนาดชิ้นงาน (ซม.)' }),
+    { title:'รายละเอียดงาน', fields:[ A('work_detail','รายละเอียดการทำงาน',{ req:true, hint:'ตำแหน่ง อุณหภูมิ/เวลา (ถ้ามี) เงื่อนไขพิเศษ' }), COLOR_MATCH ]},
+    packSec(['ส่งคืนตามที่รับมา','พับใส่ถุง','ม้วน']),
+  ]},
+};
+
+const TAIL = [
+  { title:'ไฟล์งานและหมายเหตุ', fields:[
+    { id:'art_file', type:'text', label:'ไฟล์งาน / ที่เก็บไฟล์', wide:true, ph:'เช่น ชื่อไฟล์ AI/PDF หรือโฟลเดอร์ในไดรฟ์' },
+    { id:'images', type:'images', label:'ภาพม็อคอัพ / ลายที่ลูกค้ายืนยัน', req:true, hint:'แนบอย่างน้อย 1 ภาพ ภาพจะอยู่ใน PDF ด้วย' },
+    { id:'notes', type:'textarea', label:'หมายเหตุถึงฝ่ายผลิต' },
+  ]},
+];
+
+/* ================= สถานะ ================= */
+const LS = 'phappim-confirm-v1';
+const $ = s => document.querySelector(s);
+const form = $('#form');
+let state = load() || fresh();
+let missing = [];
+
+function fresh(){ return { h:{ issue_date: today() }, product:'tshirt', pickOpen:true, p:{}, imgs:[] }; }
+function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function load(){ try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.h&&s.p&&PRODUCTS[s.product]){ s.pickOpen=false; s.imgs=Array.isArray(s.imgs)?s.imgs:[]; return s; } }catch(e){} return null; }
+let warnedQuota=false;
+function save(){
+  try{ localStorage.setItem(LS, JSON.stringify(state)); }
+  catch(e){
+    try{ const {imgs,...rest}=state; localStorage.setItem(LS, JSON.stringify({...rest,imgs:[]})); }catch(e2){}
+    if(!warnedQuota&&state.imgs.length){ warnedQuota=true; toast('ภาพใหญ่เกินกว่าจะจำอัตโนมัติ กด "บันทึกไฟล์" เพื่อเก็บภาพไว้'); }
+  }
+}
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toast.h); toast.h=setTimeout(()=>t.classList.remove('on'),2800); }
+function fileBase(){ const h=state.h; return ['ใบยืนยัน',h.doc_no,num(h.rev)>0?'แก้ไข'+h.rev:'',h.customer].filter(Boolean).join(' ').replace(/[\\/:*?"<>|]/g,'-'); }
+function prod(){ return PRODUCTS[state.product]; }
+function allSecs(){ return prod().sections.concat(TAIL); }
+function scope(s){
+  if(s==='h') return state.h;
+  if(!state.p[state.product]){
+    const v={}; allSecs().forEach(sec=>sec.fields.forEach(f=>{ if(f.def) v[f.id]=JSON.parse(JSON.stringify(f.def)); }));
+    state.p[state.product]=v;
+  }
+  const v=state.p[state.product];
+  if(typeof v.print_method==='string') v.print_method=[v.print_method]; // ข้อมูลรุ่นเก่าเลือกได้วิธีเดียว
+  return v;
+}
+const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = x => { const n=parseFloat(x); return isFinite(n)?n:0; };
+const visible = (f,v) => !f.when || f.when(v);
+
+function sizeCols(v){ return (v.size_sets||[]).flatMap(n=>SIZESETS[n]||[]); }
+function allFields(){ return allSecs().flatMap(sec=>sec.fields); }
+function rows(v,id,opt){ if(!Array.isArray(v[id])||(!opt&&!v[id].length)) v[id]=opt?[]:[{q:{}}]; return v[id]; }
+
+// ยอดรวม: ตารางไซซ์ → ตารางรายการ (คอลัมน์ sum) → ช่องจำนวน
+function totalQty(){
+  const v=scope('p');
+  for(const f of allFields()){
+    if(!visible(f,v)) continue;
+    if(f.type==='sizeTable'){ const cols=sizeCols(v); return rows(v,f.id).reduce((a,r)=>a+cols.reduce((b,c)=>b+num(r.q[c]),0),0); }
+    if(f.type==='itemTable'){ const c=f.cols.find(c=>c.sum); if(c) return rows(v,f.id).reduce((a,r)=>a+num(r[c.c]),0); }
+    if(f.id==='qty') return num(v.qty);
+  }
+  return 0;
+}
+// เส้นทางผลิตคิดจากเทคนิคที่เลือก (สินค้าที่ไม่ใช่งานผ้ากำหนดเส้นทางเองใน route)
+function route(){
+  const P=prod(); if(P.route) return { code:'custom', text:P.route };
+  const m=[].concat(scope('p').print_method||[]).map(x=>x===OTHER?(scope('p').print_method__other||OTHER):x);
+  if(!m.length) return { code:'', text:'เลือกเทคนิคพิมพ์เพื่อกำหนดเส้นทาง' };
+  let r;
+  if(m.some(x=>/DTF/.test(x))) r={ code:'dtf', text:'DTF: ตัด → รีด DTF → เย็บ → QC+Packing (แอดมินต้องสั่งฟิล์ม DTF)' };
+  else if(m.some(x=>/ซับ|ดิจิทัล/.test(x))) r={ code:'normal', text:'ปกติ: พิมพ์ → รีด → ตัด → เย็บ → QC+Packing' };
+  else r={ code:'plain', text:'ตัด → เย็บ → QC+Packing' };
+  const extra=m.filter(x=>!/DTF|ซับ|ดิจิทัล|ไม่มีลาย/.test(x)).map(x=>x.replace(/\s*\(.*\)/,'').replace(/^งาน/,''));
+  if(extra.length) r.text+=` · มีงาน${extra.join(', ')} (ยังไม่มีสถานีนี้ในระบบ)`;
+  return r;
+}
+
+/* ================= ฟอร์ม ================= */
+// ลำดับหัวข้อในฟอร์ม: เลือกประเภทสินค้าก่อน เพราะตัวเลือกทั้งหมดด้านล่างเปลี่ยนตามประเภท
+function layout(){
+  let n=0; const L=[{ key:'product', title:'ประเภทสินค้า', no:++n }];
+  HEADER.forEach(sec=>L.push({ ...sec, s:'h', no:++n }));
+  allSecs().forEach(sec=>L.push({ ...sec, s:'p', no:++n }));
+  return L;
+}
+function renderForm(){
+  const r=route();
+  form.innerHTML=layout().map(sec=>{
+    if(sec.key==='product') return `<section class="card" id="sec_${sec.no}"><h2><span class="n">${sec.no}</span>ประเภทสินค้า</h2>`+
+      (state.pickOpen
+        ? `<div class="hint">เลือกก่อน ตัวเลือกด้านล่างจะเปลี่ยนตามสินค้า (ข้อมูลที่กรอกไว้ของแต่ละสินค้าไม่หาย)</div>`+
+          `<input type="search" id="psearch" placeholder="ค้นหาสินค้า เช่น โปโล ถุง หมวก" autocomplete="off">`+
+          CATS.map(([c,t])=>`<div class="pcat"><div class="pcat-t">${esc(t)}</div><div class="opts">`+
+            Object.entries(PRODUCTS).filter(([,x])=>x.cat===c).map(([k,x])=>`<label class="opt" data-name="${esc(x.name)}"><input type="radio" name="product" data-product value="${k}" ${k===state.product?'checked':''}><span>${esc(x.name)}</span></label>`).join('')+
+            `</div></div>`).join('')
+        : `<div class="picked"><span class="sel">${esc(prod().name)}</span><button class="btn small" data-act="pick">เปลี่ยนสินค้า</button></div>`)+
+      `<p class="route">เส้นทางการผลิต: <b>${esc(r.text)}</b><br>ทุกงานต้องขึ้นตัวอย่าง 1 ชิ้นและได้รับการยืนยันก่อนผลิตจริง</p></section>`;
+    const v=scope(sec.s), fs=sec.fields.filter(f=>visible(f,v));
+    return `<section class="card" id="sec_${sec.no}"><h2><span class="n">${sec.no}</span>${esc(sec.title)}</h2><div class="grid">${fs.map(f=>fieldHTML(f,sec.s,v)).join('')}</div></section>`;
+  }).join('');
+  markMissing();
+  updateTotals();
+}
+const WIDE=['check','sizeTable','itemTable','placements','images','textarea','dims'];
+function fieldHTML(f,s,v){
+  const val=v[f.id], a=`data-s="${s}" data-k="${f.id}"`;
+  let b='';
+  switch(f.type){
+    case 'text': case 'date':
+      b=`<input type="${f.type}" ${a} value="${esc(val)}" placeholder="${esc(f.ph||'')}">`; break;
+    case 'number':
+      b=`<input type="number" min="0" step="any" inputmode="decimal" ${a} value="${esc(val)}">`; break;
+    case 'textarea':
+      b=`<textarea rows="3" ${a}>${esc(val)}</textarea>`; break;
+    case 'radio': case 'check': {
+      const opts=f.options.concat(f.other?[OTHER]:[]);
+      const on=o=>f.type==='radio'?val===o:(val||[]).includes(o);
+      b=`<div class="opts">`+opts.map(o=>`<label class="opt"><input type="${f.type==='radio'?'radio':'checkbox'}" name="${s}_${f.id}" ${a} value="${esc(o)}" ${on(o)?'checked':''}><span>${esc(o)}</span></label>`).join('')+`</div>`;
+      if(f.other&&on(OTHER)) b+=`<input type="text" class="other" data-s="${s}" data-k="${f.id}__other" value="${esc(v[f.id+'__other'])}" placeholder="ระบุ ${esc(f.label)}...">`;
+      break; }
+    case 'dims':
+      b=`<div class="dims">`+f.parts.map((p,i)=>`<label><span>${esc(p)}</span><input type="number" min="0" step="any" data-s="${s}" data-k="${f.id}_${i}" value="${esc(v[f.id+'_'+i])}"></label>`).join('<b>×</b>')+`</div>`; break;
+    case 'sizeTable': {
+      const cols=sizeCols(v), rs=rows(v,f.id);
+      if(!cols.length){ b=`<div class="hint">เลือกชุดไซซ์ก่อน</div>`; break; }
+      b=`<div class="tbl-wrap"><table class="ft"><thead><tr><th>${esc(f.rowLabel||'แบบ / สี')}</th>${cols.map(c=>`<th>${c}</th>`).join('')}<th>รวม</th><th></th></tr></thead><tbody>`+
+        rs.map((r,i)=>`<tr><td class="l"><input type="text" data-t="${f.id}" data-r="${i}" data-c="label" value="${esc(r.label)}" placeholder="เช่น สีขาว ลาย A"></td>`+
+          cols.map(c=>`<td><input type="number" min="0" data-t="${f.id}" data-r="${i}" data-c="q:${esc(c)}" value="${esc(r.q[c])}"></td>`).join('')+
+          `<td data-rt="${i}">0</td><td>${rs.length>1?`<button class="btn x" data-act="delrow" data-id="${f.id}" data-r="${i}" title="ลบแถว">✕</button>`:''}</td></tr>`).join('')+
+        `</tbody><tfoot><tr><td>รวม</td>${cols.map(c=>`<td data-ct="${esc(c)}">0</td>`).join('')}<td data-gt>0</td><td></td></tr></tfoot></table></div>`+
+        `<div class="tbl-actions"><button class="btn small ghost" data-act="addrow" data-id="${f.id}">+ เพิ่มแบบ/สี</button></div>`;
+      break; }
+    case 'itemTable': {
+      const rs=rows(v,f.id,!!f.none);
+      b=`<div class="tbl-wrap"><table class="ft"><thead><tr>${f.cols.map(c=>`<th>${c.label}</th>`).join('')}<th></th></tr></thead><tbody>`+
+        rs.map((r,i)=>`<tr>${f.cols.map(c=>`<td class="${c.t!=='number'?'l':''}">`+(c.t==='select'
+            ? `<select data-t="${f.id}" data-r="${i}" data-c="${c.c}"><option value="">— เลือก —</option>${c.options.map(o=>`<option ${r[c.c]===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`
+            : `<input type="${c.t}" ${c.t==='number'?'min="0" step="any"':''} data-t="${f.id}" data-r="${i}" data-c="${c.c}" value="${esc(r[c.c])}">`)+`</td>`).join('')}<td>${rs.length>1||!f.req?`<button class="btn x" data-act="delrow" data-id="${f.id}" data-r="${i}" title="ลบแถว">✕</button>`:''}</td></tr>`).join('')+
+        `</tbody>${f.cols.some(c=>c.sum)?`<tfoot><tr>${f.cols.map((c,j)=>`<td>${j===0?'รวม':c.sum?'<span data-gt>0</span>':''}</td>`).join('')}<td></td></tr></tfoot>`:''}</table></div>`+
+        `<div class="tbl-actions"><button class="btn small ghost" data-act="addrow" data-id="${f.id}">${f.addLabel||'+ เพิ่มรายการ'}</button></div>`;
+      break; }
+    case 'placements': {
+      const pv=v[f.id]||{};
+      const ms=[].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m)), one=ms.length===1?ms[0]:'';
+      b=`<div class="pl"><div class="pl-head"><span>ตำแหน่ง</span><span>เทคนิค</span><span>ขนาด</span><span>หมายเหตุ</span></div>`+f.positions.map(p=>{ const x=pv[p]||{};
+        return `<div class="pl-row"><label class="opt"><input type="checkbox" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="on" ${x.on?'checked':''}><span>${esc(p)}</span></label>`+
+          `<input type="text" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="tech" value="${esc(x.tech)}" placeholder="${esc(one||'เช่น งานปัก / DTF')}" ${x.on?'':'disabled'}>`+
+          `<input type="text" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="size" value="${esc(x.size)}" placeholder="กว้าง × สูง (ซม.)" ${x.on?'':'disabled'}>`+
+          `<input type="text" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="note" value="${esc(x.note)}" placeholder="หมายเหตุ เช่น ห่างคอ 8 ซม." ${x.on?'':'disabled'}></div>`; }).join('')+`</div>`;
+      break; }
+    case 'images':
+      b=`<input type="file" accept="image/*" multiple data-img>`+
+        `<div class="imgs">${state.imgs.map((m,i)=>`<figure><img src="${m.src}" alt=""><figcaption>${esc(m.name)}</figcaption><button class="btn x" data-act="delimg" data-r="${i}" title="ลบภาพ">✕</button></figure>`).join('')}</div>`;
+      break;
+  }
+  const wide=f.wide||(WIDE.includes(f.type))||(f.type==='radio'&&(f.options.length>3||f.other));
+  return `<div class="field${wide?' wide':''}" id="fld_${s}_${f.id}"><div class="lab">${esc(f.label)}${f.req?'<i class="req">*</i>':''}${f.unit?` <small>(${esc(f.unit)})</small>`:''}</div>${f.hint?`<div class="hint">${esc(f.hint)}</div>`:''}${b}</div>`;
+}
+
+function updateTotals(){
+  const v=scope('p'), P=prod(), t=totalQty();
+  $('#qtyBadge').textContent=`${P.name.split(' ')[0]} · รวม ${t.toLocaleString()} ${P.unit}`;
+  const st=allFields().find(f=>f.type==='sizeTable'&&visible(f,v));
+  if(st){
+    const cols=sizeCols(v), rs=rows(v,st.id);
+    rs.forEach((r,i)=>{ const el=form.querySelector(`[data-rt="${i}"]`); if(el) el.textContent=cols.reduce((a,c)=>a+num(r.q[c]),0).toLocaleString(); });
+    cols.forEach(c=>{ const el=form.querySelector(`[data-ct="${CSS.escape(c)}"]`); if(el) el.textContent=rs.reduce((a,r)=>a+num(r.q[c]),0).toLocaleString(); });
+  }
+  form.querySelectorAll('[data-gt]').forEach(el=>el.textContent=t.toLocaleString());
+  updateProgress();
+}
+function updateProgress(){
+  const m=validate(), cnt={};
+  m.forEach(x=>cnt[x.sec]=(cnt[x.sec]||0)+1);
+  $('#nav').innerHTML=`<div class="nh">หัวข้อ</div>`+layout().map(sec=>{ const c=cnt[sec.no]||0;
+    return `<a href="#sec_${sec.no}" class="${c?'':'ok'}"><span class="n">${sec.no}</span><span class="t">${esc(sec.title)}</span><em>${c?'ขาด '+c:'✓'}</em></a>`; }).join('');
+  const p=$('#progress'); p.textContent=m.length?`ยังขาด ${m.length} ช่อง`:'✓ ครบ พร้อมส่งออก'; p.classList.toggle('done',!m.length);
+  if($('#alert').innerHTML){ missing=m; showAlert(); form.querySelectorAll('.field.missing').forEach(el=>el.classList.remove('missing')); markMissing(); }
+}
+
+// ย่อภาพให้ด้านยาวไม่เกิน 1600px เพื่อให้ PDF และไฟล์งานไม่ใหญ่เกินไป
+function compress(file){ return new Promise(res=>{ const fr=new FileReader();
+  fr.onload=()=>{ const img=new Image();
+    img.onload=()=>{ const k=Math.min(1,1600/Math.max(img.width,img.height)), c=document.createElement('canvas');
+      c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); const g=c.getContext('2d');
+      g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0,c.width,c.height);
+      res({ name:file.name, src:c.toDataURL('image/jpeg',0.85) }); };
+    img.onerror=()=>res({ name:file.name, src:fr.result }); img.src=fr.result; };
+  fr.readAsDataURL(file); }); }
+function rerender(){ const y=scrollY; renderForm(); scrollTo(0,y); save(); }
+
+form.addEventListener('input',e=>{
+  const t=e.target, d=t.dataset;
+  if(t.type==='radio'||t.type==='checkbox'||t.type==='file') return;
+  if(t.id==='psearch'){ const q=t.value.trim().toLowerCase();
+    form.querySelectorAll('.pcat').forEach(c=>{ let any=false;
+      c.querySelectorAll('[data-name]').forEach(l=>{ const ok=!q||l.dataset.name.toLowerCase().includes(q); l.style.display=ok?'':'none'; any=any||ok; });
+      c.style.display=any?'':'none'; }); return; }
+  if(d.k){ scope(d.s)[d.k]=t.value; }
+  else if(d.t){ const r=scope('p')[d.t][+d.r]; if(d.c.startsWith('q:')) r.q[d.c.slice(2)]=t.value; else r[d.c]=t.value; }
+  else if(d.pl){ const v=scope('p'); v[d.pl]=v[d.pl]||{}; (v[d.pl][d.pos]=v[d.pl][d.pos]||{})[d.pf]=t.value; }
+  t.closest('.field')?.classList.remove('missing');
+  updateTotals(); save();
+});
+form.addEventListener('change',e=>{
+  const t=e.target, d=t.dataset;
+  if(d.product!==undefined){ state.product=t.value; state.pickOpen=false; scope('p'); return rerender(); }
+  if(t.type==='radio'&&d.k){ scope(d.s)[d.k]=t.value; return rerender(); }
+  if(t.type==='checkbox'&&d.k){ const v=scope(d.s); const arr=new Set(v[d.k]||[]); t.checked?arr.add(t.value):arr.delete(t.value); v[d.k]=[...arr]; return rerender(); }
+  if(t.type==='checkbox'&&d.pl){ const v=scope('p'); v[d.pl]=v[d.pl]||{}; (v[d.pl][d.pos]=v[d.pl][d.pos]||{}).on=t.checked; return rerender(); }
+  if(t.type==='file'&&d.img!==undefined){
+    Promise.all([...t.files].map(compress)).then(a=>{ state.imgs.push(...a); t.value=''; rerender(); });
+  }
+});
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b) return;
+  const act=b.dataset.act, v=scope('p');
+  if(act==='pick'){ state.pickOpen=true; rerender(); setTimeout(()=>$('#psearch')?.focus(),0); }
+  if(act==='addrow'){ v[b.dataset.id].push(b.dataset.id==='sizes'?{q:{}}:{}); rerender(); }
+  if(act==='delrow'){ v[b.dataset.id].splice(+b.dataset.r,1); rerender(); }
+  if(act==='delimg'){ state.imgs.splice(+b.dataset.r,1); rerender(); }
+  if(act==='new'){ if(confirm('ล้างข้อมูลทั้งหมดและเริ่มใบใหม่?\n(ถ้ายังไม่ได้กด "บันทึกไฟล์" ข้อมูลใบนี้จะหาย)')){ state=fresh(); missing=[]; $('#alert').innerHTML=''; rerender(); scrollTo(0,0); } }
+  if(act==='open'){ if(!(state.h.doc_no||state.h.customer)||confirm('เปิดไฟล์แล้วข้อมูลที่กรอกอยู่จะถูกแทนที่ ดำเนินการต่อ?')) $('#openFile').click(); }
+  if(act==='savefile'){ const blob=new Blob([JSON.stringify({ app:'phappim-confirm', v:1, ...state })],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fileBase()+'.json'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),2000); toast('บันทึกไฟล์ '+a.download+' แล้ว'); }
+  if(act==='preview'){ togglePreview(); }
+  if(act==='export'){ exportPdf(); }
+});
+
+$('#openFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return;
+  f.text().then(t=>{ try{ const d=JSON.parse(t); if(!d.h||!d.p||!PRODUCTS[d.product]) throw 0;
+      state={ h:d.h, product:d.product, pickOpen:false, p:d.p, imgs:Array.isArray(d.imgs)?d.imgs:[] }; missing=[]; $('#alert').innerHTML='';
+      if(document.body.classList.contains('preview')) togglePreview(false); rerender(); scrollTo(0,0); toast('เปิดไฟล์ '+f.name+' แล้ว');
+    }catch(err){ alert('ไฟล์นี้ไม่ใช่ไฟล์ใบยืนยันการผลิต'); }
+    e.target.value=''; }); });
+
+// กด Enter = ไปช่องถัดไป (กรอกตารางไซซ์ได้เร็ว) · กันล้อเมาส์เปลี่ยนตัวเลขโดยไม่ตั้งใจ
+form.addEventListener('keydown',e=>{ const t=e.target;
+  if(e.key!=='Enter'||t.tagName!=='INPUT'||['radio','checkbox','file'].includes(t.type)) return;
+  e.preventDefault(); const els=[...form.querySelectorAll('input:not([type=radio]):not([type=checkbox]):not([type=file]):not(:disabled),textarea')];
+  const nx=els[els.indexOf(t)+1]; if(nx){ nx.focus(); nx.select?.(); } });
+document.addEventListener('wheel',e=>{ const t=e.target; if(t.type==='number'&&document.activeElement===t) t.blur(); },{passive:true});
+
+/* ================= ตรวจความครบถ้วน ================= */
+function validate(){
+  const out=[];
+  layout().filter(sec=>sec.fields).forEach(sec=>{ const s=sec.s, v=scope(s); sec.fields.forEach(f=>{
+    if(!visible(f,v)) return;
+    const val=v[f.id]; let bad=false, why='';
+    switch(f.type){
+      case 'text': case 'date': case 'textarea': bad=f.req&&!String(val??'').trim(); break;
+      case 'number': bad=f.req&&!(num(val)>0); break;
+      case 'radio': bad=(f.req&&!val)||(val===OTHER&&!String(v[f.id+'__other']??'').trim()); if(bad&&val===OTHER) why='ระบุรายละเอียด "อื่นๆ"'; break;
+      case 'check': bad=(f.req&&!(val||[]).length)||((val||[]).includes(OTHER)&&!String(v[f.id+'__other']??'').trim()); break;
+      case 'dims': bad=f.req&&f.parts.some((p,i)=>i<2&&!(num(v[f.id+'_'+i])>0)); break;
+      case 'sizeTable': { const cols=sizeCols(v), rs=rows(v,f.id);
+        const tot=r=>cols.reduce((a,c)=>a+num(r.q[c]),0);
+        if(!rs.some(r=>tot(r)>0)){ bad=true; why='ยังไม่มีจำนวน'; }
+        else if(rs.some(r=>tot(r)>0&&!String(r.label??'').trim())){ bad=true; why='ใส่ชื่อแบบ/สีให้ทุกแถวที่มีจำนวน'; }
+        break; }
+      case 'itemTable': { const rs=rows(v,f.id,!!f.none);
+        const full=r=>f.cols.filter(c=>!c.opt).every(c=>c.t==='number'?num(r[c.c])>0:String(r[c.c]??'').trim());
+        const empty=r=>f.cols.every(c=>!String(r[c.c]??'').trim());
+        if(f.req&&!rs.some(full)){ bad=true; why='ต้องมีอย่างน้อย 1 รายการที่กรอกครบ'; }
+        else if(rs.some(r=>!full(r)&&!empty(r))){ bad=true; why='มีแถวที่กรอกไม่ครบ'; }
+        break; }
+      case 'placements': { const on=Object.entries(val||{}).filter(([,x])=>x.on);
+        if(!on.length){ bad=true; why='ติ๊กอย่างน้อย 1 ตำแหน่ง'; }
+        else if(on.some(([,x])=>!String(x.size??'').trim())){ bad=true; why='ใส่ขนาดให้ทุกตำแหน่งที่ติ๊ก'; }
+        else if([].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m)).length>1&&on.some(([,x])=>!String(x.tech??'').trim())){ bad=true; why='เลือกไว้หลายเทคนิค ต้องระบุเทคนิคของแต่ละตำแหน่ง'; }
+        break; }
+      case 'images': bad=f.req&&!state.imgs.length; break;
+    }
+    if(bad) out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why });
+  }); });
+  if(state.h.issue_date&&state.h.due_date&&state.h.due_date<state.h.issue_date) out.push({id:'fld_h_due_date',sec:2,label:'ข้อมูลใบงาน › กำหนดส่งงาน',why:'อยู่ก่อนวันที่ออกใบ'});
+  if(state.h.sample_date&&state.h.due_date&&state.h.sample_date>state.h.due_date) out.push({id:'fld_h_sample_date',sec:2,label:'ข้อมูลใบงาน › วันนัดส่งตัวอย่าง',why:'อยู่หลังกำหนดส่งงาน'});
+  return out;
+}
+function markMissing(){ missing.forEach(m=>document.getElementById(m.id)?.classList.add('missing')); }
+function showAlert(){
+  $('#alert').innerHTML = missing.length ? `<div class="alert"><b>ยังกรอกไม่ครบ ${missing.length} รายการ (ส่งออก PDF ไม่ได้จนกว่าจะครบ)</b><ul>${missing.map(m=>`<li><a href="#${m.id}" data-goto="${m.id}">${esc(m.label)}</a>${m.why?` — ${esc(m.why)}`:''}</li>`).join('')}</ul></div>` : '';
+}
+$('#alert').addEventListener('click',e=>{ const a=e.target.closest('[data-goto]'); if(!a) return; e.preventDefault();
+  if(document.body.classList.contains('preview')) togglePreview(false);
+  document.getElementById(a.dataset.goto)?.scrollIntoView({behavior:'smooth',block:'center'}); });
+
+/* ================= เอกสาร PDF ================= */
+function thDate(s){ if(!s) return '—'; const [y,m,d]=s.split('-'); return `${+d}/${+m}/${+y+543}`; }
+function valText(f,v){
+  const val=v[f.id], o=x=>x===OTHER?`${OTHER}: ${v[f.id+'__other']||''}`:x;
+  switch(f.type){
+    case 'date': return val?thDate(val):'';
+    case 'number': return num(val)>0?`${val}${f.unit?' '+f.unit:''}`:'';
+    case 'radio': return val?o(val):'';
+    case 'check': return (val||[]).map(o).join(', ');
+    case 'dims': { const ps=f.parts.map((p,i)=>[p,v[f.id+'_'+i]]).filter(([,x])=>num(x)>0); return ps.length?ps.map(([p,x])=>`${p} ${x}`).join(' × ')+(f.unit?' '+f.unit:''):''; }
+    default: return String(val??'').trim();
+  }
+}
+function kvHTML(fs,v){
+  const items=fs.map(f=>{ const t=valText(f,v); return t?`<div class="${f.type==='textarea'||t.length>40?'w':''}"><span>${esc(f.label.replace(/ \(.*\)$/,''))}</span><b>${esc(t)}</b></div>`:''; }).join('');
+  return items?`<div class="kv">${items}</div>`:'';
+}
+function renderDoc(){
+  const h=state.h, v=scope('p'), P=prod(), r=route();
+  const qty=`${totalQty().toLocaleString()} ${P.unit}`;
+  // หัวกระดาษ (พิมพ์ซ้ำทุกหน้า): โลโก้ + เลขที่ใบ + ลูกค้า + งาน เพื่อให้หยิบหน้าไหนก็รู้ว่าเป็นของงานอะไร
+  const head=`<div class="ph">
+    <img class="logo" src="${COMPANY.logo}" alt="${esc(COMPANY.name)}">
+    <div class="tt">ใบยืนยันการผลิต<small>${esc(P.name)}</small></div>
+    <div class="no"><span class="big">${esc(h.doc_no||'—')}</span>${num(h.rev)>0?`<span class="rev">แก้ไขครั้งที่ ${esc(h.rev)}</span><br>`:''}กำหนดส่ง <b>${thDate(h.due_date)}</b></div>
+    <div class="job"><span>ลูกค้า <b>${esc(h.customer||'—')}</b></span><span>งาน <b>${esc(h.job_name||'—')}</b></span><span>จำนวน <b>${qty}</b></span></div>
+  </div>`;
+
+  let x=`<section class="ds"><div class="kv">
+    <div><span>ผู้ติดต่อ</span><b>${esc(h.contact||'—')}</b></div><div><span>เบอร์โทร</span><b>${esc(h.phone||'—')}</b></div>
+    <div><span>วันที่ออกใบ</span><b>${thDate(h.issue_date)}</b></div><div><span>วันนัดส่งตัวอย่าง</span><b>${thDate(h.sample_date)}</b></div>
+    <div><span>การรับสินค้า</span><b>${esc(h.delivery||'—')}</b></div><div><span>แอดมินผู้ดูแล</span><b>${esc(h.admin||'—')}</b></div>
+    ${h.delivery==='จัดส่งตามที่อยู่'?`<div class="w"><span>ที่อยู่จัดส่ง</span><b>${esc(h.address||'—')}</b></div>`:''}
+  </div>
+  <div class="d-prod"><span>จำนวนรวม <b>${qty}</b>${num(v.spare)>0?` (+ เผื่อเสีย ${esc(v.spare)} ${P.unit})`:''}</span><span>เส้นทางผลิต <b>${esc(r.text)}</b></span></div></section>`;
+
+  let n=0;
+  allSecs().forEach(sec=>{
+    const fs=sec.fields.filter(f=>visible(f,v));
+    const simple=fs.filter(f=>!['sizeTable','itemTable','placements','images'].includes(f.type)&&f.id!=='spare');
+    let body=kvHTML(simple,v), imgs='';
+    fs.forEach(f=>{
+      if(f.type==='sizeTable'){
+        const all=sizeCols(v), rs=rows(v,f.id).filter(r=>all.some(c=>num(r.q[c])>0));
+        const cols=all.filter(c=>rs.some(r=>num(r.q[c])>0));
+        if(rs.length) body+=`<table class="dt"><thead><tr><th>${esc(f.rowLabel||'แบบ / สี')}</th>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}<th>รวม</th></tr></thead><tbody>`+
+          rs.map(r=>`<tr><td class="l">${esc(r.label)}</td>${cols.map(c=>`<td>${num(r.q[c])||''}</td>`).join('')}<td><b>${cols.reduce((a,c)=>a+num(r.q[c]),0)}</b></td></tr>`).join('')+
+          `</tbody><tfoot><tr><td>รวม</td>${cols.map(c=>`<td>${rs.reduce((a,r)=>a+num(r.q[c]),0)}</td>`).join('')}<td>${totalQty()}</td></tr></tfoot></table>`;
+      }
+      if(f.type==='itemTable'){
+        const rs=rows(v,f.id,!!f.none).filter(r=>f.cols.some(c=>String(r[c.c]??'').trim()));
+        const lab=f.none?`<div class="tlabel">${esc(f.label)}</div>`:'';
+        if(rs.length) body+=lab+`<table class="dt"><thead><tr><th>#</th>${f.cols.map(c=>`<th>${c.label}</th>`).join('')}</tr></thead><tbody>`+
+          rs.map((r,i)=>`<tr><td>${i+1}</td>${f.cols.map(c=>`<td class="${c.t!=='number'?'l':''}">${esc(r[c.c])}</td>`).join('')}</tr>`).join('')+
+          `</tbody>${f.cols.some(c=>c.sum)?`<tfoot><tr><td colspan="${f.cols.length}">รวม</td><td>${totalQty()}</td></tr></tfoot>`:''}</table>`;
+        else if(f.none) body+=`<div class="kv"><div class="w"><span>${esc(f.label)}</span><b>${esc(f.none)}</b></div></div>`;
+      }
+      if(f.type==='placements'){
+        const on=Object.entries(v[f.id]||{}).filter(([,p])=>p.on);
+        const ms=[].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m));
+        if(on.length) body+=`<table class="dt"><thead><tr><th>ตำแหน่ง</th><th>เทคนิค</th><th>ขนาด (ซม.)</th><th>หมายเหตุ</th></tr></thead><tbody>`+
+          on.map(([k,p])=>`<tr><td class="l">${esc(k)}</td><td class="l">${esc(p.tech||(ms.length===1?ms[0]:''))}</td><td>${esc(p.size)}</td><td class="l">${esc(p.note)}</td></tr>`).join('')+`</tbody></table>`;
+      }
+      if(f.type==='images'&&state.imgs.length){
+        imgs=`<div class="d-imgs">${state.imgs.map(m=>`<figure><img src="${m.src}" alt=""><figcaption>${esc(m.name)}</figcaption></figure>`).join('')}</div>`;
+      }
+    });
+    // ภาพแยกออกจากกล่องหัวข้อ เพื่อให้ตัดหน้าระหว่างภาพได้ ไม่ดันทั้งหัวข้อไปหน้าใหม่
+    if(body||imgs) x+=`<section class="ds"><h3>${++n}. ${esc(sec.title)}</h3>${body}</section>${imgs}`;
+  });
+
+  const sig=t=>`<div><div class="t">${t}</div><div class="ln"></div>(.......................................)<br>วันที่ ....../....../......</div>`;
+  x+=`<div class="close"><div class="d-note"><b>ข้อตกลง:</b> ลูกค้าตรวจสอบรายละเอียดทั้งหมดในใบนี้แล้ว ฝ่ายผลิตจะผลิตตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง
+    และผลิตตามรายละเอียดในใบนี้เท่านั้น การแก้ไขหลังเซ็นต้องออกใบยืนยันฉบับใหม่ และอาจมีผลต่อกำหนดส่ง</div>
+    <div class="sign">${sig('ลูกค้ายืนยันรายละเอียด')}${sig('แอดมินผู้ทำใบ')}${sig('ผู้ควบคุมงาน (รับงานเข้าโรงงาน)')}</div></div>`;
+
+  // ใช้ thead ของตารางเป็นหัวกระดาษ: เบราว์เซอร์จะพิมพ์ thead ซ้ำทุกหน้าเมื่อเนื้อหายาวเกิน 1 หน้า
+  $('#doc').innerHTML=`<table class="pg"><thead><tr><td>${head}</td></tr></thead><tbody><tr><td>${x}</td></tr></tbody></table>`;
+  setPageStyle();
+  estimatePages();
+}
+// ประมาณจำนวนหน้า A4 (พื้นที่พิมพ์ 190 × 274 มม. หักหัวกระดาษที่พิมพ์ซ้ำทุกหน้า) · เป้าหมายไม่เกิน 2 หน้า
+function estimatePages(){
+  const d=$('#doc'), t=d.querySelector('table.pg'); if(!t) return;
+  const prev=d.style.display; d.style.display='block'; t.style.width='190mm';
+  const probe=document.createElement('div'); probe.style.cssText='position:absolute;visibility:hidden;height:100mm;width:1px';
+  document.body.appendChild(probe); const mm=probe.offsetHeight/100; probe.remove();
+  const headH=t.tHead.offsetHeight, bodyH=t.tBodies[0].offsetHeight, per=274*mm-headH;
+  const pages=Math.max(1,Math.ceil(bodyH/per*1.03));
+  t.style.width=''; d.style.display=prev;
+  let n=$('#pageNote'); if(!n){ n=document.createElement('div'); n.id='pageNote'; d.parentNode.insertBefore(n,d); }
+  n.className='page-note'+(pages>2?' warn':'');
+  n.textContent=pages>2?`ประมาณ ${pages} หน้า A4 · เกินเป้า 2 หน้า ลองลดจำนวนภาพ หรือรวมแถวในตาราง`:`ประมาณ ${pages} หน้า A4 · ทุกหน้ามีโลโก้ เลขที่ใบ ลูกค้า และชื่องาน`;
+}
+// ท้ายกระดาษทุกหน้า: เลขที่ใบ + ลูกค้า (ซ้าย) และ "หน้า x / y" (ขวา)
+function setPageStyle(){
+  const h=state.h, q=t=>String(t||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/[\r\n]+/g,' ');
+  const left=`${COMPANY.name} · ใบยืนยันการผลิต ${h.doc_no||''}${num(h.rev)>0?' แก้ไขครั้งที่ '+h.rev:''} · ${h.customer||''}`;
+  const box='font-family:"Sarabun",sans-serif;font-size:8.5pt;color:#555;';
+  let st=document.getElementById('pageStyle');
+  if(!st){ st=document.createElement('style'); st.id='pageStyle'; document.head.appendChild(st); }
+  st.textContent=`@page{size:A4;margin:10mm 10mm 13mm;`+
+    `@bottom-left{content:"${q(left)}";${box}}`+
+    `@bottom-right{content:"หน้า " counter(page) " / " counter(pages);${box}}}`;
+}
+function togglePreview(force){
+  const on=force??!document.body.classList.contains('preview');
+  if(on){ renderDoc(); missing=validate(); showAlert(); updateTotals(); }
+  document.body.classList.toggle('preview',on);
+  $('#btnPreview').textContent=on?'กลับไปแก้ไข':'ดูตัวอย่าง PDF';
+  if(!on) rerender();
+  scrollTo(0,0);
+}
+function exportPdf(){
+  missing=validate(); showAlert();
+  if(missing.length){ if(document.body.classList.contains('preview')) togglePreview(false); else rerender(); scrollTo(0,0); return; }
+  renderDoc();
+  const old=document.title;
+  document.title=fileBase();
+  window.print();
+  document.title=old;
+}
+
+document.getElementById('barLogo').src=COMPANY.logo;
+renderForm();
+</script>
+</body>
+</html>

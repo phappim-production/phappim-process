@@ -1,0 +1,26 @@
+# สำรองฐานข้อมูลทุกสัปดาห์ (แผนฟรีของ Supabase ไม่ควรพึ่งระบบสำรองของผู้ให้บริการ)
+# ไฟล์สำรองเก็บเป็น Artifact ของ GitHub 90 วัน → ดาวน์โหลดเก็บไว้อีกที่เป็นระยะ
+# ต้องตั้ง Secret: SUPABASE_DB_URL (ใช้ Session pooler connection string · ดู SETUP.md)
+# repo ต้องเป็น Private เพราะไฟล์สำรองมีข้อมูลลูกค้า
+name: db-backup
+on:
+  schedule:
+    - cron: '0 19 * * 6'  # ทุกวันอาทิตย์ 02:00 เวลาไทย
+  workflow_dispatch:
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: pg_dump
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          stamp=$(date -u +%Y%m%d)
+          docker run --rm -e DB_URL -v "$PWD:/out" postgres:17 \
+            sh -c 'pg_dump "$DB_URL" --schema=public --no-owner --no-privileges -Fc -f /out/pp142-'"$stamp"'.dump'
+          ls -la *.dump
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pp142-db-backup
+          path: '*.dump'
+          retention-days: 90
