@@ -37,7 +37,7 @@ export default function JobFinder({ jobs, now, forecast, onOpen }: Props) {
   return (
     <section className="rounded-2xl border border-line/80 bg-white shadow-card">
       <div ref={box} className="relative p-4 sm:p-5">
-        <label className="mb-2 block text-sm font-semibold">ตามหางาน · งานนี้อยู่ขั้นไหน?</label>
+        <label className="sr-only">ตามหางาน · งานนี้อยู่ขั้นไหน?</label>
         <div className="relative">
           <IconSearch className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted" />
           <input
