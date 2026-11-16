@@ -104,5 +104,20 @@ await expectError('พักงานต้องมีสาเหตุ',
 await expectError('แก้ events ไม่ได้ (แม้เป็นผู้ดูแลฐานข้อมูล)', `update public.events set type='x'`, /เพิ่มอย่างเดียว/)
 await expectError('ลบ events ไม่ได้', `delete from public.events`, /เพิ่มอย่างเดียว/)
 
+// ---- 6. ฟังก์ชันสิทธิ์และ policy (migration 3) ----
+const fn = await db.query(`select n.nspname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where p.proname in ('my_role','is_owner')`)
+ok('ฟังก์ชันสิทธิ์อยู่ใน schema private เท่านั้น', fn.rows.length === 2 && fn.rows.every(r => r.nspname === 'private'))
+await db.exec('set role anon')
+try { await db.query('select private.my_role()'); ok('คนไม่ล็อกอิน (anon) เรียกฟังก์ชันสิทธิ์ไม่ได้', false) }
+catch (e) { ok('คนไม่ล็อกอิน (anon) เรียกฟังก์ชันสิทธิ์ไม่ได้', /permission denied/.test(e.message), e.message.split('\n')[0]) }
+finally { await db.exec('reset role') }
+const multi = await db.query(`select tablename from pg_policies where schemaname = 'public' and cmd in ('SELECT','ALL') group by 1 having count(*) > 1`)
+ok('ไม่มี policy อ่านซ้อนกันในตารางเดียว', multi.rows.length === 0, multi.rows.map(r => r.tablename).join(','))
+const fkNoIdx = await db.query(`
+  select c.conrelid::regclass::text t, c.conname from pg_constraint c
+  where c.contype = 'f' and c.connamespace = 'public'::regnamespace
+    and not exists (select 1 from pg_index i where i.indrelid = c.conrelid and i.indkey[0] = c.conkey[1])`)
+ok('foreign key ทุกตัวมี index', fkNoIdx.rows.length === 0, fkNoIdx.rows.map(r => r.conname).join(','))
+
 console.log(`\nผ่าน ${pass} · ไม่ผ่าน ${fail}`)
 process.exit(fail ? 1 : 0)
