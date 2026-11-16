@@ -2,27 +2,31 @@ import { useEffect, useState, type ComponentType, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { isConfigured, supabase } from './lib/supabase'
 import Dashboard from './pages/Dashboard'
+import ReportsPage from './pages/reports'
+import SettingsPage from './pages/settings'
 import { IconChart, IconColumns, IconGauge, IconInbox, IconPackage, IconSliders, IconUser } from './components/icons'
 
 type Station = { code: string; name: string; is_draft: boolean }
 type Route = { code: string; name: string; route_stations: { seq: number; stations: { name: string } | null }[] }
 type ProductType = { code: string; name: string; category: string; unit: string }
 
-type PageKey = 'overview' | 'board' | 'system'
+type PageKey = 'overview' | 'board' | 'reports' | 'settings' | 'system'
 type NavItem = { key: PageKey | null; hash?: string; name: string; short: string; icon: ComponentType<{ className?: string }>; soon?: string }
 const NAV: NavItem[] = [
   { key: 'overview', hash: '#/', name: 'ภาพรวมแอดมิน', short: 'ภาพรวม', icon: IconGauge },
   { key: 'board', hash: '#/board', name: 'บอร์ดสถานี', short: 'บอร์ด', icon: IconColumns },
-  { key: null, name: 'รับงาน', short: 'รับงาน', icon: IconInbox, soon: 'เฟส 2' },
-  { key: null, name: 'เช็ควัตถุดิบ', short: 'วัตถุดิบ', icon: IconPackage, soon: 'เฟส 2' },
-  { key: null, name: 'รายงาน', short: 'รายงาน', icon: IconChart, soon: 'เฟส 4' },
-  { key: 'system', hash: '#/system', name: 'ระบบ', short: 'ระบบ', icon: IconSliders },
+  { key: null, name: 'รับงาน', short: 'รับงาน', icon: IconInbox, soon: 'A3' },
+  { key: null, name: 'เช็ควัตถุดิบ', short: 'วัตถุดิบ', icon: IconPackage, soon: 'A3' },
+  { key: 'reports', hash: '#/reports', name: 'รายงาน', short: 'รายงาน', icon: IconChart },        // หน้าโดย Codex (C4)
+  { key: 'settings', hash: '#/settings', name: 'ตั้งค่า', short: 'ตั้งค่า', icon: IconSliders },  // หน้าโดย Codex (C2)
+  { key: 'system', hash: '#/system', name: 'บัญชี / ระบบ', short: 'บัญชี', icon: IconUser },
 ]
+const PAGES: Record<string, PageKey> = { '#/board': 'board', '#/reports': 'reports', '#/settings': 'settings', '#/system': 'system' }
 
-// เฟส 1: หน้าจอต้นแบบใช้ข้อมูลจำลอง (เปิดดูได้โดยไม่ต้องล็อกอิน) · หน้า "ระบบ" = ตรวจการเชื่อมต่อจากเฟส 0
+// เฟส 1: หน้าจอต้นแบบใช้ข้อมูลจำลอง (เปิดดูได้โดยไม่ต้องล็อกอิน) · หน้า "บัญชี / ระบบ" = ล็อกอิน + ตรวจการเชื่อมต่อ
 export default function App() {
   const hash = useHash()
-  const page: PageKey = hash === '#/system' ? 'system' : hash === '#/board' ? 'board' : 'overview'
+  const page: PageKey = PAGES[hash.split('?')[0]] ?? 'overview'
   const [today] = useState(() => new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))
 
   return (
@@ -67,13 +71,19 @@ export default function App() {
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col">
-          {page === 'system'
-            ? <main className="flex-1 overflow-y-auto"><div className="mx-auto max-w-3xl p-4 sm:p-6"><SystemPage /></div></main>
-            : <Dashboard view={page} today={today} />}
+          {page === 'overview' || page === 'board'
+            ? <Dashboard view={page} today={today} />
+            : (
+              <main className="flex-1 overflow-y-auto">
+                {page === 'system' && <div className="mx-auto max-w-3xl p-4 sm:p-6"><SystemPage /></div>}
+                {page === 'reports' && <ReportsPage />}
+                {page === 'settings' && <SettingsPage />}
+              </main>
+            )}
         </div>
 
         {/* แถบเมนูล่าง (มือถือ / แท็บเล็ต) */}
-        <nav className="grid grid-cols-3 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <nav className="grid grid-cols-5 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
           {NAV.filter(n => n.hash).map(n => {
             const active = n.key === page
             const Icon = n.icon

@@ -33,7 +33,8 @@ for (const f of readdirSync(migDir).filter(f => f.endsWith('.sql')).sort()) {
 await db.exec(`
   grant usage on schema public, auth to authenticated, anon;
   grant all on all tables in schema public to authenticated, anon;
-  grant execute on all functions in schema public, auth to authenticated, anon;
+  grant execute on all functions in schema auth to authenticated, anon;
+  -- ฟังก์ชันใน public/private ใช้สิทธิ์ตามที่ migration กำหนดเอง (ทดสอบกฎข้อ 12)
 `)
 
 // ---- 2. ข้อมูลตั้งค่า ----
@@ -118,6 +119,10 @@ const fkNoIdx = await db.query(`
   where c.contype = 'f' and c.connamespace = 'public'::regnamespace
     and not exists (select 1 from pg_index i where i.indrelid = c.conrelid and i.indkey[0] = c.conkey[1])`)
 ok('foreign key ทุกตัวมี index', fkNoIdx.rows.length === 0, fkNoIdx.rows.map(r => r.conname).join(','))
+
+// ---- 7. workflow (A1) ----
+const { workflowTests } = await import('./workflow.mjs')
+await workflowTests({ db, ok, as })
 
 console.log(`\nผ่าน ${pass} · ไม่ผ่าน ${fail}`)
 process.exit(fail ? 1 : 0)
