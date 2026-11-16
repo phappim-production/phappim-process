@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react'
 import { isConfigured } from './lib/supabase'
-import EmployeeLogin, { AccountScreen, SignOutButton, primaryButton } from './auth/EmployeeLogin'
+import EmployeeLogin, { AccountScreen, ChangePasswordForm, SignOutButton, primaryButton } from './auth/EmployeeLogin'
 import { useEmployeeAccount } from './auth/useEmployeeAccount'
-import { canOpenPage, ROLE_LABELS, type EmployeeRole, type PageKey } from './auth/access'
+import { canOpenPage, roleLabel as labelFor, type EmployeeRole, type PageKey, type Section } from './auth/access'
 import ReportsPage from './pages/reports'
 import SettingsPage from './pages/settings'
 import { Card, CardHeader } from './components/ui'
@@ -58,14 +58,14 @@ export default function App() {
 
 function Workspace({ page, profile, email }: {
   page: PageKey
-  profile: { name: string; role: EmployeeRole }
+  profile: { name: string; role: EmployeeRole; section: Section | null }
   email?: string
 }) {
   const [today] = useState(() => new Date().toLocaleDateString('th-TH', {
     timeZone: 'Asia/Bangkok', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   }))
   const visibleNav = NAV.filter(item => canOpenPage(profile.role, item.key))
-  const roleLabel = ROLE_LABELS[profile.role]
+  const roleLabel = labelFor(profile.role, profile.section)
 
   return (
     <div className="flex h-dvh">
@@ -100,6 +100,14 @@ function Workspace({ page, profile, email }: {
         <header className="flex items-center gap-3 bg-brand px-4 py-2.5 text-white lg:hidden">
           <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-8 rounded-md" />
           <span className="font-semibold">ติดตามการผลิต</span>
+          {/* แท็บเล็ตใช้ร่วมกันหลายคน ต้องเห็นตลอดว่าใครล็อกอินอยู่ เพราะทุกการกดบันทึกชื่อผู้กด */}
+          <a href="#/system" className="ml-auto flex min-h-12 min-w-0 items-center gap-2 rounded-xl px-2 hover:bg-white/10">
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-gold text-brand-700"><IconUser className="size-4" /></span>
+            <span className="min-w-0 text-right text-sm leading-tight">
+              <span className="block truncate font-semibold">{profile.name}</span>
+              <span className="block truncate text-white/70">{roleLabel}</span>
+            </span>
+          </a>
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col">
@@ -122,7 +130,7 @@ function Workspace({ page, profile, email }: {
           ) : (
             <main className="flex-1 overflow-y-auto">
               {page === 'system' && (
-                <div className="mx-auto max-w-3xl p-4 sm:p-6">
+                <div className="mx-auto grid max-w-3xl gap-4 p-4 sm:p-6">
                   <Card>
                     <CardHeader icon={IconUser} title="บัญชีของฉัน" />
                     <div className="space-y-4 px-5 pb-5">
@@ -131,7 +139,16 @@ function Workspace({ page, profile, email }: {
                         <p>{roleLabel}</p>
                         {email && <p className="break-all text-muted">{email}</p>}
                       </div>
-                      <SignOutButton />
+                      <div className="grid sm:max-w-xs">
+                        <SignOutButton />
+                      </div>
+                      <p className="text-sm text-muted">ใช้เครื่องร่วมกับคนอื่น ให้กดออกจากระบบทุกครั้งก่อนส่งเครื่องต่อ</p>
+                    </div>
+                  </Card>
+                  <Card>
+                    <CardHeader title="เปลี่ยนรหัสผ่าน" sub="ควรเปลี่ยนรหัสที่ได้รับจากเจ้าของระบบเป็นรหัสของตัวเอง" />
+                    <div className="px-5 pb-5 sm:max-w-sm">
+                      <ChangePasswordForm />
                     </div>
                   </Card>
                 </div>

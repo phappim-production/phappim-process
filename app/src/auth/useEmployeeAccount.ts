@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import { isEmployeeRole, type EmployeeRole } from './access'
+import { isEmployeeRole, toSection, type EmployeeRole, type Section } from './access'
 
-type EmployeeProfile = { name: string; role: EmployeeRole }
+type EmployeeProfile = { name: string; role: EmployeeRole; section: Section | null }
 
 type ProfileResult =
   | { status: 'ready'; profile: EmployeeProfile }
@@ -36,7 +36,8 @@ export function useEmployeeAccount() {
       request = currentRequest
       const { data, error } = await db
         .from('profiles')
-        .select('name, role, active')
+        // เลือกทุกคอลัมน์ เพื่อให้ยังล็อกอินได้บนฐานข้อมูลที่ยังไม่มีคอลัมน์ section (migration ยังไม่ลง)
+        .select('*')
         .eq('user_id', userId)
         .abortSignal(currentRequest.signal)
         .maybeSingle()
@@ -46,7 +47,7 @@ export function useEmployeeAccount() {
       if (error) result = { status: 'error' }
       else if (!data || !isEmployeeRole(data.role)) result = { status: 'unassigned' }
       else if (!data.active) result = { status: 'inactive' }
-      else result = { status: 'ready', profile: { name: data.name, role: data.role } }
+      else result = { status: 'ready', profile: { name: data.name, role: data.role, section: toSection(data.section) } }
       setLookup({ userId, result })
     }
 
