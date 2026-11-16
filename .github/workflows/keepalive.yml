@@ -16,6 +16,7 @@ jobs:
         run: |
           code=$(curl -s -o /dev/null -w '%{http_code}' \
             "$SUPABASE_URL/rest/v1/product_types?select=code&limit=1" \
-            -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+            -H "apikey: $SUPABASE_ANON_KEY")
+          # ใช้ header apikey อย่างเดียว: รองรับทั้ง publishable key (sb_publishable_…) และ anon key แบบ JWT
           echo "HTTP $code"
           test "$code" = "200"
