@@ -44,6 +44,7 @@ export type Machine = {
   status: MachineStatus
   jobId?: string        // งานที่ใช้จักรนี้อยู่ (ไม่มี = ว่าง)
   note?: string         // อาการตอนแจ้งเสีย
+  repairEta?: Date      // คาดว่าซ่อมเสร็จเมื่อไร (ฝ่ายผลิตกำหนด)
 }
 
 export type Need = { type: MachineType; qty: number }
@@ -159,6 +160,38 @@ export function needText(list: Need[]): string {
 // ---------- จองจักรเป็นวัน-เวลา (ตรงกับ public.book_machines / cancel_booking) ----------
 export type Booking = { id: string; machineId: string; jobId: string; starts: Date; ends: Date }
 
+export const BOOKING_TIME_ZONE = 'Asia/Bangkok'
+const bookingDate = new Intl.DateTimeFormat('sv-SE', { timeZone: BOOKING_TIME_ZONE })
+
+export function bookingDay(date: Date): string {
+  return bookingDate.format(date)
+}
+
+export function bookingTime(day: string, time: string): Date {
+  return new Date(`${day}T${time}:00+07:00`)
+}
+
+export function moveBookingDay(day: string, offset: number): string {
+  const date = bookingTime(day, '12:00')
+  date.setUTCDate(date.getUTCDate() + offset)
+  return bookingDay(date)
+}
+
+export function isBookingSunday(day: string): boolean {
+  return bookingTime(day, '12:00').getUTCDay() === 0
+}
+
+export function groupBookings(bookings: Booking[]): Booking[][] {
+  const groups = new Map<string, Booking[]>()
+  for (const booking of bookings) {
+    const key = `${booking.jobId}/${booking.starts.getTime()}/${booking.ends.getTime()}`
+    const group = groups.get(key)
+    if (group) group.push(booking)
+    else groups.set(key, [booking])
+  }
+  return [...groups.values()].sort((a, b) => a[0].starts.getTime() - b[0].starts.getTime())
+}
+
 // การจองของงานอื่นที่ทับช่วง [from, to) ของจักรตัวนี้ (ไม่นับงาน exceptJob)
 export function bookedByOther(machineId: string, from: Date, to: Date, bookings: Booking[], exceptJob?: string): Booking | undefined {
   return bookings
@@ -175,12 +208,13 @@ export type StartCheck =
 
 // เลือกจักรว่างให้ครบทุกชนิดที่สินค้าต้องใช้ · จักรที่งานนี้จองไว้มาก่อน · จักรที่งานอื่นจองช่วงนี้ใช้ไม่ได้
 export function checkStartSewing(job: Job, machines: Machine[], needsMap: Record<string, Need[]>,
-  bookings: Booking[] = [], now: Date = new Date()): StartCheck {
+  bookings: Booking[] = [], now: Date = new Date(), resume = false): StartCheck {
   if (job.station !== 'sew' || (job.phase !== 'production' && job.phase !== 'sample')) {
     return { ok: false, reason: 'งานนี้ยังไม่ถึงสถานีเย็บ', missing: [], blockers: [] }
   }
-  if (job.status === 'hold') return { ok: false, reason: 'งานนี้พักอยู่ กด "แก้แล้ว" ก่อน', missing: [], blockers: [] }
-  if (job.status !== 'queued') return { ok: false, reason: 'งานนี้เริ่มเย็บไปแล้ว', missing: [], blockers: [] }
+  if (resume && job.status !== 'hold') return { ok: false, reason: 'งานนี้ไม่ได้พักอยู่', missing: [], blockers: [] }
+  if (!resume && job.status === 'hold') return { ok: false, reason: 'งานนี้พักอยู่ กด "เย็บต่อ" เมื่อแก้ปัญหาแล้ว', missing: [], blockers: [] }
+  if (!resume && job.status !== 'queued') return { ok: false, reason: 'งานนี้เริ่มเย็บไปแล้ว', missing: [], blockers: [] }
   const needs = (job.productCode && needsMap[job.productCode]) || []
   if (needs.length === 0) {
     return { ok: false, reason: 'ยังไม่มีข้อมูลว่าสินค้านี้ใช้จักรอะไร ให้เจ้าของระบบใส่ในหน้าตั้งค่า', missing: [], blockers: [] }
@@ -193,10 +227,12 @@ export function checkStartSewing(job: Job, machines: Machine[], needsMap: Record
   const missing: Need[] = []
   const blockers: Blocker[] = []
   for (const n of needs) {
-    const free = sorted.filter(m => m.type === n.type && machineState(m) === 'free' && !other(m)).slice(0, n.qty)
+    const assigned = resume ? machines.filter(m => m.type === n.type && m.jobId === job.id && m.status === 'ready').length : 0
+    const needed = Math.max(0, n.qty - assigned)
+    const free = sorted.filter(m => m.type === n.type && machineState(m) === 'free' && !other(m)).slice(0, needed)
     picked.push(...free)
-    if (free.length < n.qty) {
-      missing.push({ type: n.type, qty: n.qty - free.length })
+    if (free.length < needed) {
+      missing.push({ type: n.type, qty: needed - free.length })
       for (const m of [...machines].sort((a, b) => a.code.localeCompare(b.code)).filter(x => x.type === n.type)) {
         const st = machineState(m)
         const b = other(m)
@@ -211,16 +247,16 @@ export function checkStartSewing(job: Job, machines: Machine[], needsMap: Record
 
 // จำลองการกดเริ่มเย็บบนข้อมูลในหน้าจอ (ข้อมูลจำลอง) · ของจริงเรียก RPC แล้วรอ realtime
 export function applyStartSewing(jobs: Job[], machines: Machine[], jobId: string, needsMap: Record<string, Need[]>,
-  now: Date, bookings: Booking[] = []) {
+  now: Date, bookings: Booking[] = [], resume = false) {
   const job = jobs.find(j => j.id === jobId)
   if (!job) return { ok: false as const, reason: 'ไม่พบงานนี้', jobs, machines }
-  const check = checkStartSewing(job, machines, needsMap, bookings, now)
+  const check = checkStartSewing(job, machines, needsMap, bookings, now, resume)
   if (!check.ok) return { ok: false as const, reason: check.reason, jobs, machines }
   const ids = new Set(check.picked.map(m => m.id))
   return {
     ok: true as const,
     picked: check.picked.map(m => m.code),
-    jobs: jobs.map(j => (j.id === jobId ? { ...j, status: 'doing' as const, since: now } : j)),
+    jobs: jobs.map(j => (j.id === jobId ? { ...j, status: 'doing' as const, since: now, holdReason: undefined } : j)),
     machines: machines.map(m => (ids.has(m.id) ? { ...m, jobId } : m)),
   }
 }
@@ -233,30 +269,46 @@ export function checkBooking(job: Job, machines: Machine[], bookings: Booking[],
   if (Number.isNaN(starts.getTime()) || Number.isNaN(ends.getTime()) || ends <= starts) return { ok: false, reason: 'เวลาจบต้องหลังเวลาเริ่ม' }
   if (ends <= now) return { ok: false, reason: 'ช่วงเวลานี้ผ่านไปแล้ว เลือกเวลาใหม่' }
   if (ends.getTime() - starts.getTime() > 14 * 86_400_000) return { ok: false, reason: 'จองได้ครั้งละไม่เกิน 14 วัน' }
-  if (starts.getDay() === 0) return { ok: false, reason: 'วันอาทิตย์โรงงานหยุด เลือกวันเริ่มใหม่' }
+  if (isBookingSunday(bookingDay(starts))) return { ok: false, reason: 'วันอาทิตย์โรงงานหยุด เลือกวันเริ่มใหม่' }
   if (bookings.some(b => b.jobId === job.id && b.ends > now)) return { ok: false, reason: 'งานนี้จองจักรไว้แล้ว ยกเลิกการจองเดิมก่อนจองใหม่' }
   const needs = (job.productCode && needsMap[job.productCode]) || []
   if (needs.length === 0) return { ok: false, reason: 'ยังไม่มีข้อมูลว่าสินค้านี้ใช้จักรอะไร ให้เจ้าของระบบใส่ในหน้าตั้งค่า' }
-  const startsNow = starts <= now
+  const available = freeDuring(machines, bookings, starts, ends, now, job.id)
   const sorted = [...machines].sort((a, b) => a.code.localeCompare(b.code))
   const picked: Machine[] = []
   const problems: string[] = []
   for (const n of needs) {
-    const usable = (m: Machine) => m.type === n.type && m.status === 'ready' && !bookedByOther(m.id, starts, ends, bookings)
-      && !(startsNow && m.jobId && m.jobId !== job.id)
-    const free = sorted.filter(usable).slice(0, n.qty)
-    if (free.length < n.qty) problems.push(`${MACHINE_TYPE_NAME[n.type]} ขาด ${n.qty - free.length} ตัว`)
-    else picked.push(...free)
+    if (available[n.type] < n.qty) problems.push(`${MACHINE_TYPE_NAME[n.type]} ขาด ${n.qty - available[n.type]} ตัว`)
+    else picked.push(...sorted.filter(m => m.type === n.type && isFreeDuring(m, bookings, starts, ends, now, job.id)).slice(0, n.qty))
   }
   if (problems.length) return { ok: false, reason: `ช่วงเวลานี้จักรไม่พอ: ${problems.join(' · ')}` }
   return { ok: true, picked }
+}
+
+// จักรที่ยังว่างทั้งช่วง [starts, ends) แยกตามชนิด · ใช้บอกคนจองว่าช่วงนี้ยังขึ้นงานอื่นได้อีกแค่ไหน
+function isFreeDuring(m: Machine, bookings: Booking[], starts: Date, ends: Date, now: Date, jobId?: string): boolean {
+  return m.status === 'ready' && !bookedByOther(m.id, starts, ends, bookings)
+    && !(starts <= now && m.jobId && m.jobId !== jobId)
+}
+
+export function freeDuring(machines: Machine[], bookings: Booking[], starts: Date, ends: Date, now: Date, jobId?: string): FreeCount {
+  const free = emptyCount()
+  for (const m of machines) {
+    if (isFreeDuring(m, bookings, starts, ends, now, jobId)) free[m.type]++
+  }
+  return free
+}
+
+// งานที่จองช่วงเวลาทับกับ [starts, ends)
+export function jobsBookedDuring(bookings: Booking[], starts: Date, ends: Date): string[] {
+  return [...new Set(bookings.filter(b => b.starts < ends && b.ends > starts).map(b => b.jobId))]
 }
 
 export function applyBooking(job: Job, machines: Machine[], bookings: Booking[], starts: Date, ends: Date,
   needsMap: Record<string, Need[]>, now: Date) {
   const check = checkBooking(job, machines, bookings, starts, ends, needsMap, now)
   if (!check.ok) return { ok: false as const, reason: check.reason, bookings }
-  const added = check.picked.map((m, i) => ({ id: `b${now.getTime()}-${i}-${m.id}`, machineId: m.id, jobId: job.id, starts, ends }))
+  const added = check.picked.map(m => ({ id: `b-${job.id}-${starts.getTime()}-${m.id}`, machineId: m.id, jobId: job.id, starts, ends }))
   return { ok: true as const, picked: check.picked.map(m => m.code), bookings: [...bookings, ...added] }
 }
 
@@ -267,30 +319,115 @@ export function cancelBookings(bookings: Booking[], jobId: string, now: Date) {
   return {
     ok: true as const,
     bookings: bookings
-      .filter(b => !(b.jobId === jobId && b.starts > now))
+      .filter(b => !(b.jobId === jobId && b.starts >= now))
       .map(b => (b.jobId === jobId && b.ends > now ? { ...b, ends: now } : b)),
   }
 }
 
 // ---------- แจ้งเสีย / ปิดใช้งาน / ซ่อมเสร็จ (ตรงกับ public.set_machine_status) ----------
-export function applyMachineStatus(jobs: Job[], machines: Machine[], code: string, status: MachineStatus, note: string, now: Date) {
+// กรอบเวลาซ่อม (ตรงกับ private.check_repair_eta) · null = ผ่าน
+export function repairEtaProblem(eta: Date | undefined, now: Date): string | null {
+  if (!eta || Number.isNaN(eta.getTime())) return 'ต้องกำหนดเวลาซ่อมเสร็จ'
+  if (eta <= now) return 'เวลาซ่อมเสร็จต้องเป็นเวลาข้างหน้า'
+  if (eta.getTime() - now.getTime() > 30 * 86_400_000) return 'กรอบเวลาซ่อมเกิน 30 วัน ถ้าซ่อมไม่ได้ให้ปิดใช้งานแทน'
+  return null
+}
+
+// สถานะเวลาซ่อมบนช่องจักร: ยังไม่กำหนด / อีกเท่าไร / เลยกำหนด
+export function repairStatus(m: Machine, now: Date): { tone: 'warn' | 'danger'; text: string } | null {
+  if (m.status !== 'broken') return null
+  if (!m.repairEta) return { tone: 'warn', text: 'ยังไม่กำหนดเวลาซ่อม' }
+  const at = m.repairEta.toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  const mins = Math.round((m.repairEta.getTime() - now.getTime()) / 60_000)
+  if (mins < 0) return { tone: 'danger', text: `เลยกำหนดซ่อม (${at})` }
+  return { tone: 'warn', text: `ซ่อมเสร็จประมาณ ${at}` }
+}
+
+export function applyMachineStatus(jobs: Job[], machines: Machine[], code: string, status: MachineStatus, note: string, now: Date,
+  opts: { repairEta?: Date; byProduction?: boolean; canSetEta?: boolean } = {}) {
   const m = machines.find(x => x.code === code.trim().toUpperCase())
   if (!m) return { ok: false as const, reason: `ไม่พบจักรรหัส ${code}`, jobs, machines }
   const text = note.trim()
   if (status === 'broken' && !text) return { ok: false as const, reason: 'แจ้งจักรเสียต้องบอกอาการ', jobs, machines }
+  if (opts.repairEta && status !== 'broken') return { ok: false as const, reason: 'กรอบเวลาซ่อมใส่ได้เฉพาะตอนแจ้งเสีย', jobs, machines }
+  if (opts.repairEta && !opts.canSetEta) return { ok: false as const, reason: 'กรอบเวลาซ่อมเป็นหน้าที่ของฝ่ายผลิต', jobs, machines }
+  if (status === 'broken' && opts.byProduction && !opts.repairEta) return { ok: false as const, reason: 'ฝ่ายผลิตแจ้งเสียต้องกำหนดเวลาซ่อมเสร็จ', jobs, machines }
+  if (opts.repairEta) {
+    const problem = repairEtaProblem(opts.repairEta, now)
+    if (problem) return { ok: false as const, reason: problem, jobs, machines }
+  }
   if (m.status === status) return { ok: false as const, reason: `จักร ${m.code} ${MACHINE_STATUS_NAME[status]}อยู่แล้ว`, jobs, machines }
   // เสีย/ปิด = คืนจากงาน · งานที่กำลังเย็บถูกพักอัตโนมัติ (เย็บต่อได้เมื่อจักรครบ)
   const jobId = status !== 'ready' ? m.jobId : undefined
   const nextMachines = machines.map(x => x.id !== m.id ? x : {
     ...x, status, note: status === 'ready' ? undefined : text || undefined, jobId: status === 'ready' ? x.jobId : undefined,
+    repairEta: status === 'broken' ? opts.repairEta : undefined,
   })
   const job = jobId ? jobs.find(j => j.id === jobId) : undefined
   const hold = job && job.status === 'doing'
-  const reason = status === 'broken' ? `จักร ${m.code} เสีย: ${text}` : `จักร ${m.code} ปิดใช้งาน`
+  const eta = opts.repairEta ? ` · คาดว่าซ่อมเสร็จ ${opts.repairEta.toLocaleString('th-TH', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''
+  const reason = (status === 'broken' ? `จักร ${m.code} เสีย: ${text}` : `จักร ${m.code} ปิดใช้งาน`) + eta
   return {
     ok: true as const,
     heldJob: hold ? job.no : undefined,
     machines: nextMachines,
     jobs: hold ? jobs.map(j => (j.id === job.id ? { ...j, status: 'hold' as const, holdReason: reason, since: now } : j)) : jobs,
+  }
+}
+
+// ฝ่ายผลิตกำหนด / เลื่อนเวลาซ่อม (ตรงกับ public.set_repair_eta)
+export function applyRepairEta(machines: Machine[], code: string, eta: Date, now: Date) {
+  const m = machines.find(x => x.code === code.trim().toUpperCase())
+  if (!m) return { ok: false as const, reason: `ไม่พบจักรรหัส ${code}`, machines }
+  if (m.status !== 'broken') return { ok: false as const, reason: `จักร ${m.code} ไม่ได้เสียอยู่ กำหนดเวลาซ่อมไม่ได้`, machines }
+  const problem = repairEtaProblem(eta, now)
+  if (problem) return { ok: false as const, reason: problem, machines }
+  return { ok: true as const, machines: machines.map(x => (x.id === m.id ? { ...x, repairEta: eta } : x)) }
+}
+
+function updateJob(jobs: Job[], id: string, patch: (j: Job) => Job) {
+  return jobs.map(j => (j.id === id ? patch(j) : j))
+}
+function sewingJob(jobs: Job[], id: string): Job | string {
+  const j = jobs.find(x => x.id === id)
+  if (!j) return 'ไม่พบงานนี้'
+  if (j.station !== 'sew') return 'งานนี้ไม่ได้อยู่สถานีเย็บ'
+  if (j.status === 'hold') return 'งานนี้พักอยู่ กด "เย็บต่อ" เมื่อแก้ปัญหาแล้ว'
+  if (j.status !== 'doing') return 'ยังไม่ได้เริ่มเย็บ'
+  return j
+}
+
+export function applyReportSewingIssue(jobs: Job[], id: string, reason: string, pause: boolean, now: Date) {
+  const job = sewingJob(jobs, id)
+  if (typeof job === 'string') return { ok: false as const, reason: job, jobs }
+  const text = reason.trim()
+  if (!text) return { ok: false as const, reason: 'กรุณาระบุปัญหาที่พบ', jobs }
+  return {
+    ok: true as const,
+    jobs: updateJob(jobs, id, j => ({
+      ...j,
+      sewingReports: [...(j.sewingReports ?? []), { reason: text, at: now, paused: pause }],
+      ...(pause ? { status: 'hold' as const, holdReason: text, since: now } : {}),
+    })),
+  }
+}
+
+// ยืนยันเย็บเสร็จครั้งเดียว ส่ง QC + Packing และคืนจักรกับช่วงจองที่เหลือ
+export function applyFinishSewing(jobs: Job[], machines: Machine[], bookings: Booking[], id: string, now: Date) {
+  const j = sewingJob(jobs, id)
+  if (typeof j === 'string') return { ok: false as const, reason: j, jobs, machines, bookings }
+  const list = ROUTES[j.route].stations
+  const next = list[list.indexOf('sew') + 1]
+  const released = machines.filter(m => m.jobId === id).map(m => m.code).sort()
+  return {
+    ok: true as const,
+    released,
+    next,
+    jobs: updateJob(jobs, id, x => ({ ...x, station: next, status: 'queued' as const, since: now })),
+    machines: machines.map(m => (m.jobId === id ? { ...m, jobId: undefined } : m)),
+    bookings: bookings
+      // ตัวอย่างเย็บเสร็จยังต้องเย็บรอบผลิตจริง จึงไม่ยกเลิกการจองล่วงหน้า
+      .filter(b => !(b.jobId === id && (b.starts.getTime() === now.getTime() || (b.starts > now && j.phase !== 'sample'))))
+      .map(b => (b.jobId === id && b.starts < now && b.ends > now ? { ...b, ends: now } : b)),
   }
 }

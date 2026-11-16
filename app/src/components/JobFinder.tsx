@@ -35,7 +35,7 @@ export default function JobFinder({ jobs, now, forecast, onOpen }: Props) {
     .slice(0, 5).map(x => x.j), [jobs, forecast, now])
 
   return (
-    <section className="rounded-2xl border border-line/80 bg-white shadow-card">
+    <section className="rounded-2xl border border-line/80 bg-card shadow-card">
       <div ref={box} className="relative p-4 sm:p-5">
         <label className="sr-only">ตามหางาน · งานนี้อยู่ขั้นไหน?</label>
         <div className="relative">
@@ -46,7 +46,7 @@ export default function JobFinder({ jobs, now, forecast, onOpen }: Props) {
             onFocus={e => { setFocus(true); e.currentTarget.select() }}
             onKeyDown={e => { if (e.key === 'Enter' && matches[0]) pick(matches[0]); if (e.key === 'Escape') setFocus(false) }}
             placeholder="พิมพ์เลขที่ใบยืนยัน เช่น SC691520 หรือชื่อลูกค้า"
-            className="w-full rounded-2xl border-2 border-line bg-paper/50 py-3.5 pr-12 pl-12 text-base outline-none transition placeholder:text-muted/70 focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10"
+            className="w-full rounded-2xl border-2 border-line bg-paper/50 py-3.5 pr-12 pl-12 text-base outline-none transition placeholder:text-muted/70 focus:border-brand focus:bg-card focus:ring-4 focus:ring-brand/10"
             aria-label="ค้นหางาน" autoComplete="off" inputMode="search"
           />
           {q && (
@@ -58,7 +58,7 @@ export default function JobFinder({ jobs, now, forecast, onOpen }: Props) {
 
         {/* รายการแนะนำ */}
         {focus && q && !job && (
-          <ul className="absolute inset-x-4 top-full z-20 -mt-2 overflow-hidden rounded-2xl border border-line bg-white shadow-lift sm:inset-x-5">
+          <ul className="absolute inset-x-4 top-full z-20 -mt-2 overflow-hidden rounded-2xl border border-line bg-card shadow-lift sm:inset-x-5">
             {matches.map(j => (
               <li key={j.id}>
                 <button onMouseDown={e => e.preventDefault()} onClick={() => pick(j)}
@@ -77,7 +77,7 @@ export default function JobFinder({ jobs, now, forecast, onOpen }: Props) {
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
             <span className="text-muted">ดูด่วน:</span>
             {quick.map(j => (
-              <button key={j.id} onClick={() => pick(j)} className="rounded-full border border-line bg-white px-3 py-1 font-semibold transition hover:border-brand hover:text-brand">{j.no}</button>
+              <button key={j.id} onClick={() => pick(j)} className="rounded-full border border-line bg-card px-3 py-1 font-semibold transition hover:border-brand hover:text-brand">{j.no}</button>
             ))}
           </div>
         )}
@@ -121,7 +121,7 @@ function JobStatus({ job: j, now, forecast, onOpen }: { job: Job; now: Date; for
           </div>
           <p className="truncate text-sm text-muted">{j.customer} · {j.product} {j.qty.toLocaleString('th-TH')} {j.unit} · เส้นทาง{ROUTES[j.route].short}</p>
         </div>
-        <button onClick={onOpen} className="inline-flex items-center gap-1 rounded-xl border border-line px-3 py-2 text-sm font-semibold text-brand transition hover:border-brand hover:bg-brand-soft/40">
+        <button onClick={onOpen} className="inline-flex min-h-12 items-center gap-1 rounded-xl border border-line px-3 py-2 text-sm font-semibold text-brand transition hover:border-brand hover:bg-brand-soft/40">
           รายละเอียดเต็ม <IconChevronRight className="size-4" />
         </button>
       </div>
@@ -153,11 +153,11 @@ function JobStatus({ job: j, now, forecast, onOpen }: { job: Job; now: Date; for
             <li key={i} data-current={i === cur || undefined} className="relative flex min-w-[88px] flex-1 flex-col items-center text-center">
               {i > 0 && <span className={`absolute top-[15px] right-1/2 left-[-50%] h-1 rounded-full ${i <= cur ? 'bg-brand' : 'bg-line'}`} />}
               <span className={`relative z-10 grid size-8 place-items-center rounded-full text-xs font-bold ${
-                state === 'done' ? 'bg-brand text-white' : state === 'current' ? 'bg-info text-white ring-4 ring-info/20' : state === 'hold' ? 'bg-danger text-white ring-4 ring-danger/20' : 'border-2 border-line bg-white text-muted'}`}>
+                state === 'done' ? 'bg-brand-700 text-white' : state === 'current' ? 'bg-info text-white ring-4 ring-info/20' : state === 'hold' ? 'bg-danger text-white ring-4 ring-danger/20' : 'border-2 border-line bg-card text-muted'}`}>
                 {state === 'done' ? '✓' : state === 'hold' ? '!' : i + 1}
               </span>
               <span className={`mt-2 px-1 text-xs leading-tight ${state === 'current' ? 'font-bold text-info' : state === 'hold' ? 'font-bold text-danger' : state === 'done' ? 'text-ink' : 'text-muted'}`}>{s}</span>
-              {(state === 'current' || state === 'hold') && <span className={`mt-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-white ${state === 'hold' ? 'bg-danger' : 'bg-info'}`}>ตอนนี้</span>}
+              {(state === 'current' || state === 'hold') && <span className={`mt-1 rounded-full px-2 py-0.5 text-xs font-bold text-white ${state === 'hold' ? 'bg-danger' : 'bg-info'}`}>ตอนนี้</span>}
             </li>
           )
         })}
@@ -175,10 +175,9 @@ function Notes({ job: j, now }: { job: Job; now: Date }) {
   if (j.phase === 'materials') notes.push({ tone: 'warn', icon: IconClock, text: `รอวัตถุดิบจาก ${missingDepts(j).map(d => DEPT_NAME[d]).join(', ')}` })
   if (isWaitingFilm(j)) notes.push({ tone: isFilmLate(j, now) ? 'danger' : 'warn', icon: IconFilm, text: `รอฟิล์ม DTF · ETA ${shortDate(j.film!.eta)}${isFilmLate(j, now) ? ' (เลยแล้ว ต้องตามร้าน)' : ''}` })
   if (j.phase === 'sample_review') notes.push({ tone: 'info', icon: IconClock, text: 'รอลูกค้ายืนยันตัวอย่าง · แอดมินควรตามลูกค้า' })
-  if (j.station === 'sew' && j.phase === 'production') {
-    notes.push(j.firstPieceOk
-      ? { tone: 'info', icon: IconCheck, text: `เย็บแล้ว ${(j.sewCount ?? 0).toLocaleString('th-TH')} จาก ${j.qty.toLocaleString('th-TH')} ${j.unit}` }
-      : { tone: 'warn', icon: IconClock, text: 'รอหัวหน้าอนุมัติตัวแรกก่อนเย็บทั้งก้อน' })
+  const lastReport = j.sewingReports?.at(-1)
+  if (lastReport && j.station === 'sew' && j.status !== 'hold') {
+    notes.push({ tone: 'warn', icon: IconAlert, text: `รายงานล่าสุด: ${lastReport.reason}` })
   }
   if (j.rework) notes.push({ tone: 'danger', icon: IconAlert, text: `งานแก้ ${j.rework.qty} ${j.unit} · ${j.rework.reason}` })
   if (!notes.length) return null

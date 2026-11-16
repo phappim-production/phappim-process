@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { applyBooking, applyMachineStatus, applyStartSewing, cancelBookings, checkBooking, checkStartSewing, floorSummary, isValidMachineCode, machineCode, machineState, planSewing, sewQueue, SEW_NEEDS, needText } from '../src/proto/sewing.ts'
+import { bookingDay, bookingTime, groupBookings, isBookingSunday, moveBookingDay, applyFinishSewing, applyReportSewingIssue, applyBooking, freeDuring, jobsBookedDuring, applyMachineStatus, applyRepairEta, repairStatus, applyStartSewing, cancelBookings, checkBooking, checkStartSewing, floorSummary, isValidMachineCode, machineCode, machineState, planSewing, sewQueue, SEW_NEEDS, needText } from '../src/proto/sewing.ts'
 import { nextAction, todoList } from '../src/proto/actions.ts'
 
 // วันที่ตายตัว (จันทร์ 16 พ.ย. 2569 10:00 เวลาไทย) ไม่พึ่งเวลาปัจจุบัน
@@ -110,7 +110,7 @@ test('สิ่งที่ต้องทำต่อของแต่ละ�
   const hold = nextAction(job({ station: 'sew', status: 'hold', holdReason: 'จักรเสีย' }), now)
   assert.equal(hold.tone, 'danger')
   assert.match(hold.text, /แก้ปัญหา เย็บงาน: จักรเสีย/)
-  assert.match(nextAction(job({ station: 'sew', status: 'doing', firstPieceOk: false }), now).text, /อนุมัติตัวแรก/)
+  assert.match(nextAction(job({ station: 'sew', status: 'doing' }), now).text, /กำลังทำเย็บงาน/)
   assert.match(nextAction(job({ route: 'dtf', station: 'dtf_press', status: 'queued', film: { eta: day(1), received: false } }), now).text, /รอฟิล์ม/)
   assert.match(nextAction(job({ phase: 'sample', station: 'print', status: 'queued' }), now).text, /^ตัวอย่าง · เริ่มพิมพ์งาน/)
   assert.match(nextAction(job({ phase: 'sample_review', sampleRound: 2 }), now).text, /รอบ 2/)
@@ -213,7 +213,7 @@ test('แจ้งเสียต้องมีอาการ · กดซ้�
 })
 
 // การจอง: วันจันทร์หน้า (16 พ.ย. 2569 เป็นวันจันทร์ → 23 พ.ย.) เวลาท้องถิ่น
-const at = (d, h) => new Date(2026, 10, 23 + d, h)
+const at = (d, h) => bookingTime(moveBookingDay('2026-11-23', d), `${String(h).padStart(2, '0')}:00`)
 const booking = (id, machineId, jobId, starts, ends) => ({ id, machineId, jobId, starts, ends })
 
 test('จองจักร: จองครบทุกชนิดตามสินค้า', () => {
@@ -276,4 +276,209 @@ test('ยกเลิกการจอง: ช่วงที่ยังไม
   assert.equal(r.bookings.length, 1)
   assert.equal(r.bookings[0].ends.getTime(), now.getTime())
   assert.match(cancelBookings(r.bookings, j.id, now).reason, /ไม่มีการจอง/)
+})
+
+test('เวลาจองอิงปฏิทินไทย แม้เครื่องตั้งเขตเวลาอื่น', () => {
+  const sunday = new Date('2026-11-21T17:30:00Z')
+  assert.equal(bookingDay(sunday), '2026-11-22')
+  assert.equal(isBookingSunday(bookingDay(sunday)), true)
+  assert.equal(moveBookingDay(bookingDay(sunday), 1), '2026-11-23')
+  assert.equal(bookingTime('2026-11-23', '08:00').toISOString(), '2026-11-23T01:00:00.000Z')
+  assert.match(checkBooking(job({ productCode: 'apron' }), [], [], sunday, new Date('2026-11-22T02:00:00Z'), SEW_NEEDS, now).reason, /วันอาทิตย์/)
+})
+
+test('จองใหม่วันเดียวกัน: เก็บแต่ละช่วงแยกกันและจัดกลุ่มจักรในช่วงเดียวกัน', () => {
+  const j = job({})
+  const earlier = booking('a', 's1', j.id, at(0, 8), at(0, 11))
+  const later = booking('b', 's2', j.id, at(0, 13), at(0, 17))
+  const secondMachine = booking('c', 'b1', j.id, at(0, 13), at(0, 17))
+  assert.deepEqual(groupBookings([later, earlier, secondMachine]), [[earlier], [later, secondMachine]])
+})
+
+test('ยกเลิกตรงเวลาเริ่ม ไม่เหลือช่วงจองความยาวศูนย์และจองใหม่ได้', () => {
+  const j = job({ productCode: 'apron' })
+  const end = new Date(now.getTime() + 3_600_000)
+  const bs = [booking('a', 's1', j.id, now, end)]
+  const cancelled = cancelBookings(bs, j.id, now)
+  assert.deepEqual(cancelled.bookings, [])
+  const ms = [machine('s1', 'single'), machine('b1', 'binding')]
+  assert.equal(applyBooking(j, ms, cancelled.bookings, now, end, SEW_NEEDS, now).ok, true)
+})
+
+test('กรอบเวลาซ่อม: ฝ่ายผลิตต้องกรอก · ผู้ควบคุมงานกรอกไม่ได้ · ต้องเป็นเวลาข้างหน้าไม่เกิน 30 วัน', () => {
+  const ms = [machine('m1', 'single', { code: 'SN-01' })]
+  const soon = new Date(now.getTime() + 2 * 3_600_000)
+  assert.match(applyMachineStatus([], ms, 'SN-01', 'broken', 'เข็มหัก', now, { byProduction: true, canSetEta: true }).reason, /ต้องกำหนดเวลาซ่อม/)
+  assert.match(applyMachineStatus([], ms, 'SN-01', 'broken', 'เข็มหัก', now, { repairEta: soon }).reason, /หน้าที่ของฝ่ายผลิต/)
+  assert.match(applyMachineStatus([], ms, 'SN-01', 'broken', 'เข็มหัก', now, { repairEta: new Date(now.getTime() - 1), canSetEta: true }).reason, /เวลาข้างหน้า/)
+  assert.match(applyMachineStatus([], ms, 'SN-01', 'broken', 'เข็มหัก', now, { repairEta: new Date(now.getTime() + 31 * 86_400_000), canSetEta: true }).reason, /เกิน 30 วัน/)
+  const ok1 = applyMachineStatus([], ms, 'SN-01', 'broken', 'เข็มหัก', now, { repairEta: soon, byProduction: true, canSetEta: true })
+  assert.equal(ok1.ok, true)
+  assert.equal(ok1.machines[0].repairEta.getTime(), soon.getTime())
+  assert.equal(applyMachineStatus([], ms, 'SN-01', 'broken', 'เข็มหัก', now).ok, true, 'ผู้ควบคุมงานแจ้งเสียได้โดยไม่ใส่เวลา')
+  const fixed = applyMachineStatus(ok1.jobs, ok1.machines, 'SN-01', 'ready', '', now)
+  assert.equal(fixed.machines[0].repairEta, undefined, 'ซ่อมเสร็จแล้วล้างเวลา')
+})
+
+test('สถานะเวลาซ่อมบนช่องจักร และการเลื่อนเวลาซ่อม', () => {
+  const broken = machine('m1', 'single', { code: 'SN-01', status: 'broken' })
+  assert.equal(repairStatus(machine('m2', 'single'), now), null)
+  assert.equal(repairStatus(broken, now).text, 'ยังไม่กำหนดเวลาซ่อม')
+  assert.match(repairStatus({ ...broken, repairEta: new Date(now.getTime() + 3_600_000) }, now).text, /^ซ่อมเสร็จประมาณ/)
+  assert.equal(repairStatus({ ...broken, repairEta: new Date(now.getTime() - 3_600_000) }, now).tone, 'danger')
+  const later = new Date(now.getTime() + 86_400_000)
+  assert.equal(applyRepairEta([broken], 'sn-01', later, now).machines[0].repairEta.getTime(), later.getTime())
+  assert.match(applyRepairEta([machine('m2', 'single', { code: 'SN-02' })], 'SN-02', later, now).reason, /ไม่ได้เสียอยู่/)
+})
+
+test('งานถูกพักเพราะจักรเสีย: สาเหตุบอกเวลาคาดว่าซ่อมเสร็จ', () => {
+  const j = job({ station: 'sew', status: 'doing', productCode: 'apron' })
+  const r = applyMachineStatus([j], [machine('m1', 'single', { code: 'SN-01', jobId: j.id })], 'SN-01', 'broken', 'ด้ายพัน', now,
+    { repairEta: new Date(now.getTime() + 3_600_000), byProduction: true, canSetEta: true })
+  assert.match(r.jobs[0].holdReason, /^จักร SN-01 เสีย: ด้ายพัน · คาดว่าซ่อมเสร็จ /)
+})
+
+test('หลายงานขึ้นเย็บวันเดียวกัน: จักรที่ว่างรับงานอื่นได้ ถ้าครบชุดตามสินค้า', () => {
+  const ms = [machine('s1', 'single'), machine('s2', 'single'), machine('b1', 'binding'), machine('b2', 'binding'), machine('o3', 'ovl3')]
+  const a = job({ productCode: 'apron', station: 'cut', status: 'doing' })
+  const flag = job({ productCode: 'banner', station: 'cut', status: 'doing' })   // โพ้ง 3 · เข็มเดี่ยว
+  const c = job({ productCode: 'apron', station: 'cut', status: 'doing' })
+  let bs = applyBooking(a, ms, [], at(0, 8), at(0, 17), SEW_NEEDS, now).bookings
+  const r2 = applyBooking(flag, ms, bs, at(0, 8), at(0, 17), SEW_NEEDS, now)
+  assert.equal(r2.ok, true, 'งานคนละสินค้าวันเดียวกันได้')
+  bs = r2.bookings
+  assert.deepEqual(jobsBookedDuring(bs, at(0, 8), at(0, 17)).length, 2)
+  const free = freeDuring(ms, bs, at(0, 8), at(0, 17), now)
+  assert.equal(free.single, 0)
+  assert.equal(free.binding, 1)
+  assert.match(checkBooking(c, ms, bs, at(0, 8), at(0, 17), SEW_NEEDS, now).reason, /เข็มเดี่ยว ขาด 1 ตัว/, 'ขาดชนิดเดียวก็จองไม่ได้ทั้งชุด')
+  assert.equal(applyBooking(c, ms, bs, at(0, 17), at(0, 20), SEW_NEEDS, now).ok, true, 'ช่วงถัดไปได้')
+})
+
+test('รายงานปัญหาขณะเย็บ และเลือกพักได้เมื่อจำเป็น', () => {
+  const j = job({ station: 'sew', status: 'doing', productCode: 'apron' })
+  assert.match(applyReportSewingIssue([j], j.id, '  ', false, now).reason, /ระบุปัญหา/)
+  const continued = applyReportSewingIssue([j], j.id, ' ด้ายตึง ', false, now)
+  assert.equal(continued.jobs[0].status, 'doing')
+  assert.deepEqual(continued.jobs[0].sewingReports, [{ reason: 'ด้ายตึง', at: now, paused: false }])
+  const paused = applyReportSewingIssue(continued.jobs, j.id, 'รอผ้าเพิ่ม', true, now)
+  assert.equal(paused.jobs[0].status, 'hold')
+  assert.equal(paused.jobs[0].holdReason, 'รอผ้าเพิ่ม')
+  assert.equal(paused.jobs[0].sewingReports.length, 2)
+})
+
+test('เย็บต่อใช้จักรเดิมพร้อมจ่ายเฉพาะจักรที่ขาด', () => {
+  const j = job({ station: 'sew', status: 'hold', productCode: 'apron', holdReason: 'รอจักร' })
+  const assigned = machine('s1', 'single', { jobId: j.id })
+  assert.equal(applyStartSewing([j], [assigned], j.id, SEW_NEEDS, now, [], true).ok, false)
+  const spare = machine('b1', 'binding', { code: 'BD-01' })
+  const result = applyStartSewing([j], [assigned, spare], j.id, SEW_NEEDS, now, [], true)
+  assert.deepEqual(result.picked, ['BD-01'])
+  assert.equal(result.jobs[0].status, 'doing')
+  assert.equal(result.jobs[0].holdReason, undefined)
+  assert.ok(result.machines.every(m => m.jobId === j.id))
+})
+
+test('เย็บเสร็จโดยไม่ติ๊กขั้นย่อย ไป QC คืนจักรและตัดช่วงจองที่เหลือ', () => {
+  const j = job({ station: 'sew', status: 'doing', qty: 10, productCode: 'apron' })
+  const ms = [machine('s1', 'single', { code: 'SN-01', jobId: j.id }), machine('b1', 'binding', { code: 'BD-01', jobId: j.id }), machine('x', 'single', { code: 'SN-02' })]
+  const bs = [booking('1', 's1', j.id, new Date(now.getTime() - 3_600_000), new Date(now.getTime() + 3_600_000))]
+  const r = applyFinishSewing([j], ms, bs, j.id, now)
+  assert.equal(r.jobs[0].sewCount, undefined)
+  assert.equal(r.ok, true)
+  assert.equal(r.next, 'qc_pack')
+  assert.deepEqual(r.released, ['BD-01', 'SN-01'])
+  assert.equal(r.jobs[0].station, 'qc_pack')
+  assert.equal(r.jobs[0].status, 'queued')
+  assert.ok(r.machines.every(m => !m.jobId))
+  assert.equal(r.bookings[0].ends.getTime(), now.getTime())
+})
+
+test('เย็บเสร็จ: งานพักอยู่ / ยังไม่เริ่ม กดไม่ได้', () => {
+  assert.match(applyFinishSewing([job({ station: 'sew', status: 'hold' })], [], [], String(n), now).reason, /พักอยู่/)
+  assert.match(applyFinishSewing([job({ station: 'sew', status: 'queued' })], [], [], String(n), now).reason, /ยังไม่ได้เริ่มเย็บ/)
+})
+
+test('กันบั๊ก: ตัวอย่างเย็บเสร็จ การจองล่วงหน้าของรอบผลิตจริงยังอยู่', () => {
+  const j = job({ phase: 'sample', station: 'sew', status: 'doing', productCode: 'apron' })
+  const future = booking('f', 's1', j.id, at(1, 8), at(1, 17))
+  const r = applyFinishSewing([j], [machine('s1', 'single', { jobId: j.id })], [future], j.id, now)
+  assert.equal(r.ok, true)
+  assert.deepEqual(r.bookings, [future], 'การจองล่วงหน้ายังเก็บวันเริ่มและจบที่ถูกต้อง')
+  const p = job({ station: 'sew', status: 'doing', productCode: 'apron', qty: 1, sewCount: 1 })
+  const r2 = applyFinishSewing([p], [], [booking('g', 's1', p.id, at(1, 8), at(1, 17))], p.id, now)
+  assert.equal(r2.bookings.length, 0, 'ผลิตจริงเย็บเสร็จ ยกเลิกการจองที่เหลือ')
+})
+
+// ---- ตัวเลขสรุปตามตำแหน่ง (proto/summary.ts) ----
+import { roleSummary } from '../src/proto/summary.ts'
+import { boardScope as scopeOf, jobInScope as inScope } from '../src/auth/scope.ts'
+
+const tile = (tiles, key) => tiles.find(t => t.key === key)
+const sumJobs = () => [
+  job({ station: 'print', status: 'doing' }),
+  job({ station: 'cut', status: 'hold', holdReason: 'มีดตัดเสีย' }),
+  job({ station: 'press', status: 'queued', due: day(-2) }),
+  job({ route: 'dtf', station: 'dtf_press', status: 'queued', film: { eta: day(1), received: false } }),
+  job({ station: 'sew', status: 'doing', id: 'sewing1' }),
+  job({ station: 'sew', status: 'queued' }),
+  job({ station: 'qc_pack', status: 'queued', qty: 40 }),
+  job({ phase: 'materials', materials: { admin: true, qc: false, production: false } }),
+  job({ station: 'sew', status: 'queued', rework: { qty: 5, reason: 'ด้ายหลุด' } }),
+  job({ phase: 'done', doneAt: now }),
+]
+const sumMachines = () => [machine('a', 'ovl4', { jobId: 'sewing1' }), machine('b', 'ovl4'), machine('c', 'single', { status: 'broken' })]
+const summaryFor = (role, section) => {
+  const jobs = sumJobs()
+  const scope = scopeOf(role, section)
+  return roleSummary(scope.summary, jobs.filter(j => inScope(j, scope)), jobs, sumMachines(), now)
+}
+
+test('ทุกตำแหน่งได้ตัวเลขสรุป 4 ช่อง และแต่ละช่องพาไปแท็บที่ตำแหน่งนั้นมีจริง', () => {
+  for (const [role, section] of [['owner', null], ['admin', null], ['manager', null], ['production', null], ['qc', null], ['supervisor', 1], ['supervisor', 2], ['supervisor', null]]) {
+    const scope = scopeOf(role, section)
+    const tiles = summaryFor(role, section)
+    assert.equal(tiles.length, 4, `${role} ${section}`)
+    for (const t of tiles) assert.ok(!t.tab || scope.tabs.includes(t.tab) || t.tab === 'todo' || t.tab === 'board', `${role} ${t.key}`)
+  }
+})
+
+test('เฟส 1: นับเฉพาะงานที่อยู่สถานีเฟส 1 · งานด่วน = พักงาน + เลยกำหนด · รอฟิล์ม DTF', () => {
+  const t = summaryFor('supervisor', 1)
+  assert.equal(tile(t, 'doing').value, 1)          // พิมพ์กำลังทำ (เย็บกำลังทำอยู่เฟส 2 ไม่นับ)
+  assert.equal(tile(t, 'urgent').value, 2)         // ตัดพักงาน + รีดเลยกำหนด
+  assert.equal(tile(t, 'urgent').note, 'พักงาน 1 · เลยกำหนด 1')
+  assert.equal(tile(t, 'film').value, 1)
+})
+
+test('เฟส 2: กำลังเย็บ · รอเย็บ (ยังไม่มีจักร) · จักรว่าง · รอ QC', () => {
+  const t = summaryFor('supervisor', 2)
+  assert.equal(tile(t, 'sewing').value, 1)
+  assert.equal(tile(t, 'waitingSew').value, 2)     // งานรอเย็บ + งานแก้ที่กลับมาเย็บ
+  assert.equal(tile(t, 'machines').value, 1)
+  assert.equal(tile(t, 'machines').note, 'จาก 3 ตัว · เสีย 1')
+  assert.equal(tile(t, 'qc').value, 1)
+})
+
+test('QC: รอ QC พร้อมจำนวนชิ้น · วัตถุดิบที่ QC ยังไม่ติ๊ก · งานแก้ · เสร็จวันนี้', () => {
+  const t = summaryFor('qc', null)
+  assert.equal(tile(t, 'qc').value, 1)
+  assert.equal(tile(t, 'qc').note, '40 ชิ้น')
+  assert.equal(tile(t, 'materials').value, 1)
+  assert.equal(tile(t, 'rework').value, 1)
+  assert.equal(tile(t, 'done').value, 1)
+})
+
+test('ฝ่ายผลิต: งานทั้งโรงงานไม่นับงานเสร็จ · วัตถุดิบรอฝ่ายผลิต · จักรเสีย', () => {
+  const t = summaryFor('production', null)
+  assert.equal(tile(t, 'inScope').value, 9)
+  assert.equal(tile(t, 'materials').value, 1)
+  assert.equal(tile(t, 'broken').value, 1)
+})
+
+test('ไม่มีงานด่วน: ตัวเลขเป็น 0 และบอกว่าไม่มีงานด่วน', () => {
+  const t = roleSummary('factory', [job({ station: 'print', status: 'queued' })], [], [], now)
+  assert.equal(tile(t, 'urgent').value, 0)
+  assert.equal(tile(t, 'urgent').note, 'ไม่มีงานด่วน')
+  assert.equal(tile(t, 'machines').note, 'จาก 0 ตัว')
 })

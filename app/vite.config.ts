@@ -18,7 +18,7 @@ export default defineConfig({
         description: 'ระบบติดตามการผลิตแบบ Real-time ของภาพพิมพ์ 142',
         lang: 'th',
         theme_color: '#0f4a42',
-        background_color: '#f4f5f2',
+        background_color: '#f2f4f3',
         display: 'standalone',
         start_url: '/',
         // ไอคอนสร้างจากโลโก้ด้วย assets/make_icons.py

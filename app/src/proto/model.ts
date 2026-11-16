@@ -44,7 +44,7 @@ export type Job = {
   materials: Record<Dept, boolean>
   film?: { eta: Date; received: boolean }  // เฉพาะเส้นทาง DTF
   sewCount?: number
-  firstPieceOk?: boolean
+  sewingReports?: { reason: string; at: Date; paused: boolean }[]
   rework?: { qty: number; reason: string }
   holdReason?: string
   doneAt?: Date

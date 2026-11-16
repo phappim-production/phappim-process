@@ -122,6 +122,14 @@ test('เฟส 2 ไม่มีปุ่มดูทั้งโรงงา�
   assert.equal(boardScope('owner', null).canSew, true, 'owner ทำแทนเฟส 2 ได้')
 })
 
+test('จองจักรได้เฉพาะฝ่ายผลิต (และ owner ทำแทน)', () => {
+  assert.equal(boardScope('production', null).canBook, true)
+  assert.equal(boardScope('owner', null).canBook, true)
+  for (const [role, section] of [['supervisor', 2], ['supervisor', 1], ['supervisor', null], ['qc', null], ['admin', null], ['manager', null]]) {
+    assert.ok(!boardScope(role, section).canBook, `${role} ${section}`)
+  }
+})
+
 test('ใครแจ้งจักรเสีย / ซ่อมเสร็จได้: เฟส 2 · ทุกเฟส · ฝ่ายผลิต · owner', () => {
   assert.equal(boardScope('supervisor', 2).canReportMachines, true)
   assert.equal(boardScope('supervisor', null).canReportMachines, true)

@@ -15,7 +15,7 @@ type NavItem = { key: PageKey; hash: string; name: string; short: string; icon: 
 
 const NAV: NavItem[] = [
   { key: 'overview', hash: '#/', name: 'ภาพรวมแอดมิน', short: 'ภาพรวม', icon: IconGauge },
-  { key: 'board', hash: '#/board', name: 'บอร์ดสถานี', short: 'บอร์ด', icon: IconColumns },
+  { key: 'board', hash: '#/board', name: 'หน้างาน', short: 'หน้างาน', icon: IconColumns },
   { key: 'reports', hash: '#/reports', name: 'รายงาน', short: 'รายงาน', icon: IconChart },
   { key: 'settings', hash: '#/settings', name: 'ตั้งค่า', short: 'ตั้งค่า', icon: IconSliders },
   { key: 'system', hash: '#/system', name: 'บัญชี', short: 'บัญชี', icon: IconUser },
@@ -75,44 +75,43 @@ function Workspace({ page: requested, profile, email }: {
 
   return (
     <div className="flex h-dvh">
-      <aside className="hidden w-60 shrink-0 flex-col bg-brand text-white lg:flex">
-        <div className="px-5 pt-5 pb-6">
-          <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-10 rounded-lg ring-1 ring-white/15" />
-          <div className="mt-3 font-semibold">ระบบติดตามการผลิต</div>
+      {/* จอใหญ่: เมนูด้านซ้ายมีชื่อเต็ม · จอเล็ก/แท็บเล็ตใช้แถบล่าง */}
+      <aside className="hidden w-64 shrink-0 flex-col bg-brand text-white lg:flex">
+        <div className="flex items-center gap-3 px-5 pt-5 pb-6">
+          <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-10 rounded-lg ring-1 ring-white/20" />
+          <span className="text-lg font-bold leading-tight">ติดตาม<br />การผลิต</span>
         </div>
-        <nav aria-label="เมนูหลัก" className="grid gap-1 px-3 text-sm">
+        <nav aria-label="เมนูหลัก" className="grid gap-1 px-3">
           {visibleNav.map(({ key, name, hash, icon: Icon }) => {
             const active = key === page
-            const cls = active ? 'bg-white font-semibold text-brand shadow-card' : 'text-white/80 hover:bg-white/10 hover:text-white'
             return (
-              <a key={key} href={hash} aria-current={active ? 'page' : undefined} className={`flex min-h-12 items-center gap-3 rounded-xl px-3 py-2.5 transition ${cls}`}>
-                <Icon className="size-[18px]" />{name}
+              <a key={key} href={hash} aria-current={active ? 'page' : undefined}
+                className={`flex min-h-12 items-center gap-3 rounded-xl px-4 text-base font-semibold ${active ? 'bg-white text-brand' : 'text-white/90 hover:bg-white/10'}`}>
+                <Icon className="size-5" />{name}
               </a>
             )
           })}
         </nav>
-        <div className="mt-auto p-4">
-          <div className="flex items-center gap-2.5">
-            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-gold text-brand-700"><IconUser className="size-4" /></span>
-            <div className="min-w-0 text-sm">
-              <div className="truncate font-semibold">{profile.name}</div>
-              <div className="text-white/70">{roleLabel}</div>
-            </div>
-          </div>
-        </div>
+        <a href="#/system" className="m-3 mt-auto flex min-h-12 items-center gap-3 rounded-xl bg-white/10 p-3 hover:bg-white/15">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-gold text-brand-700"><IconUser className="size-5" /></span>
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate font-semibold">{profile.name}</span>
+            <span className="block truncate text-sm text-white/80">{roleLabel}</span>
+          </span>
+        </a>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 bg-brand px-4 py-2.5 text-white lg:hidden">
-          <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-8 rounded-md" />
-          <span className="hidden font-semibold whitespace-nowrap sm:inline">ติดตามการผลิต</span>
+        <header className="flex items-center gap-3 bg-brand px-4 py-2 text-white lg:hidden">
+          <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-9 rounded-md" />
+          <span className="hidden font-bold whitespace-nowrap sm:inline">ติดตามการผลิต</span>
           {/* แท็บเล็ตใช้ร่วมกันหลายคน ต้องเห็นตลอดว่าใครล็อกอินอยู่ เพราะทุกการกดบันทึกชื่อผู้กด */}
           <a href="#/system" className="ml-auto flex min-h-12 min-w-0 items-center gap-2 rounded-xl px-2 hover:bg-white/10">
-            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-gold text-brand-700"><IconUser className="size-4" /></span>
-            <span className="min-w-0 text-right text-sm leading-tight">
+            <span className="min-w-0 text-right leading-tight">
               <span className="block truncate font-semibold">{profile.name}</span>
-              <span className="block truncate text-white/70">{roleLabel}</span>
+              <span className="block truncate text-sm text-white/80">{roleLabel}</span>
             </span>
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-gold text-brand-700"><IconUser className="size-5" /></span>
           </a>
         </header>
 
@@ -122,13 +121,13 @@ function Workspace({ page: requested, profile, email }: {
               <Card>
                 <CardHeader title={page === 'settings' ? 'หน้านี้สำหรับเจ้าของระบบ' : 'หน้านี้สำหรับผู้บริหาร'} />
                 <div className="px-5 pb-5">
-                  <a href="#/board" className={`inline-flex items-center ${primaryButton}`}>ไปบอร์ดสถานี</a>
+                  <a href="#/board" className={`inline-flex items-center ${primaryButton}`}>ไปหน้างาน</a>
                 </div>
               </Card>
             </main>
           ) : page === 'overview' || page === 'board' ? (
             <>
-              <p className="border-b border-line bg-gold-soft px-4 py-2 text-sm text-ink">หน้าทดลอง · ใช้ข้อมูลจำลอง</p>
+              <p className="border-b border-warn/30 bg-warn-soft px-4 py-1.5 text-sm font-medium text-warn sm:px-6">หน้าทดลอง · ใช้ข้อมูลจำลอง</p>
               <Suspense fallback={<main className="p-5"><p role="status">กำลังโหลดหน้าติดตามการผลิต…</p></main>}>
                 <Dashboard view={page} today={today} scope={scope} />
               </Suspense>
@@ -165,13 +164,13 @@ function Workspace({ page: requested, profile, email }: {
           )}
         </div>
 
-        <nav aria-label="เมนูหลัก" className="flex border-t border-line bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <nav aria-label="เมนูหลัก" className="flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
           {visibleNav.map(({ key, short, hash, icon: Icon }) => {
             const active = key === page
             return (
               <a key={key} href={hash} aria-current={active ? 'page' : undefined}
-                className={`flex min-h-12 min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-xs ${active ? 'font-semibold text-brand' : 'text-muted'}`}>
-                <span className={`grid h-7 w-12 place-items-center rounded-full ${active ? 'bg-brand-soft' : ''}`}><Icon className="size-5" /></span>
+                className={`flex min-h-14 min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 text-sm ${active ? 'font-bold text-brand' : 'text-muted'}`}>
+                <span className={`grid h-8 w-14 place-items-center rounded-full ${active ? 'bg-brand text-white' : ''}`}><Icon className="size-5" /></span>
                 {short}
               </a>
             )

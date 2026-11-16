@@ -2,6 +2,7 @@
 // เป้าหมายคือไม่ให้คนหน้างานงงกับงานที่ไม่เกี่ยวกับตัวเอง ไม่ใช่การปิดบังข้อมูล:
 // ทุกบทบาทยังกด "ดูทั้งโรงงาน" ได้ และสิทธิ์กดจริงบังคับที่ฐานข้อมูลอยู่แล้ว
 import { columnOf, type ColumnKey, type Dept, type Job, type StationCode } from '../proto/model.ts'
+import type { SummaryKind } from '../proto/summary.ts'
 import { SECTION_LABELS, type EmployeeRole, type PageKey, type Section } from './access.ts'
 
 // ตรงกับ stations.section ใน supabase/migrations/20261118000001_supervisor_sections.sql
@@ -23,6 +24,9 @@ export type BoardScope = {
   allowFactory: boolean          // มีปุ่ม "ทั้งโรงงาน" ไหม
   canSew: boolean                // กดเริ่มเย็บได้ไหม (ฐานข้อมูลตรวจซ้ำ)
   canReportMachines: boolean     // แจ้งจักรเสีย / ซ่อมเสร็จได้ไหม (ฐานข้อมูลตรวจซ้ำ)
+  canSetRepairEta?: boolean      // กำหนดกรอบเวลาซ่อม = ฝ่ายผลิต (ตัดสินใจ 16 พ.ย.) · owner ทำแทนได้
+  canBook?: boolean              // จอง / ยกเลิกจองจักร = ฝ่ายผลิตเท่านั้น (ตัดสินใจ 16 พ.ย.) · owner ทำแทนได้
+  summary: SummaryKind           // ตัวเลขสรุปบนสุดของแดชบอร์ดตามตำแหน่ง (proto/summary.ts)
 }
 
 // ต้องทำตอนนี้ (รายการงานเรียงด่วน) · บอร์ด (คอลัมน์ตามสถานี) · จักรเย็บ (S14)
@@ -30,7 +34,7 @@ export type DashTab = 'todo' | 'board' | 'sewing'
 export const DASH_TAB_NAME: Record<DashTab, string> = { todo: 'ต้องทำตอนนี้', board: 'บอร์ด', sewing: 'จักรเย็บ' }
 
 export const FACTORY_SCOPE: BoardScope = {
-  title: 'บอร์ดสถานี',
+  title: 'หน้างานทั้งโรงงาน',
   sub: 'งานทุกงานเรียงตามสถานี · กดการ์ดเพื่อดูรายละเอียด',
   columns: null,
   showFilm: true,
@@ -39,6 +43,7 @@ export const FACTORY_SCOPE: BoardScope = {
   allowFactory: true,
   canSew: false,
   canReportMachines: false,
+  summary: 'factory',
 }
 
 export function boardScope(role: EmployeeRole, section: Section | null): BoardScope {
@@ -58,6 +63,7 @@ export function boardScope(role: EmployeeRole, section: Section | null): BoardSc
         allowFactory: section !== 2,
         canSew: section !== 1,
         canReportMachines: section !== 1,
+        summary: section === 1 ? 'phase1' : section === 2 ? 'phase2' : 'allPhases',
       }
     }
     case 'qc':
@@ -66,6 +72,7 @@ export function boardScope(role: EmployeeRole, section: Section | null): BoardSc
         sub: 'งานรอตรวจ · วัตถุดิบที่รอฝ่าย QC ติ๊ก · งานเสร็จล่าสุด',
         columns: ['materials', 'qc_pack', 'done'],
         materialsDept: 'qc',
+        summary: 'qc',
         showFilm: false,
         tabs: ['todo', 'board'],
         allowFactory: true,
@@ -76,15 +83,18 @@ export function boardScope(role: EmployeeRole, section: Section | null): BoardSc
     // (การแบ่งเฟส 1 / เฟส 2 ใช้กับผู้ควบคุมงานที่กดสถานะเท่านั้น เพราะสถานีอยู่คนละเฟส)
     // owner ทำแทนผู้ควบคุมงานเฟส 2 ได้ (วันที่ไม่มีคนคุม) · ฐานข้อมูลอนุญาต owner อยู่แล้ว
     case 'owner':
-      return { ...FACTORY_SCOPE, canSew: true, canReportMachines: true }
+      return { ...FACTORY_SCOPE, canSew: true, canReportMachines: true, canSetRepairEta: true, canBook: true }
     case 'production':
       return {
         ...FACTORY_SCOPE,
         title: 'ทั้งกระบวนการผลิต',
         sub: 'ตั้งแต่รับใบสั่งงาน วัตถุดิบ ตัวอย่าง ทุกสถานีทั้ง 2 เฟส จนเสร็จ',
         tabs: ['todo', 'board', 'sewing'],
+        summary: 'production',
         // คนหน้างานเจอจักรเสียก่อน จึงแจ้งเสีย / ซ่อมเสร็จได้ (ตัดสินใจ 16 พ.ย.) · เริ่มเย็บยังเป็นของเฟส 2
         canReportMachines: true,
+        canSetRepairEta: true,
+        canBook: true,
       }
     default:
       return FACTORY_SCOPE

@@ -88,8 +88,8 @@ export async function sewingTests({ db, ok, as }) {
   ok('งานยังพักอยู่', await status(tee1) === 'hold')
   await reject('จักรเสียจ่ายให้งานไม่ได้', U.sup2, `public.assign_machines('${tee1}', array['SN-01'])`, /SN-01 เสีย/)
   await pass('ซ่อมเสร็จ ตั้งกลับเป็นใช้ได้', U.sup2, `public.set_machine_status('SN-01', 'ready')`)
-  await pass('จ่ายจักรที่ซ่อมแล้วคืนให้งาน', U.sup2, `public.assign_machines('${tee1}', array['SN-01'])`)
-  await pass('จักรครบ กดแก้แล้วเย็บต่อได้', U.sup2, `public.close_issue('${tee1}')`)
+  await pass('กดเย็บต่อแล้วระบบจ่ายเฉพาะจักรที่ขาด', U.sup2, `public.resume_sewing('${tee1}')`)
+  ok('เย็บต่อได้จักรที่ซ่อมแล้วและคงจักรเดิมครบ', (await active(tee1)).length === 5 && (await active(tee1)).includes('SN-01'))
   ok('งานกลับมากำลังเย็บ', await status(tee1) === 'doing')
 
   // ---------- จ่าย / คืนจักรด้วยมือ ----------
@@ -137,19 +137,33 @@ export async function sewingTests({ db, ok, as }) {
   ok('ซ่อมเสร็จแล้วล้างอาการ', (await db.query(`select note from public.sewing_machines where code = 'OL4-02'`)).rows[0].note === null)
   await pass('เปิดใช้งานจักรที่ปิดไว้', U.sup2, `public.set_machine_status('BD-01', 'ready')`)
   // ฝ่ายผลิตเจอจักรเสียก่อน จึงแจ้งเสีย / ซ่อมเสร็จได้ · แต่จ่ายจักรและเริ่มเย็บไม่ได้
-  await pass('ฝ่ายผลิตแจ้งจักรเสียได้', U.prod, `public.set_machine_status('BD-01', 'broken', 'เข็มหัก')`)
+  // กรอบเวลาซ่อม: ฝ่ายผลิตเป็นคนกำหนด
+  await reject('ฝ่ายผลิตแจ้งเสียโดยไม่ใส่เวลาซ่อมไม่ได้', U.prod, `public.set_machine_status('BD-01', 'broken', 'เข็มหัก')`, /ต้องกำหนดเวลาซ่อมเสร็จ/)
+  await reject('เวลาซ่อมเสร็จที่ผ่านไปแล้ว ถูกปฏิเสธ', U.prod, `public.set_machine_status('BD-01', 'broken', 'เข็มหัก', now() - interval '1 hour')`, /เวลาข้างหน้า/)
+  await reject('กรอบเวลาซ่อมเกิน 30 วัน ถูกปฏิเสธ', U.prod, `public.set_machine_status('BD-01', 'broken', 'เข็มหัก', now() + interval '31 days')`, /เกิน 30 วัน/)
+  await reject('ผู้ควบคุมงานใส่เวลาซ่อมไม่ได้ (หน้าที่ฝ่ายผลิต)', U.sup2, `public.set_machine_status('BD-01', 'broken', 'เข็มหัก', now() + interval '2 hours')`, /หน้าที่ของฝ่ายผลิต/)
+  await pass('ฝ่ายผลิตแจ้งจักรเสียพร้อมเวลาซ่อมเสร็จได้', U.prod, `public.set_machine_status('BD-01', 'broken', 'เข็มหัก', now() + interval '2 hours')`)
+  ok('จักรเก็บเวลาซ่อมเสร็จ', (await db.query(`select repair_eta is not null as has from public.sewing_machines where code = 'BD-01'`)).rows[0].has)
+  ok('ประวัติเก็บกรอบเวลาซ่อม', (await db.query(`select l.repair_eta is not null as has from public.machine_status_log l join public.sewing_machines m on m.id = l.machine_id where m.code = 'BD-01' order by l.id desc limit 1`)).rows[0].has)
+  await pass('ฝ่ายผลิตเลื่อนเวลาซ่อมได้ (รออะไหล่)', U.prod, `public.set_repair_eta('BD-01', now() + interval '1 day', 'รออะไหล่')`)
+  await reject('ผู้ควบคุมงานเลื่อนเวลาซ่อมไม่ได้', U.sup2, `public.set_repair_eta('BD-01', now() + interval '2 days')`, /บทบาท/)
+  await reject('กำหนดเวลาซ่อมจักรที่ไม่ได้เสียไม่ได้', U.prod, `public.set_repair_eta('OL4-03', now() + interval '2 hours')`, /ไม่ได้เสียอยู่/)
   ok('ประวัติบันทึกว่าฝ่ายผลิตเป็นคนแจ้ง', (await db.query(`select l.by from public.machine_status_log l join public.sewing_machines m on m.id = l.machine_id where m.code = 'BD-01' order by l.id desc limit 1`)).rows[0].by === U.prod)
+  await reject('ใส่เวลาซ่อมตอนกดซ่อมเสร็จไม่ได้', U.prod, `public.set_machine_status('BD-01', 'ready', null, now() + interval '1 hour')`, /เฉพาะตอนแจ้งเสีย/)
   await pass('ฝ่ายผลิตกดซ่อมเสร็จได้', U.prod, `public.set_machine_status('BD-01', 'ready')`)
+  ok('ซ่อมเสร็จแล้วล้างเวลาซ่อม', (await db.query(`select repair_eta from public.sewing_machines where code = 'BD-01'`)).rows[0].repair_eta === null)
   await reject('ฝ่ายผลิตกดเริ่มเย็บไม่ได้', U.prod, `public.start_sewing('${tee3}')`, /บทบาท/)
   await reject('ฝ่ายผลิตจ่ายจักรไม่ได้', U.prod, `public.assign_machines('${tee3}', array['BD-01'])`, /บทบาท/)
   await call(U.sup2, `public.release_machines('${tee3}')`)  // คืนจักรของงานที่พักอยู่ เพื่อให้งานถัดไปใช้
   const tee4 = await jobAt('SC-SEW-T4', 'plain', 2)
   await call(U.sup2, `public.start_sewing('${tee4}')`)
   const used = (await active(tee4))[0]
-  await pass('ฝ่ายผลิตแจ้งจักรที่กำลังเย็บเสีย → พักงานได้', U.prod, `public.set_machine_status('${used}', 'broken', 'ด้ายพัน')`)
+  await pass('ฝ่ายผลิตแจ้งจักรที่กำลังเย็บเสีย → พักงานได้', U.prod, `public.set_machine_status('${used}', 'broken', 'ด้ายพัน', now() + interval '3 hours')`)
   ok('งานที่ฝ่ายผลิตแจ้งถูกพัก', await status(tee4) === 'hold')
+  const reason4 = (await db.query(`select reason from public.issues where job_id = '${tee4}' and closed_at is null`)).rows[0]?.reason ?? ''
+  ok('สาเหตุพักงานบอกเวลาคาดว่าซ่อมเสร็จ', /คาดว่าซ่อมเสร็จ \d\d\/\d\d \d\d:\d\d$/.test(reason4), reason4)
   await call(U.prod, `public.set_machine_status('${used}', 'ready')`)
-  ok('ประวัติจักรครบทุกครั้งที่กด', (await db.query(`select count(*)::int n from public.machine_status_log`)).rows[0].n === 10) // SN-01 · OL4-02 · BD-01 ปิด/เปิด · BD-01 ฝ่ายผลิต · จักรของ T4 (ละ 2 ครั้ง)
+  ok('ประวัติจักรครบทุกครั้งที่กด', (await db.query(`select count(*)::int n from public.machine_status_log`)).rows[0].n === 11) // SN-01 · OL4-02 · BD-01 ปิด/เปิด · BD-01 ฝ่ายผลิต · จักรของ T4 (ละ 2 ครั้ง)
   await rejectSql('แก้ประวัติจักรตรงไม่ได้', `insert into public.machine_status_log (machine_id, status) select id, 'ready' from public.sewing_machines limit 1`, /row-level security/, U.owner)
 
   // ---------- จองจักรเป็นวัน-เวลา ----------
@@ -161,32 +175,49 @@ export async function sewingTests({ db, ok, as }) {
     where b.job_id = '${id}' and b.cancelled_at is null and b.ends_at > now() order by m.code`)).rows.map(r => r.code)
   const bk1 = await jobAt('SC-BK-1', 'normal', 3)   // ยังอยู่สถานีตัด (เฟส 1) จองล่วงหน้าได้
   const bk2 = await jobAt('SC-BK-2', 'normal', 1)
-  await reject('ผู้ควบคุมงานเฟส 1 จองจักรไม่ได้', U.sup1, `public.book_machines('${bk1}', ${at(0)}, ${at(9)})`, /เฟส 2/)
+  // อำนาจจองจักร: ฝ่ายผลิตเท่านั้น
+  await reject('ผู้ควบคุมงานเฟส 2 จองจักรไม่ได้', U.sup2, `public.book_machines('${bk1}', ${at(0)}, ${at(9)})`, /บทบาท/)
+  await reject('ผู้ควบคุมงานเฟส 1 จองจักรไม่ได้', U.sup1, `public.book_machines('${bk1}', ${at(0)}, ${at(9)})`, /บทบาท/)
+  await reject('ผู้ควบคุมงานทุกเฟสจองจักรไม่ได้', U.sup, `public.book_machines('${bk1}', ${at(0)}, ${at(9)})`, /บทบาท/)
   await reject('ฝ่าย QC จองจักรไม่ได้', U.qc, `public.book_machines('${bk1}', ${at(0)}, ${at(9)})`, /บทบาท/)
-  await reject('เวลาจบก่อนเวลาเริ่ม ถูกปฏิเสธ', U.sup2, `public.book_machines('${bk1}', ${at(9)}, ${at(0)})`, /เวลาจบต้องหลังเวลาเริ่ม/)
-  await reject('ช่วงเวลาที่ผ่านไปแล้ว ถูกปฏิเสธ', U.sup2, `public.book_machines('${bk1}', now() - interval '3 hours', now() - interval '1 hour')`, /ผ่านไปแล้ว/)
-  await reject('เริ่มวันอาทิตย์ ถูกปฏิเสธ', U.sup2, `public.book_machines('${bk1}', ${at(-24)}, ${at(-20)})`, /วันอาทิตย์/)
+  await reject('เวลาจบก่อนเวลาเริ่ม ถูกปฏิเสธ', U.prod, `public.book_machines('${bk1}', ${at(9)}, ${at(0)})`, /เวลาจบต้องหลังเวลาเริ่ม/)
+  await reject('ช่วงเวลาที่ผ่านไปแล้ว ถูกปฏิเสธ', U.prod, `public.book_machines('${bk1}', now() - interval '3 hours', now() - interval '1 hour')`, /ผ่านไปแล้ว/)
+  await reject('เริ่มวันอาทิตย์ ถูกปฏิเสธ', U.prod, `public.book_machines('${bk1}', ${at(-24)}, ${at(-20)})`, /วันอาทิตย์/)
   const atQc = await jobAt('SC-BK-QC', 'normal', 5)
-  await reject('งานผลิตที่ผ่านเย็บแล้ว (อยู่ QC) จองจักรไม่ได้', U.sup2, `public.book_machines('${atQc}', ${at(0)}, ${at(9)})`, /เย็บเสร็จแล้ว/)
-  await reject('สินค้าไม่มีสูตรจักร จองไม่ได้', U.sup2, `public.book_machines('${hat}', ${at(0)}, ${at(9)})`, /ยังไม่มีข้อมูล/)
-  const r = await pass('ผู้ควบคุมงานเฟส 2 จองจักรให้งานที่ยังอยู่เฟส 1 ได้ (จันทร์ 08:00–17:00)', U.sup2, `public.book_machines('${bk1}', ${at(0)}, ${at(9)}) as picked`)
+  await reject('งานผลิตที่ผ่านเย็บแล้ว (อยู่ QC) จองจักรไม่ได้', U.prod, `public.book_machines('${atQc}', ${at(0)}, ${at(9)})`, /เย็บเสร็จแล้ว/)
+  await reject('สินค้าไม่มีสูตรจักร จองไม่ได้', U.prod, `public.book_machines('${hat}', ${at(0)}, ${at(9)})`, /ยังไม่มีข้อมูล/)
+  const r = await pass('ฝ่ายผลิตจองจักรให้งานที่ยังอยู่เฟส 1 ได้ (จันทร์ 08:00–17:00)', U.prod, `public.book_machines('${bk1}', ${at(0)}, ${at(9)}) as picked`)
   ok('จองจักรครบทุกชนิดตามสินค้า', JSON.stringify(r?.picked) === '["CV-01","FL-01","OL4-01","OL4-02","SN-01"]', JSON.stringify(r?.picked))
   ok('จองแล้วบันทึก event', (await lastEvent(bk1)).type === 'machines_booked')
-  await reject('จองซ้ำงานเดิม ถูกปฏิเสธ', U.sup2, `public.book_machines('${bk1}', ${at(10)}, ${at(12)})`, /จองจักรไว้แล้ว/)
-  await reject('จองทับช่วงเวลาที่งานอื่นจองไว้ไม่ได้ และบอกว่าจองให้งานไหน', U.sup2,
+  await reject('จองซ้ำงานเดิม ถูกปฏิเสธ', U.prod, `public.book_machines('${bk1}', ${at(10)}, ${at(12)})`, /จองจักรไว้แล้ว/)
+  await reject('จองทับช่วงเวลาที่งานอื่นจองไว้ไม่ได้ และบอกว่าจองให้งานไหน', U.prod,
     `public.book_machines('${bk2}', ${at(4)}, ${at(7)})`, /จองไม่ได้ ช่วงเวลานี้จักรไม่พอ.*OL4-01 จองให้ SC-BK-1/)
   ok('จองไม่สำเร็จ = ไม่มีจักรถูกจองค้าง', (await booked(bk2)).length === 0)
-  await pass('จองต่อท้ายพอดี (17:00–20:00) ได้', U.sup2, `public.book_machines('${bk2}', ${at(9)}, ${at(12)})`)
-  await pass('ยกเลิกการจองได้', U.sup2, `public.cancel_booking('${bk2}')`)
+  await rejectSql('ข้อบังคับฐานข้อมูลกันจองจักรทับ แม้เขียนข้าม RPC', `
+    insert into public.machine_bookings (machine_id, job_id, starts_at, ends_at)
+    select id, '${bk2}', ${at(4)}, ${at(7)} from public.sewing_machines where code = 'OL4-01'
+  `, /machine_bookings_no_overlap/)
+  // หลายงานในวันเดียวกัน: จักรที่ว่างรับงานอื่นได้ ถ้าครบทุกชนิดตามสินค้าของงานนั้น
+  await db.exec(`insert into public.sewing_machines (code, type_code) values ('SN-02','single')`)
+  const bkA = await jobAt('SC-BK-APRON', 'plain', 1, 'apron')
+  const rA = await pass('งานที่ 2 ขึ้นเย็บวันเดียวกัน ช่วงเดียวกันได้ ถ้าจักรชนิดที่ต้องใช้ยังว่างครบ', U.prod, `public.book_machines('${bkA}', ${at(0)}, ${at(9)}) as picked`)
+  ok('งานที่ 2 ได้จักรตัวอื่นที่ยังว่าง ไม่ชนงานแรก', JSON.stringify(rA?.picked) === '["BD-01","SN-02"]', JSON.stringify(rA?.picked))
+  const bkB = await jobAt('SC-BK-APRON2', 'plain', 1, 'apron')
+  await reject('งานที่ 3 ชนิดเดียวกันช่วงเดียวกัน จักรไม่ครบ = จองไม่ได้ทั้งชุด', U.prod, `public.book_machines('${bkB}', ${at(0)}, ${at(9)})`, /เข็มเดี่ยว ขาด 1 ตัว.*เข้าขอบ ขาด 1 ตัว/)
+  ok('จองไม่ครบ = ไม่จองบางส่วนค้าง', (await booked(bkB)).length === 0)
+  await pass('งานที่ 3 จองช่วงบ่ายหลังงานที่ 2 เสร็จได้', U.prod, `public.book_machines('${bkB}', ${at(9)}, ${at(12)})`)
+  await pass('จองต่อท้ายพอดี (17:00–20:00) ได้', U.prod, `public.book_machines('${bk2}', ${at(9)}, ${at(12)})`)
+  await reject('ผู้ควบคุมงานเฟส 2 ยกเลิกการจองไม่ได้', U.sup2, `public.cancel_booking('${bk2}')`, /บทบาท/)
+  await pass('ฝ่ายผลิตยกเลิกการจองได้', U.prod, `public.cancel_booking('${bk2}')`)
   ok('ยกเลิกแล้วไม่มีจักรจอง', (await booked(bk2)).length === 0)
-  await reject('ยกเลิกซ้ำ ถูกปฏิเสธ', U.sup2, `public.cancel_booking('${bk2}')`, /ไม่มีการจอง/)
-  await pass('ยกเลิกแล้วจองช่วงเดิมใหม่ได้', U.sup2, `public.book_machines('${bk2}', ${at(9)}, ${at(12)})`)
+  await reject('ยกเลิกซ้ำ ถูกปฏิเสธ', U.prod, `public.cancel_booking('${bk2}')`, /ไม่มีการจอง/)
+  await pass('ยกเลิกแล้วจองช่วงเดิมใหม่ได้', U.prod, `public.book_machines('${bk2}', ${at(9)}, ${at(12)})`)
 
   // ---------- การจองที่ครอบคลุม "ตอนนี้" กับปุ่มเริ่มเย็บ ----------
   await call(U.sup2, `public.release_machines('${tee4}')`)   // ให้จักรว่างทั้งหมดก่อน
   const bk4 = await jobAt('SC-BK-4', 'plain', 2, 'apron')
   const bk5 = await jobAt('SC-BK-5', 'plain', 2, 'apron')
-  await pass('จองตั้งแต่ตอนนี้ได้', U.sup2, `public.book_machines('${bk4}', now() - interval '1 minute', now() + interval '8 hours')`)
+  await pass('จองตั้งแต่ตอนนี้ได้', U.prod, `public.book_machines('${bk4}', now() - interval '1 minute', now() + interval '8 hours')`)
   ok('จองเข็มเดี่ยวกับเข้าขอบให้ SC-BK-4', JSON.stringify(await booked(bk4)) === '["BD-01","SN-01"]')
   await reject('จักรที่งานอื่นจองช่วงนี้ไว้ กดเริ่มเย็บไม่ได้', U.sup2, `public.start_sewing('${bk5}')`, /จองให้ SC-BK-4/)
   const r4 = await pass('งานที่จองไว้กดเริ่มเย็บได้ และได้จักรที่จองไว้', U.sup2, `public.start_sewing('${bk4}') as picked`)
@@ -194,6 +225,71 @@ export async function sewingTests({ db, ok, as }) {
   await db.exec(`update public.jobs set station_seq = 3, station_status = 'queued' where id = '${bk4}'`)
   ok('เย็บเสร็จก่อนเวลา = คืนช่วงจองที่เหลือ', (await booked(bk4)).length === 0)
   await pass('ช่วงที่คืนแล้ว งานอื่นกดเริ่มเย็บได้', U.sup2, `public.start_sewing('${bk5}')`)
-  await rejectSql('จองตรงเข้าตารางไม่ได้', `insert into public.machine_bookings (machine_id, job_id, starts_at, ends_at)
-    select id, '${bk2}', now(), now() + interval '1 hour' from public.sewing_machines limit 1`, /row-level security/, U.sup2)
+  await rejectSql('จองตรงเข้าตารางไม่ได้ (แม้ฝ่ายผลิต)', `insert into public.machine_bookings (machine_id, job_id, starts_at, ends_at)
+    select id, '${bk2}', now(), now() + interval '1 hour' from public.sewing_machines limit 1`, /row-level security/, U.prod)
+
+  // ---------- เย็บเสร็จจริง (finish_station) → ไป QC และคืนจักรอัตโนมัติ ----------
+  await call(U.sup2, `public.release_machines('${bk5}')`)   // ให้จักรเข้าขอบว่างก่อน
+  const fin = await jobAt('SC-SEW-FIN', 'plain', 2, 'apron')
+  await call(U.sup2, `public.start_sewing('${fin}')`)
+  const finMachines = await active(fin)
+  ok('งานที่จะเย็บเสร็จได้จักรครบ', finMachines.length === 2, JSON.stringify(finMachines))
+  await reject('ผู้ควบคุมงานเฟส 1 รายงานปัญหาที่เย็บไม่ได้', U.sup1, `public.report_sewing_issue('${fin}', 'กำลังปรับจักร')`, /เฟส 2/)
+  await reject('รายงานปัญหาต้องระบุสาเหตุ', U.sup2, `public.report_sewing_issue('${fin}', '  ')`, /ระบุปัญหา/)
+  await pass('รายงานปัญหาระหว่างเย็บโดยไม่พักได้', U.sup2, `public.report_sewing_issue('${fin}', 'เปลี่ยนด้ายตรงตามสี')`)
+  ok('ยังทำงานต่อและบันทึกรายงานลงไทม์ไลน์', await status(fin) === 'doing' && (await lastEvent(fin)).type === 'sewing_issue_reported')
+  await pass('เลือกพักงานจากรายงานปัญหาได้', U.sup2, `public.report_sewing_issue('${fin}', 'รอผ้าเพิ่ม', true)`)
+  ok('รายงานแบบพักงานเก็บสาเหตุและจักรเดิม', await status(fin) === 'hold' && (await lastEvent(fin)).payload.reason === 'รอผ้าเพิ่ม' && (await active(fin)).length === 2)
+  await reject('งานพักกดเย็บเสร็จไม่ได้', U.sup2, `public.finish_sewing('${fin}')`, /พักอยู่/)
+  await pass('กดเย็บต่อได้เมื่อแก้ปัญหาแล้ว', U.sup2, `public.resume_sewing('${fin}')`)
+  await pass('เย็บเสร็จครั้งเดียวโดยไม่ต้องติ๊กหรือกรอกยอด', U.sup2, `public.finish_sewing('${fin}')`)
+  await reject('ปุ่มเย็บเสร็จเดิมกดซ้ำแล้วไม่ข้าม QC', U.sup2, `public.finish_sewing('${fin}')`, /งานออกจากสถานีเย็บแล้ว/)
+  const recorded = (await db.query(`select sew_count, first_piece_ok from public.jobs where id = '${fin}'`)).rows[0]
+  ok('ยืนยันเสร็จไม่สร้างยอดเย็บหรือผลอนุมัติแทนพนักงาน', recorded.sew_count === 0 && recorded.first_piece_ok === false)
+  const after = (await db.query(`select s.code, j.station_status from public.jobs j join public.route_stations rs on rs.route_code = j.route_code and rs.seq = j.station_seq join public.stations s on s.code = rs.station_code where j.id = '${fin}'`)).rows[0]
+  ok('เย็บเสร็จแล้วงานไป QC + Packing รอคิว', after.code === 'qc_pack' && after.station_status === 'queued', JSON.stringify(after))
+  ok('เย็บเสร็จแล้วคืนจักรทุกตัวอัตโนมัติ', (await active(fin)).length === 0)
+  ok('จักรที่คืนกลับมาว่างให้งานอื่น', (await db.query(`select count(*)::int n from public.machine_assignments a join public.sewing_machines m on m.id = a.machine_id where m.code = any(array['${finMachines.join("','")}']) and a.released_at is null`)).rows[0].n === 0)
+
+  // ---------- กันบั๊ก (ตรวจละเอียด 16 พ.ย.) ----------
+  // 1) จ่ายจักรด้วยมือต้องเคารพการจองของงานอื่น เหมือนปุ่มเริ่มเย็บ
+  const bx = await jobAt('SC-BUG-X', 'plain', 1, 'apron')
+  const by = await jobAt('SC-BUG-Y', 'plain', 2, 'apron')
+  await call(U.prod, `public.book_machines('${bx}', now(), now() + interval '2 hours')`)
+  const bxCodes = await booked(bx)
+  await reject('จ่ายจักรด้วยมือ ข้ามการจองของงานอื่นไม่ได้', U.sup2, `public.assign_machines('${by}', array['${bxCodes[0]}'])`, /จองให้ SC-BUG-X/)
+  await call(U.prod, `public.cancel_booking('${bx}')`)
+  await pass('ยกเลิกการจองแล้ว จ่ายจักรตัวนั้นได้', U.sup2, `public.assign_machines('${by}', array['${bxCodes[0]}'])`)
+  await call(U.sup2, `public.release_machines('${by}')`)
+
+  // 2) ตัวอย่างเย็บเสร็จ → การจองล่วงหน้าของรอบผลิตจริงต้องยังอยู่ · ผลิตจริงเย็บเสร็จ → ยกเลิก
+  const smp = (await db.query(`
+    insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date,
+      route_code, confirmation_pdf_path, phase, station_seq, station_status)
+    values ('SC-BUG-SMP','ลูกค้าทดสอบ','ตัวอย่าง','apron',10,'ตัว','2026-12-31','plain','x.pdf','sample',2,'queued') returning id`)).rows[0].id
+  await call(U.prod, `public.book_machines('${smp}', ${at(24)}, ${at(33)})`)
+  await db.exec(`update public.jobs set station_seq = 3 where id = '${smp}'`)
+  ok('ตัวอย่างเย็บเสร็จ การจองรอบผลิตจริงยังอยู่', (await booked(smp)).length === 2)
+  const prd = await jobAt('SC-BUG-PRD', 'plain', 2, 'apron')
+  await call(U.prod, `public.book_machines('${prd}', ${at(48)}, ${at(57)})`)
+  await db.exec(`update public.jobs set station_seq = 3 where id = '${prd}'`)
+  ok('ผลิตจริงเย็บเสร็จ การจองล่วงหน้าที่เหลือถูกยกเลิก', (await booked(prd)).length === 0)
+
+  // now() คงที่ใน transaction จึงทดสอบขอบเวลาเริ่มเดียวกันได้
+  await db.exec('begin')
+  try {
+    const boundary = await jobAt('SC-BOOK-BOUNDARY', 'plain', 2, 'apron')
+    const seedBooking = `insert into public.machine_bookings (machine_id, job_id, starts_at, ends_at)
+      select id, '${boundary}', now(), now() + interval '2 hours' from public.sewing_machines where code = 'SN-01'`
+    await db.exec(seedBooking)
+    await pass('ยกเลิกการจองตรงเวลาเริ่มได้', U.prod, `public.cancel_booking('${boundary}')`)
+    ok('ยกเลิกตรงเวลาเริ่มเก็บเวลาเดิมไว้ในประวัติ', (await db.query(`
+      select 1 from public.machine_bookings where job_id = '${boundary}'
+        and cancelled_at = starts_at and ends_at > starts_at`)).rows.length === 1)
+    await db.exec(seedBooking)
+    await db.exec(`update public.jobs set station_seq = 3 where id = '${boundary}'`)
+    ok('ออกจากเย็บตรงเวลาเริ่ม คืนจักรที่จองและไม่สร้างช่วงความยาวศูนย์', (await booked(boundary)).length === 0)
+  } finally {
+    await db.exec('rollback')
+  }
 }

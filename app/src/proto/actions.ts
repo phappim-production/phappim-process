@@ -23,7 +23,6 @@ export function nextAction(j: Job, now: Date): NextAction | null {
   if (j.station === 'dtf_press' && isWaitingFilm(j)) return make('รอฟิล์ม DTF ก่อนเริ่มรีด', 'warn', 2)
   const prefix = j.phase === 'sample' ? 'ตัวอย่าง · ' : ''
   if (j.status === 'queued') return make(`${prefix}เริ่ม${at}`, 'neutral', 5)
-  if (j.station === 'sew' && j.phase === 'production' && !j.firstPieceOk) return make('อนุมัติตัวแรกก่อนเย็บทั้งก้อน', 'warn', 2)
   return make(`${prefix}กำลังทำ${at}`, 'info', 6)
 }
 

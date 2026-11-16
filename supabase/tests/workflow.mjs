@@ -108,9 +108,7 @@ export async function workflowTests({ db, ok, as }) {
   await station(A, SAMPLE.cut)
   await call(U.sup, `public.start_station('${A}')`)
   await reject('ขึ้นตัวอย่างไม่มีด่านตัวแรก', U.sup, `public.complete_substep('${A}', 'first_piece')`, /ไม่มีด่านตัวแรก/)
-  await reject('ขั้นเย็บตัวอย่างต้องติ๊ก "จ่ายงานเข้าเย็บ" และ "เก็บงานปลายไลน์"', U.sup, `public.finish_station('${A}')`, /จ่ายงานเข้าเย็บ.*เก็บงานปลายไลน์/)
-  for (const k of ['issue_to_sew', 'finishing']) await call(U.sup, `public.complete_substep('${A}', '${k}')`)
-  await call(U.sup, `public.finish_station('${A}')`)
+  await pass('เย็บตัวอย่างกดเสร็จครั้งเดียวไป QC', U.sup, `public.finish_sewing('${A}')`)
   await station(A, SAMPLE.qc_pack, U.qc)
   a = await job(A)
   ok('ตัวอย่างเดินครบทุกสถานี → รอผลตัวอย่าง', a.phase === 'sample_review' && a.current_station === null)
@@ -155,10 +153,7 @@ export async function workflowTests({ db, ok, as }) {
   await call(U.sup, `public.complete_substep('${A}', 'first_piece')`)
   await pass('ตัวแรกผ่านแล้วกรอกยอดเย็บได้', U.sup, `public.update_sew_count('${A}', 5)`)
   await reject('ยอดเย็บเกินจำนวนสั่ง+เผื่อเสียไม่ได้', U.sup, `public.update_sew_count('${A}', 99)`, /ระหว่าง 0 ถึง 10/)
-  for (const k of ['issue_to_sew', 'finishing']) await call(U.sup, `public.complete_substep('${A}', '${k}')`)
-  await reject('กฎ 5: ยอดเย็บยังไม่ครบ กดเสร็จไม่ได้', U.sup, `public.finish_station('${A}')`, /เย็บทั้งก้อน/)
-  await call(U.sup, `public.update_sew_count('${A}', 10)`)
-  await pass('ยอดเย็บครบ กดเสร็จได้', U.sup, `public.finish_station('${A}')`)
+  await pass('เย็บเสร็จครั้งเดียวแม้ยอดระหว่างเย็บเป็นข้อมูลเดิม', U.sup, `public.finish_sewing('${A}')`)
 
   // ---------- QC + กฎข้อ 8 งานแก้ ----------
   await call(U.qc, `public.start_station('${A}')`)

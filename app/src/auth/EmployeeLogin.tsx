@@ -3,9 +3,9 @@ import { Card } from '../components/ui'
 import { supabase } from '../lib/supabase'
 import { MIN_PASSWORD_LENGTH, newPasswordProblem, passwordChangeErrorMessage, signInErrorMessage } from './messages'
 
-export const primaryButton = 'min-h-12 rounded-xl bg-brand px-4 py-2.5 font-semibold text-white hover:bg-brand-700 disabled:opacity-60'
-export const secondaryButton = 'min-h-12 rounded-xl border border-line px-4 py-2.5 font-semibold text-brand hover:bg-brand-soft disabled:opacity-60'
-const inputClass = 'min-h-12 w-full rounded-xl border border-line bg-white px-3 text-base text-ink focus-visible:outline-2 focus-visible:outline-brand'
+export const primaryButton = 'min-h-12 rounded-xl bg-brand px-5 py-2.5 font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60'
+export const secondaryButton = 'min-h-12 rounded-xl border border-line px-5 py-2.5 font-semibold text-brand hover:bg-brand-soft disabled:opacity-60'
+const inputClass = 'min-h-12 w-full rounded-xl border border-line bg-card px-3 text-base text-ink focus-visible:outline-2 focus-visible:outline-brand'
 
 export function AccountScreen({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -13,7 +13,7 @@ export function AccountScreen({ title, children }: { title: string; children: Re
       <Card className="w-full max-w-sm p-6 sm:p-8">
         <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="mb-5 h-11 rounded-lg" />
         <p className="mb-1 text-sm font-medium text-muted">ระบบติดตามการผลิต</p>
-        <h1 className="mb-4 text-2xl font-bold text-brand">{title}</h1>
+        <h1 className="mb-4 text-2xl font-semibold tracking-tight">{title}</h1>
         {children}
       </Card>
     </main>

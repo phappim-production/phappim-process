@@ -4,19 +4,54 @@ import { dayDiff, shortDate } from '../proto/format'
 import { TONE, type Tone } from './tone'
 export type { Tone }
 
+export function ViewSwitch<T extends string>({ label, value, onChange, options, variant = 'main' }: {
+  label: string; value: T; onChange: (value: T) => void; options: ReadonlyArray<readonly [T, string]>
+  /** sub = แท็บย่อยในแท็บหลัก ใช้เส้นใต้ ไม่ให้หน้าตาเหมือนแท็บหลักจนผู้ใช้สับสนว่าอยู่ชั้นไหน */
+  variant?: 'main' | 'sub'
+}) {
+  if (variant === 'sub') {
+    return (
+      <div role="group" aria-label={label} className="flex gap-1 overflow-x-auto overflow-y-hidden border-b-2 border-line">
+        {options.map(([key, text]) => (
+          <button key={key} type="button" onClick={() => onChange(key)} aria-pressed={key === value}
+            className={`-mb-0.5 min-h-12 shrink-0 border-b-[3px] px-4 text-base font-semibold whitespace-nowrap ${key === value ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'}`}>
+            {text}
+          </button>
+        ))}
+      </div>
+    )
+  }
+  return (
+    <div role="group" aria-label={label} className={pillGroup}>
+      {options.map(([key, text]) => (
+        <button key={key} type="button" onClick={() => onChange(key)} aria-pressed={key === value}
+          className={`${pillItem} ${key === value ? pillOn : pillOff}`}>
+          {text}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** แท็บหลัก: กล่องเดียวแบ่งช่องเท่ากัน ช่องที่เลือกเป็นเขียวทึบ เห็นชัดว่าอยู่หน้าไหน */
+export const pillGroup = 'flex gap-1 rounded-xl border border-line bg-card p-1'
+export const pillItem = 'min-h-12 flex-1 rounded-lg px-3 text-base font-semibold whitespace-nowrap sm:flex-none sm:px-6'
+export const pillOn = 'bg-brand text-white'
+export const pillOff = 'text-ink hover:bg-paper'
+
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-line/80 bg-white shadow-card ${className}`}>{children}</section>
+  return <section className={`rounded-2xl border border-line bg-card shadow-card ${className}`}>{children}</section>
 }
 
 export function CardHeader({ icon: Icon, title, sub, right, tone = 'brand' }: {
   icon?: ComponentType<{ className?: string }>; title: ReactNode; sub?: ReactNode; right?: ReactNode; tone?: Tone
 }) {
   return (
-    <header className="flex items-start gap-3 px-5 pt-4 pb-3">
-      {Icon && <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${TONE[tone].soft}`}><Icon className="size-[18px]" /></span>}
+    <header className="flex items-start gap-3 px-4 pt-4 pb-3 sm:px-5">
+      {Icon && <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${TONE[tone].soft}`}><Icon className="size-5" /></span>}
       <div className="min-w-0 flex-1">
-        <h3 className="font-semibold leading-tight">{title}</h3>
-        {sub && <p className="mt-0.5 text-xs text-muted">{sub}</p>}
+        <h3 className="text-lg font-bold leading-tight">{title}</h3>
+        {sub && <p className="mt-1 text-sm text-muted">{sub}</p>}
       </div>
       {right}
     </header>
@@ -25,7 +60,7 @@ export function CardHeader({ icon: Icon, title, sub, right, tone = 'brand' }: {
 
 export function Pill({ tone, children, dot }: { tone: Tone; children: ReactNode; dot?: boolean }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${TONE[tone].soft}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${TONE[tone].soft}`}>
       {dot && <span className={`size-1.5 rounded-full ${TONE[tone].dot}`} />}
       {children}
     </span>
@@ -37,7 +72,7 @@ export const Tag = ({ tone, children }: { tone: Tone; children: ReactNode }) => 
 
 export function RouteBadge({ route }: { route: RouteCode }) {
   const tone: Tone = route === 'dtf' ? 'dtf' : route === 'plain' ? 'neutral' : 'brand'
-  return <span className={`rounded-md px-1.5 py-px text-[10.5px] font-bold tracking-wide ${TONE[tone].soft}`}>{ROUTES[route].short}</span>
+  return <span className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${TONE[tone].soft}`}>{ROUTES[route].short}</span>
 }
 
 export function DueLabel({ job: j, now, long }: { job: Job; now: Date; long?: boolean }) {
@@ -54,7 +89,7 @@ export function StageDots({ steps, current, hold }: { steps: string[]; current: 
     <span className="flex items-center gap-[3px]" aria-label={`ขั้นที่ ${Math.min(current + 1, steps.length)} จาก ${steps.length}`}>
       {steps.map((s, i) => (
         <span key={i} title={s}
-          className={`h-1.5 rounded-full ${i === current ? 'w-5' : 'w-2.5'} ${i < current ? 'bg-brand' : i === current ? (hold ? 'bg-danger' : 'bg-info') : 'bg-line'}`} />
+          className={`h-2 rounded-full ${i === current ? 'w-6' : 'w-3'} ${i < current ? 'bg-brand' : i === current ? (hold ? 'bg-danger' : 'bg-info') : 'bg-line'}`} />
       ))}
     </span>
   )
@@ -64,17 +99,22 @@ export function StatTile({ icon: Icon, label, value, note, tone, active, onClick
   icon: ComponentType<{ className?: string }>; label: string; value: number; note?: string; tone: Tone; active?: boolean; onClick?: () => void
 }) {
   const t = TONE[value === 0 && tone !== 'brand' ? 'neutral' : tone]
-  return (
-    <button onClick={onClick} aria-pressed={active}
-      className={`group flex items-center gap-3 rounded-2xl border bg-white p-3 text-left shadow-card transition hover:-translate-y-px hover:shadow-lift ${active ? 'border-brand ring-2 ring-brand/15' : 'border-line/80'}`}>
-      <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${t.soft}`}><Icon className="size-5" /></span>
-      <span className="min-w-0">
-        <span className="block truncate text-xs text-muted">{label}</span>
-        <span className="flex items-baseline gap-1.5">
-          <span className={`text-2xl leading-tight font-bold tabular-nums ${value === 0 ? 'text-ink' : t.text}`}>{value}</span>
-          {note && <span className="truncate text-[11px] text-muted">{note}</span>}
-        </span>
+  // มือถือ: ไอคอน + ชื่อบรรทัดเดียว ตัวเลขใหญ่ด้านล่าง ไม่ให้ 4 ช่องกินครึ่งจอ
+  const body = (
+    <>
+      <span className="flex w-full min-w-0 items-center gap-2">
+        <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${t.soft}`}><Icon className="size-5" /></span>
+        <span className="min-w-0 text-sm leading-tight font-semibold text-muted">{label}</span>
       </span>
-    </button>
+      <span className={`mt-1.5 block text-3xl leading-none font-bold tabular-nums ${value === 0 ? 'text-ink' : t.text}`}>{value}</span>
+      {note && <span className="mt-1 hidden text-sm leading-snug text-muted sm:block">{note}</span>}
+    </>
+  )
+  const cls = `flex min-w-0 flex-col items-start rounded-2xl border bg-card p-3 text-left shadow-card sm:p-4 ${active ? 'border-brand ring-2 ring-brand/20' : 'border-line'}`
+  // การ์ดตัวเลขที่ไม่ได้ใช้กรอง ไม่ควรเป็นปุ่ม (ผู้ใช้จะคิดว่ากดได้)
+  return onClick ? (
+    <button type="button" onClick={onClick} aria-pressed={active} className={`${cls} hover:border-brand`}>{body}</button>
+  ) : (
+    <div className={cls}>{body}</div>
   )
 }

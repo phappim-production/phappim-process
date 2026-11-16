@@ -34,6 +34,7 @@ create table public.sewing_machines (
   note              text,
   status_changed_at timestamptz,
   status_changed_by uuid references auth.users(id),
+  repair_eta        timestamptz,   -- คาดว่าซ่อมเสร็จเมื่อไร (ฝ่ายผลิตกำหนด · มีเฉพาะตอนเสีย)
   sort              int not null default 0
 );
 create index sewing_machines_type_idx on public.sewing_machines (type_code);
@@ -160,6 +161,10 @@ begin
     if found then
       raise exception 'จักร % ใช้กับงาน % อยู่ ต้องคืนจักรก่อน', m.code, busy using errcode = 'P0001';
     end if;
+    busy := private.booked_by_other(m.id, now(), now() + interval '1 minute', p_job);
+    if busy is not null then
+      raise exception 'จักร % จองให้ % อยู่ ใช้กับงานอื่นไม่ได้', m.code, busy using errcode = 'P0001';
+    end if;
     insert into public.machine_assignments (machine_id, job_id, assigned_by) values (m.id, p_job, (select auth.uid()));
   end loop;
   perform private.log(p_job, 'machines_assigned', j.phase, 'sew', jsonb_build_object('machines', p_machine_codes));
@@ -192,6 +197,7 @@ create table public.machine_status_log (
   status     text   not null check (status in ('ready', 'broken', 'off')),
   note       text,
   job_id     uuid references public.jobs(id) on delete set null,   -- งานที่ใช้จักรอยู่ตอนแจ้ง (ถ้ามี)
+  repair_eta timestamptz,                                            -- กรอบเวลาซ่อมที่กำหนด ณ ตอนนั้น
   by         uuid references auth.users(id),
   at         timestamptz not null default now()
 );
@@ -199,13 +205,26 @@ create index machine_status_log_machine_idx on public.machine_status_log (machin
 create index machine_status_log_job_idx on public.machine_status_log (job_id);
 create index machine_status_log_by_idx on public.machine_status_log (by);
 
+-- กรอบเวลาซ่อม: ฝ่ายผลิตเป็นคนกำหนด (ตัดสินใจ 16 พ.ย.) · ต้องอยู่ในอนาคตและไม่เกิน 30 วัน
+create or replace function private.check_repair_eta(p_eta timestamptz) returns void
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if p_eta <= now() then raise exception 'เวลาซ่อมเสร็จต้องเป็นเวลาข้างหน้า' using errcode = '23514'; end if;
+  if p_eta > now() + interval '30 days' then
+    raise exception 'กรอบเวลาซ่อมเกิน 30 วัน ถ้าซ่อมไม่ได้ให้ปิดใช้งานแทน' using errcode = '23514';
+  end if;
+end $$;
+
 -- แจ้งจักรเสีย / ปิดใช้งาน / ซ่อมเสร็จ (ใช้ได้) · ผู้ควบคุมงานเฟส 2 · ทุกเฟส · ฝ่ายผลิต · owner
 -- จักรที่เสียระหว่างเย็บ: คืนจากงานอัตโนมัติ และถ้างานกำลังเย็บอยู่ → พักงานอัตโนมัติพร้อมสาเหตุ (เย็บต่อได้เมื่อจักรครบ)
-create or replace function public.set_machine_status(p_machine_code text, p_status text, p_note text default null) returns void
+-- ฝ่ายผลิตแจ้งเสียต้องใส่กรอบเวลาซ่อม · ผู้ควบคุมงานแจ้งได้โดยไม่ใส่ (ฝ่ายผลิตกำหนดภายหลังด้วย set_repair_eta)
+create or replace function public.set_machine_status(p_machine_code text, p_status text, p_note text default null,
+  p_repair_eta timestamptz default null) returns void
 language plpgsql security definer set search_path = '' as $$
-declare m public.sewing_machines; a public.machine_assignments; jb public.jobs; why text; held_job uuid;
+declare m public.sewing_machines; a public.machine_assignments; jb public.jobs; why text; held_job uuid; r text;
 begin
   perform private.require_machine_reporter();
+  r := private.my_role();
   if p_status not in ('ready', 'broken', 'off') then
     raise exception 'สถานะจักรต้องเป็น ใช้ได้ / เสีย / ปิดใช้งาน' using errcode = '23514';
   end if;
@@ -214,6 +233,16 @@ begin
   if p_status = 'broken' and coalesce(trim(p_note), '') = '' then
     raise exception 'แจ้งจักรเสียต้องบอกอาการ' using errcode = '23514';
   end if;
+  if p_repair_eta is not null and p_status <> 'broken' then
+    raise exception 'กรอบเวลาซ่อมใส่ได้เฉพาะตอนแจ้งเสีย' using errcode = '23514';
+  end if;
+  if p_repair_eta is not null and r not in ('production', 'owner') then
+    raise exception 'กรอบเวลาซ่อมเป็นหน้าที่ของฝ่ายผลิต' using errcode = '42501';
+  end if;
+  if p_status = 'broken' and r = 'production' and p_repair_eta is null then
+    raise exception 'ฝ่ายผลิตแจ้งเสียต้องกำหนดเวลาซ่อมเสร็จ' using errcode = '23514';
+  end if;
+  if p_repair_eta is not null then perform private.check_repair_eta(p_repair_eta); end if;
   -- กดซ้ำ / อีกคนกดไปก่อน (กฎข้อ 11)
   if m.status = p_status then
     perform private.stale(format('จักร %s %s อยู่แล้ว', m.code, case p_status when 'broken' then 'เสีย' when 'off' then 'ปิดใช้งาน' else 'ใช้ได้' end));
@@ -222,6 +251,7 @@ begin
   perform set_config('app.machine_status_rpc', 'on', true);
   update public.sewing_machines
     set status = p_status, note = case when p_status = 'ready' then null else nullif(trim(p_note), '') end,
+        repair_eta = case when p_status = 'broken' then p_repair_eta end,
         status_changed_at = now(), status_changed_by = (select auth.uid())
     where id = m.id;
   perform set_config('app.machine_status_rpc', 'off', true);
@@ -237,14 +267,32 @@ begin
         jsonb_build_object('machines', array[m.code], 'reason', case p_status when 'broken' then 'จักรเสีย' else 'ปิดใช้งาน' end,
                            'note', nullif(trim(p_note), '')));
       if jb.station_status = 'doing' then
-        why := case p_status when 'broken' then format('จักร %s เสีย: %s', m.code, trim(p_note)) else format('จักร %s ปิดใช้งาน', m.code) end;
+        why := case p_status when 'broken' then format('จักร %s เสีย: %s', m.code, trim(p_note)) else format('จักร %s ปิดใช้งาน', m.code) end
+          || coalesce(' · คาดว่าซ่อมเสร็จ ' || to_char(p_repair_eta at time zone 'Asia/Bangkok', 'DD/MM HH24:MI'), '');
         perform public.open_issue(jb.id, why);
       end if;
     end if;
   end if;
 
-  insert into public.machine_status_log (machine_id, status, note, job_id, by)
-    values (m.id, p_status, nullif(trim(p_note), ''), held_job, (select auth.uid()));
+  insert into public.machine_status_log (machine_id, status, note, job_id, repair_eta, by)
+    values (m.id, p_status, nullif(trim(p_note), ''), held_job, p_repair_eta, (select auth.uid()));
+end $$;
+
+-- ฝ่ายผลิตกำหนด / เลื่อนกรอบเวลาซ่อมของจักรที่เสียอยู่ (เช่น ผู้ควบคุมงานแจ้งเสียไว้ก่อน หรือรออะไหล่)
+create or replace function public.set_repair_eta(p_machine_code text, p_repair_eta timestamptz, p_note text default null) returns void
+language plpgsql security definer set search_path = '' as $$
+declare m public.sewing_machines;
+begin
+  perform private.require_role('production');
+  select * into m from public.sewing_machines where code = upper(trim(p_machine_code)) for update;
+  if not found then raise exception 'ไม่พบจักรรหัส %', p_machine_code using errcode = 'P0002'; end if;
+  if m.status <> 'broken' then raise exception 'จักร % ไม่ได้เสียอยู่ กำหนดเวลาซ่อมไม่ได้', m.code using errcode = 'P0001'; end if;
+  if p_repair_eta is null then raise exception 'ต้องกำหนดเวลาซ่อมเสร็จ' using errcode = '23514'; end if;
+  perform private.check_repair_eta(p_repair_eta);
+  update public.sewing_machines set repair_eta = p_repair_eta where id = m.id;
+  insert into public.machine_status_log (machine_id, status, note, repair_eta, by)
+    values (m.id, 'broken', coalesce(nullif(trim(p_note), ''), case when m.repair_eta is null then 'กำหนดเวลาซ่อม' else 'เลื่อนเวลาซ่อม' end),
+            p_repair_eta, (select auth.uid()));
 end $$;
 
 -- สถานะจักรเปลี่ยนได้ทางฟังก์ชันเท่านั้น (owner แก้ตารางตรงได้เฉพาะรหัส/ประเภท/ลำดับ)
@@ -261,7 +309,7 @@ create trigger sewing_machines_status_guard before update of status on public.se
   for each row execute function private.guard_machine_status();
 
 -- ---------- จองจักรเป็นวัน-เวลา (ตัดสินใจ 16 พ.ย.) ----------
--- เลือกงาน + ช่วงเวลา → ระบบจองจักรครบทุกชนิดตามสินค้า · จักรตัวเดียวกันจองทับช่วงเวลากันไม่ได้
+-- ฝ่ายผลิตเลือกงาน + ช่วงเวลา → ระบบจองจักรครบทุกชนิดตามสินค้า · จักรตัวเดียวกันจองทับช่วงเวลากันไม่ได้
 -- ช่วงที่งานอื่นจองไว้ งานอื่นกดเริ่มเย็บด้วยจักรนั้นไม่ได้ · ยกเลิกได้ · งานออกจากเย็บ = คืนช่วงที่เหลือ
 create table public.machine_bookings (
   id           bigint generated always as identity primary key,
@@ -273,7 +321,12 @@ create table public.machine_bookings (
   booked_at    timestamptz not null default now(),
   cancelled_at timestamptz,
   cancelled_by uuid references auth.users(id),
-  check (ends_at > starts_at)
+  check (ends_at > starts_at),
+  -- ใช้ช่วงรหัสจักรค่าเดียวเพื่อใช้ GiST ของ PostgreSQL โดยไม่ต้องติดตั้งส่วนขยาย
+  constraint machine_bookings_no_overlap exclude using gist (
+    int8range(machine_id, machine_id, '[]') with &&,
+    tstzrange(starts_at, ends_at, '[)') with &&
+  ) where (cancelled_at is null)
 );
 create index machine_bookings_machine_idx on public.machine_bookings (machine_id, starts_at);
 create index machine_bookings_job_idx on public.machine_bookings (job_id);
@@ -291,11 +344,12 @@ returns text language sql stable security definer set search_path = '' as $$
   order by b.starts_at limit 1
 $$;
 
+-- อำนาจจองจักร: ฝ่ายผลิตเท่านั้น (ตัดสินใจ 16 พ.ย.) · ผู้ควบคุมงานเห็นตารางจองแต่จอง/ยกเลิกไม่ได้ · owner ทำได้ทุกอย่างตามกติกาเดิม
 create or replace function public.book_machines(p_job uuid, p_starts timestamptz, p_ends timestamptz) returns text[]
 language plpgsql security definer set search_path = '' as $$
 declare j public.jobs; n record; got bigint[]; picked text[] := '{}'; why text; problems text[] := '{}'; now_start boolean;
 begin
-  perform private.require_sewing_supervisor();
+  perform private.require_role('production');
   -- ล็อกแถวงานตรงๆ (ไม่ใช้ lock_job) เพราะงานที่จองล่วงหน้ามักยังอยู่สถานีเฟส 1
   select * into j from public.jobs where id = p_job for update;
   if not found then raise exception 'ไม่พบงานนี้' using errcode = 'P0002'; end if;
@@ -354,16 +408,13 @@ begin
   if cardinality(problems) > 0 then
     raise exception 'จองไม่ได้ ช่วงเวลานี้จักรไม่พอ: %', array_to_string(problems, ' · ') using errcode = 'P0001';
   end if;
-  -- กันจองชนจากการกดพร้อมกัน 2 เครื่อง: ตรวจซ้ำหลังบันทึก (กฎข้อ 11)
-  if exists (select 1 from public.machine_bookings b
-             where b.job_id = p_job and b.cancelled_at is null
-               and private.booked_by_other(b.machine_id, b.starts_at, b.ends_at, p_job) is not null) then
-    perform private.stale('มีคนจองจักรช่วงนี้ไปก่อน');
-  end if;
   picked := (select array_agg(c order by c) from unnest(picked) c);
   perform private.log(p_job, 'machines_booked', j.phase, 'sew',
     jsonb_build_object('machines', picked, 'starts_at', p_starts, 'ends_at', p_ends));
   return picked;
+exception when exclusion_violation then
+  -- ฐานข้อมูลกันการจองชน แม้สองคำขอผ่านการตรวจพร้อมกัน
+  perform private.stale('มีคนจองจักรช่วงนี้ไปก่อน');
 end $$;
 
 -- ยกเลิกการจองที่ยังไม่หมดเวลา · ช่วงที่กำลังใช้อยู่ = ตัดจบที่ตอนนี้ (ประวัติไม่หาย)
@@ -371,14 +422,14 @@ create or replace function public.cancel_booking(p_job uuid) returns void
 language plpgsql security definer set search_path = '' as $$
 declare j public.jobs; n int;
 begin
-  perform private.require_sewing_supervisor();
+  perform private.require_role('production');
   select * into j from public.jobs where id = p_job for update;
   if not found then raise exception 'ไม่พบงานนี้' using errcode = 'P0002'; end if;
   update public.machine_bookings set cancelled_at = now(), cancelled_by = (select auth.uid())
-    where job_id = p_job and cancelled_at is null and starts_at > now();
+    where job_id = p_job and cancelled_at is null and starts_at >= now();
   get diagnostics n = row_count;
   update public.machine_bookings set ends_at = now()
-    where job_id = p_job and cancelled_at is null and starts_at <= now() and ends_at > now();
+    where job_id = p_job and cancelled_at is null and starts_at < now() and ends_at > now();
   if n = 0 and not found then raise exception 'งานนี้ไม่มีการจองที่ยกเลิกได้' using errcode = 'P0001'; end if;
   perform private.log(p_job, 'booking_cancelled', j.phase, null, '{}'::jsonb);
 end $$;
@@ -491,9 +542,11 @@ begin
       where job_id = new.id and released_at is null;
     -- เย็บเสร็จก่อนเวลาที่จอง = คืนช่วงที่เหลือให้งานอื่นจองต่อ
     update public.machine_bookings set ends_at = now()
-      where job_id = new.id and cancelled_at is null and starts_at <= now() and ends_at > now();
+      where job_id = new.id and cancelled_at is null and starts_at < now() and ends_at > now();
+    -- ยกเลิกช่วงที่เริ่มตรงเวลานี้เพื่อไม่ให้ช่วงจองยาวศูนย์ · ตัวอย่างเก็บการจองในอนาคตไว้
     update public.machine_bookings set cancelled_at = now(), cancelled_by = (select auth.uid())
-      where job_id = new.id and cancelled_at is null and starts_at > now();
+      where job_id = new.id and cancelled_at is null
+        and (starts_at = now() or (new.phase <> 'sample' and starts_at > now()));
   end if;
   return new;
 end $$;
@@ -525,7 +578,7 @@ do $$
 declare f text;
 begin
   foreach f in array array['public.book_machines(uuid,timestamptz,timestamptz)', 'public.cancel_booking(uuid)', 'public.start_sewing(uuid)', 'public.assign_machines(uuid,text[])', 'public.release_machines(uuid,text[])',
-                           'public.set_machine_status(text,text,text)'] loop
+                           'public.set_machine_status(text,text,text,timestamptz)', 'public.set_repair_eta(text,timestamptz,text)'] loop
     execute format('revoke all on function %s from public, anon', f);
     execute format('grant execute on function %s to authenticated', f);
   end loop;
@@ -536,6 +589,7 @@ revoke all on function private.require_machine_reporter() from public, anon;
 revoke all on function private.release_machines_on_leave() from public, anon;
 revoke all on function private.check_machine_code() from public, anon;
 revoke all on function private.guard_machine_status() from public, anon;
+revoke all on function private.check_repair_eta(timestamptz) from public, anon;
 revoke all on function private.booked_by_other(bigint,timestamptz,timestamptz,uuid) from public, anon;
 revoke all on function private.machines_short(uuid) from public, anon;
 revoke all on function private.require_machines_to_sew() from public, anon;
