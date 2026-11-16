@@ -132,6 +132,10 @@ await sectionTests({ db, ok, as })
 const { productionTests } = await import('./production.mjs')
 await productionTests({ db, ok, as })
 
+// ---- 8.2 เดินงานแบบทีมจริง (ฝ่ายผลิต + แอดมิน + QC) ----
+const { teamTests } = await import('./e2e.mjs')
+await teamTests({ db, ok, as })
+
 // ---- 9. จักรเย็บ (S14) ----
 const { sewingTests } = await import('./sewing.mjs')
 await sewingTests({ db, ok, as })

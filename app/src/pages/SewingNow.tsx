@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from 'react'
 import { Card, CardHeader, DueLabel, Pill } from '../components/ui'
+import { requiredThai } from '../components/forms'
 import { IconCheck, IconSewing } from '../components/icons'
 import { type Job } from '../proto/model'
 import { type Machine } from '../proto/sewing'
@@ -123,7 +124,7 @@ function ReportForm({ error, onCancel, onSave }: {
   return (
     <form className="mt-3 grid gap-3" onSubmit={event => { event.preventDefault(); onSave(reason, pause) }}>
       <label className="grid gap-1 font-medium">ปัญหาที่พบ
-        <textarea autoFocus required rows={3} value={reason} onChange={event => setReason(event.target.value)}
+        <textarea autoFocus {...requiredThai('กรุณาพิมพ์ปัญหาที่พบก่อนบันทึก')} rows={3} value={reason} onChange={event => setReason(event.target.value)}
           placeholder="เช่น ตะเข็บข้าม ต้องตรวจการตั้งจักร" className="w-full rounded-xl border border-line px-3 py-2" />
       </label>
       <label className="flex min-h-12 items-center gap-2">
