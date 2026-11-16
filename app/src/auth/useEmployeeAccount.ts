@@ -1,0 +1,70 @@
+import { useEffect, useState } from 'react'
+import type { Session } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
+import { isEmployeeRole, toSection, type EmployeeRole, type Section } from './access'
+
+type EmployeeProfile = { name: string; role: EmployeeRole; section: Section | null }
+
+type ProfileResult =
+  | { status: 'ready'; profile: EmployeeProfile }
+  | { status: 'unassigned' | 'inactive' | 'error' }
+
+export function useEmployeeAccount() {
+  const [session, setSession] = useState<Session | null | undefined>(undefined)
+  const [lookup, setLookup] = useState<{ userId: string; result: ProfileResult } | null>(null)
+  const [revision, setRevision] = useState(0)
+  const userId = session?.user.id
+
+  useEffect(() => {
+    if (!supabase) return
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession)
+      if (!nextSession) setLookup(null)
+    })
+    return () => data.subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    const db = supabase
+    if (!db || !userId) return
+    let request: AbortController | undefined
+
+    async function loadProfile() {
+      if (!db || !userId) return
+      request?.abort()
+      const currentRequest = new AbortController()
+      request = currentRequest
+      const { data, error } = await db
+        .from('profiles')
+        // เลือกทุกคอลัมน์ เพื่อให้ยังล็อกอินได้บนฐานข้อมูลที่ยังไม่มีคอลัมน์ section (migration ยังไม่ลง)
+        .select('*')
+        .eq('user_id', userId)
+        .abortSignal(currentRequest.signal)
+        .maybeSingle()
+
+      if (currentRequest.signal.aborted) return
+      let result: ProfileResult
+      if (error) result = { status: 'error' }
+      else if (!data || !isEmployeeRole(data.role)) result = { status: 'unassigned' }
+      else if (!data.active) result = { status: 'inactive' }
+      else result = { status: 'ready', profile: { name: data.name, role: data.role, section: toSection(data.section) } }
+      setLookup({ userId, result })
+    }
+
+    void loadProfile()
+    window.addEventListener('focus', loadProfile)
+    return () => {
+      request?.abort()
+      window.removeEventListener('focus', loadProfile)
+    }
+  }, [userId, revision])
+
+  return {
+    session,
+    result: lookup?.userId === userId ? lookup?.result : undefined,
+    retry() {
+      setLookup(null)
+      setRevision(current => current + 1)
+    },
+  }
+}

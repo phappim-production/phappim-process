@@ -31,6 +31,7 @@ export type Job = {
   no: string                 // เลขที่ใบยืนยัน
   customer: string
   product: string
+  productCode?: string       // product_types.code · ใช้หาจักรที่สินค้าต้องใช้
   unit: string
   qty: number
   due: Date
@@ -43,7 +44,7 @@ export type Job = {
   materials: Record<Dept, boolean>
   film?: { eta: Date; received: boolean }  // เฉพาะเส้นทาง DTF
   sewCount?: number
-  firstPieceOk?: boolean
+  sewingReports?: { reason: string; at: Date; paused: boolean }[]
   rework?: { qty: number; reason: string }
   holdReason?: string
   doneAt?: Date

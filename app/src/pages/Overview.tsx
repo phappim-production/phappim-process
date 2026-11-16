@@ -1,17 +1,24 @@
 import { useMemo, useState } from 'react'
 import { CAPACITY, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, lateDays, simulate, verdict, workdayToDate, type Forecast } from '../proto/capacity'
-import { ROUTES, STATION_NAME, isFilmLate, isDoneToday, type Job, type RouteCode, type StationCode } from '../proto/model'
+import { ROUTES, STATION_NAME, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
 import { duration, shortDate, stageSteps, stageText } from '../proto/format'
-import { Card, CardHeader, DueLabel, Pill, RouteBadge, StageDots } from '../components/ui'
+import { Card, CardHeader, DueLabel, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
 import { TONE, type Tone } from '../components/tone'
 import JobFinder from '../components/JobFinder'
-import { IconAlert, IconCalculator, IconCheck, IconChevronRight, IconClipboard, IconLayers, IconTrendingUp } from '../components/icons'
+import { IconAlert, IconCalculator, IconCheck, IconChevronRight, IconClipboard, IconFactory, IconLayers, IconPause, IconTrendingUp } from '../components/icons'
 
 type Props = { jobs: Job[]; now: Date; forecast: Forecast; onOpen: (id: string) => void }
 type Row = { job: Job; finish: Date; late: number }
 
+const OVERVIEW_VIEWS = [
+  ['follow', 'งานที่ต้องตาม'],
+  ['find', 'ค้นหางาน'],
+  ['plan', 'วางแผนรับงาน'],
+] as const
+
 // เฟส 1: ภาพรวมสำหรับแอดมิน — งานแต่ละงานอยู่ขั้นไหน และรับงานใหม่เพิ่มได้หรือยัง
 export default function Overview({ jobs, now, forecast, onOpen }: Props) {
+  const [view, setView] = useState<(typeof OVERVIEW_VIEWS)[number][0]>('follow')
   const rows: Row[] = useMemo(() => jobs.filter(j => j.phase !== 'done').map(j => {
     const finish = workdayToDate(forecast.finishDay.get(j.id) ?? 0, now)
     return { job: j, finish, late: lateDays(finish, j.due) }
@@ -19,49 +26,55 @@ export default function Overview({ jobs, now, forecast, onOpen }: Props) {
 
   const atRisk = rows.filter(r => r.late > 0)
 
-  // อ่านจากบนลงล่างตามคำถามของแอดมิน: งานนี้อยู่ไหน → วันนี้เป็นอย่างไร → รับงานใหม่ได้ไหม → ทุกงาน
   return (
-    <div className="grid grid-cols-1 gap-8">
-      <Section no={1} title="ตามหางาน" sub="พิมพ์เลขที่ใบยืนยันหรือชื่อลูกค้า">
+    <div className="grid min-w-0 grid-cols-1 gap-4">
+      <KpiRow jobs={jobs} now={now} atRisk={atRisk.length} />
+      <ViewSwitch variant="sub" label="มุมมองภาพรวม" value={view} onChange={setView} options={OVERVIEW_VIEWS} />
+      {/* มุมมองแรกมีอย่างเดียว: งานที่ต้องตาม · ข้อมูลวางแผน (กราฟ) อยู่ในมุมมองวางแผน ไม่ปนกัน */}
+      <section hidden={view !== 'follow'}>
+        <AdminTodo jobs={jobs} now={now} onOpen={onOpen} />
+      </section>
+      <section hidden={view !== 'find'}>
         <JobFinder jobs={jobs} now={now} forecast={forecast} onOpen={onOpen} />
-      </Section>
-
-      <Section no={2} title="สถานการณ์วันนี้" sub="รับงานใหม่ได้ไหม และเรื่องที่แอดมินต้องตาม">
-        {/* คำตอบเต็มความกว้าง แล้วตามด้วยรายการที่ต้องตาม (แสดงครบทุกเรื่อง ไม่ต้องเลื่อน) */}
-        <div className="grid grid-cols-1 gap-5">
+        <details className="mt-4">
+          <summary className="min-h-12 cursor-pointer rounded-xl border border-line bg-card p-3 font-semibold">
+            ดูงานในโรงงานทั้งหมด ({rows.length})
+          </summary>
+          <div className="mt-3">
+            <JobTable rows={rows} jobs={jobs} now={now} onOpen={onOpen} />
+            <p className="mt-3 text-sm text-muted">
+              วันที่คาดว่าเสร็จอิงกำลังผลิตต่อวันที่รอยืนยันกับหน้างาน คำนวณวันทำงานจันทร์–เสาร์และเผื่อเพิ่ม {LEAD.hold} วันสำหรับงานที่ติดปัญหา
+            </p>
+          </div>
+        </details>
+      </section>
+      <section hidden={view !== 'plan'}>
+        <div className="grid gap-4">
           <VerdictHero forecast={forecast} atRisk={atRisk.length} />
-          <AdminTodo jobs={jobs} now={now} onOpen={onOpen} />
+          <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+            <NewJobCheck jobs={jobs} now={now} />
+            <StationLoadCard forecast={forecast} />
+          </div>
         </div>
-      </Section>
-
-      <Section no={3} title="วางแผนรับงานใหม่" sub="คำนวณวันเสร็จ และดูว่าสถานีไหนงานค้าง">
-        <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-2">
-          <NewJobCheck jobs={jobs} now={now} />
-          <StationLoadCard forecast={forecast} />
-        </div>
-      </Section>
-
-      <Section no={4} title="ทุกงานอยู่ขั้นไหน" sub="เรียงจากงานเสี่ยงไม่ทันก่อน · กดแถวเพื่อดูรายละเอียด">
-        <JobTable rows={rows} jobs={jobs} now={now} onOpen={onOpen} />
-        <p className="mt-3 text-xs text-muted">
-          * "คาดเสร็จ" ประมาณจากกำลังผลิตต่อวันของแต่ละสถานี (ตัวเลขร่าง รอยืนยันกับหน้างาน) · ทำงานจันทร์–เสาร์ ·
-          ก่อนเข้าผลิตจริงเผื่อเวลาวัตถุดิบ + ตัวอย่าง + ลูกค้ายืนยัน · งานที่ติดปัญหาเผื่อเพิ่ม {LEAD.hold} วัน
-        </p>
-      </Section>
+      </section>
     </div>
   )
 }
 
-function Section({ no, title, sub, children }: { no: number; title: string; sub: string; children: React.ReactNode }) {
+/** ตัวเลขสรุปบนสุด อ่านจบในครั้งเดียวว่าโรงงานเป็นอย่างไร */
+function KpiRow({ jobs, now, atRisk }: { jobs: Job[]; now: Date; atRisk: number }) {
+  const active = jobs.filter(j => j.phase !== 'done')
+  const overdue = active.filter(j => isOverdue(j, now)).length
+  const soon = active.filter(j => !isOverdue(j, now) && isDueSoon(j, now)).length
+  const hold = active.filter(j => j.status === 'hold').length
+  const done = jobs.filter(j => isDoneToday(j, now)).length
   return (
-    <section className="min-w-0">
-      <header className="mb-3 flex items-baseline gap-3">
-        <span className="grid size-6 shrink-0 translate-y-0.5 place-items-center rounded-full bg-brand text-xs font-bold text-white">{no}</span>
-        <h2 className="text-lg font-bold tracking-tight">{title}</h2>
-        <p className="hidden truncate text-sm text-muted sm:block">{sub}</p>
-      </header>
-      {children}
-    </section>
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <StatTile icon={IconFactory} tone="brand" label="งานในโรงงาน" value={active.length} note={`${active.reduce((s, j) => s + j.qty, 0).toLocaleString('th-TH')} ชิ้น`} />
+      <StatTile icon={IconAlert} tone="danger" label="เลยกำหนดส่ง" value={overdue} note={soon ? `ใกล้ส่งอีก ${soon} งาน` : 'ไม่มีงานใกล้ส่ง'} />
+      <StatTile icon={IconPause} tone="danger" label="ติดปัญหา / พักงาน" value={hold} note={atRisk ? `เสี่ยงไม่ทัน ${atRisk} งาน` : 'ทุกงานคาดว่าทัน'} />
+      <StatTile icon={IconCheck} tone="ok" label="เสร็จวันนี้" value={done} note="พร้อมส่ง" />
+    </div>
   )
 }
 
@@ -69,24 +82,22 @@ function VerdictHero({ forecast, atRisk }: { forecast: Forecast; atRisk: number 
   const v = verdict(forecast, atRisk)
   const b = forecast.load[forecast.bottleneck]
   const theme = {
-    ok: { bg: 'from-[#0f4a42] to-[#1b6b5f]', chip: 'bg-white/15', label: 'รับได้' },
-    tight: { bg: 'from-[#8a5300] to-[#b06a00]', chip: 'bg-white/15', label: 'ระวัง' },
-    full: { bg: 'from-[#8f241c] to-[#c0362c]', chip: 'bg-white/15', label: 'คิวเต็ม' },
+    ok: { bg: 'border-l-ok', tone: 'ok' as Tone, label: 'รับได้' },
+    tight: { bg: 'border-l-warn', tone: 'warn' as Tone, label: 'ระวัง' },
+    full: { bg: 'border-l-danger', tone: 'danger' as Tone, label: 'คิวเต็ม' },
   }[v.level]
   const Icon = v.level === 'ok' ? IconCheck : IconAlert
 
   return (
-    <section className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${theme.bg} p-5 text-white shadow-lift sm:p-6`}>
-      <div className="pointer-events-none absolute -top-16 -right-10 size-56 rounded-full bg-white/10" />
-      <div className="pointer-events-none absolute -right-24 -bottom-24 size-64 rounded-full bg-white/5" />
+    <section className={`rounded-2xl border border-line border-l-8 bg-card p-4 shadow-card sm:p-5 ${theme.bg}`}>
       {/* จอใหญ่: คำตอบซ้าย ตัวเลขประกอบขวา ในแถวเดียว */}
-      <div className="relative grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] xl:items-center">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] xl:items-center">
         <div className="flex items-start gap-4">
-          <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/15"><Icon className="size-6" /></span>
+          <span className={`grid size-12 shrink-0 place-items-center rounded-full ${TONE[theme.tone].soft}`}><Icon className="size-6" /></span>
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-2 text-sm text-white/75">รับงานใหม่ได้ไหม? <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-bold text-ink">{theme.label}</span></p>
-            <h2 className="mt-1 text-xl leading-snug font-bold sm:text-2xl">{v.title}</h2>
-            <p className="mt-2 text-xs text-white/65">เกณฑ์: คิวไม่เกิน {QUEUE_OK_DAYS} วัน = รับได้ · {QUEUE_OK_DAYS}–{QUEUE_FULL_DAYS} วัน = ดูกำหนดส่ง · เกิน {QUEUE_FULL_DAYS} วัน = คิวเต็ม</p>
+            <p className="flex items-center gap-2 text-sm text-muted">รับงานใหม่ได้ไหม? <Pill tone={theme.tone} dot>{theme.label}</Pill></p>
+            <h2 className="mt-1 text-xl leading-snug font-bold">{v.title}</h2>
+            <p className="mt-2 text-sm text-muted">เกณฑ์: คิวไม่เกิน {QUEUE_OK_DAYS} วัน = รับได้ · {QUEUE_OK_DAYS}–{QUEUE_FULL_DAYS} วัน = ดูกำหนดส่ง · เกิน {QUEUE_FULL_DAYS} วัน = คิวเต็ม</p>
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -101,10 +112,10 @@ function VerdictHero({ forecast, atRisk }: { forecast: Forecast; atRisk: number 
 
 function HeroStat({ label, value, note }: { label: string; value: string; note: string }) {
   return (
-    <div className="rounded-xl bg-white/12 p-3 ring-1 ring-white/15 backdrop-blur-sm">
-      <div className="text-xs text-white/70">{label}</div>
+    <div className="rounded-xl bg-paper p-3">
+      <div className="text-sm text-muted">{label}</div>
       <div className="text-lg font-bold">{value}</div>
-      <div className="text-xs text-white/70">{note}</div>
+      <div className="text-sm text-muted">{note}</div>
     </div>
   )
 }
@@ -121,7 +132,7 @@ function NewJobCheck({ jobs, now }: { jobs: Job[]; now: Date }) {
   const finish = workdayToDate(r.extraFinishDay ?? 0, now)
   const dueDate = due ? new Date(`${due}T17:00`) : null
   const late = dueDate ? lateDays(finish, dueDate) : null
-  const input = 'w-full min-w-0 rounded-xl border border-line bg-paper/60 px-3 py-2.5 outline-none transition focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/15'
+  const input = 'w-full min-w-0 rounded-xl border border-line bg-card px-3 py-2.5 outline-none focus:border-brand focus:ring-2 focus:ring-brand/15'
 
   return (
     <Card className="flex h-full flex-col">
@@ -147,8 +158,8 @@ function NewJobCheck({ jobs, now }: { jobs: Job[]; now: Date }) {
         <p className="mx-5 mt-4 rounded-2xl bg-warn-soft p-4 text-sm font-semibold text-warn">ใส่จำนวนชิ้นอย่างน้อย 1 ชิ้น เพื่อคำนวณวันเสร็จ</p>
       ) : (
       <div className={`mx-5 mt-4 flex items-center gap-4 rounded-2xl p-4 ${late === null ? 'bg-brand-soft' : late > 0 ? 'bg-danger-soft' : 'bg-ok-soft'}`}>
-        <div className="grid size-14 shrink-0 place-items-center rounded-xl bg-white text-center leading-none shadow-card">
-          <span className="text-[10px] text-muted">{finish.toLocaleDateString('th-TH', { month: 'short' })}</span>
+        <div className="grid size-14 shrink-0 place-items-center rounded-xl bg-card text-center leading-none shadow-card">
+          <span className="text-xs text-muted">{finish.toLocaleDateString('th-TH', { month: 'short' })}</span>
           <span className="text-xl font-bold">{finish.getDate()}</span>
         </div>
         <div className="min-w-0 text-sm">
@@ -169,7 +180,7 @@ function NewJobCheck({ jobs, now }: { jobs: Job[]; now: Date }) {
           {quotes.map(({ q, d }) => (
             <li key={q}>
               <button onClick={() => setQty(q)} aria-pressed={qty === q}
-                className={`w-full rounded-xl border px-3 py-2 text-left transition hover:border-brand ${qty === q ? 'border-brand bg-brand-soft' : 'border-line bg-white'}`}>
+                className={`w-full rounded-xl border px-3 py-2 text-left transition hover:border-brand ${qty === q ? 'border-brand bg-brand-soft' : 'border-line bg-card'}`}>
                 <span className="block text-xs text-muted">{q.toLocaleString('th-TH')} ชิ้น</span>
                 <span className="block font-semibold tabular-nums">{shortDate(d)}</span>
               </button>
@@ -186,25 +197,24 @@ function StationLoadCard({ forecast }: { forecast: Forecast }) {
   const order: StationCode[] = ['print', 'press', 'cut', 'dtf_press', 'sew', 'qc_pack']
   return (
     <Card className="h-full">
-      <CardHeader icon={IconTrendingUp} title="งานค้างแต่ละสถานี" sub="ต้องใช้กี่วันทำงานจึงเคลียร์งานที่มีอยู่ (รวมงานที่ยังมาไม่ถึง)"
-        right={<span className="hidden text-[11px] text-muted sm:block">เส้นแบ่ง {QUEUE_OK_DAYS} / {QUEUE_FULL_DAYS} วัน</span>} />
-      <ul className="grid gap-3.5 px-5 pb-5">
+      <CardHeader icon={IconTrendingUp} title="งานค้างแต่ละสถานี" sub={`ต้องใช้กี่วันทำงานจึงเคลียร์งานที่มีอยู่ · เกิน ${QUEUE_OK_DAYS} วัน = ระวัง · เกิน ${QUEUE_FULL_DAYS} วัน = คิวเต็ม`} />
+      <ul className="grid gap-4 px-4 pb-5 sm:px-5">
         {order.map(s => {
           const l = forecast.load[s]
           const tone: Tone = l.days > QUEUE_FULL_DAYS ? 'danger' : l.days > QUEUE_OK_DAYS ? 'warn' : 'ok'
           return (
-            <li key={s} className="text-sm">
-              <div className="mb-1 flex items-baseline gap-2">
-                <span className={s === forecast.bottleneck ? 'font-semibold' : 'font-medium'}>{STATION_NAME[s]}</span>
+            <li key={s}>
+              <div className="mb-1.5 flex items-baseline gap-2">
+                <span className="font-semibold">{STATION_NAME[s]}</span>
                 {s === forecast.bottleneck && <Pill tone="danger">คอขวด</Pill>}
-                <span className={`ml-auto font-semibold tabular-nums ${TONE[tone].text}`}>{days(l.days)} วัน</span>
+                <span className={`ml-auto font-bold tabular-nums ${TONE[tone].text}`}>{days(l.days)} วัน</span>
               </div>
-              <div className="relative h-2.5 rounded-full bg-paper">
+              <div className="relative h-3 rounded-full bg-paper">
                 <div className={`absolute inset-y-0 left-0 rounded-full ${TONE[tone].dot}`} style={{ width: `${Math.max(2, (l.days / max) * 100)}%` }} />
-                <div className="absolute -inset-y-0.5 w-px bg-ink/20" style={{ left: `${(QUEUE_OK_DAYS / max) * 100}%` }} />
-                <div className="absolute -inset-y-0.5 w-px bg-ink/20" style={{ left: `${(QUEUE_FULL_DAYS / max) * 100}%` }} />
+                <div className="absolute -inset-y-1 w-0.5 bg-ink/25" style={{ left: `${(QUEUE_OK_DAYS / max) * 100}%` }} />
+                <div className="absolute -inset-y-1 w-0.5 bg-ink/25" style={{ left: `${(QUEUE_FULL_DAYS / max) * 100}%` }} />
               </div>
-              <div className="mt-1 text-xs text-muted">{l.jobs} งาน · {Math.round(l.qty).toLocaleString('th-TH')} ชิ้น · ทำได้ ~{CAPACITY[s]}/วัน</div>
+              <div className="mt-1 text-sm text-muted">{l.jobs} งาน · {Math.round(l.qty).toLocaleString('th-TH')} ชิ้น · ทำได้ ~{CAPACITY[s]}/วัน</div>
             </li>
           )
         })}
@@ -226,7 +236,7 @@ function Pipeline({ jobs, now }: { jobs: Job[]; now: Date }) {
   return (
     <div className="px-5 pb-4">
       <div className="flex h-2.5 overflow-hidden rounded-full bg-paper" aria-hidden>
-        {stages.map(s => s.n > 0 && <span key={s.name} className={`${s.color} border-r-2 border-white last:border-0`} style={{ width: `${(s.n / total) * 100}%` }} />)}
+        {stages.map(s => s.n > 0 && <span key={s.name} className={`${s.color} border-r-2 border-card last:border-0`} style={{ width: `${(s.n / total) * 100}%` }} />)}
       </div>
       <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
         {stages.map(s => (
@@ -242,38 +252,46 @@ function Pipeline({ jobs, now }: { jobs: Job[]; now: Date }) {
 }
 
 function AdminTodo({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpen: (id: string) => void }) {
+  const [expanded, setExpanded] = useState(false)
   const items: { id: string; tone: Tone; tag: string; text: string; job: Job }[] = []
   for (const j of jobs) {
     if (j.phase === 'done') continue
     if (j.status === 'hold') items.push({ id: j.id + 'h', tone: 'danger', tag: 'ติดปัญหา', text: j.holdReason ?? '', job: j })
-    if (j.film && !j.film.received) {
+    else if (isOverdue(j, now)) items.push({ id: j.id + 'd', tone: 'danger', tag: 'เลยกำหนดส่ง', text: `กำหนดส่ง ${shortDate(j.due)}`, job: j })
+    else if (j.film && !j.film.received) {
       const late = isFilmLate(j, now)
       items.push({ id: j.id + 'f', tone: late ? 'danger' : 'warn', tag: late ? 'ฟิล์มเลย ETA' : 'รอฟิล์ม', text: late ? `ETA ${shortDate(j.film.eta)} · ตามร้านฟิล์ม` : `ETA ${shortDate(j.film.eta)}`, job: j })
     }
-    if (j.phase === 'materials' && !j.materials.admin) items.push({ id: j.id + 'm', tone: 'warn', tag: 'วัตถุดิบ', text: 'ฝ่ายแอดมินยังไม่ติ๊ก', job: j })
-    if (j.phase === 'sample_review') items.push({ id: j.id + 's', tone: 'info', tag: 'ตามลูกค้า', text: `ยืนยันตัวอย่าง · รอมา ${duration(now.getTime() - j.since.getTime())}`, job: j })
+    else if (j.phase === 'materials' && !j.materials.admin) items.push({ id: j.id + 'm', tone: 'warn', tag: 'วัตถุดิบ', text: 'ฝ่ายแอดมินยังไม่ติ๊ก', job: j })
+    else if (j.phase === 'sample_review') items.push({ id: j.id + 's', tone: 'info', tag: 'ตามลูกค้า', text: `ยืนยันตัวอย่าง · รอมา ${duration(now.getTime() - j.since.getTime())}`, job: j })
   }
   const rank: Partial<Record<Tone, number>> = { danger: 0, warn: 1, info: 2 }
-  items.sort((a, b) => (rank[a.tone] ?? 9) - (rank[b.tone] ?? 9))
+  items.sort((a, b) => (rank[a.tone] ?? 9) - (rank[b.tone] ?? 9) || a.job.due.getTime() - b.job.due.getTime())
 
   return (
     <Card>
-      <CardHeader icon={IconClipboard} tone="warn" title="แอดมินต้องตาม" sub="เรียงจากเรื่องเร่งที่สุด" right={<span className="grid size-7 place-items-center rounded-full bg-warn text-xs font-bold text-white">{items.length}</span>} />
-      <ul className="grid grid-cols-1 gap-x-2 px-2 pb-3 md:grid-cols-2 xl:grid-cols-3">
-        {items.map(it => (
+      <CardHeader icon={IconClipboard} tone="warn" title={`งานที่ต้องตาม ${items.length} งาน`} />
+      <ul className="divide-y divide-line border-t border-line">
+        {(expanded ? items : items.slice(0, 6)).map(it => (
           <li key={it.id} className="min-w-0">
-            <button onClick={() => onOpen(it.job.id)} className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-paper">
+            <button onClick={() => onOpen(it.job.id)} className="flex min-h-14 w-full items-center gap-3 px-5 py-2.5 text-left transition hover:bg-paper">
               <span className={`h-9 w-1 shrink-0 rounded-full ${TONE[it.tone].dot}`} />
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2"><b>{it.job.no}</b><Pill tone={it.tone}>{it.tag}</Pill></span>
-                <span className="block truncate text-xs text-muted">{it.job.customer} · {it.text}</span>
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5"><b>{it.job.no}</b><Pill tone={it.tone}>{it.tag}</Pill></span>
+                <span className="block text-sm text-muted">{it.job.customer}{it.text && ` · ${it.text}`}</span>
               </span>
-              <IconChevronRight className="size-4 text-muted opacity-0 transition group-hover:opacity-100" />
+              <IconChevronRight className="size-4 shrink-0 text-muted" />
             </button>
           </li>
         ))}
-        {!items.length && <li className="px-3 py-4 text-sm text-muted">ไม่มีเรื่องค้าง</li>}
+        {!items.length && <li className="px-5 py-4 text-muted">ไม่มีงานที่ต้องตาม</li>}
       </ul>
+      {items.length > 6 && (
+        <button type="button" onClick={() => setExpanded(!expanded)} aria-expanded={expanded}
+          className="min-h-12 w-full border-t border-line px-5 font-semibold text-brand hover:bg-paper">
+          {expanded ? 'แสดงน้อยลง' : `ดูอีก ${items.length - 6} งาน`}
+        </button>
+      )}
     </Card>
   )
 }
@@ -293,7 +311,7 @@ function JobTable({ rows, jobs, now, onOpen }: { rows: Row[]; jobs: Job[]; now: 
           return (
             <li key={j.id}>
               <button onClick={() => onOpen(j.id)}
-                className={`grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 px-5 py-3 text-left text-sm transition hover:bg-brand-soft/40 md:items-center ${cols}`}>
+                className={`grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 px-5 py-3 text-left text-sm transition hover:bg-paper md:items-center ${cols}`}>
                 <span className="flex items-center gap-1.5 font-semibold">{j.no}<RouteBadge route={j.route} /></span>
                 <span className="justify-self-end md:hidden"><Risk late={late} /></span>
                 <span className="col-span-2 min-w-0 md:col-span-1">

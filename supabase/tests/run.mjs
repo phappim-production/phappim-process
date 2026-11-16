@@ -124,5 +124,13 @@ ok('foreign key ทุกตัวมี index', fkNoIdx.rows.length === 0, fkNo
 const { workflowTests } = await import('./workflow.mjs')
 await workflowTests({ db, ok, as })
 
+// ---- 8. ผู้ควบคุมงาน 2 เฟส ----
+const { sectionTests } = await import('./sections.mjs')
+await sectionTests({ db, ok, as })
+
+// ---- 9. จักรเย็บ (S14) ----
+const { sewingTests } = await import('./sewing.mjs')
+await sewingTests({ db, ok, as })
+
 console.log(`\nผ่าน ${pass} · ไม่ผ่าน ${fail}`)
 process.exit(fail ? 1 : 0)
