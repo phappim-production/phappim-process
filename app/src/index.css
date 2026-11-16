@@ -1,7 +1,50 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans Thai", system-ui, sans-serif;
+
+  /* แบรนด์ (เขียวภาพพิมพ์ 142 + ทองจากโลโก้) */
+  --color-brand: #0f4a42;
+  --color-brand-700: #0b3a34;
+  --color-brand-500: #1b6b5f;
+  --color-brand-soft: #e4f1ed;
+  --color-gold: #c9a24c;
+  --color-gold-soft: #f8f0dc;
+
+  /* พื้นและตัวอักษร */
+  --color-paper: #f3f5f4;
+  --color-line: #e2e7e4;
+  --color-ink: #16201c;
+  --color-muted: #66736c;
+
+  /* สถานะ */
+  --color-danger: #c0362c;
+  --color-danger-soft: #fdecea;
+  --color-warn: #b06a00;
+  --color-warn-soft: #fff3df;
+  --color-info: #2662a6;
+  --color-info-soft: #e8f0fb;
+  --color-ok: #17803d;
+  --color-ok-soft: #e7f6ec;
+  --color-dtf: #6b3a8f;
+  --color-dtf-soft: #f1e9f7;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 2px 6px rgb(16 24 40 / 0.05);
+  --shadow-lift: 0 4px 10px rgb(16 24 40 / 0.07), 0 12px 28px rgb(16 24 40 / 0.08);
+
+  --animate-drawer: drawer 0.22s ease-out;
+  --animate-fade: fade 0.18s ease-out;
+  @keyframes drawer { from { transform: translateX(24px); opacity: 0 } to { transform: none; opacity: 1 } }
+  @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+}
 
 body {
   margin: 0;
-  font-family: "IBM Plex Sans Thai", system-ui, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
 }
+
+/* แถบเลื่อนบาง ๆ ในบอร์ด */
+.scroll-thin { scrollbar-width: thin; scrollbar-color: #c5cec9 transparent; }
