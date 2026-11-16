@@ -5,7 +5,7 @@ export async function sewingTests({ db, ok, as }) {
   const U = {
     owner: '00000000-0000-0000-0000-000000000001', sup: '00000000-0000-0000-0000-000000000002',
     nobody: '00000000-0000-0000-0000-000000000003',
-    qc: '00000000-0000-0000-0000-000000000012', prod: '00000000-0000-0000-0000-000000000013',
+    admin: '00000000-0000-0000-0000-000000000011', qc: '00000000-0000-0000-0000-000000000012', prod: '00000000-0000-0000-0000-000000000013',
     sup1: '00000000-0000-0000-0000-000000000021', sup2: '00000000-0000-0000-0000-000000000022',
   }
   const call = (uid, sql) => as(uid, () => db.query(`select ${sql}`))
@@ -152,8 +152,8 @@ export async function sewingTests({ db, ok, as }) {
   await reject('ใส่เวลาซ่อมตอนกดซ่อมเสร็จไม่ได้', U.prod, `public.set_machine_status('BD-01', 'ready', null, now() + interval '1 hour')`, /เฉพาะตอนแจ้งเสีย/)
   await pass('ฝ่ายผลิตกดซ่อมเสร็จได้', U.prod, `public.set_machine_status('BD-01', 'ready')`)
   ok('ซ่อมเสร็จแล้วล้างเวลาซ่อม', (await db.query(`select repair_eta from public.sewing_machines where code = 'BD-01'`)).rows[0].repair_eta === null)
-  await reject('ฝ่ายผลิตกดเริ่มเย็บไม่ได้', U.prod, `public.start_sewing('${tee3}')`, /บทบาท/)
-  await reject('ฝ่ายผลิตจ่ายจักรไม่ได้', U.prod, `public.assign_machines('${tee3}', array['BD-01'])`, /บทบาท/)
+  await reject('แอดมินกดเริ่มเย็บไม่ได้', U.admin, `public.start_sewing('${tee3}')`, /บทบาท/)
+  await reject('แอดมินจ่ายจักรไม่ได้', U.admin, `public.assign_machines('${tee3}', array['BD-01'])`, /บทบาท/)
   await call(U.sup2, `public.release_machines('${tee3}')`)  // คืนจักรของงานที่พักอยู่ เพื่อให้งานถัดไปใช้
   const tee4 = await jobAt('SC-SEW-T4', 'plain', 2)
   await call(U.sup2, `public.start_sewing('${tee4}')`)

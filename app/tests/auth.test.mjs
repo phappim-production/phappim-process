@@ -118,7 +118,8 @@ test('เฟส 2 ไม่มีปุ่มดูทั้งโรงงา�
   assert.equal(boardScope('supervisor', 1).allowFactory, true)
   assert.equal(boardScope('supervisor', 1).canSew, false)
   assert.equal(boardScope('supervisor', null).canSew, true)
-  for (const role of ['admin', 'manager', 'production', 'qc']) assert.equal(boardScope(role, null).canSew, false, role)
+  for (const role of ['admin', 'manager', 'qc']) assert.equal(boardScope(role, null).canSew, false, role)
+  assert.equal(boardScope('production', null).canSew, true, 'ฝ่ายผลิตคุมหน้างานทั้งหมด รวมงานเย็บ')
   assert.equal(boardScope('owner', null).canSew, true, 'owner ทำแทนเฟส 2 ได้')
 })
 
@@ -135,7 +136,6 @@ test('ใครแจ้งจักรเสีย / ซ่อมเสร็�
   assert.equal(boardScope('supervisor', null).canReportMachines, true)
   assert.equal(boardScope('production', null).canReportMachines, true)
   assert.equal(boardScope('owner', null).canReportMachines, true)
-  assert.equal(boardScope('production', null).canSew, false, 'ฝ่ายผลิตแจ้งเสียได้ แต่เริ่มเย็บไม่ได้')
   for (const [role, section] of [['supervisor', 1], ['qc', null], ['admin', null], ['manager', null]]) {
     assert.equal(boardScope(role, section).canReportMachines, false, `${role} ${section}`)
   }

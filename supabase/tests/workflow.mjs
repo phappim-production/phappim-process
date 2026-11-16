@@ -63,7 +63,7 @@ export async function workflowTests({ db, ok, as }) {
   catch (e) { ok('กฎ 12: คนไม่ล็อกอินเรียกรับงานไม่ได้', /permission denied/.test(e.message), e.message.split('\n')[0]) }
   finally { await db.exec('reset role') }
   await reject('กฎ 12: ผู้ใช้ไม่มีบทบาทรับงานไม่ได้', U.nobody, receive('SC-NOROLE', 'normal'), /เข้าสู่ระบบ/)
-  await reject('กฎ 12: ฝ่ายผลิตรับงานไม่ได้', U.prod, receive('SC-PROD', 'normal'), /ทำขั้นนี้ไม่ได้/)
+  await reject('กฎ 12: แอดมินรับงานไม่ได้', U.admin, receive('SC-PROD', 'normal'), /ทำขั้นนี้ไม่ได้/)
   await reject('กฎ 12: ผู้บริหาร (อ่านอย่างเดียว) รับงานไม่ได้', U.mgr, receive('SC-MGR', 'normal'), /ทำขั้นนี้ไม่ได้/)
   await reject('กฎ 12: เรียกฟังก์ชันช่วยใน private ตรงไม่ได้', U.sup, `private.require_role('owner')`, /permission denied/)
   try { await q(U.sup, `insert into public.events (job_id, type) select id, 'x' from public.jobs limit 1`); ok('กฎ 12: ผู้ควบคุมงานเขียน events ตรงไม่ได้', false) }
