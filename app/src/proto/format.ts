@@ -1,4 +1,10 @@
-import { DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME, missingDepts, thaiDayDiff, type Job } from './model'
+import { DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME, missingDepts, thaiDayDiff, type Job } from './model.ts'
+
+/** ใส่ช่องว่างรอบชื่อที่ขึ้นต้น/ลงท้ายด้วยอักษรอังกฤษหรือตัวเลข เมื่อวางในประโยคไทย
+ *  ("เริ่ม" + "QC + Packing" + "แล้ว" → "เริ่ม QC + Packing แล้ว") ชื่อไทยล้วนไม่เปลี่ยน */
+export function spaced(name: string): string {
+  return `${/^[A-Za-z0-9]/.test(name) ? ' ' : ''}${name}${/[A-Za-z0-9)]$/.test(name) ? ' ' : ''}`
+}
 
 export function shortDate(d: Date) {
   return d.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' })

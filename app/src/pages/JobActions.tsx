@@ -4,6 +4,7 @@ import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { etaFromDay, isRequired, isStepDone, KIND_LABEL, missingSteps, type Substep } from '../data/stationSteps'
 import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job } from '../proto/model'
+import { spaced } from '../proto/format'
 import { bookingDay } from '../proto/sewing'
 import type { EmployeeRole } from '../auth/access'
 import { Pill } from '../components/ui'
@@ -120,8 +121,10 @@ export function JobActions({ job: j, role, version, now, refresh }: {
 /** เปิด PDF ใบยืนยันที่เซ็นครบ (S8) · ลิงก์มีอายุ 5 นาที เพราะไฟล์ไม่เปิดสาธารณะ */
 function OpenPdf({ path }: { path: string }) {
   const [error, setError] = useState('')
+  const [link, setLink] = useState('')
   async function open() {
     setError('')
+    setLink('')
     // เปิดหน้าต่างก่อนรอลิงก์ ไม่อย่างนั้นเบราว์เซอร์บนมือถือจะบล็อกป๊อปอัป
     const win = window.open('', '_blank')
     const r = await supabase?.storage.from('confirmations').createSignedUrl(path, 300)
@@ -131,11 +134,18 @@ function OpenPdf({ path }: { path: string }) {
       return
     }
     if (win) win.location.href = r.data.signedUrl
-    else window.location.href = r.data.signedUrl
+    // บางเครื่อง (แอปที่ติดตั้งบนหน้าจอ / เบราว์เซอร์ในแอปอื่น) เปิดแท็บใหม่ไม่ขึ้นและไม่แจ้งอะไร
+    // จึงแสดงลิงก์ให้กดเองเสมอ การกดลิงก์ตรงไม่โดนบล็อก
+    setLink(r.data.signedUrl)
   }
   return (
     <div className="grid gap-1">
       <button type="button" className={secondaryBtn} onClick={() => void open()}>เปิด PDF ใบยืนยัน</button>
+      {link && (
+        <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-medium text-brand underline">
+          ถ้าไฟล์ไม่เปิดขึ้นมา กดที่นี่ (ลิงก์ใช้ได้ 5 นาที)
+        </a>
+      )}
       {error && <p role="alert" className="text-danger">{error}</p>}
     </div>
   )
@@ -166,14 +176,14 @@ function Materials({ materials, role, busy, sample, onCheck }: {
               {checked ? <IconCheck className="size-5 text-ok" /> : <IconClock className="size-5 text-warn" />}
               <span className="min-w-0 flex-1">
                 <span className="block break-words">{m.name}</span>
-                <span className="text-sm text-muted">ฝ่าย{DEPT_NAME[m.dept]}{auto ? ' · ติ๊กให้เองเมื่อแอดมินบันทึกสั่งฟิล์ม' : ''}</span>
+                <span className="text-sm text-muted">{DEPT_NAME[m.dept]}{auto ? ' · ติ๊กให้เองเมื่อแอดมินบันทึกสั่งฟิล์ม' : ''}</span>
               </span>
               {!auto && mine && (
                 checked
                   ? <button type="button" disabled={busy} className={secondaryBtn} onClick={() => onCheck(m, false)}>ยกเลิกติ๊ก</button>
                   : <button type="button" disabled={busy} className={okBtn} onClick={() => onCheck(m, true)}><IconCheck className="size-5" />ครบแล้ว</button>
               )}
-              {!auto && !mine && !checked && <Pill tone="warn">รอฝ่าย{DEPT_NAME[m.dept]}</Pill>}
+              {!auto && !mine && !checked && <Pill tone="warn">รอ {DEPT_NAME[m.dept]}</Pill>}
             </li>
           )
         })}
@@ -289,8 +299,8 @@ function Station({ job: j, detail: d, canPress, role, busy, now, act }: {
         {j.status === 'queued' && canPress && (
           <button type="button" disabled={busy || (st === 'dtf_press' && !j.film?.received)} className={`${primaryBtn} w-full`}
             title={st === 'dtf_press' && !j.film?.received ? `ยังไม่ได้รับ${filmLabel(j.route)}` : undefined}
-            onClick={() => void act('start_station', {}, `เริ่ม${name}แล้ว`)}>
-            {st === 'dtf_press' && !j.film?.received ? `เริ่มไม่ได้ · ยังไม่ได้รับ${filmLabel(j.route)}` : `เริ่ม${name}`}
+            onClick={() => void act('start_station', {}, `เริ่ม${spaced(name)}แล้ว`)}>
+            {st === 'dtf_press' && !j.film?.received ? `เริ่มไม่ได้ · ยังไม่ได้รับ${filmLabel(j.route)}` : `เริ่ม${spaced(name).trimEnd()}`}
           </button>
         )}
 
@@ -311,10 +321,10 @@ function Station({ job: j, detail: d, canPress, role, busy, now, act }: {
                 ))}</ol>}
             {st === 'qc_pack' && !sample && canPress && <QcPanel job={j} passed={d.qcPassed} busy={busy} act={act} />}
             {canPress && (confirmFinish
-              ? <Confirm text={`ยืนยัน${name}เสร็จทั้งก้อน? งานจะส่งต่ออัตโนมัติ`} busy={busy}
-                  onYes={async () => { if (await act('finish_station', {}, `${name}เสร็จ · ส่งต่อแล้ว`)) setConfirmFinish(false) }} onNo={() => setConfirmFinish(false)} />
+              ? <Confirm text={`ยืนยัน${spaced(name)}เสร็จทั้งก้อน? งานจะส่งต่ออัตโนมัติ`} busy={busy}
+                  onYes={async () => { if (await act('finish_station', {}, `${spaced(name).trimStart()}เสร็จ · ส่งต่อแล้ว`)) setConfirmFinish(false) }} onNo={() => setConfirmFinish(false)} />
               : <button type="button" disabled={busy || !!finishBlock} className={okBtn} onClick={() => setConfirmFinish(true)}>
-                  <IconCheck className="size-5" />{finishBlock ? 'ยังกดเสร็จไม่ได้' : `${name}เสร็จ`}
+                  <IconCheck className="size-5" />{finishBlock ? 'ยังกดเสร็จไม่ได้' : `${spaced(name).trimStart()}เสร็จ`}
                 </button>)}
             {canPress && finishBlock && <p className="text-sm font-medium text-warn">{finishBlock}</p>}
           </div>
@@ -374,13 +384,13 @@ function StepRow({ step, ctx, value, canPress, busy, onTick }: {
   return (
     <li className="flex flex-wrap items-center gap-2 rounded-xl border border-line p-2">
       {done ? <IconCheck className="size-5 shrink-0 text-ok" /> : <span className="size-5 shrink-0 rounded-full border-2 border-line" aria-hidden />}
-      <span className="min-w-0 flex-1">
+      <span className="min-w-40 flex-1">
         <span className={`block break-words ${done ? 'text-muted' : ''}`}>{step.name}{done && typeof value === 'number' ? ` · ${value.toLocaleString('th-TH')}` : ''}</span>
-        <span className="text-xs text-muted">{KIND_LABEL[step.kind]}{required ? ' · ต้องทำก่อนกดเสร็จ' : ''}</span>
+        <span className="text-xs text-muted">{required ? `${KIND_LABEL[step.kind]} · ต้องทำก่อนกดเสร็จ` : step.kind === 'opt' ? KIND_LABEL.opt : 'ไม่บังคับในรอบนี้'}</span>
       </span>
       {!done && canPress && !qcInspect && step.kind !== 'lock' && (
         step.kind === 'num' ? (
-          <span className="flex gap-2">
+          <span className="ml-auto flex gap-2">
             <input type="number" min={0} inputMode="decimal" value={n} onChange={e => setN(e.target.value)} aria-label={step.name} className={`${fieldClass} w-28`} />
             <button type="button" disabled={busy || n === '' || Number(n) < 0} className={primaryBtn} onClick={() => void onTick(Number(n))}>บันทึก</button>
           </span>

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { dayDiff, duration, relDay, stageSteps, stageText } from './format'
+import { dayDiff, duration, relDay, spaced, stageSteps, stageText } from './format'
 import type { Job, Phase, RouteCode } from './model'
 
 const date = new Date('2026-11-17T00:00:00+07:00')
@@ -76,4 +76,11 @@ it('งานผลิตที่ยังไม่มีสถานีไฮ�
 
 it('แสดงสถานะพักงานคู่กับชื่อสถานี', () => {
   expect(stageText({ ...job, status: 'hold' })).toBe('เย็บงาน · ติดปัญหา')
+})
+
+it('เว้นวรรครอบชื่ออังกฤษในประโยคไทย · ชื่อไทยล้วนไม่เปลี่ยน', () => {
+  expect(`เริ่ม${spaced('QC + Packing')}แล้ว`).toBe('เริ่ม QC + Packing แล้ว')
+  expect(`เริ่ม${spaced('รีดฟิล์ม')}แล้ว`).toBe('เริ่มรีดฟิล์มแล้ว')
+  expect(`${spaced('QC + Packing').trimStart()}เสร็จ`).toBe('QC + Packing เสร็จ')
+  expect(`กำลังทำ${spaced('รีด DTF').trimEnd()}`).toBe('กำลังทำรีด DTF')
 })

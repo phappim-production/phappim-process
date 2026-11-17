@@ -555,7 +555,7 @@ function JobDrawer({ job: j, now, finish, onClose, actions }: { job: Job; now: D
           </div>
 
           <p className="rounded-xl border border-dashed border-line p-3 text-xs text-muted">
-            ไทม์ไลน์ทุกการกด ภาพ PDF ใบยืนยัน และเวลาต่อสถานี จะเพิ่มในหน้ารายละเอียดงาน (S8)
+            ไทม์ไลน์ทุกการกดและเวลาต่อสถานี จะเพิ่มในหน้ารายละเอียดงานเร็วๆ นี้
           </p>
         </div>
       </aside>
