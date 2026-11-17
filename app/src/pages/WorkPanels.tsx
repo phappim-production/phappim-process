@@ -5,7 +5,7 @@ import { IconClipboard, IconClock, IconSewing } from '../components/icons'
 import type { Job } from '../proto/model'
 import { todoList } from '../proto/actions'
 import {
-  bookedByOther, checkStartSewing, floorSummary, repairEtaProblem, repairStatus, MACHINE_PREFIX, MACHINE_STATE_NAME, MACHINE_TYPE_NAME, MACHINE_TYPES, machineState, sewQueue, SEW_NEEDS,
+  bookedByOther, checkStartSewing, floorSummary, repairEtaProblem, repairStatus, MACHINE_PREFIX, MACHINE_STATE_NAME, MACHINE_TYPE_NAME, MACHINE_TYPES, machineState, sewQueue, type Need,
   type Booking, type Machine, type MachineState, type MachineStatus,
 } from '../proto/sewing'
 
@@ -58,11 +58,11 @@ const SEWING_VIEWS = [
 // จักรเย็บ (S14): งานที่ถึงเฟส 2 แล้ว = รอเย็บ · กดเริ่มเย็บได้เมื่อจักรครบทุกชนิดว่างจริง (ฐานข้อมูลบังคับกฎเดียวกัน)
 export type SewingView = (typeof SEWING_VIEWS)[number][0]
 
-export function SewingFloor({ jobs, machines, bookings = [], now, onOpen, onStart, onStatus, onEta, booking, sewing, initialView }: {
-  jobs: Job[]; machines: Machine[]; bookings?: Booking[]; now: Date; onOpen: (id: string) => void
+export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen, onStart, onStatus, onEta, booking, sewing, initialView }: {
+  jobs: Job[]; machines: Machine[]; bookings?: Booking[]; needs: Record<string, Need[]>; now: Date; onOpen: (id: string) => void
   booking?: ReactNode  // แผงจองจักร (วางระหว่างคิวรอเย็บกับผังจักร)
   sewing?: ReactNode   // แผงกำลังเย็บ (ต่อจากคิวรอเย็บ: รอเย็บ → กำลังเย็บ → เย็บเสร็จ)
-  onStart?: (jobId: string) => { ok: true; picked: string[] } | { ok: false; reason: string }  // ไม่ส่ง = ดูอย่างเดียว
+  onStart?: (jobId: string) => Promise<{ ok: true; picked: string[] } | { ok: false; reason: string }>  // ไม่ส่ง = ดูอย่างเดียว
   onStatus?: OnStatus
   onEta?: OnEta
   initialView?: SewingView  // มาจากการกดตัวเลขสรุป เช่น จักรเสีย → สถานะจักร
@@ -72,14 +72,17 @@ export function SewingFloor({ jobs, machines, bookings = [], now, onOpen, onStar
   )
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const queue = sewQueue(jobs, machines)
-    .map(q => ({ job: q.job, check: checkStartSewing(q.job, machines, SEW_NEEDS, bookings, now) }))
+    .map(q => ({ job: q.job, check: checkStartSewing(q.job, machines, needs, bookings, now) }))
     .sort((a, b) => Number(b.check.ok) - Number(a.check.ok) || a.job.due.getTime() - b.job.due.getTime())
   const startable = queue.filter(q => q.check.ok).length
   const byJob = new Map(jobs.map(j => [j.id, j]))
 
-  function start(job: Job) {
-    if (!onStart) return
-    const r = onStart(job.id)
+  const [starting, setStarting] = useState<string | null>(null)
+  async function start(job: Job) {
+    if (!onStart || starting) return
+    setStarting(job.id)
+    const r = await onStart(job.id)
+    setStarting(null)
     setNotice(r.ok
       ? { ok: true, text: `เริ่มเย็บ ${job.no} แล้ว · ใช้จักร ${r.picked.join(', ')}` }
       : { ok: false, text: `${job.no}: ${r.reason}` })
@@ -128,7 +131,7 @@ export function SewingFloor({ jobs, machines, bookings = [], now, onOpen, onStar
                       )}
                     </button>
                     {onStart && (
-                      <button onClick={() => start(job)} disabled={!check.ok}
+                      <button onClick={() => void start(job)} disabled={!check.ok || starting !== null}
                         title={check.ok ? undefined : check.reason}
                         className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-line disabled:text-muted ">
                         <IconSewing className="size-5" />{check.ok ? 'เริ่มเย็บ' : 'จักรไม่ว่าง'}
@@ -160,8 +163,8 @@ type StateFilter = 'all' | MachineState
 
 // ผังจักรรายเครื่อง: 1 ช่อง = จักร 1 ตัว · มองแวบเดียวเห็นว่าตัวไหนว่าง ตัวไหนใช้กับงานอะไร
 export type StatusResult = { ok: true; heldJob?: string } | { ok: false; reason: string }
-type OnStatus = (code: string, status: MachineStatus, note: string, repairEta?: Date) => StatusResult
-type OnEta = (code: string, eta: Date) => StatusResult
+type OnStatus = (code: string, status: MachineStatus, note: string, repairEta?: Date) => Promise<StatusResult>
+type OnEta = (code: string, eta: Date) => Promise<StatusResult>
 
 function MachineBoard({ jobs, machines, bookings = [], now, onOpen, onStatus, onEta }: {
   jobs: Job[]; machines: Machine[]; bookings?: Booking[]; now: Date; onOpen: (id: string) => void
@@ -180,9 +183,9 @@ function MachineBoard({ jobs, machines, bookings = [], now, onOpen, onStatus, on
   const shown = machines.filter(m => (filter === 'all' || machineState(m) === filter)
     && (!term || `${m.code} ${MACHINE_TYPE_NAME[m.type]}`.toLowerCase().includes(term)))
 
-  function change(m: Machine, status: MachineStatus, note = '', eta?: Date) {
+  async function change(m: Machine, status: MachineStatus, note = '', eta?: Date) {
     if (!onStatus) return false
-    const r = onStatus(m.code, status, note, eta)
+    const r = await onStatus(m.code, status, note, eta)
     if (!r.ok) {
       setNotice({ ok: false, text: r.reason })
       return false
@@ -191,9 +194,9 @@ function MachineBoard({ jobs, machines, bookings = [], now, onOpen, onStatus, on
     setNotice({ ok: true, text: `จักร ${m.code} ${what}${eta ? ` · คาดว่าซ่อมเสร็จ ${when(eta)}` : ''}${r.heldJob ? ` · พักงาน ${r.heldJob} อัตโนมัติ (เย็บต่อได้เมื่อจักรครบ)` : ''}` })
     return true
   }
-  function setEta(m: Machine, eta: Date) {
+  async function setEta(m: Machine, eta: Date) {
     if (!onEta) return false
-    const r = onEta(m.code, eta)
+    const r = await onEta(m.code, eta)
     setNotice(r.ok ? { ok: true, text: `จักร ${m.code} คาดว่าซ่อมเสร็จ ${when(eta)}` } : { ok: false, text: r.reason })
     return r.ok
   }
@@ -234,7 +237,7 @@ function MachineBoard({ jobs, machines, bookings = [], now, onOpen, onStatus, on
                 <MachineTile key={m.id} machine={m} job={m.jobId ? byJob.get(m.jobId) : undefined} now={now} onOpen={onOpen}
                   reservedFor={(() => { const b = bookedByOther(m.id, now, new Date(now.getTime() + 60_000), bookings); return b ? { no: byJob.get(b.jobId)?.no ?? 'งานอื่น', until: b.ends } : undefined })()}
                   onReport={onStatus ? () => { setNotice(null); setReporting(m) } : undefined}
-                  onReady={onStatus ? () => change(m, 'ready') : undefined}
+                  onReady={onStatus ? () => void change(m, 'ready') : undefined}
                   onEta={onEta ? () => { setNotice(null); setEtaFor(m) } : undefined} />
               ))}
             </ul>
@@ -246,12 +249,12 @@ function MachineBoard({ jobs, machines, bookings = [], now, onOpen, onStatus, on
       {reporting && (
         <ReportDialog machine={reporting} job={reporting.jobId ? byJob.get(reporting.jobId) : undefined} now={now} etaRequired={!!onEta}
           onCancel={() => setReporting(null)}
-          onSubmit={(status, note, eta) => { if (change(reporting, status, note, eta)) setReporting(null) }} />
+          onSubmit={async (status, note, eta) => { if (await change(reporting, status, note, eta)) setReporting(null) }} />
       )}
       {etaFor && (
         <Modal title={`กำหนดเวลาซ่อม ${etaFor.code}`} tone="warn" onClose={() => setEtaFor(null)}>
           <EtaForm now={now} initial={etaFor.repairEta} submitLabel={etaFor.repairEta ? 'บันทึกเวลาใหม่' : 'บันทึกเวลาซ่อม'}
-            onCancel={() => setEtaFor(null)} onSubmit={eta => { if (setEta(etaFor, eta)) setEtaFor(null) }} />
+            onCancel={() => setEtaFor(null)} onSubmit={async eta => { if (await setEta(etaFor, eta)) setEtaFor(null) }} />
         </Modal>
       )}
     </Card>

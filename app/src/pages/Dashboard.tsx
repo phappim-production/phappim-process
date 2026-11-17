@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { makeMockBookings, makeMockJobs, makeMockMachines } from '../proto/mockJobs'
+import { rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
   COLUMNS, DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME,
   columnOf, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
@@ -14,7 +14,7 @@ import { roleSummary, type SewingView, type SummaryIcon } from '../proto/summary
 import Overview from './Overview'
 import { DASH_TAB_NAME, FACTORY_SCOPE, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
 import { SewingFloor, TodoPanel } from './WorkPanels'
-import { applyBooking, applyFinishSewing, applyMachineStatus, applyRepairEta, applyReportSewingIssue, applyStartSewing, cancelBookings, SEW_NEEDS, type MachineStatus } from '../proto/sewing'
+import type { MachineStatus } from '../proto/sewing'
 import { BookingPanel } from './BookingPanel'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { SewingNow, type SewActions } from './SewingNow'
@@ -27,69 +27,87 @@ const STATUS_FILTERS: [Filter, string][] = [
 ]
 const filterField = 'min-h-12 w-full min-w-0 rounded-xl border border-line bg-card px-3 focus-visible:outline-2 focus-visible:outline-brand'
 
-// เฟส 1: ภาพรวมแอดมิน + บอร์ดสถานี (ข้อมูลจำลอง) · DEVELOPMENT.md หัวข้อ 8
-export default function Dashboard({ view, today, scope: myScope = FACTORY_SCOPE }: { view: View; today: string; scope?: BoardScope }) {
+// ภาพรวมแอดมิน + บอร์ดสถานี + จักรเย็บ · ข้อมูลจริงจากฐานข้อมูล อัปเดตสดผ่าน Realtime (A5) · DEVELOPMENT.md หัวข้อ 8
+export default function Dashboard({ view, today, scope = FACTORY_SCOPE }: { view: View; today: string; scope?: BoardScope }) {
+  const { state, live, refresh } = useFactoryData()
+  if (state.status === 'loading') {
+    return <main className="flex-1 p-5"><p role="status" className="text-muted">กำลังโหลดข้อมูลงาน…</p></main>
+  }
+  if (state.status === 'error') {
+    return (
+      <main className="flex-1 p-4 sm:p-6">
+        <Card className="mx-auto grid max-w-lg gap-3 p-5">
+          <p role="alert" className="font-semibold text-danger">โหลดข้อมูลงานไม่สำเร็จ</p>
+          <p>{state.message}</p>
+          <button type="button" onClick={() => void refresh()} className="min-h-12 rounded-xl bg-brand px-5 font-semibold text-white">ลองอีกครั้ง</button>
+        </Card>
+      </main>
+    )
+  }
+  return (
+    <>
+      {!live && (
+        <p role="alert" className="border-b border-danger/30 bg-danger-soft px-4 py-1.5 text-sm font-medium text-danger sm:px-6">
+          ขาดการเชื่อมต่อ · ข้อมูลอาจไม่ใช่ล่าสุด (อัปเดตล่าสุด {state.loadedAt.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })} น.) · ระบบจะโหลดใหม่เองเมื่อเน็ตกลับมา
+        </p>
+      )}
+      <DashboardView view={view} today={today} myScope={scope} data={state.data} loadedAt={state.loadedAt} refresh={refresh} />
+    </>
+  )
+}
+
+function DashboardView({ view, today, myScope, data, loadedAt, refresh }: {
+  view: View; today: string; myScope: BoardScope; data: FactoryData; loadedAt: Date; refresh: () => Promise<void>
+}) {
   const now = useNow(30_000)
-  // ข้อมูลจำลองเปลี่ยนได้ เพื่อให้กดเริ่มเย็บแล้วเห็นผลจริงบนจอ (A4 เปลี่ยนเป็นเรียก public.start_sewing)
-  const [{ allJobs, machines, bookings }, setData] = useState(() => {
-    const list = makeMockJobs(new Date())
-    const ms = makeMockMachines(list)
-    return { allJobs: list, machines: ms, bookings: makeMockBookings(list, ms, new Date()) }
-  })
-  const startSewing = (jobId: string) => {
-    const r = applyStartSewing(allJobs, machines, jobId, SEW_NEEDS, new Date(), bookings)
-    if (!r.ok) return { ok: false as const, reason: r.reason }
-    setData({ allJobs: r.jobs, machines: r.machines, bookings })
-    return { ok: true as const, picked: r.picked }
+  const { jobs: allJobs, machines, bookings, needs } = data
+  const noOf = (jobId: string) => allJobs.find(j => j.id === jobId)?.no ?? ''
+  // ทุกปุ่มเรียกฟังก์ชันในฐานข้อมูล (กฎตรวจที่นั่น) แล้วโหลดใหม่ทันที ไม่รอ Realtime
+  async function call<T>(name: string, args: Record<string, unknown>) {
+    const r = await rpc<T>(name, args)
+    if (r.ok) await refresh()
+    return r
   }
-  const book = (jobId: string, starts: Date, ends: Date) => {
-    const job = allJobs.find(j => j.id === jobId)
-    if (!job) return { ok: false as const, reason: 'ไม่พบงานนี้' }
-    const r = applyBooking(job, machines, bookings, starts, ends, SEW_NEEDS, new Date())
-    if (!r.ok) return { ok: false as const, reason: r.reason }
-    setData({ allJobs, machines, bookings: r.bookings })
-    return { ok: true as const, picked: r.picked }
+  const startSewing = async (jobId: string) => {
+    const r = await call<string[]>('start_sewing', { p_job: jobId })
+    return r.ok ? { ok: true as const, picked: r.data ?? [] } : r
   }
-  const cancelBook = (jobId: string) => {
-    const r = cancelBookings(bookings, jobId, new Date())
-    if (!r.ok) return { ok: false as const, reason: r.reason }
-    setData({ allJobs, machines, bookings: r.bookings })
-    return { ok: true as const }
+  const book = async (jobId: string, starts: Date, ends: Date) => {
+    const r = await call<string[]>('book_machines', { p_job: jobId, p_starts: starts.toISOString(), p_ends: ends.toISOString() })
+    return r.ok ? { ok: true as const, picked: r.data ?? [] } : r
   }
-  const setMachineStatus = (code: string, status: MachineStatus, note: string, repairEta?: Date) => {
-    const r = applyMachineStatus(allJobs, machines, code, status, note, new Date(),
-      { repairEta, byProduction: myScope.canSetRepairEta, canSetEta: myScope.canSetRepairEta })
-    if (!r.ok) return { ok: false as const, reason: r.reason }
-    setData({ allJobs: r.jobs, machines: r.machines, bookings })
-    return { ok: true as const, heldJob: r.heldJob }
+  const cancelBook = async (jobId: string) => {
+    const r = await call('cancel_booking', { p_job: jobId })
+    return r.ok ? { ok: true as const } : r
   }
-  // A4 ต่อ RPC report_sewing_issue / resume_sewing / finish_sewing เมื่อใช้ข้อมูลจริง
+  const setMachineStatus = async (code: string, status: MachineStatus, note: string, repairEta?: Date) => {
+    // งานที่จะถูกพักอัตโนมัติ (จักรเสียระหว่างเย็บ) · รู้ก่อนกดจากข้อมูลบนจอ
+    const m = machines.find(x => x.code === code)
+    const held = status !== 'ready' && m?.jobId ? allJobs.find(j => j.id === m.jobId && j.status === 'doing')?.no : undefined
+    const r = await call('set_machine_status', {
+      p_machine_code: code, p_status: status, p_note: note.trim() || null, p_repair_eta: repairEta?.toISOString() ?? null,
+    })
+    return r.ok ? { ok: true as const, heldJob: held } : r
+  }
+  const setRepairEta = async (code: string, eta: Date) => {
+    const r = await call('set_repair_eta', { p_machine_code: code, p_repair_eta: eta.toISOString(), p_note: null })
+    return r.ok ? { ok: true as const } : r
+  }
   const sewActions: SewActions = {
-    report: (jobId, reason, pause) => {
-      const r = applyReportSewingIssue(allJobs, jobId, reason, pause, new Date())
-      if (!r.ok) return { ok: false, reason: r.reason }
-      setData({ allJobs: r.jobs, machines, bookings })
-      return { ok: true, text: pause ? 'บันทึกรายงานและพักงานแล้ว' : 'บันทึกรายงานแล้ว' }
+    report: async (jobId, reason, pause) => {
+      const r = await call('report_sewing_issue', { p_job: jobId, p_reason: reason, p_pause: pause })
+      return r.ok ? { ok: true, text: pause ? 'บันทึกรายงานและพักงานแล้ว' : 'บันทึกรายงานแล้ว' } : r
     },
-    resume: jobId => {
-      const r = applyStartSewing(allJobs, machines, jobId, SEW_NEEDS, new Date(), bookings, true)
-      if (!r.ok) return { ok: false, reason: r.reason }
-      setData({ allJobs: r.jobs, machines: r.machines, bookings })
-      return { ok: true, text: r.picked.length ? `เย็บต่อแล้ว · จ่ายจักรเพิ่ม ${r.picked.join(', ')}` : 'เย็บต่อแล้ว' }
+    resume: async jobId => {
+      const r = await call('resume_sewing', { p_job: jobId })
+      return r.ok ? { ok: true, text: 'เย็บต่อแล้ว · ระบบจ่ายจักรที่ขาดให้ครบ' } : r
     },
-    finish: jobId => {
-      const r = applyFinishSewing(allJobs, machines, bookings, jobId, new Date())
-      if (!r.ok) return { ok: false, reason: r.reason }
-      setData({ allJobs: r.jobs, machines: r.machines, bookings: r.bookings })
-      const no = allJobs.find(j => j.id === jobId)?.no ?? ''
-      return { ok: true, text: `${no} เย็บเสร็จ ส่งต่อ QC + Packing แล้ว · คืนจักร ${r.released.length} ตัว${r.released.length ? `: ${r.released.join(', ')}` : ''}` }
+    finish: async jobId => {
+      const released = machines.filter(m => m.jobId === jobId).map(m => m.code).sort()
+      const r = await call('finish_sewing', { p_job: jobId })
+      if (!r.ok) return r
+      return { ok: true, text: `${noOf(jobId)} เย็บเสร็จ ส่งต่อ QC + Packing แล้ว · คืนจักร ${released.length} ตัว${released.length ? `: ${released.join(', ')}` : ''}` }
     },
-  }
-  const setRepairEta = (code: string, eta: Date) => {
-    const r = applyRepairEta(machines, code, eta, new Date())
-    if (!r.ok) return { ok: false as const, reason: r.reason }
-    setData({ allJobs, machines: r.machines, bookings })
-    return { ok: true as const }
   }
   // คนหน้างานเห็นเฉพาะงานของตัวเองก่อน · กดดูทั้งโรงงานได้เมื่ออยากรู้ว่างานกำลังจะมาถึง
   const [wholeFactory, setWholeFactory] = useState(false)
@@ -145,7 +163,7 @@ export default function Dashboard({ view, today, scope: myScope = FACTORY_SCOPE 
     return (
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-5 p-4 sm:p-6">
-          <PageHeader title="ภาพรวมการผลิต" today={today} now={now} />
+          <PageHeader title="ภาพรวมการผลิต" today={today} updated={loadedAt} />
           <Overview jobs={jobs} now={now} forecast={forecast} onOpen={setOpenId} />
         </div>
         {drawer}
@@ -157,7 +175,7 @@ export default function Dashboard({ view, today, scope: myScope = FACTORY_SCOPE 
     // ทั้งหน้าเลื่อนทีเดียว (ไม่ซ้อนกล่องเลื่อน) · แท็บหลักติดด้านบนให้สลับได้ทุกเมื่อ
     <div className="min-h-0 flex-1 overflow-y-auto">
      <div className="mx-auto flex max-w-[1400px] flex-col gap-4 p-4 sm:p-6">
-      <PageHeader title={myScope.title} today={today} now={now} />
+      <PageHeader title={myScope.title} today={today} updated={loadedAt} />
       <RoleSummary scope={myScope} jobs={allJobs} machines={machines} now={now}
         onPick={(t, v) => {
           if (!myScope.tabs.includes(t)) return
@@ -179,11 +197,11 @@ export default function Dashboard({ view, today, scope: myScope = FACTORY_SCOPE 
       )}
       {activeTab === 'sewing' ? (
         <ErrorBoundary key="sewing">
-          <SewingFloor key={sewFocus.n} initialView={sewFocus.view} jobs={allJobs} machines={machines} bookings={bookings} now={now} onOpen={setOpenId}
+          <SewingFloor key={sewFocus.n} initialView={sewFocus.view} jobs={allJobs} machines={machines} bookings={bookings} needs={needs} now={now} onOpen={setOpenId}
             onStart={myScope.canSew ? startSewing : undefined} onStatus={myScope.canReportMachines ? setMachineStatus : undefined}
             onEta={myScope.canSetRepairEta ? setRepairEta : undefined}
             sewing={<SewingNow jobs={allJobs} machines={machines} now={now} onOpen={setOpenId} actions={myScope.canSew ? sewActions : undefined} />}
-            booking={<BookingPanel jobs={allJobs} machines={machines} bookings={bookings} now={now} onOpen={setOpenId}
+            booking={<BookingPanel jobs={allJobs} machines={machines} bookings={bookings} needs={needs} now={now} onOpen={setOpenId}
               onBook={myScope.canBook ? book : undefined} onCancel={myScope.canBook ? cancelBook : undefined} />} />
         </ErrorBoundary>
       ) : activeTab === 'todo' ? (
@@ -290,13 +308,14 @@ function RoleSummary({ scope, jobs, machines, now, onPick }: {
   )
 }
 
-function PageHeader({ title, today, now }: { title: string; today: string; now: Date }) {
+// เวลาอัปเดต = ตอนที่โหลดข้อมูลล่าสุดจากฐานข้อมูล (ไม่ใช่นาฬิกาเครื่อง) คนหน้างานจึงรู้ว่าข้อมูลสดแค่ไหน
+function PageHeader({ title, today, updated }: { title: string; today: string; updated: Date }) {
   return (
     <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
       <h1 className="min-w-0 text-2xl font-bold">{title}</h1>
       <div className="text-sm text-muted">
         <span className="hidden md:inline">{today} · </span>
-        <span>อัปเดต {now.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })} น.</span>
+        <span>อัปเดต {updated.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit' })} น.</span>
       </div>
     </header>
   )
@@ -505,7 +524,7 @@ function JobDrawer({ job: j, now, finish, onClose }: { job: Job; now: Date; fini
           </div>
 
           <p className="rounded-xl border border-dashed border-line p-3 text-xs text-muted">
-            ต้นแบบเฟส 1 · ข้อมูลจำลอง · ไทม์ไลน์ทุกการกด ภาพ PDF ใบยืนยัน และเวลาต่อสถานีจะมาในเฟส 2
+            ไทม์ไลน์ทุกการกด ภาพ PDF ใบยืนยัน และเวลาต่อสถานี จะเพิ่มในหน้ารายละเอียดงาน (S8)
           </p>
         </div>
       </aside>
