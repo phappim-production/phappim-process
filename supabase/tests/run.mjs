@@ -158,6 +158,8 @@ await inboxTests({ db, ok, as })
 // ---- 12. เส้นทางตามงานจริง + ตัวอย่างเลือกได้ ----
 const { routeTests } = await import('./routes.mjs')
 await routeTests({ db, ok, as })
+const { settingsTests } = await import('./settings.mjs')
+await settingsTests({ db, ok, as })
 
 // ---- 13. ชื่อพนักงานสำหรับไทม์ไลน์ (S8) ----
 const { staffTests } = await import('./staff.mjs')

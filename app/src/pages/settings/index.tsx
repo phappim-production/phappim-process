@@ -1,16 +1,31 @@
-import { Card, CardHeader } from '../../components/ui'
-import { IconSliders } from '../../components/icons'
+import { lazy, Suspense } from 'react'
+import { Card } from '../../components/ui'
 
-// หน้าตั้งค่า (เจ้าของระบบ) · Codex ทำตามใบสั่งงาน docs/codex/C2.md
-// เส้นทาง #/settings และเมนูต่อไว้แล้วใน App.tsx (ห้ามแก้ App.tsx) · แทนที่เนื้อหาไฟล์นี้ได้ทั้งหมด
+const SettingsContent = lazy(() => import('./view'))
+
 export default function SettingsPage() {
   return (
-    <div className="mx-auto max-w-5xl p-4 sm:p-6">
-      <h1 className="mb-4 text-2xl font-bold tracking-tight">ตั้งค่า</h1>
-      <Card>
-        <CardHeader icon={IconSliders} title="กำลังพัฒนา" sub="ผู้ใช้และบทบาท · สถานีและขั้นย่อย · เวลามาตรฐาน · แม่แบบวัตถุดิบ · รหัสสาเหตุ" />
-        <p className="px-5 pb-5 text-sm text-muted">หน้านี้จะใช้ได้ก่อนทดลองจริงวันเสาร์ 21 พ.ย.</p>
-      </Card>
+    <div className="mx-auto grid max-w-6xl min-w-0 gap-4 p-4 sm:p-6">
+      <IconHeading />
+      <Suspense fallback={<Card className="p-5"><p role="status" className="text-muted">กำลังโหลดข้อมูล…</p></Card>}>
+        <SettingsContent />
+      </Suspense>
     </div>
+  )
+}
+
+import { IconSliders } from '../../components/icons'
+
+function IconHeading() {
+  return (
+    <header className="flex items-start gap-3">
+      <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand">
+        <IconSliders className="size-6" />
+      </span>
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold tracking-tight">ตั้งค่า</h1>
+        <p className="mt-1 text-muted">จัดการสิทธิ์ผู้ใช้และค่าที่ใช้ในระบบติดตามการผลิต</p>
+      </div>
+    </header>
   )
 }
