@@ -8,7 +8,7 @@ export const ROLE_LABELS = {
 } as const
 
 export type EmployeeRole = keyof typeof ROLE_LABELS
-export type PageKey = 'overview' | 'board' | 'reports' | 'settings' | 'system'
+export type PageKey = 'overview' | 'board' | 'reports' | 'settings' | 'system' | 'inbox' | 'label'
 
 // เฟสของผู้ควบคุมงาน (docs/แผน-1-สัปดาห์.md หัวข้อ 1.3) · ฐานข้อมูลบังคับเอง หน้าเว็บใช้แสดงและกรองงาน
 export const SECTION_LABELS = {

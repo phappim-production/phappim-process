@@ -20,6 +20,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary'
 import { SewingNow, type SewActions } from './SewingNow'
 import { JobActions } from './JobActions'
 import { ReceiveJob } from './ReceiveJob'
+import { JobHistory } from './JobHistory'
 import type { EmployeeRole } from '../auth/access'
 import { IconInbox } from '../components/icons'
 
@@ -133,8 +134,21 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   const [station, setStation] = useState<ColumnKey | 'all'>('all')
   const [route, setRoute] = useState<RouteCode | 'all'>('all')
   const [query, setQuery] = useState('')
-  const [open, setOpen] = useState<{ id: string; view: View } | null>(null)
-  const setOpenId = (id: string | null) => setOpen(id ? { id, view } : null)
+  const [open, setOpen] = useState<{ id: string; view: View } | null>(() => {
+    const id = jobFromHash()
+    return id ? { id, view } : null
+  })
+  // ลิงก์ #/board?job=<id> จากกล่องจดหมายและ QR ใบปะงาน เปิดรายละเอียดงานทันที (กดลิงก์ขณะเปิดหน้านี้อยู่ด้วย)
+  useEffect(() => {
+    const on = () => { const id = jobFromHash(); if (id) setOpen({ id, view }) }
+    window.addEventListener('hashchange', on)
+    return () => window.removeEventListener('hashchange', on)
+  }, [view])
+  const setOpenId = (id: string | null) => {
+    setOpen(id ? { id, view } : null)
+    // ปิดแล้วเอา ?job= ออก ไม่อย่างนั้นรีเฟรชหน้าจะเปิดงานเดิมซ้ำ
+    if (!id && jobFromHash()) window.location.replace(window.location.hash.split('?')[0])
+  }
   const forecast = useMemo(() => simulate(jobs, now), [jobs, now])
 
   const visible = useMemo(() => {
@@ -160,14 +174,15 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     return map
   }, [visible, now])
 
-  const openJob = (open?.view === view && jobs.find(j => j.id === open.id)) || null
+  const openJob = (open?.view === view && (jobs.find(j => j.id === open.id) ?? allJobs.find(j => j.id === open.id))) || null
   const matchingColumns = columns.filter(c => station === 'all' ? (byColumn.get(c.key)?.length ?? 0) > 0 : c.key === station)
   const visibleCount = matchingColumns.reduce((sum, c) => sum + (byColumn.get(c.key)?.length ?? 0), 0)
   const hasFilters = filter !== 'all' || route !== 'all' || wholeFactory
   const openFinish = openJob && openJob.phase !== 'done' ? workdayToDate(forecast.finishDay.get(openJob.id) ?? 0, now) : undefined
   const drawer = openJob && (
     <JobDrawer job={openJob} now={now} finish={openFinish} onClose={() => setOpenId(null)}
-      actions={<JobActions job={openJob} role={role} version={loadedAt.getTime()} now={now} refresh={refresh} />} />
+      actions={<JobActions job={openJob} role={role} version={loadedAt.getTime()} now={now} refresh={refresh} />}
+      history={<JobHistory key={openJob.id} jobId={openJob.id} role={role} version={loadedAt.getTime()} now={now} onChanged={refresh} />} />
   )
   const receive = receiving && (
     <ReceiveJob onClose={() => setReceiving(false)} onDone={async no => {
@@ -454,7 +469,7 @@ function CardStatus({ job: j, now }: { job: Job; now: Date }) {
   return <div className="mt-2.5 flex flex-col items-start gap-1.5 border-t border-dashed border-line pt-2.5 text-xs">{rows}</div>
 }
 
-function JobDrawer({ job: j, now, finish, onClose, actions }: { job: Job; now: Date; finish?: Date; onClose: () => void; actions?: ReactNode }) {
+function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Job; now: Date; finish?: Date; onClose: () => void; actions?: ReactNode; history?: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -466,8 +481,10 @@ function JobDrawer({ job: j, now, finish, onClose, actions }: { job: Job; now: D
   const late = finish ? lateDays(finish, j.due) : 0
   const steps: { label: string; state: StepState }[] = [
     { label: 'วัตถุดิบครบ', state: j.phase === 'materials' ? 'current' : 'done' },
-    { label: `ขึ้นตัวอย่าง${j.sampleRound > 1 ? ` (รอบ ${j.sampleRound})` : ''}`, state: j.phase === 'materials' ? 'todo' : j.phase === 'sample' ? 'current' : 'done' },
-    { label: 'ลูกค้ายืนยันตัวอย่าง', state: ['materials', 'sample'].includes(j.phase) ? 'todo' : j.phase === 'sample_review' ? 'current' : 'done' },
+    ...(j.needsSample === false ? [] : [
+      { label: `ขึ้นตัวอย่าง${j.sampleRound > 1 ? ` (รอบ ${j.sampleRound})` : ''}`, state: (j.phase === 'materials' ? 'todo' : j.phase === 'sample' ? 'current' : 'done') as StepState },
+      { label: 'ลูกค้ายืนยันตัวอย่าง', state: (['materials', 'sample'].includes(j.phase) ? 'todo' : j.phase === 'sample_review' ? 'current' : 'done') as StepState },
+    ]),
     ...stations.map((s, i) => ({
       label: STATION_NAME[s],
       state: (j.phase === 'done' ? 'done' : j.phase !== 'production' ? 'todo' : i < curIdx ? 'done' : i === curIdx ? (j.status === 'hold' ? 'hold' : 'current') : 'todo') as StepState,
@@ -507,7 +524,7 @@ function JobDrawer({ job: j, now, finish, onClose, actions }: { job: Job; now: D
               <Info label="จำนวน">{j.qty.toLocaleString('th-TH')} {j.unit}</Info>
               <Info label="กำหนดส่ง"><DueLabel job={j} now={now} long /></Info>
               <Info label="เส้นทาง">{ROUTES[j.route].name}</Info>
-              <Info label="ตัวอย่าง">รอบที่ {j.sampleRound}{j.phase === 'production' || j.phase === 'done' ? ' · ผ่านแล้ว' : ''}</Info>
+              <Info label="ตัวอย่าง">{j.needsSample === false ? 'ไม่ขึ้นตัวอย่าง' : `รอบที่ ${j.sampleRound}${j.phase === 'production' || j.phase === 'done' ? ' · ผ่านแล้ว' : ''}`}</Info>
               <Info label="อยู่ในขั้นนี้">{j.phase === 'done' ? '—' : duration(now.getTime() - j.since.getTime())}</Info>
             </dl>
             <CardStatus job={j} now={now} />
@@ -554,9 +571,7 @@ function JobDrawer({ job: j, now, finish, onClose, actions }: { job: Job; now: D
             </ul>
           </div>
 
-          <p className="rounded-xl border border-dashed border-line p-3 text-xs text-muted">
-            ไทม์ไลน์ทุกการกดและเวลาต่อสถานี จะเพิ่มในหน้ารายละเอียดงานเร็วๆ นี้
-          </p>
+          {history}
         </div>
       </aside>
     </div>
@@ -590,4 +605,9 @@ function useNow(intervalMs: number) {
     return () => clearInterval(t)
   }, [intervalMs])
   return now
+}
+
+/** id งานจากลิงก์ #/board?job=<id> · ไม่มี = null */
+function jobFromHash(): string | null {
+  return new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('job')
 }
