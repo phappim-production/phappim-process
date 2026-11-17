@@ -141,30 +141,30 @@ test('P2 เห็นเฉพาะงานที่ถึงสถานี�
 })
 
 test('รหัสจักรตามประเภท', () => {
-  assert.equal(machineCode('ovl4', 1), 'OL4-01')
-  assert.equal(machineCode('single', 12), 'SN-12')
-  assert.equal(isValidMachineCode('ovl4', 'OL4-01'), true)
-  assert.equal(isValidMachineCode('ovl4', 'SN-01'), false)
+  assert.equal(machineCode('ovl4', 1), 'OL4-001')
+  assert.equal(machineCode('single', 12), 'SN-012')
+  assert.equal(isValidMachineCode('ovl4', 'OL4-001'), true)
+  assert.equal(isValidMachineCode('ovl4', 'SN-001'), false)
   assert.equal(isValidMachineCode('cover', 'CV1'), false)
 })
 
 test('กดเริ่มเย็บ: จักรครบ = เลือกจักรว่างตามรหัส', () => {
   const j = job({ station: 'sew', status: 'queued', productCode: 'apron' })
-  const r = checkStartSewing(j, [machine('SN-02', 'single'), machine('SN-01', 'single'), machine('BD-01', 'binding')], SEW_NEEDS)
+  const r = checkStartSewing(j, [machine('SN-002', 'single'), machine('SN-001', 'single'), machine('BD-001', 'binding')], SEW_NEEDS)
   assert.equal(r.ok, true)
-  assert.deepEqual(r.picked.map(m => m.code), ['SN-01', 'BD-01'])
+  assert.deepEqual(r.picked.map(m => m.code), ['SN-001', 'BD-001'])
 })
 
 test('กดเริ่มเย็บ: จักรไม่ว่าง = ปฏิเสธ บอกจักรที่ติดงานอื่นและที่เสีย', () => {
   const j = job({ station: 'sew', status: 'queued', productCode: 'apron' })
-  const r = checkStartSewing(j, [machine('SN-01', 'single', { jobId: '99' }), machine('SN-02', 'single', { status: 'broken' }), machine('BD-01', 'binding')], SEW_NEEDS)
+  const r = checkStartSewing(j, [machine('SN-001', 'single', { jobId: '99' }), machine('SN-002', 'single', { status: 'broken' }), machine('BD-001', 'binding')], SEW_NEEDS)
   assert.equal(r.ok, false)
   assert.match(r.reason, /ขาด เข็มเดี่ยว/)
-  assert.deepEqual(r.blockers, [{ code: 'SN-01', state: 'busy', jobId: '99' }, { code: 'SN-02', state: 'broken', jobId: undefined }])
+  assert.deepEqual(r.blockers, [{ code: 'SN-001', state: 'busy', jobId: '99' }, { code: 'SN-002', state: 'broken', jobId: undefined }])
 })
 
 test('กดเริ่มเย็บ: งานยังไม่ถึงเย็บ / พักอยู่ / เริ่มแล้ว / ไม่มีข้อมูลจักร = ปฏิเสธ', () => {
-  const ms = [machine('SN-01', 'single'), machine('BD-01', 'binding')]
+  const ms = [machine('SN-001', 'single'), machine('BD-001', 'binding')]
   assert.match(checkStartSewing(job({ station: 'cut', status: 'queued', productCode: 'apron' }), ms, SEW_NEEDS).reason, /ยังไม่ถึงสถานีเย็บ/)
   assert.match(checkStartSewing(job({ station: 'sew', status: 'hold', productCode: 'apron' }), ms, SEW_NEEDS).reason, /พักอยู่/)
   assert.match(checkStartSewing(job({ station: 'sew', status: 'doing', productCode: 'apron' }), ms, SEW_NEEDS).reason, /เริ่มเย็บไปแล้ว/)
@@ -174,9 +174,9 @@ test('กดเริ่มเย็บ: งานยังไม่ถึงเ
 test('เริ่มเย็บแล้ว จักรถูกจองให้งาน และงานถัดไปที่ใช้จักรชนิดเดียวกันเริ่มไม่ได้', () => {
   const a = job({ station: 'sew', status: 'queued', productCode: 'apron' })
   const b = job({ station: 'sew', status: 'queued', productCode: 'apron' })
-  const first = applyStartSewing([a, b], [machine('SN-01', 'single'), machine('BD-01', 'binding')], a.id, SEW_NEEDS, now)
+  const first = applyStartSewing([a, b], [machine('SN-001', 'single'), machine('BD-001', 'binding')], a.id, SEW_NEEDS, now)
   assert.equal(first.ok, true)
-  assert.deepEqual(first.picked, ['SN-01', 'BD-01'])
+  assert.deepEqual(first.picked, ['SN-001', 'BD-001'])
   assert.equal(first.jobs.find(j => j.id === a.id).status, 'doing')
   assert.ok(first.machines.every(m => m.jobId === a.id))
   const second = applyStartSewing(first.jobs, first.machines, b.id, SEW_NEEDS, now)
@@ -186,29 +186,29 @@ test('เริ่มเย็บแล้ว จักรถูกจองใ�
 
 test('แจ้งจักรเสียระหว่างเย็บ: คืนจักร · พักงานพร้อมสาเหตุ · เก็บอาการ', () => {
   const j = job({ station: 'sew', status: 'doing', productCode: 'apron' })
-  const ms = [machine('m1', 'single', { code: 'SN-01', jobId: j.id }), machine('m2', 'binding', { code: 'BD-01', jobId: j.id })]
-  const r = applyMachineStatus([j], ms, 'sn-01', 'broken', ' ด้ายพัน ', now)
+  const ms = [machine('m1', 'single', { code: 'SN-001', jobId: j.id }), machine('m2', 'binding', { code: 'BD-001', jobId: j.id })]
+  const r = applyMachineStatus([j], ms, 'sn-001', 'broken', ' ด้ายพัน ', now)
   assert.equal(r.ok, true)
   assert.equal(r.heldJob, j.no)
-  const m = r.machines.find(x => x.code === 'SN-01')
+  const m = r.machines.find(x => x.code === 'SN-001')
   assert.equal(m.status, 'broken')
   assert.equal(m.jobId, undefined)
   assert.equal(m.note, 'ด้ายพัน')
-  assert.equal(r.machines.find(x => x.code === 'BD-01').jobId, j.id, 'จักรตัวอื่นยังอยู่กับงาน')
+  assert.equal(r.machines.find(x => x.code === 'BD-001').jobId, j.id, 'จักรตัวอื่นยังอยู่กับงาน')
   assert.equal(r.jobs[0].status, 'hold')
-  assert.equal(r.jobs[0].holdReason, 'จักร SN-01 เสีย: ด้ายพัน')
+  assert.equal(r.jobs[0].holdReason, 'จักร SN-001 เสีย: ด้ายพัน')
   // จักรไม่ครบแล้ว เริ่มเย็บใหม่ไม่ได้จนกว่าจะซ่อม
-  const fixed = applyMachineStatus(r.jobs, r.machines, 'SN-01', 'ready', '', now)
-  assert.equal(fixed.machines.find(x => x.code === 'SN-01').note, undefined)
-  assert.equal(machineState(fixed.machines.find(x => x.code === 'SN-01')), 'free')
+  const fixed = applyMachineStatus(r.jobs, r.machines, 'SN-001', 'ready', '', now)
+  assert.equal(fixed.machines.find(x => x.code === 'SN-001').note, undefined)
+  assert.equal(machineState(fixed.machines.find(x => x.code === 'SN-001')), 'free')
 })
 
 test('แจ้งเสียต้องมีอาการ · กดซ้ำสถานะเดิมถูกปฏิเสธ · จักรว่างเสียไม่พักงานใด', () => {
-  const ms = [machine('m1', 'single', { code: 'SN-01' })]
-  assert.match(applyMachineStatus([], ms, 'SN-01', 'broken', '  ', now).reason, /บอกอาการ/)
-  assert.match(applyMachineStatus([], ms, 'SN-01', 'ready', '', now).reason, /ใช้ได้อยู่แล้ว/)
+  const ms = [machine('m1', 'single', { code: 'SN-001' })]
+  assert.match(applyMachineStatus([], ms, 'SN-001', 'broken', '  ', now).reason, /บอกอาการ/)
+  assert.match(applyMachineStatus([], ms, 'SN-001', 'ready', '', now).reason, /ใช้ได้อยู่แล้ว/)
   assert.match(applyMachineStatus([], ms, 'XX-01', 'off', '', now).reason, /ไม่พบจักร/)
-  const off = applyMachineStatus([], ms, 'SN-01', 'off', '', now)
+  const off = applyMachineStatus([], ms, 'SN-001', 'off', '', now)
   assert.equal(off.ok, true)
   assert.equal(off.heldJob, undefined)
 })
@@ -219,10 +219,10 @@ const booking = (id, machineId, jobId, starts, ends) => ({ id, machineId, jobId,
 
 test('จองจักร: จองครบทุกชนิดตามสินค้า', () => {
   const j = job({ station: 'cut', status: 'doing', productCode: 'apron' })
-  const ms = [machine('s1', 'single', { code: 'SN-01' }), machine('b1', 'binding', { code: 'BD-01' })]
+  const ms = [machine('s1', 'single', { code: 'SN-001' }), machine('b1', 'binding', { code: 'BD-001' })]
   const r = applyBooking(j, ms, [], at(0, 8), at(0, 17), SEW_NEEDS, now)
   assert.equal(r.ok, true)
-  assert.deepEqual(r.picked, ['SN-01', 'BD-01'])
+  assert.deepEqual(r.picked, ['SN-001', 'BD-001'])
   assert.equal(r.bookings.length, 2)
 })
 
@@ -258,15 +258,15 @@ test('จองเริ่มทันที: จักรที่ติดง
 test('เริ่มเย็บ: จักรที่งานอื่นจองช่วงนี้ใช้ไม่ได้ · งานที่จองไว้ได้จักรที่จอง', () => {
   const mine = job({ station: 'sew', status: 'queued', productCode: 'apron' })
   const other = job({ station: 'sew', status: 'queued', productCode: 'apron' })
-  const ms = [machine('s1', 'single', { code: 'SN-01' }), machine('s2', 'single', { code: 'SN-02' }), machine('b1', 'binding', { code: 'BD-01' })]
+  const ms = [machine('s1', 'single', { code: 'SN-001' }), machine('s2', 'single', { code: 'SN-002' }), machine('b1', 'binding', { code: 'BD-001' })]
   const bs = [booking('1', 's2', mine.id, new Date(now.getTime() - 60_000), new Date(now.getTime() + 3_600_000)),
               booking('2', 'b1', mine.id, new Date(now.getTime() - 60_000), new Date(now.getTime() + 3_600_000))]
   const r = checkStartSewing(mine, ms, SEW_NEEDS, bs, now)
   assert.equal(r.ok, true)
-  assert.deepEqual(r.picked.map(m => m.code), ['SN-02', 'BD-01'], 'ใช้จักรที่จองไว้ก่อน')
+  assert.deepEqual(r.picked.map(m => m.code), ['SN-002', 'BD-001'], 'ใช้จักรที่จองไว้ก่อน')
   const o = checkStartSewing(other, ms, SEW_NEEDS, bs, now)
   assert.equal(o.ok, false)
-  assert.deepEqual(o.blockers.map(b => [b.code, b.state]), [['BD-01', 'booked']])
+  assert.deepEqual(o.blockers.map(b => [b.code, b.state]), [['BD-001', 'booked']])
 })
 
 test('ยกเลิกการจอง: ช่วงที่ยังไม่เริ่มหายไป · ช่วงที่กำลังใช้ตัดจบที่ตอนนี้', () => {
@@ -307,36 +307,36 @@ test('ยกเลิกตรงเวลาเริ่ม ไม่เหล�
 })
 
 test('กรอบเวลาซ่อม: ฝ่ายผลิตต้องกรอก · ผู้ควบคุมงานกรอกไม่ได้ · ต้องเป็นเวลาข้างหน้าไม่เกิน 30 วัน', () => {
-  const ms = [machine('m1', 'single', { code: 'SN-01' })]
+  const ms = [machine('m1', 'single', { code: 'SN-001' })]
   const soon = new Date(now.getTime() + 2 * 3_600_000)
-  assert.match(applyMachineStatus([], ms, 'SN-01', 'broken', 'เข็มหัก', now, { byProduction: true, canSetEta: true }).reason, /ต้องกำหนดเวลาซ่อม/)
-  assert.match(applyMachineStatus([], ms, 'SN-01', 'broken', 'เข็มหัก', now, { repairEta: soon }).reason, /หน้าที่ของฝ่ายผลิต/)
-  assert.match(applyMachineStatus([], ms, 'SN-01', 'broken', 'เข็มหัก', now, { repairEta: new Date(now.getTime() - 1), canSetEta: true }).reason, /เวลาข้างหน้า/)
-  assert.match(applyMachineStatus([], ms, 'SN-01', 'broken', 'เข็มหัก', now, { repairEta: new Date(now.getTime() + 31 * 86_400_000), canSetEta: true }).reason, /เกิน 30 วัน/)
-  const ok1 = applyMachineStatus([], ms, 'SN-01', 'broken', 'เข็มหัก', now, { repairEta: soon, byProduction: true, canSetEta: true })
+  assert.match(applyMachineStatus([], ms, 'SN-001', 'broken', 'เข็มหัก', now, { byProduction: true, canSetEta: true }).reason, /ต้องกำหนดเวลาซ่อม/)
+  assert.match(applyMachineStatus([], ms, 'SN-001', 'broken', 'เข็มหัก', now, { repairEta: soon }).reason, /หน้าที่ของฝ่ายผลิต/)
+  assert.match(applyMachineStatus([], ms, 'SN-001', 'broken', 'เข็มหัก', now, { repairEta: new Date(now.getTime() - 1), canSetEta: true }).reason, /เวลาข้างหน้า/)
+  assert.match(applyMachineStatus([], ms, 'SN-001', 'broken', 'เข็มหัก', now, { repairEta: new Date(now.getTime() + 31 * 86_400_000), canSetEta: true }).reason, /เกิน 30 วัน/)
+  const ok1 = applyMachineStatus([], ms, 'SN-001', 'broken', 'เข็มหัก', now, { repairEta: soon, byProduction: true, canSetEta: true })
   assert.equal(ok1.ok, true)
   assert.equal(ok1.machines[0].repairEta.getTime(), soon.getTime())
-  assert.equal(applyMachineStatus([], ms, 'SN-01', 'broken', 'เข็มหัก', now).ok, true, 'ผู้ควบคุมงานแจ้งเสียได้โดยไม่ใส่เวลา')
-  const fixed = applyMachineStatus(ok1.jobs, ok1.machines, 'SN-01', 'ready', '', now)
+  assert.equal(applyMachineStatus([], ms, 'SN-001', 'broken', 'เข็มหัก', now).ok, true, 'ผู้ควบคุมงานแจ้งเสียได้โดยไม่ใส่เวลา')
+  const fixed = applyMachineStatus(ok1.jobs, ok1.machines, 'SN-001', 'ready', '', now)
   assert.equal(fixed.machines[0].repairEta, undefined, 'ซ่อมเสร็จแล้วล้างเวลา')
 })
 
 test('สถานะเวลาซ่อมบนช่องจักร และการเลื่อนเวลาซ่อม', () => {
-  const broken = machine('m1', 'single', { code: 'SN-01', status: 'broken' })
+  const broken = machine('m1', 'single', { code: 'SN-001', status: 'broken' })
   assert.equal(repairStatus(machine('m2', 'single'), now), null)
   assert.equal(repairStatus(broken, now).text, 'ยังไม่กำหนดเวลาซ่อม')
   assert.match(repairStatus({ ...broken, repairEta: new Date(now.getTime() + 3_600_000) }, now).text, /^ซ่อมเสร็จประมาณ/)
   assert.equal(repairStatus({ ...broken, repairEta: new Date(now.getTime() - 3_600_000) }, now).tone, 'danger')
   const later = new Date(now.getTime() + 86_400_000)
-  assert.equal(applyRepairEta([broken], 'sn-01', later, now).machines[0].repairEta.getTime(), later.getTime())
-  assert.match(applyRepairEta([machine('m2', 'single', { code: 'SN-02' })], 'SN-02', later, now).reason, /ไม่ได้เสียอยู่/)
+  assert.equal(applyRepairEta([broken], 'sn-001', later, now).machines[0].repairEta.getTime(), later.getTime())
+  assert.match(applyRepairEta([machine('m2', 'single', { code: 'SN-002' })], 'SN-002', later, now).reason, /ไม่ได้เสียอยู่/)
 })
 
 test('งานถูกพักเพราะจักรเสีย: สาเหตุบอกเวลาคาดว่าซ่อมเสร็จ', () => {
   const j = job({ station: 'sew', status: 'doing', productCode: 'apron' })
-  const r = applyMachineStatus([j], [machine('m1', 'single', { code: 'SN-01', jobId: j.id })], 'SN-01', 'broken', 'ด้ายพัน', now,
+  const r = applyMachineStatus([j], [machine('m1', 'single', { code: 'SN-001', jobId: j.id })], 'SN-001', 'broken', 'ด้ายพัน', now,
     { repairEta: new Date(now.getTime() + 3_600_000), byProduction: true, canSetEta: true })
-  assert.match(r.jobs[0].holdReason, /^จักร SN-01 เสีย: ด้ายพัน · คาดว่าซ่อมเสร็จ /)
+  assert.match(r.jobs[0].holdReason, /^จักร SN-001 เสีย: ด้ายพัน · คาดว่าซ่อมเสร็จ /)
 })
 
 test('หลายงานขึ้นเย็บวันเดียวกัน: จักรที่ว่างรับงานอื่นได้ ถ้าครบชุดตามสินค้า', () => {
@@ -372,9 +372,9 @@ test('เย็บต่อใช้จักรเดิมพร้อมจ�
   const j = job({ station: 'sew', status: 'hold', productCode: 'apron', holdReason: 'รอจักร' })
   const assigned = machine('s1', 'single', { jobId: j.id })
   assert.equal(applyStartSewing([j], [assigned], j.id, SEW_NEEDS, now, [], true).ok, false)
-  const spare = machine('b1', 'binding', { code: 'BD-01' })
+  const spare = machine('b1', 'binding', { code: 'BD-001' })
   const result = applyStartSewing([j], [assigned, spare], j.id, SEW_NEEDS, now, [], true)
-  assert.deepEqual(result.picked, ['BD-01'])
+  assert.deepEqual(result.picked, ['BD-001'])
   assert.equal(result.jobs[0].status, 'doing')
   assert.equal(result.jobs[0].holdReason, undefined)
   assert.ok(result.machines.every(m => m.jobId === j.id))
@@ -382,13 +382,13 @@ test('เย็บต่อใช้จักรเดิมพร้อมจ�
 
 test('เย็บเสร็จโดยไม่ติ๊กขั้นย่อย ไป QC คืนจักรและตัดช่วงจองที่เหลือ', () => {
   const j = job({ station: 'sew', status: 'doing', qty: 10, productCode: 'apron' })
-  const ms = [machine('s1', 'single', { code: 'SN-01', jobId: j.id }), machine('b1', 'binding', { code: 'BD-01', jobId: j.id }), machine('x', 'single', { code: 'SN-02' })]
+  const ms = [machine('s1', 'single', { code: 'SN-001', jobId: j.id }), machine('b1', 'binding', { code: 'BD-001', jobId: j.id }), machine('x', 'single', { code: 'SN-002' })]
   const bs = [booking('1', 's1', j.id, new Date(now.getTime() - 3_600_000), new Date(now.getTime() + 3_600_000))]
   const r = applyFinishSewing([j], ms, bs, j.id, now)
   assert.equal(r.jobs[0].sewCount, undefined)
   assert.equal(r.ok, true)
   assert.equal(r.next, 'qc_pack')
-  assert.deepEqual(r.released, ['BD-01', 'SN-01'])
+  assert.deepEqual(r.released, ['BD-001', 'SN-001'])
   assert.equal(r.jobs[0].station, 'qc_pack')
   assert.equal(r.jobs[0].status, 'queued')
   assert.ok(r.machines.every(m => !m.jobId))

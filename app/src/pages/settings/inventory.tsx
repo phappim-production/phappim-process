@@ -111,7 +111,7 @@ function MachineList({ data, controls }: TabProps<'machines'>) {
         <div className="grid gap-3 sm:grid-cols-2">
           <SelectField label="ชนิดจักร" options={options} value={draft.type} onChange={type => change({ ...draft, type })} />
           <TextField label="รหัสจักร" value={draft.code} onChange={code => change({ ...draft, code: code.toUpperCase() })}
-            placeholder={types.has(draft.type) ? `เช่น ${types.get(draft.type)?.prefix}-01` : undefined} />
+            placeholder={types.has(draft.type) ? `เช่น ${types.get(draft.type)?.prefix}-001` : undefined} />
         </div>
       )}
       save={async (machine, draft) => {

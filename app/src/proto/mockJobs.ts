@@ -47,7 +47,7 @@ export function makeMockJobs(now: Date): Job[] {
   return jobs.map((j, i) => ({ ...j, productCode: PRODUCT_CODE[j.product], id: String(i + 1) }))
 }
 
-// จักรเย็บจำลอง 24 ตัว รหัสตามประเภท (OL4-01 …) · จ่ายให้งานที่กำลังเย็บอยู่ในข้อมูลจำลอง
+// จักรเย็บจำลอง 24 ตัว รหัสตามประเภท (OL4-001 …) · จ่ายให้งานที่กำลังเย็บอยู่ในข้อมูลจำลอง
 // ตั้งใจให้งานรอเย็บมีทั้งที่ "เริ่มได้" (ผ้ากันเปื้อน) และ "จักรไม่ว่าง" (เสื้อยืด) เพื่อเห็นการบังคับ
 export function makeMockMachines(jobs: Job[]): Machine[] {
   const idOf = (no: string) => jobs.find(j => j.no === no)?.id
