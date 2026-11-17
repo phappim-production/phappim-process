@@ -1,5 +1,7 @@
 # ใบสั่งงาน Codex
 
+> **17 พ.ย.: ลำดับ ผู้ทำ และกำหนดส่งล่าสุดอยู่ที่ [`docs/แบ่งงาน-Codex-Antigravity.md`](../แบ่งงาน-Codex-Antigravity.md)** · C3 ย้ายไปให้ Antigravity · เพิ่ม C5 · C1 แก้ข้อ 4.1 · **push/PR = Claude เท่านั้น**
+
 สถานะรวมของโปรเจกต์: [`docs/รายงานสถานะ.md`](../รายงานสถานะ.md) · กติกา: [`AGENTS.md`](../../AGENTS.md) · API: [`docs/api-workflow.md`](../api-workflow.md)
 
 | ลำดับ | รหัส | งาน | เริ่มได้เมื่อ | ส่งภายใน |
@@ -12,6 +14,6 @@
 
 **วิธีส่งงานให้ Codex** (เปิด Codex ที่ repo นี้):
 ```
-ทำใบสั่งงาน docs/codex/C1.md ตาม AGENTS.md · แตก branch จาก main ล่าสุด · เปิด PR เมื่อผ่านตรวจก่อนส่งครบ
+ทำใบสั่งงาน docs/codex/C1.md ตาม AGENTS.md และ docs/แบ่งงาน-Codex-Antigravity.md · ทำในโฟลเดอร์ worktree ที่ได้รับ · ห้าม push ห้ามเปิด PR · เสร็จแล้ว commit ในเครื่องพร้อมไฟล์ส่งงานใน docs/handoff/
 ```
 ทำทีละใบ · รอ Claude รีวิวและ merge ก่อนเริ่มใบที่ใช้ไฟล์ร่วมกัน (C1 กับ C4 ใช้ `app/package.json` ร่วมกัน)
