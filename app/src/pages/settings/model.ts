@@ -117,10 +117,13 @@ export function readProfile(draft: ProfileDraft, ownProfile: boolean, originalRo
 }
 
 export function readMachineCode(value: string, prefix: string, usedCodes: ReadonlySet<string>): string {
-  const code = value.trim().toUpperCase()
-  if (!code.startsWith(`${prefix}-`) || !/^\d{2,3}$/.test(code.slice(prefix.length + 1))) {
-    throw new Error(`กรุณาใช้รหัสจักรตามชนิด เช่น ${prefix}-01 (เลขท้าย 2–3 หลัก)`)
+  const raw = value.trim().toUpperCase()
+  const no = raw.slice(prefix.length + 1)
+  if (!raw.startsWith(`${prefix}-`) || !/^\d{1,3}$/.test(no)) {
+    throw new Error(`กรุณาใช้รหัสจักรตามชนิด เช่น ${prefix}-001 (เลขท้าย 3 หลัก)`)
   }
+  // ฐานข้อมูลบังคับเลข 3 หลัก · เติม 0 ให้ เพราะหน้างานมักพิมพ์ SN-12 หรือ SN-5
+  const code = `${prefix}-${no.padStart(3, '0')}`
   if (usedCodes.has(code)) throw new Error('รหัสจักรนี้ถูกใช้แล้ว')
   return code
 }

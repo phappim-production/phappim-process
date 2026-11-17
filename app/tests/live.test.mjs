@@ -77,10 +77,10 @@ test('รายงานปัญหาระหว่างเย็บ: รา
 
 test('จักร: งานที่ใช้อยู่ · อาการ · เวลาซ่อม · เรียงตามลำดับ', () => {
   const ms = toMachines([
-    { id: 2, code: 'OL4-01', type_code: 'ovl4', status: 'ready', note: null, repair_eta: null, sort: 401 },
-    { id: 1, code: 'SN-01', type_code: 'single', status: 'broken', note: 'เข็มหัก', repair_eta: '2026-11-18T03:00:00Z', sort: 1001 },
+    { id: 2, code: 'OL4-001', type_code: 'ovl4', status: 'ready', note: null, repair_eta: null, sort: 401 },
+    { id: 1, code: 'SN-001', type_code: 'single', status: 'broken', note: 'เข็มหัก', repair_eta: '2026-11-18T03:00:00Z', sort: 1001 },
   ], [{ machine_id: 2, job_id: 'j1' }])
-  assert.deepEqual(ms.map(m => [m.code, machineState(m)]), [['OL4-01', 'busy'], ['SN-01', 'broken']])
+  assert.deepEqual(ms.map(m => [m.code, machineState(m)]), [['OL4-001', 'busy'], ['SN-001', 'broken']])
   assert.equal(ms[0].jobId, 'j1')
   assert.equal(ms[1].note, 'เข็มหัก')
   assert.equal(ms[1].repairEta.toISOString(), '2026-11-18T03:00:00.000Z')
@@ -92,14 +92,14 @@ test('สูตรจักรจากฐานข้อมูลใช้ต�
   ])
   const [j] = toJobs([row()], products, [], [])
   const machines = toMachines([
-    { id: 1, code: 'OL4-01', type_code: 'ovl4', status: 'ready', note: null, repair_eta: null, sort: 1 },
-    { id: 2, code: 'CV-01', type_code: 'cover', status: 'ready', note: null, repair_eta: null, sort: 2 },
+    { id: 1, code: 'OL4-001', type_code: 'ovl4', status: 'ready', note: null, repair_eta: null, sort: 1 },
+    { id: 2, code: 'CV-001', type_code: 'cover', status: 'ready', note: null, repair_eta: null, sort: 2 },
   ], [])
   const bookings = toBookings([])
   const now = new Date('2026-11-17T03:00:00Z')
   assert.equal(checkStartSewing(j, machines, needs, bookings, now).ok, true)
-  const busy = toMachines([{ id: 2, code: 'CV-01', type_code: 'cover', status: 'ready', note: null, repair_eta: null, sort: 2 },
-    { id: 1, code: 'OL4-01', type_code: 'ovl4', status: 'ready', note: null, repair_eta: null, sort: 1 }], [{ machine_id: 2, job_id: 'other' }])
+  const busy = toMachines([{ id: 2, code: 'CV-001', type_code: 'cover', status: 'ready', note: null, repair_eta: null, sort: 2 },
+    { id: 1, code: 'OL4-001', type_code: 'ovl4', status: 'ready', note: null, repair_eta: null, sort: 1 }], [{ machine_id: 2, job_id: 'other' }])
   const check = checkStartSewing(j, busy, needs, bookings, now)
   assert.equal(check.ok, false)
   assert.match(check.reason, /จักรลา/)

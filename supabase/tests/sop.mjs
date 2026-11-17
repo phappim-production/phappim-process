@@ -12,9 +12,9 @@ export async function sopTests({ db, ok }) {
       { type_code: 'button', n: 1, ready: 1 }, { type_code: 'buttonhole', n: 1, ready: 1 }, { type_code: 'cover', n: 1, ready: 1 },
       { type_code: 'ovl4', n: 4, ready: 4 }, { type_code: 'single', n: 14, ready: 14 }]), JSON.stringify(fleet))
   const codes = (await rows(`select code from public.sewing_machines order by sort`)).map(r => r.code)
-  ok('SOP: รหัสจักรตามประเภท SN-01…SN-14 · OL4-01…04 · CV-01 · BT-01 · BH-01',
-    codes.length === 21 && codes[0] === 'SN-01' && codes.includes('SN-14') && codes.includes('OL4-04')
-    && ['CV-01', 'BT-01', 'BH-01'].every(c => codes.includes(c)), codes.join(','))
+  ok('SOP: รหัสจักรตามประเภท SN-001…SN-014 · OL4-001…04 · CV-001 · BT-001 · BH-001',
+    codes.length === 21 && codes[0] === 'SN-001' && codes.includes('SN-014') && codes.includes('OL4-004')
+    && ['CV-001', 'BT-001', 'BH-001'].every(c => codes.includes(c)), codes.join(','))
 
   // สูตรทุกสินค้าต้องใช้ได้กับจักรที่มีจริง ไม่อย่างนั้นกดเริ่มเย็บไม่ได้ตลอด
   const impossible = await rows(`

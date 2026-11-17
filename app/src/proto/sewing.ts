@@ -22,16 +22,16 @@ export const MACHINE_TYPE_NAME: Record<MachineType, string> = {
 }
 export const MACHINE_TYPES = Object.keys(MACHINE_TYPE_NAME) as MachineType[]
 
-// รหัสนำหน้าของแต่ละประเภท · รหัสจักร = นำหน้า-เลข 2 หลัก เช่น OL4-01 (ติดบนตัวจักร หน้างานเรียกตามนี้)
+// รหัสนำหน้าของแต่ละประเภท · รหัสจักร = นำหน้า-เลข 3 หลัก เช่น OL4-001 (เผื่อเกิน 99 ตัว · เรียงตามตัวอักษรถูก) (ติดบนตัวจักร หน้างานเรียกตามนี้)
 export const MACHINE_PREFIX: Record<MachineType, string> = {
   single: 'SN', double: 'DN', ovl3: 'OL3', ovl4: 'OL4', ovl5: 'OL5', cover: 'CV', flat: 'FL',
   button: 'BT', buttonhole: 'BH', elastic: 'EL', binding: 'BD',
 }
 export function machineCode(type: MachineType, no: number): string {
-  return `${MACHINE_PREFIX[type]}-${String(no).padStart(2, '0')}`
+  return `${MACHINE_PREFIX[type]}-${String(no).padStart(3, '0')}`
 }
 export function isValidMachineCode(type: MachineType, code: string): boolean {
-  return new RegExp(`^${MACHINE_PREFIX[type]}-\\d{2,3}$`).test(code)
+  return new RegExp(`^${MACHINE_PREFIX[type]}-\\d{3}$`).test(code)
 }
 
 export type MachineStatus = 'ready' | 'broken' | 'off'
@@ -39,7 +39,7 @@ export const MACHINE_STATUS_NAME: Record<MachineStatus, string> = { ready: 'ใ�
 
 export type Machine = {
   id: string
-  code: string          // รหัสที่ติดบนตัวจักร เช่น OL4-01
+  code: string          // รหัสที่ติดบนตัวจักร เช่น OL4-001
   type: MachineType
   status: MachineStatus
   jobId?: string        // งานที่ใช้จักรนี้อยู่ (ไม่มี = ว่าง)

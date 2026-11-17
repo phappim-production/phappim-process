@@ -71,17 +71,17 @@ export async function inboxTests({ db, ok, as }) {
 
   // ---- 3. machine_broken: แจ้งเสียสร้าง 1 ข้อความ · เลื่อนเวลาซ่อม (set_repair_eta) ไม่นับ ----
   await db.exec(`
-    insert into public.sewing_machines (code, type_code, sort) values ('SN-99', 'single', 999)
+    insert into public.sewing_machines (code, type_code, sort) values ('SN-099', 'single', 999)
     on conflict (code) do nothing
   `)
   await as(U.prod, () => db.query(`
-    select public.set_machine_status('SN-99', 'broken', 'มอเตอร์ไหม้', now() + interval '2 days')
+    select public.set_machine_status('SN-099', 'broken', 'มอเตอร์ไหม้', now() + interval '2 days')
   `))
   const mb1 = (await db.query(`select count(*)::int n from public.inbox_messages where kind = 'machine_broken'`)).rows[0].n
   ok('inbox: แจ้งจักรเสีย -> 1 ข้อความ machine_broken', mb1 === 1)
 
   await as(U.prod, () => db.query(`
-    select public.set_repair_eta('SN-99', now() + interval '4 days', 'รออะไหล่')
+    select public.set_repair_eta('SN-099', now() + interval '4 days', 'รออะไหล่')
   `))
   const mb2 = (await db.query(`select count(*)::int n from public.inbox_messages where kind = 'machine_broken'`)).rows[0].n
   ok('inbox: เลื่อนเวลาซ่อม (set_repair_eta) ไม่สร้างข้อความซ้ำ', mb2 === 1)
