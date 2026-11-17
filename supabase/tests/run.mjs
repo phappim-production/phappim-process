@@ -151,5 +151,9 @@ await sewingTests({ db, ok, as })
 const { storageTests } = await import('./storage.mjs')
 await storageTests({ db, ok, as })
 
+// ---- 11. กล่องจดหมายแจ้งเตือน (C3) ----
+const { inboxTests } = await import('./inbox.mjs')
+await inboxTests({ db, ok, as })
+
 console.log(`\nผ่าน ${pass} · ไม่ผ่าน ${fail}`)
 process.exit(fail ? 1 : 0)
