@@ -19,7 +19,7 @@ export function MaterialsTab({ data, controls }: TabProps<'materials'>) {
 
   return (
     <Collection controls={controls} group="materials" title="แม่แบบวัตถุดิบ"
-      subtitle="เงื่อนไขที่ระบบใช้เลือกเช็กลิสต์วัตถุดิบเมื่อรับงานใหม่"
+      subtitle="ระบบไม่ใช้แล้ว: แอดมินเตรียมวัตถุดิบครบก่อนส่งงานเข้า · เก็บไว้เผื่อกลับมาใช้"
       list={data.materials} identify={item => String(item.id)} createLabel="เพิ่มแม่แบบวัตถุดิบ"
       row={item => (
         <>
