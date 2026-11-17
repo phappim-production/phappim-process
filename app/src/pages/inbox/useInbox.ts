@@ -23,6 +23,11 @@ export type InboxState =
   | { status: 'ready'; items: InboxItem[] }
 
 const SCAN_INTERVAL_MS = 5 * 60_000
+// กระดิ่ง 2 จุด + หน้ากล่องจดหมายเรียก hook พร้อมกัน · สแกนครั้งเดียวต่อรอบต่อเครื่องก็พอ
+const SCAN_MIN_GAP_MS = 60_000
+let lastScanAt = 0
+// realtime-js คืนช่องเดิมถ้าชื่อซ้ำ แล้ว .on() หลัง subscribe() จะ throw · และถอดช่องเมื่อ unmount จะตัดของจุดอื่น
+let channelSeq = 0
 
 async function loadInbox(): Promise<InboxItem[]> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
@@ -71,6 +76,8 @@ export function useInbox() {
   }, [])
 
   const runScan = useCallback(async () => {
+    if (Date.now() - lastScanAt < SCAN_MIN_GAP_MS) return
+    lastScanAt = Date.now()
     const res = await rpc<number>('inbox_scan', {})
     if (res.ok && res.data > 0) {
       void refresh()
@@ -98,7 +105,7 @@ export function useInbox() {
     }
 
     const channel = client
-      .channel('inbox-live')
+      .channel(`inbox-live-${++channelSeq}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inbox_messages' }, soon)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inbox_reads' }, soon)
       .subscribe(status => {
