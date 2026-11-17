@@ -121,7 +121,7 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
   const finishDay = new Map<string, number>()
 
   type Run = { id: string; stations: StationCode[]; i: number; ready: number; due: number; filmDay: number; firstQty: number; qty: number; needs: Need[]; lineRate: number; isExtra: boolean }
-  const lines: SewLine[] = []
+  let lines: SewLine[] = []
   const runs: Run[] = jobs.filter(j => j.phase !== 'done').map(j => {
     const stations = ROUTES[j.route].stations
     const inLine = j.phase === 'production'
@@ -156,15 +156,22 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
   let longestWait = 0
   const startOf = (r: Run) => {
     const s = r.stations[r.i]
-    if (s === 'sew') return earliestLineStart(r.ready, r.firstQty / r.lineRate, r.needs, lines, floor.ready)
+    if (s === 'sew') return earliestLineStart(Math.max(r.ready, clock), r.firstQty / r.lineRate, r.needs, lines, floor.ready)
     return Math.max(r.ready, free[s], s === 'dtf_press' ? r.filmDay : 0)
   }
   let pending = runs.filter(r => r.i < r.stations.length)
+  // เวลาที่เลือกเริ่มแต่ละรอบไม่ลดลง (เลือกงานที่เริ่มเร็วสุดเสมอ) → ไลน์ที่จบก่อนเวลานี้ไม่มีผลกับงานที่เหลือ ตัดทิ้งได้
+  let clock = 0
   while (pending.length) {
-    pending.sort((a, b) => startOf(a) - startOf(b) || a.due - b.due)
-    const r = pending[0]
+    // หางานที่เริ่มได้เร็วที่สุด (เท่ากัน → กำหนดส่งใกล้กว่า) · คำนวณวันเริ่มครั้งเดียวต่องานต่อรอบ
+    // เดิมเรียง (sort) ซึ่งเรียก startOf ซ้ำทุกการเทียบ งานมากแล้วหน้าภาพรวมหน่วงบนแท็บเล็ต
+    let r = pending[0]
+    let start = startOf(r)
+    for (let k = 1; k < pending.length; k++) {
+      const t = startOf(pending[k])
+      if (t < start || (t === start && pending[k].due < r.due)) { r = pending[k]; start = t }
+    }
     const s = r.stations[r.i]
-    const start = startOf(r)
     if (r.isExtra && start - r.ready > longestWait) { longestWait = start - r.ready; extraWaitAt = s }
     r.ready = start + r.firstQty / (s === 'sew' ? r.lineRate : CAPACITY[s])   // firstQty = ชิ้นที่เหลือของสถานีปัจจุบัน
     if (s === 'sew') lines.push({ start, end: r.ready, needs: r.needs })
@@ -173,6 +180,8 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
     r.i++
     if (r.i >= r.stations.length) finishDay.set(r.id, r.ready)
     pending = pending.filter(x => x.i < x.stations.length)
+    clock = start
+    lines = lines.filter(l => l.end > clock)
   }
 
   const extraFinishDay = extra ? finishDay.get('__new') : undefined

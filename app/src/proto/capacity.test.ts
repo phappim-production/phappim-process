@@ -230,3 +230,15 @@ describe('คาดวันเสร็จตอนแอดมินส่ง�
     expect(receiveForecast([], friday, undefined, { route: 'plain', qty: 10, needsSample: false, due: '' }).late).toBeNull()
   })
 })
+
+describe('ความเร็วการคาดการณ์', () => {
+  it('งาน 300 งาน (เย็บแย่งจักร) คำนวณเสร็จภายในครึ่งวินาที', () => {
+    const ready = { single: 14, ovl4: 4, cover: 1 }
+    const floor = { ready, needsOf: () => [{ type: 'single' as const, qty: 1 }], shared: ['cover' as const, 'ovl4' as const] }
+    const many: Job[] = Array.from({ length: 300 }, (_, i) => ({ ...job, id: `j${i}`, qty: 50 + (i % 7) * 30, productCode: 'tshirt', due: day(20 + (i % 10)) }))
+    const t0 = performance.now()
+    const r = simulate(many, friday, { route: 'normal', qty: 500 }, floor)
+    expect(performance.now() - t0).toBeLessThan(500)
+    expect(r.finishDay.size).toBe(300)
+  })
+})
