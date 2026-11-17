@@ -1,4 +1,4 @@
-# ตรวจทุกครั้งที่ push: ทดสอบฐานข้อมูล (migrations + กฎ RLS) และ build หน้าเว็บ
+# ตรวจฐานข้อมูลและตรวจ lint, test, build ของหน้าเว็บทุกครั้งที่ push หรือเปิด PR
 name: ci
 on:
   push:
@@ -21,4 +21,6 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24 }
       - run: npm ci
+      - run: npm run lint
+      - run: npm test
       - run: npm run build
