@@ -77,6 +77,27 @@ export const COLUMNS: { key: ColumnKey; name: string }[] = [
   { key: 'done', name: 'เสร็จ' },
 ]
 
+// กลุ่มสถานีบนแถบเลือกสถานี · หน้างานมองหาสถานีตัวเองตามเฟส ไม่ต้องเลื่อนหา (เจ้าของโปรเจกต์ขอ 17 พ.ย.)
+export const STATION_GROUPS: { name: string; keys: ColumnKey[] }[] = [
+  { name: 'ก่อนผลิต', keys: ['materials', 'sample', 'sample_review'] },
+  { name: 'เฟส 1', keys: ['print', 'press', 'cut', 'dtf_press', 'emb'] },
+  { name: 'เฟส 2', keys: ['sew', 'qc_pack', 'done'] },
+]
+
+/** แบ่งคอลัมน์ที่บทบาทนี้เห็นออกเป็นกลุ่ม (ตัดกลุ่มที่ไม่มีคอลัมน์ทิ้ง) · คอลัมน์ที่ไม่อยู่ในกลุ่มใดไปต่อท้ายกลุ่มสุดท้าย */
+export function groupColumns<C extends { key: ColumnKey }>(columns: readonly C[]): { name: string; columns: C[] }[] {
+  const grouped = STATION_GROUPS.map(g => ({ name: g.name, columns: columns.filter(c => g.keys.includes(c.key)) }))
+  const known = new Set(STATION_GROUPS.flatMap(g => g.keys))
+  const rest = columns.filter(c => !known.has(c.key))
+  if (rest.length) grouped[grouped.length - 1].columns.push(...rest)
+  return grouped.filter(g => g.columns.length > 0)
+}
+
+/** สถานีที่เครื่องนี้เลือกไว้ครั้งก่อน · ใช้ได้เฉพาะสถานีที่บทบาทนี้ยังเห็นอยู่ ไม่อย่างนั้นกลับเป็นทุกสถานี */
+export function savedStation(raw: string | null, columns: readonly { key: ColumnKey }[]): ColumnKey | 'all' {
+  return columns.some(c => c.key === raw) ? raw as ColumnKey : 'all'
+}
+
 export function columnOf(j: Job): ColumnKey {
   // กันข้อมูลเพี้ยน: งานผลิตที่ไม่มีสถานี ให้ไปอยู่สถานีแรกของเส้นทาง
   if (j.phase === 'production') return j.station ?? ROUTES[j.route].stations[0]
