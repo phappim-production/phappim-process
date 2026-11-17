@@ -1,9 +1,21 @@
 import { ROUTES, startOfDay, type Job, type RouteCode, type StationCode } from './model'
 
-// ── ตัวเลขร่าง (ยังไม่ได้ยืนยันกับหน้างาน · เช็คลิสต์หัวข้อ 5 ข้อ 8) ─────────────────
+// ชิ้นต่อวันของสถานีที่ช่างแต่ละคนทำชิ้นงานจนจบเอง (ไม่ใช่ไลน์แบ่งขั้น) · ปัดลง เพราะชิ้นที่ทำไม่จบไม่นับ
+export function piecesPerDay(workers: number, minutesPerPiece: number, workMinutes: number): number {
+  return Math.floor(workers * workMinutes / minutesPerPiece)
+}
+
+// เย็บ: ข้อมูลหน้างาน 17 พ.ย. · ช่าง 3 คน · เสื้อยืด 20.17 นาที/ตัว (ป้ายผ้า 60x60 20 นาที/ผืน ใกล้กัน จึงใช้ค่าเดียว)
+// เวลางาน 09:00–18:00 หักพักเที่ยง 1 ชม. = 480 นาที
+export const SEWERS = 3
+export const SEW_MINUTES_PER_PIECE = 20.17
+export const WORK_MINUTES_PER_DAY = 480
+
+// ── ตัวเลขร่าง (ยังไม่ได้ยืนยันกับหน้างาน · เช็คลิสต์หัวข้อ 5 ข้อ 8) ยกเว้นเย็บ ─────────
 // กำลังผลิตต่อวันของแต่ละสถานี (ชิ้นต่อวันทำงาน)
 export const CAPACITY: Record<StationCode, number> = {
-  print: 600, press: 600, cut: 800, dtf_press: 400, emb: 300, sew: 500, qc_pack: 800,  // emb = ร้านปักนอก (ยังไม่รู้กำลังจริง)
+  print: 600, press: 600, cut: 800, dtf_press: 400, emb: 300, qc_pack: 800,  // emb = ร้านปักนอก (ยังไม่รู้กำลังจริง)
+  sew: piecesPerDay(SEWERS, SEW_MINUTES_PER_PIECE, WORK_MINUTES_PER_DAY),
 }
 // วันทำงานโดยประมาณก่อนเข้าผลิตจริง
 export const LEAD = {

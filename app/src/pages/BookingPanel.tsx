@@ -61,8 +61,8 @@ export function BookingPanel({ jobs, machines, bookings, needs, now, onOpen, onB
   const diff = Math.round((midnight.getTime() - bookingTime(today, '00:00').getTime()) / 86_400_000)
   const relDay = diff === 0 ? 'วันนี้' : diff === 1 ? 'พรุ่งนี้' : diff === -1 ? 'เมื่อวาน' : diff > 0 ? `อีก ${diff} วัน` : `${-diff} วันก่อน`
   const nextQuarter = new Date(Math.ceil(nowMs / 900_000) * 900_000)
-  const defaultDay = day >= today && !isSunday && bookingTime(day, '17:00') > nextQuarter ? day : nextWorkday(today)
-  const startOfShift = bookingTime(defaultDay, '08:00')
+  const defaultDay = day >= today && !isSunday && bookingTime(day, '18:00') > nextQuarter ? day : nextWorkday(today)
+  const startOfShift = bookingTime(defaultDay, '09:00')
   const defaultStart = hm(defaultDay === today && nextQuarter > startOfShift ? nextQuarter : startOfShift)
   const bookedToday = new Set(onDay.map(b => b.machineId))
   const visibleMachines = allMachines ? sewing : sewing.filter(m => bookedToday.has(m.id) || m.status !== 'ready')
@@ -216,7 +216,7 @@ export function BookingPanel({ jobs, machines, bookings, needs, now, onOpen, onB
                 แสดงจักรทั้งหมด {machines.length} ตัว (แสดงเฉพาะจักรที่จองหรือไม่พร้อมใช้)
               </label>
             )}
-            <p className="mt-2 text-xs text-muted">แถบส้ม = ช่วงที่จอง · พื้นขาว = เวลางาน 08:00–17:00 · เส้นแดง = ตอนนี้ · กดแถบเพื่อดูงาน</p>
+            <p className="mt-2 text-xs text-muted">แถบส้ม = ช่วงที่จอง · พื้นขาว = เวลางาน 09:00–18:00 · เส้นแดง = ตอนนี้ · กดแถบเพื่อดูงาน</p>
           </>
         )}
       </div>
@@ -254,7 +254,7 @@ function BookDialog({ jobs, machines, bookings, needs, now, defaultDay, defaultS
   const [startDay, setStartDay] = useState(defaultDay)
   const [startTime, setStartTime] = useState(defaultStart)
   const [endDay, setEndDay] = useState(defaultDay)
-  const [endTime, setEndTime] = useState('17:00')
+  const [endTime, setEndTime] = useState('18:00')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const job = candidates.find(j => j.id === jobId)
@@ -355,8 +355,8 @@ function BookDialog({ jobs, machines, bookings, needs, now, defaultDay, defaultS
 }
 
 // ---------- ส่วนประกอบของตารางรายวัน ----------
-const WORK_START = 8   // พื้นขาว = เวลางาน
-const WORK_END = 17
+const WORK_START = 9   // พื้นขาว = เวลางาน
+const WORK_END = 18
 type Axis = { startHour: number; endHour: number }
 const ticks = [4, 8, 10, 12, 14, 16, 18, 22]
 const pctOf = (h: number, { startHour, endHour }: Axis) => ((h - startHour) / (endHour - startHour)) * 100
