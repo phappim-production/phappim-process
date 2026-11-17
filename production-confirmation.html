@@ -184,7 +184,7 @@ table.dt tfoot td{font-weight:700;background:#f7f8f6}
 <body>
 <div class="bar">
   <img class="bar-logo" id="barLogo" alt="ภาพพิมพ์ 142">
-  <h1 id="barTitle">ใบยืนยันการผลิต<small>แอดมินกรอก → ตรวจครบ → ส่งออก PDF ให้ลูกค้าเซ็น</small></h1>
+  <h1 id="barTitle">ใบยืนยันการผลิต<small>แอดมินกรอก → บันทึกเข้าระบบ → ส่งออก PDF ให้ลูกค้าเซ็น</small></h1>
   <span class="qty-badge" id="qtyBadge">0</span>
   <span class="progress edit-only" id="progress"></span>
   <div class="btn-group edit-only">
@@ -192,6 +192,7 @@ table.dt tfoot td{font-weight:700;background:#f7f8f6}
     <button class="btn" data-act="open" title="เปิดไฟล์ใบงานที่บันทึกไว้ (.json)">เปิดไฟล์</button>
     <button class="btn" data-act="savefile" title="บันทึกเป็นไฟล์ไว้เปิดแก้ไขหรือออกฉบับใหม่ภายหลัง">บันทึกไฟล์</button>
   </div>
+  <button class="btn primary edit-only" data-act="savedb" title="เก็บใบนี้ในระบบติดตามการผลิต · ตอนส่งงานเข้าเลือกใบจากรายการได้เลย ไม่ต้องใช้ไฟล์">บันทึกเข้าระบบ</button>
   <button class="btn" data-act="preview" id="btnPreview">ดูตัวอย่าง PDF</button>
   <button class="btn primary" data-act="export">ส่งออก PDF</button>
   <input type="file" id="openFile" accept=".json,application/json" hidden>
@@ -1014,16 +1015,44 @@ document.addEventListener('click',e=>{
   if(act==='savefile'){ const blob=new Blob([JSON.stringify({ app:'phappim-confirm', v:1, ...state, summary:{ qty:totalQty(), route:route().code } })],{type:'application/json'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fileBase()+'.json'; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href),2000); toast('บันทึกไฟล์ '+a.download+' แล้ว'); }
+  if(act==='savedb'){ saveToSystem(); }
   if(act==='preview'){ togglePreview(); }
   if(act==='export'){ exportPdf(); }
 });
 
+// ใส่ข้อมูลใบยืนยัน (จากไฟล์ .json หรือจากระบบ) แทนที่ฟอร์มปัจจุบัน
+function loadData(d, label){
+  if(!d||!d.h||!d.p||!PRODUCTS[d.product]) return false;
+  state={ h:d.h, product:d.product, pickOpen:false, p:d.p, imgs:Array.isArray(d.imgs)?d.imgs:[] }; missing=[]; $('#alert').innerHTML='';
+  if(document.body.classList.contains('preview')) togglePreview(false); rerender(); scrollTo(0,0); save(); toast(label);
+  return true;
+}
 $('#openFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return;
-  f.text().then(t=>{ try{ const d=JSON.parse(t); if(!d.h||!d.p||!PRODUCTS[d.product]) throw 0;
-      state={ h:d.h, product:d.product, pickOpen:false, p:d.p, imgs:Array.isArray(d.imgs)?d.imgs:[] }; missing=[]; $('#alert').innerHTML='';
-      if(document.body.classList.contains('preview')) togglePreview(false); rerender(); scrollTo(0,0); toast('เปิดไฟล์ '+f.name+' แล้ว');
-    }catch(err){ alert('ไฟล์นี้ไม่ใช่ไฟล์ใบยืนยันการผลิต'); }
+  f.text().then(t=>{ try{ if(!loadData(JSON.parse(t), 'เปิดไฟล์ '+f.name+' แล้ว')) throw 0; }
+    catch(err){ alert('ไฟล์นี้ไม่ใช่ไฟล์ใบยืนยันการผลิต'); }
     e.target.value=''; }); });
+
+/* ================= ระบบติดตามการผลิต (pp142.pages.dev) =================
+   ฟอร์มอยู่เว็บเดียวกับระบบ จึงส่งข้อมูลผ่าน localStorage ให้หน้าระบบ (ที่ล็อกอินแล้ว) บันทึกเข้าฐานข้อมูล
+   ฟอร์มจึงไม่ต้องมีรหัสเข้าระบบเอง · รูปไม่ส่ง (กฎระบบ: ไม่เก็บรูปในตาราง · รูปอยู่ใน PDF) */
+const OUTBOX='pp142.confirmation.outbox', INBOX='pp142.confirmation.inbox';
+function saveToSystem(){
+  if(location.protocol==='file:'){ alert('บันทึกเข้าระบบได้เมื่อเปิดฟอร์มจากเว็บระบบ (pp142.pages.dev/confirmation)\nตอนนี้เปิดจากไฟล์ในเครื่อง ให้ใช้ "บันทึกไฟล์" แทน'); return; }
+  if(!String(state.h.doc_no||'').trim()){ alert('ใส่เลขที่ใบยืนยันก่อนบันทึกเข้าระบบ'); $('[data-k="doc_no"]')?.focus(); return; }
+  const payload={ app:'phappim-confirm', v:1, ...state, imgs:[], summary:{ qty:totalQty(), route:route().code } };
+  try{ localStorage.setItem(OUTBOX, JSON.stringify(payload)); }catch(e){ alert('บันทึกไม่สำเร็จ (พื้นที่เบราว์เซอร์เต็ม) ให้ใช้ "บันทึกไฟล์" แทน'); return; }
+  const w=window.open('/#/board?confirmation=save','pp142-system');
+  if(!w) location.href='/#/board?confirmation=save';
+  toast('ส่งใบ '+state.h.doc_no+' ไปบันทึกที่หน้าระบบแล้ว · ดูผลที่แท็บระบบ');
+}
+// หน้าระบบกด "เปิดในฟอร์ม" (แก้ใบที่บันทึกไว้) → ใส่ข้อมูลไว้ใน INBOX แล้วเปิดหน้านี้
+(function takeInbox(){
+  let d=null; try{ d=JSON.parse(localStorage.getItem(INBOX)); localStorage.removeItem(INBOX); }catch(e){}
+  if(!d) return;
+  const busy=String(state.h.doc_no||state.h.customer||'').trim() && state.h.doc_no!==d.h?.doc_no;
+  if(busy && !confirm('เปิดใบ '+(d.h?.doc_no||'')+' จากระบบ ข้อมูลที่กรอกอยู่ในฟอร์มจะถูกแทนที่ ดำเนินการต่อ?')) return;
+  if(!loadData(d, 'เปิดใบ '+(d.h?.doc_no||'')+' จากระบบแล้ว · แก้แล้วกด "บันทึกเข้าระบบ" อีกครั้ง')) alert('ข้อมูลจากระบบไม่ใช่ใบยืนยันการผลิต');
+})();
 
 // กด Enter = ไปช่องถัดไป (กรอกตารางไซซ์ได้เร็ว) · กันล้อเมาส์เปลี่ยนตัวเลขโดยไม่ตั้งใจ
 form.addEventListener('keydown',e=>{ const t=e.target;
