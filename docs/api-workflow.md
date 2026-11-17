@@ -20,7 +20,7 @@ QC ส่งแก้: send_rework → กลับสถานีต้นเ�
 ## ฟังก์ชัน
 | ฟังก์ชัน | พารามิเตอร์ | บทบาท | ทำอะไร / ปฏิเสธเมื่อ |
 |---|---|---|---|
-| `receive_job` | `p_confirmation_no, p_customer_name, p_job_name, p_product_type_code, p_qty, p_unit, p_due_date, p_route_code, p_confirmation_pdf_path` · ไม่บังคับ `p_spare_qty, p_confirmation_rev, p_spec` | supervisor | สร้างงาน + รายการวัตถุดิบจากแม่แบบ · คืน `uuid` · ปฏิเสธ: ไม่มี PDF / ไม่ใช่ .pdf, เลขที่ซ้ำ, จำนวน ≤ 0 |
+| `receive_job` | `p_confirmation_no, p_customer_name, p_job_name, p_product_type_code, p_qty, p_unit, p_due_date, p_route_code, p_confirmation_pdf_path` · ไม่บังคับ `p_spare_qty, p_confirmation_rev, p_spec` | **admin เท่านั้น** · owner (ฝ่ายผลิต/ผู้ควบคุมงาน = "แอดมินเป็นคนส่งงานเข้าโรงงาน" · `20261119170000`) | สร้างงาน + รายการวัตถุดิบจากแม่แบบ · คืน `uuid` · ปฏิเสธ: ไม่มี PDF / ไม่ใช่ .pdf, เลขที่ซ้ำ, จำนวน ≤ 0 |
 | `check_material` | `p_material_id, p_checked = true` | admin / qc / production (เฉพาะรายการของฝ่ายตัวเอง) | ติ๊ก/ยกเลิก · ครบทุกฝ่าย → ปล่อยไปขึ้นตัวอย่างอัตโนมัติ · ปฏิเสธ: ฝ่ายอื่น, ปล่อยงานแล้ว, รายการฟิล์ม (ติ๊กอัตโนมัติ) |
 | `order_film` | `p_job, p_eta` | admin | บันทึกสั่งฟิล์ม DTF + ETA · ติ๊กรายการฟิล์มให้ |
 | `receive_film` | `p_job` | admin | บันทึกได้รับฟิล์ม · ปฏิเสธ: ยังไม่สั่ง |

@@ -65,8 +65,8 @@ export default function Dashboard({ view, today, role, scope = FACTORY_SCOPE }: 
 function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: {
   view: View; today: string; role: EmployeeRole; myScope: BoardScope; data: FactoryData; loadedAt: Date; refresh: () => Promise<void>
 }) {
-  // รับงานเข้าโรงงาน = ฝ่ายผลิต (คุมหน้างานทั้งหมด) · owner ทำแทนได้ · ฐานข้อมูลตรวจซ้ำ
-  const canReceive = role === 'production' || role === 'supervisor' || role === 'owner'
+  // ส่งงานเข้าโรงงาน = แอดมิน (กรอกใบยืนยันและเตรียมวัตถุดิบเอง · ตัดสินใจ 17 พ.ย.) · owner ทำแทนได้ · ฐานข้อมูลตรวจซ้ำ
+  const canReceive = role === 'admin' || role === 'owner'
   const [receiving, setReceiving] = useState(false)
   const [received, setReceived] = useState<string | null>(null)
   const now = useNow(30_000)
@@ -239,6 +239,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
         <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-5 p-4 sm:p-6">
           <PageHeader title="ภาพรวมการผลิต" today={today} updated={loadedAt} />
           {linkNotice}
+          {receiveBar}
           <Overview jobs={jobs} now={now} forecast={forecast} onOpen={setOpenId} />
         </div>
         {drawer}

@@ -17,7 +17,7 @@ export async function teamTests({ db, ok, as }) {
     catch (e) { ok(name, re ? re.test(e.message) : true, e.message.split('\n')[0]) }
   }
   const live = async id => (await db.query(`select * from public.job_live where id = '${id}'`)).rows[0]
-  const receive = async (no, route) => (await call(U.prod, `public.receive_job('${no}', 'ลูกค้าทีมจริง', 'งานทีมจริง', 'tshirt', 10, 'ตัว', '2026-12-31', '${route}', 'confirmations/${no}.pdf') as id`)).rows[0].id
+  const receive = async (no, route) => (await call(U.admin, `public.receive_job('${no}', 'ลูกค้าทีมจริง', 'งานทีมจริง', 'tshirt', 10, 'ตัว', '2026-12-31', '${route}', 'confirmations/${no}.pdf') as id`)).rows[0].id
   const tickMaterials = async id => {
     const rows = (await db.query(`select id, dept, key from public.job_materials where job_id = '${id}' order by id`)).rows
     let all = true

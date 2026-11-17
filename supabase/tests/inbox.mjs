@@ -34,7 +34,7 @@ export async function inboxTests({ db, ok, as }) {
   }
 
   // ---- 1. พักงาน 1 ครั้ง -> 1 ข้อความ hold + กันซ้ำด้วย issue_id เดิม ----
-  const jHold = (await as(U.prod, () => db.query(`
+  const jHold = (await as(U.admin, () => db.query(`
     select public.receive_job('SC-INB-HOLD', 'ลูกค้ากล่อง', 'งานพัก', 'tshirt', 100, 'ตัว', '2026-12-31', 'plain', 'inb-hold.pdf') as id
   `))).rows[0].id
   // ปล่อยจาก materials -> sample -> start_station แล้วพักงาน
@@ -98,11 +98,11 @@ export async function inboxTests({ db, ok, as }) {
 
   // ---- 5. inbox_scan(): งานเข้าเงื่อนไข vs ไม่เข้าเงื่อนไข + เรียก 2 ครั้งไม่ซ้ำ ----
   // สร้างงานปกติที่ยังไม่เข้าเงื่อนไขใดๆ (กำหนดส่งไกล ไม่อยู่ DTF ไม่เกิน SLA)
-  const jOk = (await as(U.prod, () => db.query(`
+  const jOk = (await as(U.admin, () => db.query(`
     select public.receive_job('SC-INB-OK', 'ลูกค้าปกติ', 'งานปกติ', 'tshirt', 10, 'ตัว', ((now() at time zone 'Asia/Bangkok')::date + 20), 'plain', 'inb-ok.pdf') as id
   `))).rows[0].id
   // สร้างงานเข้าเงื่อนไข due_soon (วันนี้), film_late (dtf เลยกำหนด), materials_late (> 2 วันทำงาน)
-  const jScan = (await as(U.prod, () => db.query(`
+  const jScan = (await as(U.admin, () => db.query(`
     select public.receive_job('SC-INB-SCAN', 'ลูกค้าสแกน', 'งานเร่ง', 'tshirt', 50, 'ตัว', ((now() at time zone 'Asia/Bangkok')::date + 1), 'dtf', 'inb-scan.pdf') as id
   `))).rows[0].id
   await db.exec(`

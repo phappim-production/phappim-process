@@ -24,7 +24,8 @@ export async function productionTests({ db, ok, as }) {
   const state = async id => (await db.query(`select station_seq, station_status, phase from public.jobs where id = '${id}'`)).rows[0]
 
   // ---------- รับงาน ----------
-  await pass('ฝ่ายผลิตรับงานได้', U.prod, `public.receive_job('SC-PRD-RCV', 'ลูกค้าทดสอบ', 'งานทดสอบ', 'tshirt', 10, 'ตัว', '2026-12-31', 'normal', 'confirmations/SC-PRD-RCV.pdf')`)
+  await reject('ฝ่ายผลิตรับงานไม่ได้ (แอดมินเป็นคนส่งงานเข้า)', U.prod, `public.receive_job('SC-PRD-NO', 'ลูกค้าทดสอบ', 'งานทดสอบ', 'tshirt', 10, 'ตัว', '2026-12-31', 'normal', 'confirmations/SC-PRD-NO.pdf')`, /แอดมินเป็นคนส่งงานเข้าโรงงาน/)
+  await pass('แอดมินส่งงานเข้าได้', U.admin, `public.receive_job('SC-PRD-RCV', 'ลูกค้าทดสอบ', 'งานทดสอบ', 'tshirt', 10, 'ตัว', '2026-12-31', 'normal', 'confirmations/SC-PRD-RCV.pdf')`)
 
   // ---------- เฟส 1 (พิมพ์) ----------
   const p = await jobAt('SC-PRD-PRINT', 'normal', 1)

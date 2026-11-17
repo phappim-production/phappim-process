@@ -19,7 +19,7 @@ export async function routeTests({ db, ok, as }) {
   const live = async id => (await db.query(`select * from public.job_live where id = $1`, [id])).rows[0]
   const job = async id => (await db.query(`select * from public.jobs where id = $1`, [id])).rows[0]
   // sample: true / false / undefined (ไม่ส่งค่า = ค่าเริ่มต้นของฟังก์ชัน)
-  const receive = async (no, route, sample) => (await call(U.prod,
+  const receive = async (no, route, sample) => (await call(U.admin,
     `public.receive_job('${no}', 'ลูกค้าเส้นทาง', 'งานเส้นทาง', 'tshirt', 10, 'ตัว', '2026-12-31', '${route}', 'confirmations/${no}.pdf'` +
     (sample === undefined ? '' : `, p_needs_sample => ${sample}`) + `) as id`)).rows[0].id
   const tickMaterials = async id => {
@@ -68,7 +68,7 @@ export async function routeTests({ db, ok, as }) {
   const rel = (await db.query(`select phase, payload from public.events where job_id = $1 and type = 'released'`, [C])).rows
   ok('ตัวอย่าง: บันทึกเหตุการณ์ปล่อยงานเข้าผลิต 1 แถว', rel.length === 1 && rel[0].phase === 'production' && rel[0].payload.sample === false)
   await reject('ตัวอย่าง: งานไม่ขึ้นตัวอย่าง บันทึกผลตัวอย่างไม่ได้', U.admin, `public.record_sample_result('${C}', true)`, /ไม่ได้รอผลตัวอย่าง/)
-  await reject('ตัวอย่าง: ส่ง null ไม่ได้ ต้องเลือก', U.prod,
+  await reject('ตัวอย่าง: ส่ง null ไม่ได้ ต้องเลือก', U.admin,
     `public.receive_job('SC-RT-NULL', 'ลูกค้า', 'งาน', 'tshirt', 10, 'ตัว', '2026-12-31', 'plain', 'confirmations/SC-RT-NULL.pdf', p_needs_sample => null)`,
     /ต้องเลือกว่างานนี้ขึ้นตัวอย่างหรือไม่/)
 

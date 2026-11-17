@@ -79,6 +79,6 @@ export async function sectionTests({ db, ok, as }) {
   await pass('ผู้ควบคุมงานเฟส 1 แก้ไขย้อนหลังงานที่อยู่เฟส 2 ได้', U.sup1, `public.correct_event('${s2}', ${ev}, 'แก้เวลากดผิด')`)
   await reject('แก้ไขย้อนหลังงานที่ไม่มีอยู่ ถูกปฏิเสธ', U.sup1,
     `public.correct_event('00000000-0000-0000-0000-0000000000ff', ${ev}, 'x')`, /ไม่พบงาน/)
-  await pass('ผู้ควบคุมงานเฟส 2 รับงานใหม่ได้', U.sup2,
-    `public.receive_job('SC-SEC-NEW', 'ลูกค้าทดสอบ', 'งานใหม่', 'tshirt', 10, 'ตัว', '2026-12-31', 'normal', 'confirmations/SC-SEC-NEW.pdf')`)
+  await reject('ผู้ควบคุมงานเฟส 2 รับงานใหม่ไม่ได้ (แอดมินเป็นคนส่งงานเข้า)', U.sup2,
+    `public.receive_job('SC-SEC-NEW', 'ลูกค้าทดสอบ', 'งานใหม่', 'tshirt', 10, 'ตัว', '2026-12-31', 'normal', 'confirmations/SC-SEC-NEW.pdf')`, /แอดมินเป็นคนส่งงานเข้าโรงงาน/)
 }
