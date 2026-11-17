@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { dueDate, thaiError, toBookings, toJobs, toMachines, toNeeds } from '../src/data/live.ts'
+import { dueDate, sharedTypes, thaiError, toBookings, toJobs, toMachines, toNeeds } from '../src/data/live.ts'
 import { checkStartSewing, machineState } from '../src/proto/sewing.ts'
 import { isOverdue, missingDepts } from '../src/proto/model.ts'
 
@@ -126,4 +126,19 @@ test('ข้อความผิดพลาด: ภาษาไทยจาก
   assert.match(thaiError('new row violates row-level security policy'), /บัญชีนี้ทำรายการนี้ไม่ได้/)
   assert.match(thaiError('something odd'), /ลองใหม่/)
   assert.match(thaiError(undefined), /ลองใหม่/)
+})
+
+test('จักรใช้ร่วม (จักรลา) ไม่อยู่ในสูตรจักรที่ไลน์ต้องได้ครบ · เริ่มเย็บได้แม้จักรลาติดงานอื่น', () => {
+  const types = [{ code: 'ovl4', shared: false }, { code: 'cover', shared: true }, { code: 'button', shared: null }]
+  assert.deepEqual(sharedTypes(types), ['cover'])
+  const needs = toNeeds([
+    { product_type_code: 'polo', type_code: 'ovl4', qty: 1 }, { product_type_code: 'polo', type_code: 'cover', qty: 1 },
+  ], new Set(sharedTypes(types)))
+  assert.deepEqual(needs.polo, [{ type: 'ovl4', qty: 1 }])
+  const [j] = toJobs([row()], products, [], [])
+  const machines = toMachines([
+    { id: 1, code: 'OL4-001', type_code: 'ovl4', status: 'ready', note: null, repair_eta: null, sort: 1 },
+    { id: 2, code: 'CV-001', type_code: 'cover', status: 'ready', note: null, repair_eta: null, sort: 2 },
+  ], [{ machine_id: 2, job_id: 'other-job' }])
+  assert.equal(checkStartSewing(j, machines, needs, toBookings([]), new Date('2026-11-17T03:00:00Z')).ok, true)
 })

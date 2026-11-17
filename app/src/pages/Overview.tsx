@@ -216,6 +216,7 @@ function SewLineNote({ product, floor }: { product: string; floor: SewFloor }) {
       {sets === 0
         ? <p className="font-semibold text-danger">จักรไม่ครบชุด: ขาด {missing.map(n => `${MACHINE_TYPE_NAME[n.type]} ${n.qty - (floor.ready[n.type] ?? 0)} ตัว`).join(' · ')} · เย็บได้เมื่อซ่อม/เพิ่มจักร</p>
         : <p className="text-muted">เย็บพร้อมกันได้ {linesFor(needs, floor.ready)} ไลน์ (ถ้าไม่มีงานอื่นใช้จักรเดียวกัน) · ไลน์ละช่าง 3 คน ~{lineRate(product)} ชิ้น/วัน</p>}
+      {!!floor.shared?.length && <p className="text-muted">ใช้ร่วมได้ทุกไลน์ (ไม่นับในชุดจักร): {floor.shared.map(t => MACHINE_TYPE_NAME[t]).join(' · ')}</p>}
       {!hasSewMinutes(product) && <p className="font-semibold text-warn">ยังไม่มีเวลาเย็บจริงของสินค้านี้ · คิดเวลาเท่าเสื้อยืดไปก่อน</p>}
     </div>
   )

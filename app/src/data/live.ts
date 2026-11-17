@@ -106,10 +106,19 @@ export function toBookings(rows: BookingRow[]): Booking[] {
   return rows.map(r => ({ id: String(r.id), machineId: String(r.machine_id), jobId: r.job_id, starts: new Date(r.starts_at), ends: new Date(r.ends_at) }))
 }
 
-export function toNeeds(rows: NeedRow[]): Record<string, Need[]> {
+// จักรใช้ร่วม (machine_types.shared · เช่น จักรลา) ไม่ผูกกับงาน จึงไม่นับเป็นจักรที่ไลน์ต้องได้ครบ
+// ตรงกับ start_sewing / book_machines / machines_short ในฐานข้อมูล (20261119210000)
+export type MachineTypeRow = { code: MachineType; shared: boolean | null }
+export function toNeeds(rows: NeedRow[], shared: ReadonlySet<MachineType> = new Set()): Record<string, Need[]> {
   const map: Record<string, Need[]> = {}
-  for (const r of rows) (map[r.product_type_code] ??= []).push({ type: r.type_code, qty: r.qty })
+  for (const r of rows) {
+    if (shared.has(r.type_code)) continue
+    ;(map[r.product_type_code] ??= []).push({ type: r.type_code, qty: r.qty })
+  }
   return map
+}
+export function sharedTypes(rows: MachineTypeRow[]): MachineType[] {
+  return rows.filter(r => r.shared).map(r => r.code)
 }
 
 // ข้อความจากฐานข้อมูลเป็นภาษาไทยอยู่แล้ว (บอกว่าต้องทำอะไร) · ข้อความระบบภาษาอังกฤษไม่แสดงให้คนหน้างาน

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Job } from '../proto/model'
-import type { Booking, Machine, Need } from '../proto/sewing'
+import type { Booking, Machine, MachineType, Need } from '../proto/sewing'
 import {
-  thaiError, toBookings, toJobs, toMachines, toNeeds,
+  sharedTypes, thaiError, toBookings, toJobs, toMachines, toNeeds, type MachineTypeRow,
   type AssignmentRow, type BookingRow, type JobRow, type MachineRow, type NeedRow, type ProductRow, type ReworkRow, type SewEventRow,
 } from './live'
 
-export type FactoryData = { jobs: Job[]; machines: Machine[]; bookings: Booking[]; needs: Record<string, Need[]>; products: ProductRow[] }
+export type FactoryData = { jobs: Job[]; machines: Machine[]; bookings: Booking[]; needs: Record<string, Need[]>; products: ProductRow[]; shared: MachineType[] }
 export type LoadState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
@@ -54,7 +54,7 @@ export async function fetchBoardJob(id: string, signal: AbortSignal): Promise<Jo
 async function load(): Promise<FactoryData> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
   const recent = new Date(Date.now() - 14 * DAY).toISOString()
-  const [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs] = await Promise.all([
+  const [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types] = await Promise.all([
     // งานเสร็จเก่ากว่า 14 วันไม่ต้องแสดงบนบอร์ด
     supabase.from('job_live').select(JOB_COLUMNS).neq('phase', 'cancelled').or(`phase.neq.done,finished_at.gte.${recent}`),
     supabase.from('product_types').select('code, name'),
@@ -64,15 +64,17 @@ async function load(): Promise<FactoryData> {
     supabase.from('machine_assignments').select('machine_id, job_id').is('released_at', null),
     supabase.from('machine_bookings').select('id, machine_id, job_id, starts_at, ends_at').is('cancelled_at', null).gte('ends_at', new Date(Date.now() - 7 * DAY).toISOString()),
     supabase.from('product_machine_needs').select('product_type_code, type_code, qty'),
+    supabase.from('machine_types').select('code, shared'),
   ])
-  const failed = [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs].find(r => r.error)
+  const failed = [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types].find(r => r.error)
   if (failed?.error) throw new Error(failed.error.message)
   return {
     jobs: toJobs(jobs.data as JobRow[], products.data as ProductRow[], reworks.data as ReworkRow[], sewEvents.data as SewEventRow[]),
     machines: toMachines(machines.data as MachineRow[], assignments.data as AssignmentRow[]),
     bookings: toBookings(bookings.data as BookingRow[]),
-    needs: toNeeds(needs.data as NeedRow[]),
+    needs: toNeeds(needs.data as NeedRow[], new Set(sharedTypes(types.data as MachineTypeRow[]))),
     products: products.data as ProductRow[],
+    shared: sharedTypes(types.data as MachineTypeRow[]),
   }
 }
 
