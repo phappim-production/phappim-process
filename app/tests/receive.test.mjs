@@ -172,19 +172,15 @@ const steps = [
 const ctx = over => ({ station: 'print', phase: 'production', rework: false, done: new Set(), filmReceived: false, qcPassed: 0, qty: 10, ...over })
 const names = list => list.map(s => s.name)
 
-test('ผลิตจริง: ขั้นบังคับทุกชนิดยกเว้นเช็คลิสต์ ต้องทำก่อนกดเสร็จ', () => {
-  assert.deepEqual(names(missingSteps(steps, ctx())), ['รับใบงาน', 'เลย์เอาต์', 'พิมพ์ทดสอบ', 'ตรวจงานพิมพ์'])
-  assert.deepEqual(names(missingSteps(steps, ctx({ done: new Set(['receive_job', 'nesting', 'test_print']) }))), ['ตรวจงานพิมพ์'])
+test('เริ่ม → เสร็จ: เช็คลิสต์ขั้นย่อยไม่บังคับทุกชนิด ทั้งผลิตจริงและขึ้นตัวอย่าง', () => {
+  assert.deepEqual(missingSteps(steps, ctx()), [])
+  assert.deepEqual(missingSteps(steps, ctx({ phase: 'sample' })), [])
+  assert.deepEqual(missingSteps([{ key: 'boxed', name: 'ลงลัง', kind: 'req' }], ctx({ station: 'qc_pack', qcPassed: 10 })), [])
 })
 
-test('ขึ้นตัวอย่าง: บังคับเฉพาะขั้น "ต้องติ๊ก" · QC ไม่บังคับ', () => {
-  assert.deepEqual(names(missingSteps(steps, ctx({ phase: 'sample' }))), ['รับใบงาน', 'ตรวจงานพิมพ์'])
-  assert.deepEqual(missingSteps([{ key: 'boxed', name: 'ลงลัง', kind: 'req' }], ctx({ phase: 'sample', station: 'qc_pack' })), [])
-})
-
-test('งานแก้ไม่ต้องติ๊กซ้ำ ยกเว้น QC · เย็บใช้ยืนยันเสร็จครั้งเดียว', () => {
+test('งานแก้ไม่ต้องทำซ้ำ ยกเว้น QC ต้องผ่านครบ · เย็บใช้ยืนยันเสร็จครั้งเดียว', () => {
   assert.deepEqual(missingSteps(steps, ctx({ rework: true })), [])
-  assert.equal(missingSteps([{ key: 'boxed', name: 'ลงลัง', kind: 'req' }], ctx({ rework: true, station: 'qc_pack' })).length, 1)
+  assert.equal(missingSteps([{ key: 'inspect', name: 'ตรวจ', kind: 'num' }], ctx({ rework: true, station: 'qc_pack' })).length, 1)
   assert.deepEqual(missingSteps([{ key: 'issue_to_sew', name: 'จ่ายงาน', kind: 'req' }], ctx({ station: 'sew' })), [])
 })
 

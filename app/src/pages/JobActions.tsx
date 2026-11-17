@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
-import { etaFromDay, isRequired, isStepDone, KIND_LABEL, missingSteps, type Substep } from '../data/stationSteps'
+import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
 import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job } from '../proto/model'
 import { spaced } from '../proto/format'
 import { bookingDay } from '../proto/sewing'
@@ -313,12 +313,8 @@ function Station({ job: j, detail: d, canPress, role, busy, now, act }: {
 
         {j.status === 'doing' && (
           <div className="grid gap-3">
-            {j.rework && st !== 'qc_pack'
-              ? <p className="text-muted">งานแก้ไม่ต้องติ๊กขั้นย่อยซ้ำ แก้เสร็จกดเสร็จ งานกลับไป QC</p>
-              : <ol className="grid gap-2">{d.steps.map(step => (
-                  <StepRow key={step.key} step={step} ctx={ctx} value={d.done.get(step.key)} canPress={canPress} busy={busy}
-                    onTick={value => act('complete_substep', { p_key: step.key, p_value: value ?? null }, `บันทึก "${step.name}" แล้ว`)} />
-                ))}</ol>}
+            {/* ไม่มีเช็คลิสต์ขั้นย่อย: คนหน้างานรู้ขั้นตอนเอง · ทำเสร็จกดเสร็จ · มีปัญหากดรายงาน (เจ้าของโปรเจกต์ 17 พ.ย.) */}
+            {j.rework && st !== 'qc_pack' && <p className="text-muted">งานแก้ · แก้เสร็จกดเสร็จ งานกลับไป QC</p>}
             {st === 'qc_pack' && !sample && canPress && <QcPanel job={j} passed={d.qcPassed} busy={busy} act={act} />}
             {canPress && (confirmFinish
               ? <Confirm text={`ยืนยัน${spaced(name)}เสร็จทั้งก้อน? งานจะส่งต่ออัตโนมัติ`} busy={busy}
@@ -370,39 +366,6 @@ function SlaBanner({ sla: s }: { sla: Sla }) {
       <IconAlert className="mt-0.5 size-5 shrink-0" />
       <span>{over ? 'เกินเวลามาตรฐาน' : 'ใกล้ครบเวลามาตรฐาน'} · {lines.join(' · ')}</span>
     </p>
-  )
-}
-
-function StepRow({ step, ctx, value, canPress, busy, onTick }: {
-  step: Substep; ctx: Parameters<typeof isStepDone>[1]; value: unknown; canPress: boolean; busy: boolean
-  onTick: (value?: number) => Promise<boolean>
-}) {
-  const [n, setN] = useState('')
-  const done = isStepDone(step, ctx)
-  const required = isRequired(step, ctx)
-  const qcInspect = ctx.station === 'qc_pack' && step.key === 'inspect'
-  return (
-    <li className="flex flex-wrap items-center gap-2 rounded-xl border border-line p-2">
-      {done ? <IconCheck className="size-5 shrink-0 text-ok" /> : <span className="size-5 shrink-0 rounded-full border-2 border-line" aria-hidden />}
-      <span className="min-w-40 flex-1">
-        <span className={`block break-words ${done ? 'text-muted' : ''}`}>{step.name}{done && typeof value === 'number' ? ` · ${value.toLocaleString('th-TH')}` : ''}</span>
-        <span className="text-xs text-muted">{required ? `${KIND_LABEL[step.kind]} · ต้องทำก่อนกดเสร็จ` : step.kind === 'opt' ? KIND_LABEL.opt : 'ไม่บังคับในรอบนี้'}</span>
-      </span>
-      {!done && canPress && !qcInspect && step.kind !== 'lock' && (
-        step.kind === 'num' ? (
-          <span className="ml-auto flex gap-2">
-            <input type="number" min={0} inputMode="decimal" value={n} onChange={e => setN(e.target.value)} aria-label={step.name} className={`${fieldClass} w-28`} />
-            <button type="button" disabled={busy || n === '' || Number(n) < 0} className={primaryBtn} onClick={() => void onTick(Number(n))}>บันทึก</button>
-          </span>
-        ) : (
-          <button type="button" disabled={busy} className={step.kind === 'appr' ? primaryBtn : okBtn} onClick={() => void onTick()}>
-            {step.kind === 'appr' ? 'อนุมัติ' : 'ทำแล้ว'}
-          </button>
-        )
-      )}
-      {!done && step.kind === 'lock' && <Pill tone="warn">รอแอดมินบันทึกได้รับฟิล์ม</Pill>}
-      {!done && qcInspect && <Pill tone="info">ใช้ช่องบันทึกผล QC ด้านล่าง</Pill>}
-    </li>
   )
 }
 
