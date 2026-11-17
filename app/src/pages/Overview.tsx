@@ -194,7 +194,7 @@ function NewJobCheck({ jobs, now }: { jobs: Job[]; now: Date }) {
 
 function StationLoadCard({ forecast }: { forecast: Forecast }) {
   const max = Math.max(QUEUE_FULL_DAYS + 2, ...Object.values(forecast.load).map(l => l.days))
-  const order: StationCode[] = ['print', 'press', 'cut', 'dtf_press', 'sew', 'qc_pack']
+  const order: StationCode[] = ['print', 'press', 'cut', 'dtf_press', 'emb', 'sew', 'qc_pack']
   return (
     <Card className="h-full">
       <CardHeader icon={IconTrendingUp} title="งานค้างแต่ละสถานี" sub={`ต้องใช้กี่วันทำงานจึงเคลียร์งานที่มีอยู่ · เกิน ${QUEUE_OK_DAYS} วัน = ระวัง · เกิน ${QUEUE_FULL_DAYS} วัน = คิวเต็ม`} />

@@ -1,8 +1,8 @@
 // เฟส 1 (ต้นแบบ): รูปแบบข้อมูลงานฝั่งหน้าจอ + ข้อมูลตั้งค่าที่คัดจาก supabase/migrations/20261116000002_master_data.sql
 // เฟส 2 จะเปลี่ยนไปอ่านจากฐานข้อมูลจริง (ตาราง jobs, stations, routes)
 
-export type StationCode = 'print' | 'press' | 'cut' | 'dtf_press' | 'sew' | 'qc_pack'
-export type RouteCode = 'normal' | 'dtf' | 'plain'
+export type StationCode = 'print' | 'press' | 'cut' | 'dtf_press' | 'emb' | 'sew' | 'qc_pack'
+export type RouteCode = 'normal' | 'dtf' | 'dtg' | 'screen' | 'emb' | 'print_emb' | 'cut_only' | 'plain'
 export type Dept = 'admin' | 'qc' | 'production'
 export type Phase = 'materials' | 'sample' | 'sample_review' | 'production' | 'done'
 export type StationStatus = 'queued' | 'doing' | 'hold'
@@ -11,7 +11,8 @@ export const STATION_NAME: Record<StationCode, string> = {
   print: 'พิมพ์งาน',
   press: 'รีดงาน',
   cut: 'ตัดงาน',
-  dtf_press: 'รีด DTF',
+  dtf_press: 'รีดฟิล์ม',
+  emb: 'ส่งปัก',
   sew: 'เย็บงาน',
   qc_pack: 'QC + Packing',
 }
@@ -19,8 +20,17 @@ export const STATION_NAME: Record<StationCode, string> = {
 export const ROUTES: Record<RouteCode, { name: string; short: string; stations: StationCode[] }> = {
   normal: { name: 'ปกติ (ซับลิเมชั่น / ดิจิทัล)', short: 'ปกติ', stations: ['print', 'press', 'cut', 'sew', 'qc_pack'] },
   dtf: { name: 'DTF', short: 'DTF', stations: ['cut', 'dtf_press', 'sew', 'qc_pack'] },
+  dtg: { name: 'DTG', short: 'DTG', stations: ['cut', 'dtf_press', 'sew', 'qc_pack'] },
+  screen: { name: 'ซิลค์สกรีน', short: 'สกรีน', stations: ['cut', 'dtf_press', 'sew', 'qc_pack'] },
+  emb: { name: 'ปัก', short: 'ปัก', stations: ['cut', 'emb', 'sew', 'qc_pack'] },
+  print_emb: { name: 'พิมพ์ + ปัก', short: 'พิมพ์+ปัก', stations: ['print', 'press', 'cut', 'emb', 'sew', 'qc_pack'] },
+  cut_only: { name: 'ตัดงานลูกค้า', short: 'ตัดอย่างเดียว', stations: ['cut', 'qc_pack'] },
   plain: { name: 'ไม่มีงานพิมพ์', short: 'ไม่พิมพ์', stations: ['cut', 'sew', 'qc_pack'] },
 }
+
+// DTF / DTG / สกรีน สั่งฟิล์มเข้ามาแล้วรีดที่สถานีรีดฟิล์ม (ตรงกับ private.uses_film ในฐานข้อมูล)
+export const usesFilm = (r: RouteCode) => r === 'dtf' || r === 'dtg' || r === 'screen'
+export const filmLabel = (r: RouteCode) => (r === 'dtg' ? 'งาน DTG' : r === 'screen' ? 'งานสกรีน' : 'ฟิล์ม DTF')
 
 export const DEPT_NAME: Record<Dept, string> = { admin: 'แอดมิน', qc: 'QC', production: 'ฝ่ายผลิต' }
 
@@ -41,8 +51,9 @@ export type Job = {
   status?: StationStatus
   since: Date                // เวลาที่เข้าขั้นปัจจุบัน
   sampleRound: number
+  needsSample?: boolean      // false = ลูกค้าไม่ได้จ่ายค่าตัวอย่าง วัตถุดิบครบแล้วเข้าผลิตจริงเลย
   materials: Record<Dept, boolean>
-  film?: { eta: Date; received: boolean }  // เฉพาะเส้นทาง DTF
+  film?: { eta: Date; received: boolean }  // เฉพาะเส้นทางที่สั่งฟิล์ม (DTF / DTG / สกรีน)
   sewCount?: number
   sewingReports?: { reason: string; at: Date; paused: boolean }[]
   rework?: { qty: number; reason: string }
@@ -59,7 +70,8 @@ export const COLUMNS: { key: ColumnKey; name: string }[] = [
   { key: 'print', name: 'พิมพ์' },
   { key: 'press', name: 'รีด' },
   { key: 'cut', name: 'ตัด' },
-  { key: 'dtf_press', name: 'รีด DTF' },
+  { key: 'dtf_press', name: 'รีดฟิล์ม' },
+  { key: 'emb', name: 'ส่งปัก' },
   { key: 'sew', name: 'เย็บ' },
   { key: 'qc_pack', name: 'QC + Packing' },
   { key: 'done', name: 'เสร็จ' },
@@ -92,7 +104,7 @@ export function isDueSoon(j: Job, now: Date) {
   return j.phase !== 'done' && days >= 0 && days <= 2
 }
 export function isWaitingFilm(j: Job) {
-  if (j.route !== 'dtf' || !j.film || j.film.received || j.phase === 'done') return false
+  if (!usesFilm(j.route) || !j.film || j.film.received || j.phase === 'done') return false
   return true
 }
 export function isFilmLate(j: Job, now: Date) {

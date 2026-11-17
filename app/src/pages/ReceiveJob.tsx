@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { confirmationPath, draftFromConfirmation, pdfProblem, type ReceiveDraft } from '../data/confirmation'
-import { ROUTES, type RouteCode } from '../proto/model'
+import { ROUTES, STATION_NAME, type RouteCode } from '../proto/model'
 import { Dialog, fieldClass, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconInbox } from '../components/icons'
 
@@ -21,7 +21,7 @@ function FilePick({ accept, chosen, onPick }: { accept: string; chosen: string; 
     </span>
   )
 }
-const EMPTY: ReceiveDraft = { no: '', rev: 0, customer: '', jobName: '', product: '', qty: 0, spare: 0, due: '', route: 'normal', spec: {} }
+const EMPTY: ReceiveDraft = { no: '', rev: 0, customer: '', jobName: '', product: '', qty: 0, spare: 0, due: '', route: 'normal', needsSample: null, spec: {} }
 
 /** รับงานเข้าโรงงาน (S2): แนบ PDF ที่ลูกค้าเซ็นครบ + ไฟล์ .json จากฟอร์มใบยืนยัน (ถ้ามี) เพื่อดึงข้อมูลหัวใบ */
 export function ReceiveJob({ onClose, onDone }: { onClose: () => void; onDone: (no: string) => void }) {
@@ -48,7 +48,7 @@ export function ReceiveJob({ onClose, onDone }: { onClose: () => void; onDone: (
   const pdfIssue = pdfProblem(pdf)
   const missing = [
     !draft.no.trim() && 'เลขที่ใบยืนยัน', !draft.customer.trim() && 'ชื่อลูกค้า', !product && 'ประเภทสินค้า',
-    draft.qty <= 0 && 'จำนวน', !draft.due && 'กำหนดส่ง', pdfIssue && 'PDF ใบยืนยัน',
+    draft.qty <= 0 && 'จำนวน', !draft.due && 'กำหนดส่ง', draft.needsSample === null && 'ขึ้นตัวอย่างหรือไม่', pdfIssue && 'PDF ใบยืนยัน',
   ].filter(Boolean) as string[]
 
   async function readJson(file: File | undefined) {
@@ -64,7 +64,7 @@ export function ReceiveJob({ onClose, onDone }: { onClose: () => void; onDone: (
   }
 
   async function submit() {
-    if (missing.length || !pdf || !product || !supabase) return
+    if (missing.length || !pdf || !product || !supabase || draft.needsSample === null) return
     setError('')
     setSaving('กำลังอัปโหลด PDF…')
     const path = confirmationPath(draft.no, new Date())
@@ -79,6 +79,7 @@ export function ReceiveJob({ onClose, onDone }: { onClose: () => void; onDone: (
       p_confirmation_no: draft.no.trim(), p_customer_name: draft.customer.trim(), p_job_name: draft.jobName.trim() || product.name,
       p_product_type_code: product.code, p_qty: draft.qty, p_unit: product.unit, p_due_date: draft.due, p_route_code: draft.route,
       p_confirmation_pdf_path: path, p_spare_qty: draft.spare, p_confirmation_rev: draft.rev, p_spec: draft.spec,
+      p_needs_sample: draft.needsSample,
     })
     setSaving(null)
     if (!r.ok) setError(r.reason)
@@ -128,7 +129,20 @@ export function ReceiveJob({ onClose, onDone }: { onClose: () => void; onDone: (
             </select>
           </label>
         </div>
-        <p className="text-sm text-muted">ลำดับสถานี: {ROUTES[draft.route].stations.length} สถานี · ไฟล์ .json เลือกเส้นทางตามเทคนิคพิมพ์ให้แล้ว</p>
+        <p className="text-sm text-muted">ลำดับสถานี: {ROUTES[draft.route].stations.map(s => STATION_NAME[s]).join(' → ')} · ไฟล์ .json เลือกเส้นทางตามเทคนิคพิมพ์ให้แล้ว</p>
+
+        {/* ขึ้นตัวอย่างเฉพาะงานที่ลูกค้าจ่ายค่าตัวอย่าง (ตกลงกันแล้วในใบยืนยัน) · ไม่มีค่าตั้งต้น ต้องเลือกเอง */}
+        <fieldset className="grid gap-2">
+          <legend className="mb-1 font-medium">ขึ้นตัวอย่าง (ตามที่ตกลงกับลูกค้าในใบยืนยัน)</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {([[true, 'ขึ้นตัวอย่าง', 'ลูกค้าจ่ายค่าตัวอย่าง · วัตถุดิบครบแล้วขึ้นตัวอย่างก่อน'], [false, 'ไม่ขึ้นตัวอย่าง', 'วัตถุดิบครบแล้วเข้าผลิตจริงเลย']] as const).map(([v, title, hint]) => (
+              <label key={title} className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border p-3 ${draft.needsSample === v ? 'border-brand bg-brand-soft' : 'border-line'}`}>
+                <input type="radio" name="needs-sample" className="mt-1 size-5 shrink-0" checked={draft.needsSample === v} onChange={() => set('needsSample', v)} />
+                <span className="grid"><span className="font-medium">{title}</span><span className="text-sm text-muted">{hint}</span></span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <label className={label}>PDF ใบยืนยันที่ลูกค้าเซ็นครบ (ไม่เกิน 20 MB)
           <FilePick accept="application/pdf,.pdf" chosen={pdf?.name ?? ''} onPick={f => { setPdf(f ?? null); setError('') }} />

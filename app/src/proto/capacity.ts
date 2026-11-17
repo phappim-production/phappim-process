@@ -3,7 +3,7 @@ import { ROUTES, startOfDay, type Job, type RouteCode, type StationCode } from '
 // ── ตัวเลขร่าง (ยังไม่ได้ยืนยันกับหน้างาน · เช็คลิสต์หัวข้อ 5 ข้อ 8) ─────────────────
 // กำลังผลิตต่อวันของแต่ละสถานี (ชิ้นต่อวันทำงาน)
 export const CAPACITY: Record<StationCode, number> = {
-  print: 600, press: 600, cut: 800, dtf_press: 400, sew: 500, qc_pack: 800,
+  print: 600, press: 600, cut: 800, dtf_press: 400, emb: 300, sew: 500, qc_pack: 800,  // emb = ร้านปักนอก (ยังไม่รู้กำลังจริง)
 }
 // วันทำงานโดยประมาณก่อนเข้าผลิตจริง
 export const LEAD = {

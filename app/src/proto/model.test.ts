@@ -51,6 +51,10 @@ it('ฟิล์มที่ยังไม่ได้รับรอฟิล�
   expect(isWaitingFilm({ ...dtf, film: { eta: yesterday, received: true } })).toBe(false)
   expect(isWaitingFilm({ ...dtf, phase: 'done' })).toBe(false)
   expect(isWaitingFilm({ ...dtf, route: 'plain' })).toBe(false)
+  // DTG / สกรีน สั่งฟิล์มเข้ามารีดเหมือน DTF · ปักส่งร้านนอกไม่ใช่ฟิล์ม
+  expect(isWaitingFilm({ ...dtf, route: 'dtg' })).toBe(true)
+  expect(isWaitingFilm({ ...dtf, route: 'screen' })).toBe(true)
+  expect(isWaitingFilm({ ...dtf, route: 'emb' })).toBe(false)
   expect(isWaitingFilm({ ...dtf, film: undefined })).toBe(false)
 })
 

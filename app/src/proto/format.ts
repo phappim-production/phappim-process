@@ -33,10 +33,12 @@ export function stageText(j: Job) {
   }
 }
 
-/** ขั้นทั้งหมดของงาน (วัตถุดิบ → ตัวอย่าง → ลูกค้ายืนยัน → สถานีตามเส้นทาง) และตำแหน่งปัจจุบัน */
+/** ขั้นทั้งหมดของงาน (วัตถุดิบ → ตัวอย่าง → ลูกค้ายืนยัน → สถานีตามเส้นทาง) และตำแหน่งปัจจุบัน
+ *  งานที่ไม่ขึ้นตัวอย่างไม่มี 2 ขั้นกลาง (วัตถุดิบครบแล้วเข้าผลิตจริงเลย) */
 export function stageSteps(j: Job) {
-  const steps = ['วัตถุดิบ', 'ขึ้นตัวอย่าง', 'ลูกค้ายืนยัน', ...ROUTES[j.route].stations.map(s => STATION_NAME[s])]
+  const pre = j.needsSample === false ? ['วัตถุดิบ'] : ['วัตถุดิบ', 'ขึ้นตัวอย่าง', 'ลูกค้ายืนยัน']
+  const steps = [...pre, ...ROUTES[j.route].stations.map(s => STATION_NAME[s])]
   const current = j.phase === 'materials' ? 0 : j.phase === 'sample' ? 1 : j.phase === 'sample_review' ? 2
-    : j.phase === 'production' ? 3 + Math.max(0, ROUTES[j.route].stations.indexOf(j.station ?? ROUTES[j.route].stations[0])) : steps.length
+    : j.phase === 'production' ? pre.length + Math.max(0, ROUTES[j.route].stations.indexOf(j.station ?? ROUTES[j.route].stations[0])) : steps.length
   return { steps, current }
 }

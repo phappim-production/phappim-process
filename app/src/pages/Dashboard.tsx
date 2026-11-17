@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
   COLUMNS, DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME,
-  columnOf, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
+  columnOf, filmLabel, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
   type ColumnKey, type Job, type RouteCode,
 } from '../proto/model'
 import { lateDays, simulate, workdayToDate } from '../proto/capacity'
@@ -27,7 +27,7 @@ type Filter = 'all' | 'overdue' | 'hold' | 'film' | 'doneToday'
 type View = 'overview' | 'board'
 const STATUS_FILTERS: [Filter, string][] = [
   ['all', 'ทุกสถานะ'], ['overdue', 'เลยกำหนดส่ง'], ['hold', 'ติดปัญหา / พักงาน'],
-  ['film', 'รอฟิล์ม DTF'], ['doneToday', 'เสร็จวันนี้'],
+  ['film', 'รอฟิล์ม'], ['doneToday', 'เสร็จวันนี้'],
 ]
 const filterField = 'min-h-12 w-full min-w-0 rounded-xl border border-line bg-card px-3 focus-visible:outline-2 focus-visible:outline-brand'
 
@@ -547,7 +547,7 @@ function JobDrawer({ job: j, now, finish, onClose, actions }: { job: Job; now: D
               {j.film && (
                 <li className="flex items-center gap-2">
                   <IconFilm className={`size-4 ${j.film.received ? 'text-ok' : isFilmLate(j, now) ? 'text-danger' : 'text-warn'}`} />
-                  <span className="flex-1">ฟิล์ม DTF</span>
+                  <span className="flex-1">{filmLabel(j.route)}</span>
                   <Pill tone={j.film.received ? 'ok' : isFilmLate(j, now) ? 'danger' : 'warn'}>{j.film.received ? 'ได้รับแล้ว' : `ETA ${shortDate(j.film.eta)}`}</Pill>
                 </li>
               )}

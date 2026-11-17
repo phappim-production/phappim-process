@@ -12,6 +12,7 @@ export type ReceiveDraft = {
   spare: number
   due: string            // YYYY-MM-DD
   route: RouteCode
+  needsSample: boolean | null   // null = ยังไม่ได้เลือก (ต้องเลือกก่อนรับงาน)
   spec: Record<string, unknown>
 }
 
@@ -34,12 +35,26 @@ export function totalQty(p: Answers): number {
   return num(p.qty)
 }
 
-// เทคนิคที่เลือกกำหนดเส้นทาง (DEVELOPMENT.md หัวข้อ 2.1): มี DTF → dtf · ซับลิเมชั่น/ดิจิทัล → ปกติ · นอกนั้น ไม่พิมพ์
+// เทคนิคที่เลือกกำหนดเส้นทาง: ฟิล์มที่สั่งเข้า (DTF / DTG / สกรีน) ก่อน · ปัก (มีพิมพ์ซับด้วย = พิมพ์ + ปัก)
+// · ซับลิเมชั่น/ดิจิทัล = ปกติ · นอกนั้น ไม่พิมพ์ · หลายเทคนิคที่ไม่มีเส้นทางรวม ให้ผู้รับงานตรวจอีกครั้ง
 export function suggestRoute(p: Answers): RouteCode {
   const methods = ([] as unknown[]).concat(p.print_method ?? []).map(String)
-  if (methods.some(m => /DTF/i.test(m))) return 'dtf'
-  if (methods.some(m => /ซับลิเมชั่น|ดิจิทัล/.test(m))) return 'normal'
+  const has = (re: RegExp) => methods.some(m => re.test(m))
+  const sub = has(/ซับลิเมชั่น|ดิจิทัล/)
+  if (has(/DTF/i)) return 'dtf'
+  if (has(/DTG/i)) return 'dtg'
+  if (has(/ซิลค์|สกรีน/)) return 'screen'
+  if (has(/ปัก/)) return sub ? 'print_emb' : 'emb'
+  if (sub) return 'normal'
   return 'plain'
+}
+
+// ฟอร์มใบยืนยันมีช่อง "ขึ้นตัวอย่าง" · ไฟล์รุ่นเก่าไม่มีช่องนี้ → null ให้ผู้รับงานเลือกเอง
+export function sampleChoice(h: Answers): boolean | null {
+  const v = text(h.sample)
+  if (/^ไม่ขึ้นตัวอย่าง/.test(v)) return false
+  if (/^ขึ้นตัวอย่าง/.test(v)) return true
+  return null
 }
 
 /** null = ไม่ใช่ไฟล์จากฟอร์มใบยืนยัน */
@@ -59,6 +74,7 @@ export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
     spare: num(d.p.spare),
     due: /^\d{4}-\d{2}-\d{2}$/.test(text(d.h.due_date)) ? text(d.h.due_date) : '',
     route: suggestRoute(d.p),
+    needsSample: sampleChoice(d.h),
     spec,
   }
 }
