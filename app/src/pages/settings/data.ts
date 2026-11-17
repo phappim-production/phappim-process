@@ -113,7 +113,7 @@ async function loadMachines() {
       .limit(1, { referencedTable: 'machine_assignments' })
       .limit(1, { referencedTable: 'machine_bookings' })
       .limit(1, { referencedTable: 'machine_status_log' })),
-    rows<MachineType>(db.from('machine_types').select('code,name,prefix').order('sort')),
+    rows<MachineType>(db.from('machine_types').select('code,name,prefix,shared').order('sort')),
     named('product_types'),
     rows<Need>(db.from('product_machine_needs').select('product_type_code,type_code,qty')),
   ])
@@ -175,6 +175,10 @@ export async function retireMachine(machine: Machine) {
   const result = await rpc('set_machine_status', { p_machine_code: machine.code, p_status: 'off' })
   if (!result.ok) throw new Error(result.reason)
 }
+
+// ตั้งเป็นใช้ร่วม → ฐานข้อมูลปล่อยจักรชนิดนี้ที่ผูกกับงานและยกเลิกการจองที่ยังไม่เริ่มให้เอง (machine_types_release_on_shared)
+export const saveMachineTypeShared = (type: MachineType, shared: boolean) =>
+  write(client().from('machine_types').update({ shared }).eq('code', type.code).select('code').single())
 
 export function saveNeed(need: Need) {
   const table = client().from('product_machine_needs')
