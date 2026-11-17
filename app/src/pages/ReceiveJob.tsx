@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { confirmationPath, draftFromConfirmation, pdfProblem, type ReceiveDraft } from '../data/confirmation'
-import { ROUTES, STATION_NAME, type RouteCode } from '../proto/model'
+import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
+import { receiveForecast, type SewFloor } from '../proto/capacity'
 import { Dialog, fieldClass, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconInbox } from '../components/icons'
 
@@ -24,7 +25,10 @@ function FilePick({ accept, chosen, onPick }: { accept: string; chosen: string; 
 const EMPTY: ReceiveDraft = { no: '', rev: 0, customer: '', jobName: '', product: '', qty: 0, spare: 0, due: '', route: 'normal', needsSample: null, spec: {} }
 
 /** รับงานเข้าโรงงาน (S2): แนบ PDF ที่ลูกค้าเซ็นครบ + ไฟล์ .json จากฟอร์มใบยืนยัน (ถ้ามี) เพื่อดึงข้อมูลหัวใบ */
-export function ReceiveJob({ onClose, onDone }: { onClose: () => void; onDone: (no: string) => void }) {
+export function ReceiveJob({ onClose, onDone, jobs, now, floor }: {
+  onClose: () => void; onDone: (no: string) => void
+  jobs: Job[]; now: Date; floor: SewFloor   // งานทั้งโรงงาน + จักรจริง ใช้คาดวันเสร็จก่อนส่งงานเข้า
+}) {
   const [products, setProducts] = useState<Product[] | null>(null)
   const [draft, setDraft] = useState<ReceiveDraft>(EMPTY)
   const [pdf, setPdf] = useState<File | null>(null)
@@ -45,6 +49,10 @@ export function ReceiveJob({ onClose, onDone }: { onClose: () => void; onDone: (
 
   const set = <K extends keyof ReceiveDraft>(k: K, v: ReceiveDraft[K]) => { setDraft(d => ({ ...d, [k]: v })); setError('') }
   const product = products?.find(p => p.code === draft.product)
+  // คาดวันเสร็จจากคิวงานและจักรจริง · เตือนอย่างเดียว ไม่บล็อกการส่งงานเข้า
+  const forecast = useMemo(() => product && draft.qty > 0 && draft.needsSample !== null
+    ? receiveForecast(jobs, now, floor, { route: draft.route, qty: draft.qty, productCode: product.code, needsSample: draft.needsSample, due: draft.due })
+    : null, [jobs, now, floor, product, draft.route, draft.qty, draft.needsSample, draft.due])
   const pdfIssue = pdfProblem(pdf)
   const missing = [
     !draft.no.trim() && 'เลขที่ใบยืนยัน', !draft.customer.trim() && 'ชื่อลูกค้า', !product && 'ประเภทสินค้า',
@@ -149,6 +157,14 @@ export function ReceiveJob({ onClose, onDone }: { onClose: () => void; onDone: (
           {pdf && pdfIssue && <span role="alert" className="text-sm text-danger">{pdfIssue}</span>}
         </label>
 
+        {forecast && (
+          <p role="status" className={`rounded-xl px-3 py-2 font-medium ${forecast.late === null ? 'bg-brand-soft text-ink' : forecast.late > 0 ? 'bg-danger-soft text-danger' : 'bg-ok-soft text-ok'}`}>
+            คาดว่าเสร็จ {forecast.finish.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })}
+            {forecast.late === null ? '' : forecast.late > 0
+              ? ` · ช้ากว่ากำหนดส่ง ${forecast.late} วัน · แจ้งลูกค้าหรือตกลงวันส่งใหม่ก่อน (ยังส่งงานเข้าได้)`
+              : ' · ทันกำหนดส่ง'}
+          </p>
+        )}
         {error && <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 font-medium text-danger">{error}</p>}
         <div className="grid gap-2">
           <button type="button" className={primaryBtn} disabled={missing.length > 0 || !!saving} onClick={() => void submit()}>

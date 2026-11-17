@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPACITY, LEAD, SEW_LINE_RATE, hasSewMinutes, lineRate, SEW_MAX_LINES, canOpenLine, lateDays, linesFor, machineSets, piecesPerDay, sewFloorOf, simulate, verdict, workdaysUntil, workdayToDate } from './capacity'
+import { CAPACITY, LEAD, SEW_LINE_RATE, receiveForecast, hasSewMinutes, lineRate, SEW_MAX_LINES, canOpenLine, lateDays, linesFor, machineSets, piecesPerDay, sewFloorOf, simulate, verdict, workdaysUntil, workdayToDate } from './capacity'
 import type { Job } from './model'
 
 const day = (date: number) => new Date(2026, 10, date)
@@ -209,5 +209,24 @@ describe('ไลน์เย็บตามจักรที่มี', () => {
     const days = ['t1', 't2', 't3'].map(id => r.finishDay.get(id)!).sort((a, b) => a - b)
     expect(days[1]).toBeLessThan(1.5)          // 2 งานแรกเย็บพร้อมกัน
     expect(days[2]).toBeGreaterThan(2)         // งานที่ 3 รอโพ้งว่าง
+  })
+})
+
+describe('คาดวันเสร็จตอนแอดมินส่งงานเข้า (เตือนอย่างเดียว)', () => {
+  it('ไม่ขึ้นตัวอย่าง: เข้าสถานีแรกทันที · ขึ้นตัวอย่าง: เผื่อตัวอย่าง + ลูกค้ายืนยัน', () => {
+    const plain = receiveForecast([], friday, undefined, { route: 'plain', qty: 10, productCode: 'tshirt', needsSample: false, due: '2026-11-30' })
+    const sample = receiveForecast([], friday, undefined, { route: 'plain', qty: 10, productCode: 'tshirt', needsSample: true, due: '2026-11-30' })
+    expect(plain.finish).toEqual(friday)
+    expect(sample.finish.getTime()).toBeGreaterThan(plain.finish.getTime())
+    expect(plain.late).toBeLessThan(0)
+  })
+
+  it('งานใหญ่กำหนดส่งใกล้: บอกว่าช้ากี่วัน', () => {
+    const r = receiveForecast([], friday, undefined, { route: 'normal', qty: 1000, productCode: 'tshirt', needsSample: false, due: '2026-11-21' })
+    expect(r.late).toBeGreaterThan(0)
+  })
+
+  it('ยังไม่ใส่กำหนดส่ง: ไม่ตัดสินว่าทันหรือไม่', () => {
+    expect(receiveForecast([], friday, undefined, { route: 'plain', qty: 10, needsSample: false, due: '' }).late).toBeNull()
   })
 })
