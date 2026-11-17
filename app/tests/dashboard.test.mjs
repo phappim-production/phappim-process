@@ -5,7 +5,8 @@ import { nextAction, todoList } from '../src/proto/actions.ts'
 
 // วันที่ตายตัว (จันทร์ 16 พ.ย. 2569 10:00 เวลาไทย) ไม่พึ่งเวลาปัจจุบัน
 const now = new Date('2026-11-16T10:00:00+07:00')
-const day = d => new Date(now.getFullYear(), now.getMonth(), now.getDate() + d, 17)
+// 17:00 เวลาไทยของวันที่ห่างจากวันนี้ d วัน · ไม่ใช้เวลาของเครื่อง (CI รันเป็น UTC)
+const day = d => new Date(Date.parse('2026-11-16T17:00:00+07:00') + d * 86_400_000)
 const ok = { admin: true, qc: true, production: true }
 let n = 0
 const job = (over) => ({ id: String(++n), no: `SC${n}`, customer: 'ลูกค้า', product: 'สินค้า', unit: 'ตัว', qty: 10,

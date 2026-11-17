@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import { dayDiff, duration, relDay, stageSteps, stageText } from './format'
 import type { Job, Phase, RouteCode } from './model'
 
-const date = new Date(2026, 10, 17)
+const date = new Date('2026-11-17T00:00:00+07:00')
 const job: Job = {
   id: 'j1', no: 'SC-1', customer: 'ลูกค้าทดสอบ', product: 'เสื้อยืด',
   unit: 'ตัว', qty: 80, due: date, since: date,
@@ -23,10 +23,10 @@ it.each([
 })
 
 it('นับวันปฏิทินเมื่อเวลาห่างกันเพียงนาทีเดียวแต่ข้ามเที่ยงคืน', () => {
-  expect(dayDiff(date, new Date(2026, 10, 16, 23, 59))).toBe(1)
+  expect(dayDiff(date, new Date('2026-11-16T23:59:00+07:00'))).toBe(1)
   expect(relDay(date, date)).toBe('วันนี้')
-  expect(relDay(new Date(2026, 10, 16), date)).toBe('เมื่อวาน')
-  expect(relDay(new Date(2026, 10, 20), date)).toBe('20 พ.ย.')
+  expect(relDay(new Date('2026-11-16T00:00:00+07:00'), date)).toBe('เมื่อวาน')
+  expect(relDay(new Date('2026-11-20T00:00:00+07:00'), date)).toBe('20 พ.ย.')
 })
 
 const routes: [RouteCode, string[]][] = [
