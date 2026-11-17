@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
   COLUMNS, DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME,
-  columnOf, filmLabel, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
+  columnOf, filmLabel, groupColumns, savedStation, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
   type ColumnKey, type Job, type RouteCode,
 } from '../proto/model'
 import { lateDays, simulate, workdayToDate } from '../proto/capacity'
@@ -132,7 +132,14 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   const jobs = useMemo(() => allJobs.filter(j => jobInScope(j, scope)), [allJobs, scope])
   const columns = scope.columns ? COLUMNS.filter(c => scope.columns!.includes(c.key)) : COLUMNS
   const [filter, setFilter] = useState<Filter>('all')
-  const [station, setStation] = useState<ColumnKey | 'all'>('all')
+  // แท็บเล็ตประจำสถานี: เปิดมาเจอสถานีที่เลือกไว้ครั้งก่อน (เก็บในเครื่อง · อ่านไม่ได้ = ทุกสถานี)
+  const [station, setStationState] = useState<ColumnKey | 'all'>(() => {
+    try { return savedStation(localStorage.getItem(STATION_KEY), columns) } catch { return 'all' }
+  })
+  const setStation = (key: ColumnKey | 'all') => {
+    setStationState(key)
+    try { localStorage.setItem(STATION_KEY, key) } catch { /* โหมดส่วนตัว / ปิดการเก็บข้อมูล: ไม่จำก็ใช้ได้ */ }
+  }
   const [route, setRoute] = useState<RouteCode | 'all'>('all')
   const [query, setQuery] = useState('')
   const [lookup, setLookup] = useState<{ id: string; job: Job | null; error?: string } | null>(null)
@@ -448,7 +455,9 @@ const STRIPE: Record<Tone, string> = {
   brand: 'border-l-brand', neutral: 'border-l-line', dtf: 'border-l-dtf',
 }
 
-/** แถบสถานีตามลำดับกระบวนการ: เห็นทันทีว่างานกองอยู่ที่ไหน และกดเพื่อดูเฉพาะสถานีนั้น */
+const STATION_KEY = 'pp142.station'
+
+/** ปุ่มสถานีแบ่งกลุ่มตามเฟส เห็นครบทุกสถานีโดยไม่ต้องเลื่อน · กดเพื่อดูเฉพาะสถานีนั้น กดซ้ำ = ทุกสถานี */
 function StationStrip({ columns, byColumn, now, station, onPick }: {
   columns: { key: ColumnKey; name: string }[]; byColumn: Map<ColumnKey, Job[]>; now: Date
   station: ColumnKey | 'all'; onPick: (key: ColumnKey | 'all') => void
@@ -459,25 +468,31 @@ function StationStrip({ columns, byColumn, now, station, onPick }: {
     return (
       <li key={key} className="min-w-0">
         <button type="button" onClick={() => onPick(on && key !== 'all' ? 'all' : key)} aria-pressed={on}
-          className={`flex h-full min-h-14 w-full flex-col items-start justify-between rounded-xl border px-2.5 py-1.5 text-left ${on ? 'border-brand bg-brand text-white' : count ? 'border-line bg-card hover:border-brand' : 'border-line bg-card/60 text-muted'}`}>
-          <span className="text-sm leading-tight font-semibold">{name}</span>
-          <span className="flex items-baseline gap-1.5">
-            <span className="text-xl leading-tight font-bold tabular-nums">{count}</span>
-            {urgent > 0 && <span className={`text-sm font-bold ${on ? 'text-white' : 'text-danger'}`}>ด่วน {urgent}</span>}
+          className={`flex h-full min-h-16 w-full flex-col items-start justify-between gap-1 rounded-xl border-2 px-3 py-2 text-left ${on ? 'border-brand bg-brand text-white' : count ? 'border-line bg-card hover:border-brand' : 'border-line bg-card/60 text-muted'}`}>
+          <span className="text-base font-semibold">{name}</span>
+          <span className="flex flex-wrap items-baseline gap-x-1.5">
+            <span className="text-2xl font-bold tabular-nums">{count}</span>
+            <span className={`text-sm ${on ? 'text-white' : 'text-muted'}`}>งาน</span>
+            {urgent > 0 && <span className={`text-sm font-bold whitespace-nowrap ${on ? 'text-white' : 'text-danger'}`}>ด่วน {urgent}</span>}
           </span>
         </button>
       </li>
     )
   }
   return (
-    <nav aria-label="เลือกสถานี">
-      <ol className="scroll-thin -mx-4 grid auto-cols-[minmax(5.5rem,1fr)] grid-flow-col gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-        {item('all', 'ทุกสถานี', total, 0)}
-        {columns.map(c => {
-          const list = byColumn.get(c.key) ?? []
-          return item(c.key, c.name, list.length, list.filter(j => stripe(j, now) === 'danger').length)
-        })}
-      </ol>
+    <nav aria-label="เลือกสถานี" className="grid gap-3">
+      <ol className="grid grid-cols-3 gap-2 md:grid-cols-5">{item('all', 'ทุกสถานี', total, 0)}</ol>
+      {groupColumns(columns).map(g => (
+        <section key={g.name} aria-label={g.name} className="grid gap-1.5">
+          <h3 className="text-sm font-semibold text-muted">{g.name}</h3>
+          <ol className="grid grid-cols-3 gap-2 md:grid-cols-5">
+            {g.columns.map(c => {
+              const list = byColumn.get(c.key) ?? []
+              return item(c.key, c.name, list.length, list.filter(j => stripe(j, now) === 'danger').length)
+            })}
+          </ol>
+        </section>
+      ))}
     </nav>
   )
 }

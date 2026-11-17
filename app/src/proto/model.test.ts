@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { columnOf, isDoneToday, isDueSoon, isFilmLate, isOverdue, isWaitingFilm, missingDepts } from './model'
+import { COLUMNS, columnOf, groupColumns, savedStation, isDoneToday, isDueSoon, isFilmLate, isOverdue, isWaitingFilm, missingDepts } from './model'
 import type { ColumnKey, Job, Phase } from './model'
 
 const today = new Date('2026-11-17T00:00:00+07:00')
@@ -83,4 +83,21 @@ it.each(columns)('งานสถานะ %s อยู่คอลัมน์ 
 
 it('บอร์ดวางงานผลิตที่ขาดสถานีไว้คอลัมน์แรกของเส้นทาง', () => {
   expect(columnOf({ ...job, route: 'normal', station: undefined })).toBe('print')
+})
+
+it('แบ่งสถานีเป็น ก่อนผลิต / เฟส 1 / เฟส 2 ตามลำดับ · ตัดกลุ่มที่บทบาทนี้ไม่เห็นทิ้ง', () => {
+  expect(groupColumns(COLUMNS).map(g => [g.name, g.columns.map(c => c.key)])).toEqual([
+    ['ก่อนผลิต', ['materials', 'sample', 'sample_review']],
+    ['เฟส 1', ['print', 'press', 'cut', 'dtf_press', 'emb']],
+    ['เฟส 2', ['sew', 'qc_pack', 'done']],
+  ])
+  const qcOnly = COLUMNS.filter(c => c.key === 'qc_pack' || c.key === 'done')
+  expect(groupColumns(qcOnly).map(g => g.name)).toEqual(['เฟส 2'])
+})
+
+it('จำสถานีที่เครื่องนี้เลือกไว้ ใช้ได้เฉพาะสถานีที่ยังเห็นอยู่', () => {
+  expect(savedStation('cut', COLUMNS)).toBe('cut')
+  expect(savedStation(null, COLUMNS)).toBe('all')
+  expect(savedStation('nope', COLUMNS)).toBe('all')
+  expect(savedStation('cut', COLUMNS.filter(c => c.key === 'sew'))).toBe('all')
 })
