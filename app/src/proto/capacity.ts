@@ -35,12 +35,13 @@ export const SEW_LINE_RATE = lineRate(DEFAULT_SEW_PRODUCT)
 
 export type MachineCount = Partial<Record<MachineType, number>>
 // จักรที่ใช้ได้บนพื้นโรงงาน (รวมที่ใช้อยู่ · ไม่นับเสีย/ปิด) + สูตรจักรของสินค้า (หน้าตั้งค่า)
-export type SewFloor = { ready: MachineCount; needsOf: (productCode?: string) => Need[] }
+// shared = จักรใช้ร่วม (ไม่อยู่ใน needsOf · ไม่จำกัดจำนวนไลน์)
+export type SewFloor = { ready: MachineCount; needsOf: (productCode?: string) => Need[]; shared?: MachineType[] }
 
-export function sewFloorOf(machines: Machine[], needsMap: Record<string, Need[]>): SewFloor {
+export function sewFloorOf(machines: Machine[], needsMap: Record<string, Need[]>, shared: MachineType[] = []): SewFloor {
   const ready: MachineCount = {}
   for (const m of machines) if (m.status === 'ready') ready[m.type] = (ready[m.type] ?? 0) + 1
-  return { ready, needsOf: code => needsMap[code ?? DEFAULT_SEW_PRODUCT] ?? [] }
+  return { ready, needsOf: code => needsMap[code ?? DEFAULT_SEW_PRODUCT] ?? [], shared }
 }
 
 // จักรครบชุดได้กี่ชุดพร้อมกัน · สินค้าไม่มีสูตรจักร = ไม่จำกัด

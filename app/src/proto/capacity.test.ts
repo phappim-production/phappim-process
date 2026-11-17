@@ -200,4 +200,14 @@ describe('ไลน์เย็บตามจักรที่มี', () => {
     expect(hasSewMinutes('pajama')).toBe(false)
     expect(lineRate('pajama')).toBe(71)
   })
+
+  it('จักรลาใช้ร่วม (ไม่อยู่ในชุดจักร): เสื้อยืดเปิดได้ 2 ไลน์ตามโพ้ง 4 เส้น', () => {
+    const teeLine = [{ type: 'ovl4' as const, qty: 2 }, { type: 'single' as const, qty: 1 }]
+    expect(linesFor(teeLine, ready)).toBe(2)
+    const shared = { ready, needsOf: () => teeLine, shared: ['cover' as const] }
+    const r = simulate([sewJob('t1', 'tshirt', 71), sewJob('t2', 'tshirt', 71), sewJob('t3', 'tshirt', 71)], friday, undefined, shared)
+    const days = ['t1', 't2', 't3'].map(id => r.finishDay.get(id)!).sort((a, b) => a - b)
+    expect(days[1]).toBeLessThan(1.5)          // 2 งานแรกเย็บพร้อมกัน
+    expect(days[2]).toBeGreaterThan(2)         // งานที่ 3 รอโพ้งว่าง
+  })
 })

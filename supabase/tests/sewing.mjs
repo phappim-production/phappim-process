@@ -37,6 +37,10 @@ export async function sewingTests({ db, ok, as }) {
     && (await db.query(`select count(*)::int n from public.machine_types where prefix is null`)).rows[0].n === 0)
   // ชุดนี้ทดสอบกลไกจักร จึงใช้สูตรสมมติที่มีหลายชนิด (เพิ่มลาคอให้เสื้อยืด · เข้าขอบให้ผ้ากันเปื้อน)
   // สูตรจริงตามหน้างานตรวจใน sop.mjs
+  ok('migration ตั้งจักรลา · ติดกระดุม · เจาะรังดุม เป็นใช้ร่วม', JSON.stringify((await db.query(
+    `select array_agg(code order by code) c from public.machine_types where shared`)).rows[0].c) === '["button","buttonhole","cover"]')
+  // กลไกจักรประจำไลน์ทดสอบด้วยจักรลาแบบประจำไลน์ · จักรใช้ร่วม (ค่าจริง) ทดสอบแยกท้ายไฟล์
+  await db.exec(`update public.machine_types set shared = false`)
   await db.exec(`insert into public.product_machine_needs (product_type_code, type_code, qty) values ('tshirt','flat',1),('apron','binding',1)`)
   const tee = (await db.query(`select type_code, qty from public.product_machine_needs where product_type_code = 'tshirt' order by type_code`)).rows
   ok('สูตรสมมติ: เสื้อยืดใช้ โพ้ง 4 ×2 · ลา · ลาคอ · เข็มเดี่ยว', JSON.stringify(tee) === JSON.stringify([
@@ -294,6 +298,38 @@ export async function sewingTests({ db, ok, as }) {
     await db.exec(seedBooking)
     await db.exec(`update public.jobs set station_seq = 3 where id = '${boundary}'`)
     ok('ออกจากเย็บตรงเวลาเริ่ม คืนจักรที่จองและไม่สร้างช่วงความยาวศูนย์', (await booked(boundary)).length === 0)
+  } finally {
+    await db.exec('rollback')
+  }
+
+  // ---------- จักรใช้ร่วม (20261119210000) · จักรลาตัวเดียวสลับกันหลายไลน์ถ้าว่าง ----------
+  await db.exec('begin')
+  try {
+    await db.exec(`update public.machine_types set shared = (code in ('cover', 'button', 'buttonhole'))`)
+    await db.exec(`update public.machine_assignments set released_at = now() where released_at is null`)
+    await db.exec(`delete from public.product_machine_needs where product_type_code = 'pet'`)
+    await db.exec(`insert into public.product_machine_needs (product_type_code, type_code, qty) values ('pet','cover',1)`)
+    const p1 = await jobAt('SC-SHARE-1', 'plain', 2, 'pet')
+    const p2 = await jobAt('SC-SHARE-2', 'plain', 2, 'pet')
+    const r1 = await pass('จักรใช้ร่วม: งานแรกเริ่มเย็บได้ ไม่ผูกจักรลากับงาน', U.sup2, `public.start_sewing('${p1}') as picked`)
+    ok('จักรใช้ร่วมไม่อยู่ในรายการจักรของงาน', JSON.stringify(r1?.picked ?? []) === '[]' && (await active(p1)).length === 0, JSON.stringify(r1?.picked))
+    await pass('จักรใช้ร่วม: งานที่สองเริ่มเย็บพร้อมกันได้ (จักรลาตัวเดียวสลับใช้)', U.sup2, `public.start_sewing('${p2}') as picked`)
+    ok('ทั้งสองงานกำลังเย็บ', (await status(p1)) === 'doing' && (await status(p2)) === 'doing')
+    await pass('แจ้งจักรลาเสีย (จักรใช้ร่วมไม่พักงานที่เย็บอยู่)', U.sup2, `public.set_machine_status('CV-001', 'broken', 'มอเตอร์ไหม้')`)
+    ok('งานที่เย็บอยู่ไม่ถูกพักเมื่อจักรใช้ร่วมเสีย', (await status(p1)) === 'doing')
+    const p3 = await jobAt('SC-SHARE-3', 'plain', 2, 'pet')
+    // อยู่ในธุรกรรม: ข้อผิดพลาดทำให้ธุรกรรมค้าง จึงย้อนกลับถึง savepoint เองแทน helper reject
+    await db.exec('savepoint brk')
+    let msg = ''
+    try {
+      await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub', '${U.sup2}', false);`)
+      await db.query(`select public.start_sewing('${p3}')`)
+    } catch (e) { msg = e.message }
+    await db.exec('rollback to savepoint brk')
+    await db.exec('reset role')
+    ok('จักรลาเสียทุกตัว: เริ่มเย็บสินค้าที่ต้องใช้จักรลาไม่ได้', /จักรลา ใช้ไม่ได้ทุกตัว/.test(msg), msg.split(String.fromCharCode(10))[0] || 'ควรถูกปฏิเสธแต่ผ่าน')
+    ok('ขาดจักรใช้ร่วมไม่นับใน machines_short (ไม่บล็อกงานที่เย็บอยู่)',
+      (await db.query(`select count(*)::int n from private.machines_short('${p1}') where short > 0`)).rows[0].n === 0)
   } finally {
     await db.exec('rollback')
   }

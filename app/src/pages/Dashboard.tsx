@@ -70,7 +70,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   const [receiving, setReceiving] = useState(false)
   const [received, setReceived] = useState<string | null>(null)
   const now = useNow(30_000)
-  const { jobs: allJobs, machines, bookings, needs, products } = data
+  const { jobs: allJobs, machines, bookings, needs, products, shared } = data
   const noOf = (jobId: string) => allJobs.find(j => j.id === jobId)?.no ?? ''
   // ทุกปุ่มเรียกฟังก์ชันในฐานข้อมูล (กฎตรวจที่นั่น) แล้วโหลดใหม่ทันที ไม่รอ Realtime
   async function call<T>(name: string, args: Record<string, unknown>) {
@@ -164,7 +164,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     if (!id && jobFromHash() !== null) window.location.replace(window.location.hash.split('?')[0])
   }
   // คาดวันเสร็จจากจักรจริง: เย็บได้พร้อมกันกี่งานขึ้นกับจักรครบชุดของแต่ละสินค้า
-  const floor = useMemo(() => sewFloorOf(machines, needs), [machines, needs])
+  const floor = useMemo(() => sewFloorOf(machines, needs, shared), [machines, needs, shared])
   const forecast = useMemo(() => simulate(jobs, now, undefined, floor), [jobs, now, floor])
 
   const visible = useMemo(() => {
