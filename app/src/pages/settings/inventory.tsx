@@ -3,7 +3,7 @@ import { Pill, ViewSwitch } from '../../components/ui'
 import { DEPT_NAME } from '../../proto/model'
 import { MACHINE_STATUS_NAME } from '../../proto/sewing'
 import {
-  removeMachine, removeMaterial, retireMachine, saveMachine, saveMaterial, saveNeed, type Loaded,
+  removeMachine, removeMaterial, retireMachine, saveMachine, saveMachineTypeShared, saveMaterial, saveNeed, type Loaded,
 } from './data'
 import { Collection, SelectField, TextField, type Controls } from './editor'
 import { integer, readMachineCode, requireText, type MachineDraft, type MaterialDraft } from './model'
@@ -69,7 +69,7 @@ export function MaterialsTab({ data, controls }: TabProps<'materials'>) {
   )
 }
 
-const machineViews = [['list', 'รายการจักร'], ['needs', 'จำนวนจักรตามสินค้า']] as const
+const machineViews = [['list', 'รายการจักร'], ['needs', 'จำนวนจักรตามสินค้า'], ['types', 'ชนิดจักร']] as const
 
 export function MachinesTab({ data, controls }: TabProps<'machines'>) {
   const [view, setView] = useState<typeof machineViews[number][0]>('list')
@@ -84,7 +84,9 @@ export function MachinesTab({ data, controls }: TabProps<'machines'>) {
           })
         }} />
       </div>
-      {view === 'list' ? <MachineList data={data} controls={controls} /> : <ProductNeeds data={data} controls={controls} />}
+      {view === 'list' ? <MachineList data={data} controls={controls} />
+        : view === 'needs' ? <ProductNeeds data={data} controls={controls} />
+        : <MachineTypes data={data} controls={controls} />}
     </>
   )
 }
@@ -129,6 +131,39 @@ function MachineList({ data, controls }: TabProps<'machines'>) {
           label: 'ปิดใช้งาน', detail: `ปิดใช้งานจักร ${machine.code} หรือไม่ หากจักรกำลังเย็บ ระบบจะพักงานนั้น`,
           run: retireMachine, done: 'ปิดใช้งานจักรแล้ว',
         }
+      }} />
+  )
+}
+
+const sharing = [['line', 'ประจำไลน์ (จ่ายให้งานจนเย็บเสร็จ)'], ['shared', 'ใช้ร่วมทุกไลน์ (ไม่ผูกกับงาน)']] as const
+
+// จักรที่ทำเร็วหรือใช้ไม่กี่นาทีต่อชิ้น (จักรลา · โพ้ง) สลับใช้หลายไลน์ได้ ไม่ต้องผูกกับงาน
+function MachineTypes({ data, controls }: TabProps<'machines'>) {
+  const count = (code: string) => data.machines.filter(machine => machine.type_code === code && machine.status !== 'off').length
+  return (
+    <Collection controls={controls} group="machine-types" title="ชนิดจักร"
+      subtitle="ใช้ร่วม = ทุกไลน์สลับใช้ได้ ไม่ต้องจอง (เริ่มเย็บได้เมื่อมีตัวที่ใช้ได้ครบจำนวนที่สินค้าต้องใช้) · ประจำไลน์ = ระบบจ่ายจักรให้งานจนเย็บเสร็จ"
+      list={data.types} identify={type => type.code}
+      row={type => (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{type.name} · {type.prefix}</span>
+          <Pill tone={type.shared ? 'info' : 'neutral'}>{type.shared ? 'ใช้ร่วม' : 'ประจำไลน์'}</Pill>
+          <span className="text-muted">{count(type.code)} ตัว</span>
+        </div>
+      )}
+      draft={type => ({ sharing: type?.shared ? 'shared' as const : 'line' as const })}
+      fields={(draft, change, type) => (
+        <>
+          <SelectField label={`การใช้${type?.name ?? 'จักร'}`} options={sharing} value={draft.sharing}
+            onChange={next => change({ sharing: next })} />
+          {draft.sharing === 'shared' && !type?.shared && (
+            <p className="mt-2 text-warn">จักรชนิดนี้ที่ผูกกับงานอยู่จะถูกปล่อยคืน และการจองที่ยังไม่เริ่มจะถูกยกเลิก</p>
+          )}
+        </>
+      )}
+      save={async (type, draft) => {
+        if (!type) throw new Error('กรุณาเลือกชนิดจักร')
+        await saveMachineTypeShared(type, draft.sharing === 'shared')
       }} />
   )
 }

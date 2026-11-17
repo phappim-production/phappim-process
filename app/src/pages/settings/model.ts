@@ -26,7 +26,8 @@ export type Material = {
 export type MaterialDraft = { name: string; dept: Dept; product: string; route: string; sort: string }
 export type Reason = NamedCode & { grp: string; active: boolean; sort: number }
 export type ReasonDraft = { code: string; grp: string; name: string; active: boolean; sort: string }
-export type MachineType = NamedCode & { prefix: string }
+// shared = จักรใช้ร่วมหลายไลน์ (ไม่จ่าย/ไม่จองให้งาน) · false = ประจำไลน์
+export type MachineType = NamedCode & { prefix: string; shared: boolean }
 export type Machine = { id: number; code: string; type_code: string; status: MachineStatus; hasHistory: boolean }
 export type MachineDraft = { code: string; type: string }
 export type Need = { product_type_code: string; type_code: string; qty: number }
