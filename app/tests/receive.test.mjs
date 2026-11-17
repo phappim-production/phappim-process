@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { confirmationPath, draftFromConfirmation, pdfProblem, suggestRoute, totalQty } from '../src/data/confirmation.ts'
+import { confirmationPath, draftFromConfirmation, pdfProblem, sampleChoice, suggestRoute, totalQty } from '../src/data/confirmation.ts'
 import { etaFromDay, missingSteps } from '../src/data/stationSteps.ts'
 
 const form = (over = {}) => ({
@@ -40,11 +40,23 @@ test('จำนวน: ไม่มีตารางไซซ์ใช้ช่
   assert.equal(totalQty({}), 0)
 })
 
-test('เส้นทางตามเทคนิคพิมพ์: DTF · ซับลิเมชั่น/ดิจิทัล = ปกติ · อื่นๆ = ไม่พิมพ์', () => {
+test('เส้นทางตามเทคนิคพิมพ์: ฟิล์มที่สั่งเข้า · ปัก · ซับลิเมชั่น/ดิจิทัล = ปกติ · อื่นๆ = ไม่พิมพ์', () => {
   assert.equal(suggestRoute({ print_method: ['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)', 'DTF (ฟิล์มรีดร้อน)'] }), 'dtf')
+  assert.equal(suggestRoute({ print_method: ['DTG'] }), 'dtg')
+  assert.equal(suggestRoute({ print_method: ['ซิลค์สกรีน'] }), 'screen')
+  assert.equal(suggestRoute({ print_method: ['งานปัก'] }), 'emb')
+  assert.equal(suggestRoute({ print_method: ['ซับลิเมชั่น เฉพาะจุด', 'งานปัก'] }), 'print_emb')
   assert.equal(suggestRoute({ print_method: 'ดิจิทัลพริ้นท์' }), 'normal')
-  assert.equal(suggestRoute({ print_method: ['งานปัก'] }), 'plain')
+  assert.equal(suggestRoute({ print_method: ['ไม่มีลาย'] }), 'plain')
   assert.equal(suggestRoute({}), 'plain')
+})
+
+test('ขึ้นตัวอย่าง: อ่านจากใบยืนยัน · ไฟล์รุ่นเก่าไม่มีช่องนี้ = ยังไม่เลือก', () => {
+  assert.equal(sampleChoice({ sample: 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)' }), true)
+  assert.equal(sampleChoice({ sample: 'ไม่ขึ้นตัวอย่าง' }), false)
+  assert.equal(sampleChoice({}), null)
+  assert.equal(draftFromConfirmation(form()).needsSample, null)
+  assert.equal(draftFromConfirmation(form({ h: { ...form().h, sample: 'ไม่ขึ้นตัวอย่าง' } })).needsSample, false)
 })
 
 test('วันกำหนดส่งรูปแบบผิด = ว่าง ให้กรอกเอง', () => {

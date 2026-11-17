@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { etaFromDay, isRequired, isStepDone, KIND_LABEL, missingSteps, type Substep } from '../data/stationSteps'
-import { DEPT_NAME, ROUTES, STATION_NAME, type Dept, type Job } from '../proto/model'
+import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job } from '../proto/model'
 import { bookingDay } from '../proto/sewing'
 import type { EmployeeRole } from '../auth/access'
 import { Pill } from '../components/ui'
@@ -95,12 +95,12 @@ export function JobActions({ job: j, role, version, now, refresh }: {
       {notice && (
         <p role={notice.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>{notice.text}</p>
       )}
-      {j.phase === 'materials' && <Materials materials={d.materials} role={role} busy={busy}
+      {j.phase === 'materials' && <Materials materials={d.materials} role={role} busy={busy} sample={j.needsSample !== false}
         onCheck={(m, on) => act('check_material', { p_material_id: m.id, p_checked: on }, on ? `ติ๊ก "${m.name}" แล้ว` : `ยกเลิกติ๊ก "${m.name}" แล้ว`, false)} />}
-      {j.route === 'dtf' && !j.film?.received && j.phase !== 'done' && (
+      {usesFilm(j.route) && !j.film?.received && j.phase !== 'done' && (
         <Film job={j} ordered={d.filmOrdered} admin={admin} busy={busy} now={now}
-          onOrder={eta => act('order_film', { p_eta: eta }, `บันทึกสั่งฟิล์ม · คาดว่าได้รับ ${eta}`)}
-          onReceive={() => act('receive_film', {}, 'บันทึกได้รับฟิล์มแล้ว · เริ่มรีด DTF ได้')} />
+          onOrder={eta => act('order_film', { p_eta: eta }, `บันทึกสั่ง${filmLabel(j.route)} · คาดว่าได้รับ ${eta}`)}
+          onReceive={() => act('receive_film', {}, `บันทึกได้รับ${filmLabel(j.route)}แล้ว · เริ่มรีดฟิล์มได้`)} />
       )}
       {j.phase === 'sample_review' && (
         <SampleResult job={j} admin={admin} busy={busy}
@@ -151,15 +151,15 @@ function Section({ title, icon, children, tone }: { title: string; icon?: ReactN
   )
 }
 
-function Materials({ materials, role, busy, onCheck }: {
-  materials: Material[]; role: EmployeeRole; busy: boolean; onCheck: (m: Material, on: boolean) => void
+function Materials({ materials, role, busy, sample, onCheck }: {
+  materials: Material[]; role: EmployeeRole; busy: boolean; sample: boolean; onCheck: (m: Material, on: boolean) => void
 }) {
   return (
     <Section title="เช็ควัตถุดิบ">
       <ul className="grid gap-2">
         {materials.map(m => {
           const mine = role === m.dept || role === 'owner'
-          const auto = m.key === 'dtf_film'
+          const auto = !!m.key?.endsWith('_film')
           const checked = !!m.checked_at
           return (
             <li key={m.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-line p-2">
@@ -178,7 +178,7 @@ function Materials({ materials, role, busy, onCheck }: {
           )
         })}
       </ul>
-      <p className="mt-2 text-sm text-muted">ทุกฝ่ายติ๊กครบ → งานไปขึ้นตัวอย่างอัตโนมัติ</p>
+      <p className="mt-2 text-sm text-muted">ทุกฝ่ายติ๊กครบ → {sample ? 'งานไปขึ้นตัวอย่างอัตโนมัติ' : 'งานเข้าผลิตจริงอัตโนมัติ (งานนี้ไม่ขึ้นตัวอย่าง)'}</p>
     </Section>
   )
 }
@@ -189,11 +189,12 @@ function Film({ job: j, ordered, admin, busy, now, onOrder, onReceive }: {
 }) {
   const [eta, setEta] = useState(j.film ? bookingDay(j.film.eta) : '')
   const late = j.film && bookingDay(j.film.eta) < bookingDay(now)
+  const label = filmLabel(j.route)
   return (
-    <Section title="ฟิล์ม DTF" icon={<IconFilm className="size-5" />} tone={late ? 'danger' : 'warn'}>
+    <Section title={label} icon={<IconFilm className="size-5" />} tone={late ? 'danger' : 'warn'}>
       <p className={late ? 'font-medium text-danger' : 'text-muted'}>
-        {!ordered ? 'ยังไม่ได้สั่งฟิล์ม' : `สั่งแล้ว · คาดว่าได้รับ ${j.film ? j.film.eta.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : '-'}${late ? ' (เลยกำหนดแล้ว)' : ''}`}
-        {' · '}สถานีรีด DTF เริ่มไม่ได้จนกว่าจะได้รับฟิล์ม
+        {!ordered ? `ยังไม่ได้สั่ง${label}` : `สั่งแล้ว · คาดว่าได้รับ ${j.film ? j.film.eta.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : '-'}${late ? ' (เลยกำหนดแล้ว)' : ''}`}
+        {' · '}สถานีรีดฟิล์มเริ่มไม่ได้จนกว่าจะได้รับ{label}
       </p>
       {admin ? (
         <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
@@ -201,15 +202,15 @@ function Film({ job: j, ordered, admin, busy, now, onOrder, onReceive }: {
             <input type="date" value={eta} onChange={e => setEta(e.target.value)} className={fieldClass} />
           </label>
           <button type="button" disabled={busy || !eta} className={`${secondaryBtn} self-end`} onClick={() => void onOrder(eta)}>
-            {ordered ? 'เลื่อนวันได้รับ' : 'บันทึกสั่งฟิล์ม'}
+            {ordered ? 'เลื่อนวันได้รับ' : `บันทึกสั่ง${label}`}
           </button>
           {ordered && (
             <button type="button" disabled={busy} className={`${okBtn} sm:col-span-2`} onClick={() => void onReceive()}>
-              <IconCheck className="size-5" />ได้รับฟิล์มแล้ว
+              <IconCheck className="size-5" />ได้รับ{label}แล้ว
             </button>
           )}
         </div>
-      ) : <p className="mt-2 text-sm text-muted">แอดมินเป็นคนบันทึกสั่งและรับฟิล์ม</p>}
+      ) : <p className="mt-2 text-sm text-muted">แอดมินเป็นคนบันทึกสั่งและรับ{label}</p>}
     </Section>
   )
 }
@@ -287,9 +288,9 @@ function Station({ job: j, detail: d, canPress, role, busy, now, act }: {
 
         {j.status === 'queued' && canPress && (
           <button type="button" disabled={busy || (st === 'dtf_press' && !j.film?.received)} className={`${primaryBtn} w-full`}
-            title={st === 'dtf_press' && !j.film?.received ? 'ยังไม่ได้รับฟิล์ม DTF' : undefined}
+            title={st === 'dtf_press' && !j.film?.received ? `ยังไม่ได้รับ${filmLabel(j.route)}` : undefined}
             onClick={() => void act('start_station', {}, `เริ่ม${name}แล้ว`)}>
-            {st === 'dtf_press' && !j.film?.received ? 'เริ่มไม่ได้ · ยังไม่ได้รับฟิล์ม DTF' : `เริ่ม${name}`}
+            {st === 'dtf_press' && !j.film?.received ? `เริ่มไม่ได้ · ยังไม่ได้รับ${filmLabel(j.route)}` : `เริ่ม${name}`}
           </button>
         )}
 

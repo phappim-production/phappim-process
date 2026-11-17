@@ -31,12 +31,23 @@ it('นับวันปฏิทินเมื่อเวลาห่าง�
 
 const routes: [RouteCode, string[]][] = [
   ['normal', ['พิมพ์งาน', 'รีดงาน', 'ตัดงาน', 'เย็บงาน', 'QC + Packing']],
-  ['dtf', ['ตัดงาน', 'รีด DTF', 'เย็บงาน', 'QC + Packing']],
+  ['dtf', ['ตัดงาน', 'รีดฟิล์ม', 'เย็บงาน', 'QC + Packing']],
+  ['dtg', ['ตัดงาน', 'รีดฟิล์ม', 'เย็บงาน', 'QC + Packing']],
+  ['screen', ['ตัดงาน', 'รีดฟิล์ม', 'เย็บงาน', 'QC + Packing']],
+  ['emb', ['ตัดงาน', 'ส่งปัก', 'เย็บงาน', 'QC + Packing']],
+  ['print_emb', ['พิมพ์งาน', 'รีดงาน', 'ตัดงาน', 'ส่งปัก', 'เย็บงาน', 'QC + Packing']],
+  ['cut_only', ['ตัดงาน', 'QC + Packing']],
   ['plain', ['ตัดงาน', 'เย็บงาน', 'QC + Packing']],
 ]
 
 it.each(routes)('เส้นทาง %s แสดงขั้นก่อนผลิตและสถานีตามลำดับ', (route, stations) => {
   expect(stageSteps({ ...job, route }).steps).toEqual(['วัตถุดิบ', 'ขึ้นตัวอย่าง', 'ลูกค้ายืนยัน', ...stations])
+})
+
+it('งานไม่ขึ้นตัวอย่าง: ไม่มีขั้นตัวอย่าง · ผลิตจริงสถานีแรกต่อจากวัตถุดิบทันที', () => {
+  const noSample = { ...job, route: 'cut_only' as const, needsSample: false }
+  expect(stageSteps(noSample).steps).toEqual(['วัตถุดิบ', 'ตัดงาน', 'QC + Packing'])
+  expect(stageSteps({ ...noSample, phase: 'production' as const, station: 'qc_pack' as const }).current).toBe(2)
 })
 
 const phases: [Phase, number, string][] = [

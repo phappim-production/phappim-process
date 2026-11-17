@@ -40,12 +40,12 @@ await db.exec(`
 // ---- 2. ข้อมูลตั้งค่า ----
 const count = async t => (await db.query(`select count(*)::int n from public.${t}`)).rows[0].n
 ok('สถานี 8 สถานี', await count('stations') === 8)
-ok('เส้นทาง 3 เส้น', await count('routes') === 3)
-ok('ลำดับสถานีในเส้นทาง 12 แถว', await count('route_stations') === 12)
+ok('เส้นทาง 8 เส้น', await count('routes') === 8)
+ok('ลำดับสถานีในเส้นทาง 32 แถว', await count('route_stations') === 32)
 ok('สินค้า 37 รายการ', await count('product_types') === 37)
-ok('แม่แบบวัตถุดิบ 6 รายการ', await count('material_templates') === 6)
+ok('แม่แบบวัตถุดิบ 8 รายการ', await count('material_templates') === 8)
 const r = await db.query(`select string_agg(s.name, ' → ' order by rs.seq) path from route_stations rs join stations s on s.code = rs.station_code where rs.route_code = 'dtf'`)
-ok('เส้นทาง DTF เรียงถูก', r.rows[0].path === 'ตัดงาน → รีด DTF → เย็บงาน → QC + Packing', r.rows[0].path)
+ok('เส้นทาง DTF เรียงถูก', r.rows[0].path === 'ตัดงาน → รีดฟิล์ม (DTF / DTG / สกรีน) → เย็บงาน → QC + Packing', r.rows[0].path)
 const bad = await db.query(`select code from stations where jsonb_typeof(substeps) <> 'array' or jsonb_array_length(substeps) = 0`)
 ok('ทุกสถานีมีขั้นย่อย', bad.rows.length === 0)
 
@@ -154,6 +154,10 @@ await storageTests({ db, ok, as })
 // ---- 11. กล่องจดหมายแจ้งเตือน (C3) ----
 const { inboxTests } = await import('./inbox.mjs')
 await inboxTests({ db, ok, as })
+
+// ---- 12. เส้นทางตามงานจริง + ตัวอย่างเลือกได้ ----
+const { routeTests } = await import('./routes.mjs')
+await routeTests({ db, ok, as })
 
 console.log(`\nผ่าน ${pass} · ไม่ผ่าน ${fail}`)
 process.exit(fail ? 1 : 0)

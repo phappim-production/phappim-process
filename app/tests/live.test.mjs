@@ -46,6 +46,16 @@ test('DTF: มีฟิล์มเมื่อสั่งแล้ว · ไ�
   assert.deepEqual([wait.film.received, got.film.received], [false, true])
 })
 
+test('DTG / สกรีน มีฟิล์มเหมือน DTF · ปักไม่มี · ขึ้นตัวอย่างหรือไม่ตามที่รับงาน', () => {
+  const [g, s, e] = toJobs([
+    row({ id: 'g', route_code: 'dtg', dtf_film_eta: '2026-11-19', needs_sample: false }),
+    row({ id: 's', route_code: 'screen', dtf_film_eta: '2026-11-19' }),
+    row({ id: 'e', route_code: 'emb', dtf_film_eta: '2026-11-19' }),
+  ], products, [], [])
+  assert.deepEqual([!!g.film, !!s.film, !!e.film], [true, true, false])
+  assert.deepEqual([g.needsSample, s.needsSample], [false, true])
+})
+
 test('งานแก้: จำนวนและสาเหตุล่าสุดจากผล QC', () => {
   const reworks = [
     { job_id: 'j1', failed: 2, reasons: ['สีเพี้ยน'], at: '2026-11-17T01:00:00Z' },

@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
-import { ROUTES, isDueSoon, isOverdue, type Job, type RouteCode } from '../proto/model'
+import { ROUTES, isDueSoon, isOverdue, usesFilm, type Job, type RouteCode } from '../proto/model'
 import { dayDiff, shortDate } from '../proto/format'
 import { TONE, type Tone } from './tone'
 export type { Tone }
@@ -71,7 +71,7 @@ export function Pill({ tone, children, dot }: { tone: Tone; children: ReactNode;
 export const Tag = ({ tone, children }: { tone: Tone; children: ReactNode }) => <Pill tone={tone}>{children}</Pill>
 
 export function RouteBadge({ route }: { route: RouteCode }) {
-  const tone: Tone = route === 'dtf' ? 'dtf' : route === 'plain' ? 'neutral' : 'brand'
+  const tone: Tone = usesFilm(route) ? 'dtf' : route === 'plain' || route === 'cut_only' ? 'neutral' : 'brand'
   return <span className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${TONE[tone].soft}`}>{ROUTES[route].short}</span>
 }
 

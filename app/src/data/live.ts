@@ -1,6 +1,6 @@
 // แปลงแถวจากฐานข้อมูลจริง (view job_live และตารางจักร) เป็นรูปแบบที่หน้าจอใช้ (proto/model · proto/sewing)
 // แยกเป็น pure function เพื่อทดสอบได้โดยไม่ต้องต่อ Supabase · ตัวดึงข้อมูลอยู่ที่ useFactoryData.ts
-import type { Dept, Job, Phase, RouteCode, StationCode, StationStatus } from '../proto/model.ts'
+import { usesFilm, type Dept, type Job, type Phase, type RouteCode, type StationCode, type StationStatus } from '../proto/model.ts'
 import type { Booking, Machine, MachineStatus, MachineType, Need } from '../proto/sewing.ts'
 
 export type JobRow = {
@@ -18,6 +18,7 @@ export type JobRow = {
   station_status: StationStatus | null
   stage_entered_at: string
   sample_round: number
+  needs_sample?: boolean     // ไม่มีในแถวเก่า = ขึ้นตัวอย่าง
   materials_waiting_depts: Dept[] | null
   dtf_film_eta: string | null
   dtf_film_received_at: string | null
@@ -73,11 +74,12 @@ export function toJobs(rows: JobRow[], products: ProductRow[], reworks: ReworkRo
       phase: r.phase as Phase,
       since: new Date(r.stage_entered_at),
       sampleRound: r.sample_round,
+      needsSample: r.needs_sample ?? true,
       materials: Object.fromEntries(DEPTS.map(d => [d, !waiting.has(d)])) as Record<Dept, boolean>,
     }
     if (r.current_station) job.station = r.current_station
     if (r.station_status) job.status = r.station_status
-    if (r.route_code === 'dtf' && r.dtf_film_eta) job.film = { eta: dueDate(r.dtf_film_eta), received: !!r.dtf_film_received_at }
+    if (usesFilm(r.route_code) && r.dtf_film_eta) job.film = { eta: dueDate(r.dtf_film_eta), received: !!r.dtf_film_received_at }
     if (r.sew_count > 0) job.sewCount = r.sew_count
     if (r.is_rework) job.rework = { qty: r.rework_qty ?? 0, reason: reworkReason.get(r.id) ?? '' }
     if (r.hold_reason) job.holdReason = r.hold_reason
