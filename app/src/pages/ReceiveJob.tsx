@@ -59,7 +59,7 @@ export function ReceiveJob({ onClose, onDone }: { onClose: () => void; onDone: (
       setDraft(d)
       setJsonNote({ ok: true, text: `ดึงข้อมูลจาก ${file.name} แล้ว · ตรวจอีกครั้งก่อนรับงาน` })
     } catch {
-      setJsonNote({ ok: false, text: 'ไฟล์นี้ไม่ใช่ไฟล์จากฟอร์มใบยืนยันการผลิต (.json) กรอกเองได้' })
+      setJsonNote({ ok: false, text: 'ไฟล์นี้ไม่ใช่ไฟล์ที่บันทึกจากฟอร์มใบยืนยันการผลิต กรอกเองได้' })
     }
   }
 
@@ -90,7 +90,7 @@ export function ReceiveJob({ onClose, onDone }: { onClose: () => void; onDone: (
   return (
     <Dialog title="รับงานเข้าโรงงาน" icon={IconInbox} onClose={onClose} wide>
       <div className="mt-3 grid gap-4">
-        <label className={label}>ไฟล์ใบงานจากฟอร์ม (.json) · ไม่บังคับ
+        <label className={label}>ไฟล์ที่บันทึกจากฟอร์มใบยืนยัน (ปุ่ม "บันทึกไฟล์") · ไม่บังคับ
           <FilePick accept=".json,application/json" chosen={jsonName} onPick={f => { setJsonName(f?.name ?? ''); void readJson(f) }} />
           {jsonNote && <span role={jsonNote.ok ? 'status' : 'alert'} className={`text-sm ${jsonNote.ok ? 'text-ok' : 'text-warn'}`}>{jsonNote.text}</span>}
         </label>
@@ -129,7 +129,7 @@ export function ReceiveJob({ onClose, onDone }: { onClose: () => void; onDone: (
             </select>
           </label>
         </div>
-        <p className="text-sm text-muted">ลำดับสถานี: {ROUTES[draft.route].stations.map(s => STATION_NAME[s]).join(' → ')} · ไฟล์ .json เลือกเส้นทางตามเทคนิคพิมพ์ให้แล้ว</p>
+        <p className="text-sm text-muted">ลำดับสถานี: {ROUTES[draft.route].stations.map(s => STATION_NAME[s]).join(' → ')} · แนบไฟล์จากฟอร์มแล้ว ระบบเลือกเส้นทางตามเทคนิคพิมพ์ให้</p>
 
         {/* ขึ้นตัวอย่างเฉพาะงานที่ลูกค้าจ่ายค่าตัวอย่าง (ตกลงกันแล้วในใบยืนยัน) · ไม่มีค่าตั้งต้น ต้องเลือกเอง */}
         <fieldset className="grid gap-2">
