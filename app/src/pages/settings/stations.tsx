@@ -45,10 +45,10 @@ export function StationsTab({ data, controls }: TabProps<'stations'>) {
   return (
     <>
       <p className="rounded-xl border border-warn/30 bg-warn-soft px-4 py-3 text-warn">
-        แก้ขั้นย่อยมีผลกับงานที่อยู่ในสถานีนั้นทันที (ขั้นที่เพิ่มใหม่จะต้องติ๊กก่อนกดเสร็จ)
+        ระบบไม่บังคับติ๊กขั้นย่อยแล้ว หน้างานกดแค่ เริ่ม → เสร็จ · ขั้นย่อยเก็บไว้อ้างอิง ยกเว้นขั้น &quot;ได้รับฟิล์ม&quot; ที่แอดมินต้องบันทึกก่อนเริ่มรีดฟิล์ม
       </p>
       <Collection controls={controls} group="stations" title="สถานีและขั้นย่อย"
-        subtitle="กำหนดเฟส เวลามาตรฐาน และขั้นย่อยที่ต้องทำในแต่ละสถานี"
+        subtitle="กำหนดเฟสและเวลามาตรฐานของแต่ละสถานี · ขั้นย่อยใช้อ้างอิง"
         list={data.stations} identify={station => station.code}
         row={station => (
           <>
