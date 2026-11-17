@@ -1,0 +1,25 @@
+{
+  "app": "phappim-confirm",
+  "v": 1,
+  "h": {
+    "issue_date": "2026-11-17",
+    "doc_no": "TEST-C7-1",
+    "job_name": "เสื้อยืดปักซับทดสอบ",
+    "sample": "ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)",
+    "sample_date": "",
+    "customer": "ลูกค้าทดสอบ 1",
+    "due_date": "2026-11-25"
+  },
+  "product": "tshirt",
+  "pickOpen": true,
+  "p": {
+    "tshirt": {
+      "size_sets": ["ไซซ์ผู้ใหญ่"],
+      "pocket_rows": [],
+      "sizes": [{ "q": { "M": "20" } }],
+      "spare": "2",
+      "print_method": ["งานปัก", "ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)"]
+    }
+  },
+  "summary": { "qty": 20, "route": "print_emb" }
+}
