@@ -64,7 +64,6 @@ export type Job = {
 // คอลัมน์ของบอร์ด (DEVELOPMENT.md หัวข้อ 8)
 export type ColumnKey = 'materials' | 'sample' | 'sample_review' | StationCode | 'done'
 export const COLUMNS: { key: ColumnKey; name: string }[] = [
-  { key: 'materials', name: 'รอวัตถุดิบ' },
   { key: 'sample', name: 'ขึ้นตัวอย่าง' },
   { key: 'sample_review', name: 'รอผลตัวอย่าง' },
   { key: 'print', name: 'พิมพ์' },
@@ -79,7 +78,7 @@ export const COLUMNS: { key: ColumnKey; name: string }[] = [
 
 // กลุ่มสถานีบนแถบเลือกสถานี · หน้างานมองหาสถานีตัวเองตามเฟส ไม่ต้องเลื่อนหา (เจ้าของโปรเจกต์ขอ 17 พ.ย.)
 export const STATION_GROUPS: { name: string; keys: ColumnKey[] }[] = [
-  { name: 'ก่อนผลิต', keys: ['materials', 'sample', 'sample_review'] },
+  { name: 'ก่อนผลิต', keys: ['sample', 'sample_review'] },
   { name: 'เฟส 1', keys: ['print', 'press', 'cut', 'dtf_press', 'emb'] },
   { name: 'เฟส 2', keys: ['sew', 'qc_pack', 'done'] },
 ]
@@ -101,6 +100,8 @@ export function savedStation(raw: string | null, columns: readonly { key: Column
 export function columnOf(j: Job): ColumnKey {
   // กันข้อมูลเพี้ยน: งานผลิตที่ไม่มีสถานี ให้ไปอยู่สถานีแรกของเส้นทาง
   if (j.phase === 'production') return j.station ?? ROUTES[j.route].stations[0]
+  // ไม่มีขั้นรอวัตถุดิบแล้ว (17 พ.ย.) · งานเก่าที่ยังค้างขั้นนี้แสดงที่จุดถัดไปที่งานจะไป ไม่ให้หายจากบอร์ด
+  if (j.phase === 'materials') return j.needsSample === false ? ROUTES[j.route].stations[0] : 'sample'
   return j.phase
 }
 

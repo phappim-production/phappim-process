@@ -78,23 +78,11 @@ export async function workflowTests({ db, ok, as }) {
   await reject('กฎ 1: ไฟล์ที่ไม่ใช่ PDF ไม่ได้', U.admin, receive('SC-JPG', 'normal', { pdf: "'x.jpg'" }), /ต้องแนบ PDF/)
   await reject('รับงาน: จำนวน 0 ไม่ได้', U.admin, receive('SC-Q0B', 'normal', { qty: 0 }), /มากกว่า 0/)
   const A = await newJob('SC-A', 'normal')
-  ok('รับงานสำเร็จ → อยู่ขั้นรอวัตถุดิบ', (await job(A)).phase === 'materials')
-  ok('สร้างรายการวัตถุดิบจากแม่แบบ (ปกติ 5 รายการ ไม่มีฟิล์ม)', (await materials(A)).length === 5)
-  await reject('รับงาน: เลขที่ใบซ้ำไม่ได้', U.admin, receive('SC-A', 'normal'), /รับเข้าระบบไปแล้ว/)
-
-  // ---------- กฎข้อ 2: วัตถุดิบ ----------
-  await reject('กฎ 2: วัตถุดิบยังไม่ครบ เริ่มสถานีไม่ได้', U.sup, `public.start_station('${A}')`, /สถานะงานเปลี่ยนไปแล้ว/)
-  const mA = await materials(A)
-  const adminItem = mA.find(m => m.dept === 'admin')
-  await reject('วัตถุดิบ: ฝ่าย QC ติ๊กรายการของแอดมินไม่ได้', U.qc, `public.check_material(${adminItem.id})`, /ฝ่ายอื่นติ๊กไม่ได้/)
-  await reject('วัตถุดิบ: ผู้ควบคุมงานติ๊กแทนฝ่ายไม่ได้', U.sup, `public.check_material(${adminItem.id})`, /ทำขั้นนี้ไม่ได้/)
-  await pass('วัตถุดิบ: แอดมินติ๊กรายการของตัวเองได้', U.admin, `public.check_material(${adminItem.id})`)
-  await pass('วัตถุดิบ: ยกเลิกติ๊กได้ระหว่างรอวัตถุดิบ', U.admin, `public.check_material(${adminItem.id}, false)`)
-  ok('ยกเลิกแล้วยังรอวัตถุดิบ', (await job(A)).materials_pending === 5)
-  await checkAll(A)
+  // ไม่มีขั้นรอวัตถุดิบแล้ว (20261119190000): แอดมินเตรียมของครบก่อนส่งงานเข้า → ไปสถานีแรกทันที
   let a = await job(A)
-  ok('กฎ 2: ครบทุกฝ่าย → ไปขึ้นตัวอย่างที่สถานีแรก (พิมพ์) รอคิว', a.phase === 'sample' && a.current_station === 'print' && a.station_status === 'queued', `${a.phase}/${a.current_station}/${a.station_status}`)
-  await reject('วัตถุดิบ: ปล่อยงานแล้วแก้ติ๊กไม่ได้', U.admin, `public.check_material(${adminItem.id}, false)`, /ปล่อยงานไปแล้ว/)
+  ok('รับงานแล้วขึ้นตัวอย่างที่สถานีแรก (พิมพ์) รอคิวทันที', a.phase === 'sample' && a.current_station === 'print' && a.station_status === 'queued', `${a.phase}/${a.current_station}/${a.station_status}`)
+  ok('ไม่สร้างเช็คลิสต์วัตถุดิบ', (await materials(A)).length === 0)
+  await reject('รับงาน: เลขที่ใบซ้ำไม่ได้', U.admin, receive('SC-A', 'normal'), /รับเข้าระบบไปแล้ว/)
 
   // ---------- กฎข้อ 4, 5, 11: สถานี ----------
   await reject('ติ๊กขั้นย่อยก่อนกดเริ่มไม่ได้', U.sup, `public.complete_substep('${A}', 'check_print')`, /กด "เริ่ม"/)
@@ -181,20 +169,16 @@ export async function workflowTests({ db, ok, as }) {
   a = await job(A)
   ok('งานเสร็จ: phase done · ล้างป้ายงานแก้ · มีเวลาเสร็จ', a.phase === 'done' && !a.is_rework && a.finished_at !== null && a.qc_passed === 10)
   const types = (await db.query(`select type from public.events where job_id = '${A}'`)).rows.map(r => r.type)
-  ok('ทุกการกดถูกบันทึกใน events', ['received', 'material_checked', 'released', 'station_start', 'substep_done', 'station_done',
+  ok('ทุกการกดถูกบันทึกใน events', ['received', 'released', 'station_start', 'substep_done', 'station_done',
     'sample_sent', 'sample_result', 'delay_report', 'sew_count', 'qc_result', 'rework', 'done'].every(t => types.includes(t)))
   await reject('งานเสร็จแล้วเริ่มสถานีไม่ได้', U.sup, `public.start_station('${A}')`, /สถานะงานเปลี่ยนไปแล้ว/)
 
   // ---------- DTF + กฎข้อ 6 + กฎข้อ 10 (สถานี) ----------
   const B = await newJob('SC-B', 'dtf')
-  const film = (await materials(B)).find(m => m.key === 'dtf_film')
-  ok('งาน DTF มีรายการ "สั่งฟิล์ม DTF"', !!film)
-  await reject('ฟิล์ม: ติ๊กเองไม่ได้ (ระบบติ๊กเมื่อบันทึกการสั่ง)', U.admin, `public.check_material(${film.id})`, /ติ๊กให้อัตโนมัติ/)
+  ok('งาน DTF เข้าสถานีแรกทันที ไม่ต้องรอฟิล์ม (ฟิล์มนำเข้าภายหลังได้)', (await job(B)).phase === 'sample')
   await reject('ฟิล์ม: ฝ่ายผลิตบันทึกการสั่งไม่ได้', U.prod, `public.order_film('${B}', '2026-11-20')`, /ทำขั้นนี้ไม่ได้/)
   await reject('ฟิล์ม: บันทึกรับก่อนสั่งไม่ได้', U.admin, `public.receive_film('${B}')`, /ยังไม่ได้บันทึกการสั่งฟิล์ม/)
   await call(U.admin, `public.order_film('${B}', '2026-11-20')`)
-  await checkAll(B)
-  ok('สั่งฟิล์มแล้ว + วัตถุดิบครบ → ขึ้นตัวอย่าง', (await job(B)).phase === 'sample')
   await station(B, await SAMPLE('cut'))
   await reject('กฎ 6: ยังไม่ได้รับฟิล์ม เริ่มรีด DTF ไม่ได้', U.sup, `public.start_station('${B}')`, /ยังไม่ได้รับฟิล์ม DTF/)
   await call(U.admin, `public.receive_film('${B}')`)
@@ -218,7 +202,6 @@ export async function workflowTests({ db, ok, as }) {
 
   // ---------- กฎข้อ 9: พักงาน + เวลาพักไม่นับ ----------
   const C = await newJob('SC-C', 'plain')
-  await checkAll(C)
   await walkSample(C, 'plain')
   await call(U.admin, `public.record_sample_result('${C}', true)`)
   await reject('กฎ 9: พักงานไม่ระบุสาเหตุไม่ได้', U.sup, `public.open_issue('${C}', '  ')`, /ต้องระบุสาเหตุ/)

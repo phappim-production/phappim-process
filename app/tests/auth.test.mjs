@@ -96,10 +96,9 @@ test('ผู้ควบคุมงานไม่กำหนดเฟส เ�
   assert.equal(jobInScope(job('materials'), scope), false)
 })
 
-test('ฝ่าย QC เห็นเฉพาะวัตถุดิบที่ยังรอ QC และงาน QC + Packing', () => {
+test('ฝ่าย QC เห็นเฉพาะงาน QC + Packing (ไม่มีขั้นรอวัตถุดิบแล้ว)', () => {
   const qc = boardScope('qc', null)
-  assert.equal(jobInScope(job('materials', undefined, { admin: true, qc: false, production: true }), qc), true)
-  assert.equal(jobInScope(job('materials', undefined, { admin: false, qc: true, production: false }), qc), false)
+  assert.equal(jobInScope(job('materials', undefined, { admin: true, qc: false, production: true }), qc), false)
   assert.equal(jobInScope(job('production', 'qc_pack'), qc), true)
   assert.equal(jobInScope(job('production', 'sew'), qc), false)
 })

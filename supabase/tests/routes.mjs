@@ -59,8 +59,7 @@ export async function routeTests({ db, ok, as }) {
 
   const C = await receive('SC-RT-CUT', 'cut_only', false)
   ok('ตัวอย่าง: รับงานแบบไม่ขึ้นตัวอย่างได้ · บอร์ด (job_live) เห็นค่านี้',
-    (await job(C)).needs_sample === false && (await live(C)).needs_sample === false && (await live(C)).phase === 'materials')
-  await reject('ตัวอย่าง: วัตถุดิบยังไม่ครบ เริ่มตัดไม่ได้', U.prod, `public.start_station('${C}')`)
+    (await job(C)).needs_sample === false && (await live(C)).needs_sample === false && (await live(C)).phase === 'production')
   await tickMaterials(C)
   const c1 = await live(C)
   ok('ตัวอย่าง: ไม่ขึ้นตัวอย่าง → วัตถุดิบครบแล้วเข้าผลิตจริงที่สถานีตัด',
@@ -95,10 +94,9 @@ export async function routeTests({ db, ok, as }) {
 
   // ---------- 5. DTG / สกรีน: สั่งเข้า → รอรับ → รีดฟิล์ม ----------
   const G = await receive('SC-RT-DTG', 'dtg', false)
-  const gFilm = (await db.query(`select id, name from public.job_materials where job_id = $1 and key = 'dtg_film'`, [G])).rows[0]
-  ok('DTG: มีรายการวัตถุดิบ "สั่งงาน DTG" ของแอดมิน', !!gFilm, gFilm?.name)
-  await reject('DTG: ติ๊กรายการสั่งงาน DTG เองไม่ได้ (ติ๊กอัตโนมัติ)', U.admin, `public.check_material(${gFilm?.id})`, /ติ๊กให้อัตโนมัติ/)
-  ok('DTG: แอดมินสั่งงาน DTG → ติ๊กให้อัตโนมัติ',
+  ok('DTG: เข้าสถานีแรกทันที ไม่มีเช็คลิสต์วัตถุดิบ (สั่งงาน DTG บันทึกภายหลังได้)', (await live(G)).phase === 'production' &&
+    (await db.query(`select count(*)::int n from public.job_materials where job_id = $1`, [G])).rows[0].n === 0)
+  ok('DTG: แอดมินบันทึกสั่งงาน DTG ระหว่างผลิตได้',
     await step('สั่ง DTG', U.admin, `public.order_film('${G}', '2026-12-01')`) && await tickMaterials(G) &&
     (await live(G)).phase === 'production')
   await doStation(G, 'cut', 'production')
@@ -107,8 +105,8 @@ export async function routeTests({ db, ok, as }) {
     await step('รับ DTG', U.admin, `public.receive_film('${G}')`) && await step('เริ่มรีด', U.prod, `public.start_station('${G}')`))
 
   const S = await receive('SC-RT-SCREEN', 'screen', false)
-  ok('สกรีน: มีรายการวัตถุดิบ "สั่งงานสกรีน"',
-    (await db.query(`select count(*)::int n from public.job_materials where job_id = $1 and key = 'screen_film'`, [S])).rows[0].n === 1)
+  ok('สกรีน: ไม่มีเช็คลิสต์วัตถุดิบ',
+    (await db.query(`select count(*)::int n from public.job_materials where job_id = $1`, [S])).rows[0].n === 0)
   await reject('สกรีน: ยังไม่ได้สั่ง บันทึกรับไม่ได้', U.admin, `public.receive_film('${S}')`, /ยังไม่ได้บันทึกการสั่งงานสกรีน/)
   // นัดรับเมื่อวาน (เวลาไทย) → ตรวจตามรอบต้องแจ้งเตือนเลยกำหนด
   await step('สั่งสกรีน', U.admin, `public.order_film('${S}', ((now() at time zone 'Asia/Bangkok')::date - 1))`)

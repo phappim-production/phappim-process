@@ -77,7 +77,7 @@ export function roleSummary(kind: SummaryKind, jobs: Job[], allJobs: Job[], mach
       return [
         { key: 'qc', label: 'รอ QC + Packing', value: waitingQc.length, tone: 'brand', icon: 'clipboard', tab: 'board',
           note: `${waitingQc.reduce((n, j) => n + j.qty, 0).toLocaleString('th-TH')} ชิ้น` },
-        { key: 'materials', label: 'วัตถุดิบรอ QC ติ๊ก', value: jobs.filter(j => j.phase === 'materials' && !j.materials.qc).length, tone: 'warn', icon: 'package', tab: 'todo' },
+        { key: 'qcDoing', label: 'กำลังตรวจ', value: waitingQc.filter(j => j.status === 'doing').length, tone: 'info', icon: 'clock', tab: 'board' },
         { key: 'rework', label: 'งานแก้', value: active(allJobs).filter(j => j.rework).length, tone: 'danger', icon: 'alert', tab: 'board', note: 'ส่งกลับไปแก้ที่สถานีต้นเหตุ' },
         { key: 'done', label: 'เสร็จวันนี้', value: allJobs.filter(j => isDoneToday(j, now)).length, tone: 'ok', icon: 'check', tab: 'board' },
       ]
@@ -86,7 +86,7 @@ export function roleSummary(kind: SummaryKind, jobs: Job[], allJobs: Job[], mach
       return [
         { key: 'inScope', label: 'งานในโรงงาน', value: active(jobs).length, tone: 'brand', icon: 'factory', tab: 'board' },
         urgentTile(jobs, now),
-        { key: 'materials', label: 'วัตถุดิบรอฝ่ายผลิต', value: jobs.filter(j => j.phase === 'materials' && !j.materials.production).length, tone: 'warn', icon: 'package', tab: 'todo' },
+        { key: 'doing', label: 'กำลังทำ', value: doing(jobs).length, tone: 'info', icon: 'clock', tab: 'board' },
         { key: 'broken', label: 'จักรเสีย', value: machines.filter(m => m.status === 'broken').length, tone: 'danger', icon: 'sewing', tab: 'sewing', sewingView: 'machines', note: 'แจ้งเสีย / กำหนดเวลาซ่อม' },
       ]
     default:

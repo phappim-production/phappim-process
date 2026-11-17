@@ -170,7 +170,6 @@ const steps = [
   { key: 'check_print', name: 'ตรวจงานพิมพ์', kind: 'req' },
 ]
 const ctx = over => ({ station: 'print', phase: 'production', rework: false, done: new Set(), filmReceived: false, qcPassed: 0, qty: 10, ...over })
-const names = list => list.map(s => s.name)
 
 test('เริ่ม → เสร็จ: เช็คลิสต์ขั้นย่อยไม่บังคับทุกชนิด ทั้งผลิตจริงและขึ้นตัวอย่าง', () => {
   assert.deepEqual(missingSteps(steps, ctx()), [])

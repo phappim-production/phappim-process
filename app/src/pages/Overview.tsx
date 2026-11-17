@@ -226,7 +226,6 @@ function StationLoadCard({ forecast }: { forecast: Forecast }) {
 /** แถบสัดส่วนงานแต่ละช่วง + คำอธิบายสี (อยู่หัวตารางทุกงาน) */
 function Pipeline({ jobs, now }: { jobs: Job[]; now: Date }) {
   const stages: { name: string; n: number; color: string }[] = [
-    { name: 'รอวัตถุดิบ', n: jobs.filter(j => j.phase === 'materials').length, color: 'bg-gold' },
     { name: 'ขึ้นตัวอย่าง', n: jobs.filter(j => j.phase === 'sample').length, color: 'bg-info' },
     { name: 'รอลูกค้ายืนยัน', n: jobs.filter(j => j.phase === 'sample_review').length, color: 'bg-dtf' },
     { name: 'กำลังผลิต', n: jobs.filter(j => j.phase === 'production').length, color: 'bg-brand' },

@@ -461,19 +461,20 @@ test('เฟส 2: กำลังเย็บ · รอเย็บ (ยัง�
   assert.equal(tile(t, 'qc').value, 1)
 })
 
-test('QC: รอ QC พร้อมจำนวนชิ้น · วัตถุดิบที่ QC ยังไม่ติ๊ก · งานแก้ · เสร็จวันนี้', () => {
+test('QC: รอ QC พร้อมจำนวนชิ้น · กำลังตรวจ · งานแก้ · เสร็จวันนี้', () => {
   const t = summaryFor('qc', null)
   assert.equal(tile(t, 'qc').value, 1)
   assert.equal(tile(t, 'qc').note, '40 ชิ้น')
-  assert.equal(tile(t, 'materials').value, 1)
+  assert.equal(tile(t, 'qcDoing').value >= 0, true)
+  assert.equal(t.some(x => x.key === 'materials'), false)
   assert.equal(tile(t, 'rework').value, 1)
   assert.equal(tile(t, 'done').value, 1)
 })
 
-test('ฝ่ายผลิต: งานทั้งโรงงานไม่นับงานเสร็จ · วัตถุดิบรอฝ่ายผลิต · จักรเสีย', () => {
+test('ฝ่ายผลิต: งานทั้งโรงงานไม่นับงานเสร็จ · กำลังทำ · จักรเสีย', () => {
   const t = summaryFor('production', null)
   assert.equal(tile(t, 'inScope').value, 9)
-  assert.equal(tile(t, 'materials').value, 1)
+  assert.equal(t.some(x => x.key === 'materials'), false)
   assert.equal(tile(t, 'broken').value, 1)
 })
 
