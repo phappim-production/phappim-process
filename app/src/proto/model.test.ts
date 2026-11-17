@@ -2,9 +2,9 @@ import { expect, it } from 'vitest'
 import { columnOf, isDoneToday, isDueSoon, isFilmLate, isOverdue, isWaitingFilm, missingDepts } from './model'
 import type { ColumnKey, Job, Phase } from './model'
 
-const today = new Date(2026, 10, 17)
-const yesterday = new Date(2026, 10, 16)
-const due = new Date(2026, 10, 17, 17)
+const today = new Date('2026-11-17T00:00:00+07:00')
+const yesterday = new Date('2026-11-16T00:00:00+07:00')
+const due = new Date('2026-11-17T17:00:00+07:00')
 const job: Job = {
   id: 'j1', no: 'SC-1', customer: 'ลูกค้าทดสอบ', product: 'เสื้อยืด',
   unit: 'ตัว', qty: 80, due, since: yesterday,
@@ -13,15 +13,15 @@ const job: Job = {
 }
 
 it('งานครบกำหนดวันนี้ยังไม่เลยกำหนด แม้ผ่าน 17:00', () => {
-  expect(isOverdue(job, new Date(2026, 10, 17, 23, 59))).toBe(false)
+  expect(isOverdue(job, new Date('2026-11-17T23:59:00+07:00'))).toBe(false)
 })
 
 it('งานครบกำหนดเมื่อวานเลยกำหนดทันทีที่ข้ามเที่ยงคืน', () => {
   expect(isOverdue({ ...job, due: yesterday }, today)).toBe(true)
 })
 
-// วันที่ในระบบต้องอิงไทย แต่ startOfDay ใช้เขตเวลาของเครื่อง
-it.fails('งานเลยกำหนดทันทีหลังเที่ยงคืนไทยแม้เครื่องใช้ UTC', () => {
+// วันที่ในระบบอิงวันไทยเสมอ (thaiDay) · ทดสอบรันด้วย TZ=UTC เพื่อจับกรณีเครื่องตั้งเขตเวลาผิด
+it('งานเลยกำหนดทันทีหลังเที่ยงคืนไทยแม้เครื่องใช้ UTC', () => {
   const thaiDue = new Date('2026-11-17T17:00:00+07:00')
   const afterMidnight = new Date('2026-11-18T00:01:00+07:00')
 

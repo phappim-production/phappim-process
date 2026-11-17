@@ -72,13 +72,23 @@ export function columnOf(j: Job): ColumnKey {
 }
 
 const DAY = 86_400_000
+// ใช้เรียงลำดับ (ไม่ใช้ตัดสินวัน) · การตัดสินว่า "วันไหน" ต้องใช้ thaiDay
 export const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
 
+// วันตามปฏิทินไทย (YYYY-MM-DD) ไม่ขึ้นกับเขตเวลาของเครื่อง
+// แท็บเล็ตที่ตั้งเขตเวลาผิดต้องยังขึ้นแดง "เลยกำหนด" ทันทีหลังเที่ยงคืนไทย ไม่ใช่ช้าไปหลายชั่วโมง
+const thaiDayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' })
+export const thaiDay = (d: Date) => thaiDayFormat.format(d)
+/** a อยู่หลัง b กี่วันตามปฏิทินไทย (ติดลบ = ก่อน) */
+export function thaiDayDiff(a: Date, b: Date) {
+  return Math.round((Date.parse(thaiDay(a)) - Date.parse(thaiDay(b))) / DAY)
+}
+
 export function isOverdue(j: Job, now: Date) {
-  return j.phase !== 'done' && startOfDay(j.due) < startOfDay(now)
+  return j.phase !== 'done' && thaiDay(j.due) < thaiDay(now)
 }
 export function isDueSoon(j: Job, now: Date) {
-  const days = (startOfDay(j.due).getTime() - startOfDay(now).getTime()) / DAY
+  const days = thaiDayDiff(j.due, now)
   return j.phase !== 'done' && days >= 0 && days <= 2
 }
 export function isWaitingFilm(j: Job) {
@@ -86,10 +96,10 @@ export function isWaitingFilm(j: Job) {
   return true
 }
 export function isFilmLate(j: Job, now: Date) {
-  return isWaitingFilm(j) && startOfDay(j.film!.eta) < startOfDay(now)
+  return isWaitingFilm(j) && thaiDay(j.film!.eta) < thaiDay(now)
 }
 export function isDoneToday(j: Job, now: Date) {
-  return j.phase === 'done' && !!j.doneAt && startOfDay(j.doneAt).getTime() === startOfDay(now).getTime()
+  return j.phase === 'done' && !!j.doneAt && thaiDay(j.doneAt) === thaiDay(now)
 }
 export function missingDepts(j: Job): Dept[] {
   return (Object.keys(j.materials) as Dept[]).filter(d => !j.materials[d])

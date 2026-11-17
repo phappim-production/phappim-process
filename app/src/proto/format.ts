@@ -1,11 +1,12 @@
-import { DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME, missingDepts, startOfDay, type Job } from './model'
+import { DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME, missingDepts, thaiDayDiff, type Job } from './model'
 
 export function shortDate(d: Date) {
-  return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
+  return d.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' })
 }
 
+// "วันนี้ / พรุ่งนี้ / อีก n วัน" ต้องนับตามวันไทย เหมือนสีเลยกำหนด
 export function dayDiff(a: Date, b: Date) {
-  return Math.round((startOfDay(a).getTime() - startOfDay(b).getTime()) / 86_400_000)
+  return thaiDayDiff(a, b)
 }
 
 export function relDay(d: Date, now: Date) {
