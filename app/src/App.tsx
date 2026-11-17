@@ -8,9 +8,11 @@ import ReportsPage from './pages/reports'
 import SettingsPage from './pages/settings'
 import InboxPage from './pages/inbox'
 import { InboxBell } from './pages/inbox/InboxBell'
+import { unreadBadge } from './pages/inbox/format'
+import { useInbox } from './pages/inbox/useInbox'
 import JobLabel from './pages/job-label'
 import { Card, CardHeader } from './components/ui'
-import { IconChart, IconColumns, IconGauge, IconSliders, IconUser } from './components/icons'
+import { IconChart, IconColumns, IconGauge, IconInbox, IconSliders, IconUser } from './components/icons'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 
@@ -19,13 +21,14 @@ type NavItem = { key: PageKey; hash: string; name: string; short: string; icon: 
 const NAV: NavItem[] = [
   { key: 'overview', hash: '#/', name: 'ภาพรวมแอดมิน', short: 'ภาพรวม', icon: IconGauge },
   { key: 'board', hash: '#/board', name: 'หน้างาน', short: 'หน้างาน', icon: IconColumns },
+  { key: 'inbox', hash: '#/inbox', name: 'กล่องจดหมาย', short: 'กล่องจดหมาย', icon: IconInbox },
   { key: 'reports', hash: '#/reports', name: 'รายงาน', short: 'รายงาน', icon: IconChart },
   { key: 'settings', hash: '#/settings', name: 'ตั้งค่า', short: 'ตั้งค่า', icon: IconSliders },
   { key: 'system', hash: '#/system', name: 'บัญชี', short: 'บัญชี', icon: IconUser },
 ]
 
-// หน้าที่ไม่อยู่ในเมนู: กล่องจดหมาย (กดกระดิ่ง) · ใบปะงาน (#/label?id=<job id> จากรายละเอียดงาน)
-const HIDDEN: Partial<Record<string, PageKey>> = { '#/inbox': 'inbox', '#/label': 'label' }
+// ใบปะงานเปิดจากรายละเอียดงาน โดยไม่มีรายการในเมนู
+const HIDDEN: Partial<Record<string, PageKey>> = { '#/label': 'label' }
 
 export default function App() {
   const hash = useHash()
@@ -81,6 +84,8 @@ function Workspace({ page: requested, labelId, profile, email }: {
     .filter(item => canOpenPage(profile.role, item.key))
     .map(item => item.key === 'board' && scope.columns ? { ...item, name: 'งานของฉัน', short: 'งานของฉัน' } : item)
   const roleLabel = labelFor(profile.role, profile.section)
+  const { unreadCount } = useInbox()
+  const inboxBadge = unreadBadge(unreadCount)
 
   return (
     <div className="flex h-dvh">
@@ -89,15 +94,21 @@ function Workspace({ page: requested, labelId, profile, email }: {
         <div className="flex items-center gap-3 px-5 pt-5 pb-6">
           <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-10 rounded-lg ring-1 ring-white/20" />
           <span className="text-lg font-bold leading-tight">ติดตาม<br />การผลิต</span>
-          <span className="ml-auto"><InboxBell /></span>
         </div>
         <nav aria-label="เมนูหลัก" className="grid gap-1 px-3">
           {visibleNav.map(({ key, name, hash, icon: Icon }) => {
             const active = key === page
+            const badge = key === 'inbox' ? inboxBadge : null
             return (
               <a key={key} href={hash} aria-current={active ? 'page' : undefined}
+                aria-label={badge ? `${name} ยังไม่อ่าน ${unreadCount} รายการ` : undefined}
                 className={`flex min-h-12 items-center gap-3 rounded-xl px-4 text-base font-semibold ${active ? 'bg-white text-brand' : 'text-white/90 hover:bg-white/10'}`}>
-                <Icon className="size-5" />{name}
+                <Icon className="size-5 shrink-0" />{name}
+                {badge && (
+                  <span aria-hidden className="ml-auto min-w-5 shrink-0 rounded-full bg-danger px-1.5 py-0.5 text-center text-xs leading-none font-bold text-white tabular-nums">
+                    {badge}
+                  </span>
+                )}
               </a>
             )
           })}
@@ -175,7 +186,7 @@ function Workspace({ page: requested, labelId, profile, email }: {
         </div>
 
         <nav aria-label="เมนูหลัก" className="flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
-          {visibleNav.map(({ key, short, hash, icon: Icon }) => {
+          {visibleNav.filter(({ key }) => key !== 'inbox').map(({ key, short, hash, icon: Icon }) => {
             const active = key === page
             return (
               <a key={key} href={hash} aria-current={active ? 'page' : undefined}

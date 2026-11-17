@@ -164,6 +164,8 @@ await settingsTests({ db, ok, as })
 // ---- 13. ชื่อพนักงานสำหรับไทม์ไลน์ (S8) ----
 const { staffTests } = await import('./staff.mjs')
 await staffTests({ db, ok, as })
+const { historyTests } = await import('./history.mjs')
+await historyTests({ db, ok, as })
 
 console.log(`\nผ่าน ${pass} · ไม่ผ่าน ${fail}`)
 process.exit(fail ? 1 : 0)
