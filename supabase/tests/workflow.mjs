@@ -163,6 +163,7 @@ export async function workflowTests({ db, ok, as }) {
   ok('งานแก้เสร็จ → กลับ QC ทันที', a.current_station === 'qc_pack' && a.is_rework)
   await call(U.qc, `public.start_station('${A}')`)
   await reject('กฎ 5: QC ผ่านยังไม่ครบจำนวน กดเสร็จไม่ได้', U.qc, `public.finish_station('${A}')`, /ตรวจ/)
+  await reject('กฎ 5: ข้อความบอกยอด QC ผ่าน/ทั้งหมด ไม่ใช้คำว่าขั้นย่อย', U.qc, `public.finish_station('${A}')`, /^(?!.*ขั้นย่อย).*QC ตรวจผ่าน \d+\/\d+ ชิ้น ยังไม่ครบ/)
   await call(U.qc, `public.record_qc('${A}', 3)`)
   // QC ผ่านครบแล้ว ไม่ต้องติ๊กขั้นอื่น (ลงลัง ฯลฯ) ก็กดเสร็จได้ (20261119180000)
   await pass('QC ครบ กดเสร็จ', U.qc, `public.finish_station('${A}')`)
