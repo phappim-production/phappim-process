@@ -6,14 +6,14 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 // ฟอร์มใบยืนยันการผลิตเป็นไฟล์เดียวที่รากโปรเจกต์ (แก้ที่เดียว) · คัดลอกขึ้นเว็บเดียวกันที่ /confirmation.html
-// ให้แอดมินกดเปิดจากหน้ารับงานได้ ไม่ต้องมีไฟล์ในเครื่อง
+// ให้แอดมินกดเปิดจากหน้ารับงานได้ ไม่ต้องมีไฟล์ในเครื่อง · Cloudflare Pages ตัด .html → ลิงก์ใช้ /confirmation
 const CONFIRMATION_FORM = '/confirmation.html'
 const formSource = fileURLToPath(new URL('../production-confirmation.html', import.meta.url))
 function confirmationForm(): Plugin {
   return {
     name: 'pp142-confirmation-form',
     configureServer(server) {
-      server.middlewares.use(CONFIRMATION_FORM, (_req, res) => {
+      server.middlewares.use('/confirmation', (_req, res) => {   // ครอบ /confirmation และ /confirmation.html
         res.setHeader('Content-Type', 'text/html; charset=utf-8')
         res.end(readFileSync(formSource, 'utf8'))
       })
@@ -36,7 +36,7 @@ export default defineConfig({
       injectRegister: false,
       includeAssets: ['logo.webp', 'favicon.ico', 'favicon-32.png', 'favicon-48.png', 'apple-touch-icon.png'],
       // ไม่ให้ service worker ตอบหน้าแอปแทนฟอร์มใบยืนยัน (ฟอร์มเป็นหน้าแยก ไม่ใช่เส้นทางของแอป)
-      workbox: { navigateFallbackDenylist: [/^\/confirmation\.html/] },
+      workbox: { navigateFallbackDenylist: [/^\/confirmation(\.html)?$/] },
       manifest: {
         name: 'ภาพพิมพ์ 142 · ติดตามการผลิต',
         short_name: 'PP142 ผลิต',

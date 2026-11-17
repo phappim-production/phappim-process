@@ -9,8 +9,8 @@ import { Dialog, fieldClass, primaryBtn, secondaryBtn } from '../components/Dial
 import { IconInbox } from '../components/icons'
 
 type Product = { code: string; name: string; unit: string }
-// ฟอร์มใบยืนยันอยู่บนเว็บเดียวกัน (vite.config.ts คัดลอก production-confirmation.html ขึ้นไป)
-const CONFIRMATION_FORM = '/confirmation.html'
+// ฟอร์มใบยืนยันอยู่บนเว็บเดียวกัน (vite.config.ts คัดลอก production-confirmation.html ขึ้นไป) · Cloudflare เสิร์ฟไม่มี .html
+const CONFIRMATION_FORM = '/confirmation'
 
 // ปุ่มเลือกไฟล์ของเบราว์เซอร์แสดงภาษาของเครื่อง (มักเป็นอังกฤษ) จึงซ่อนแล้วใช้ปุ่มภาษาไทยแทน
 function FilePick({ accept, chosen, onPick }: { accept: string; chosen: string; onPick: (f: File | undefined) => void }) {
