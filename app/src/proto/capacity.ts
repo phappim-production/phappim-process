@@ -5,9 +5,10 @@ export function piecesPerDay(workers: number, minutesPerPiece: number, workMinut
   return Math.floor(workers * workMinutes / minutesPerPiece)
 }
 
-// เย็บ: ข้อมูลหน้างาน 17 พ.ย. · ช่าง 3 คน · เสื้อยืด 20.17 นาที/ตัว (ป้ายผ้า 60x60 20 นาที/ผืน ใกล้กัน จึงใช้ค่าเดียว)
+// เย็บ: ข้อมูลหน้างาน 17 พ.ย. · จับเวลาจากช่าง 3 คน: เสื้อยืด 20.17 นาที/ตัว/คน (ป้ายผ้า 60x60 20 นาที/ผืน ใกล้กัน จึงใช้ค่าเดียว)
+// ทั้งโรงงานมีช่างเย็บ 15 คน · simulate ให้สถานีทำทีละงาน จึงใช้กำลังรวมทั้งโรงงาน
 // เวลางาน 09:00–18:00 หักพักเที่ยง 1 ชม. = 480 นาที
-export const SEWERS = 3
+export const SEWERS = 15
 export const SEW_MINUTES_PER_PIECE = 20.17
 export const WORK_MINUTES_PER_DAY = 480
 

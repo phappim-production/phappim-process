@@ -77,8 +77,7 @@ describe('คาดการณ์คิวโรงงาน', () => {
     const stationDays = 80 / CAPACITY.dtf_press + 80 / CAPACITY.sew + 80 / CAPACITY.qc_pack
 
     expect(result.finishDay.get(job.id)).toBeCloseTo(2 + stationDays)
-    // ฟิล์มถึงจันทร์ · เย็บ 80 ตัวใช้เกิน 1 วัน (71 ตัว/วัน) → เสร็จอังคาร
-    expect(workdayToDate(result.finishDay.get(job.id)!, friday)).toEqual(day(24))
+    expect(workdayToDate(result.finishDay.get(job.id)!, friday)).toEqual(monday)
   })
 
   it('คาดการณ์ล้านชิ้นได้เป็นจำนวนวันจำกัด', () => {
@@ -88,10 +87,11 @@ describe('คาดการณ์คิวโรงงาน', () => {
     expect(result.finishDay.get(job.id)).toBeCloseTo(1_000_000 / CAPACITY.cut + 1_000_000 / CAPACITY.sew + 1_000_000 / CAPACITY.qc_pack)
   })
 
-  it('กำลังเย็บคำนวณจากช่าง 3 คน · 20.17 นาทีต่อตัว · 480 นาทีต่อวัน = 71 ตัว', () => {
-    expect(piecesPerDay(3, 20.17, 480)).toBe(71)
-    expect(piecesPerDay(3, 20, 480)).toBe(72)   // ป้ายผ้า 60x60
-    expect(CAPACITY.sew).toBe(71)
+  it('กำลังเย็บคำนวณจากจำนวนช่าง · 20.17 นาทีต่อตัว · 480 นาทีต่อวัน', () => {
+    expect(piecesPerDay(3, 20.17, 480)).toBe(71)    // กลุ่มที่จับเวลา
+    expect(piecesPerDay(3, 20, 480)).toBe(72)       // ป้ายผ้า 60x60
+    expect(piecesPerDay(15, 20.17, 480)).toBe(356)  // ทั้งโรงงาน
+    expect(CAPACITY.sew).toBe(356)
   })
 
   it('งานผลิตที่ไม่มีสถานีเริ่มคำนวณจากสถานีแรกของเส้นทาง', () => {
