@@ -86,9 +86,9 @@ function Workspace({ page: requested, labelId, profile, email }: {
     <div className="flex h-dvh">
       {/* จอใหญ่: เมนูด้านซ้ายมีชื่อเต็ม · จอเล็ก/แท็บเล็ตใช้แถบล่าง */}
       <aside className="hidden w-64 shrink-0 flex-col bg-brand text-white lg:flex">
-        <div className="flex items-center gap-3 px-5 pt-5 pb-6">
-          <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-10 rounded-lg ring-1 ring-white/20" />
-          <span className="text-lg font-bold leading-tight">ติดตาม<br />การผลิต</span>
+        <div className="flex items-center gap-2 px-4 pt-5 pb-6">
+          <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-auto w-22 shrink-0 rounded-lg ring-1 ring-white/20" />
+          <span className="shrink-0 text-lg font-bold leading-tight whitespace-nowrap">ติดตาม<br />การผลิต</span>
           <span className="ml-auto"><InboxBell /></span>
         </div>
         <nav aria-label="เมนูหลัก" className="grid gap-1 px-3">

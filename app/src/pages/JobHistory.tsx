@@ -15,6 +15,7 @@ type DelayRow = { reasons: string[]; detail: string; new_eta: string; need_help:
 type StationRow = { code: string; name: string; substeps: { key: string; name: string }[] }
 
 type History = {
+  unit: string
   events: EventRow[]; visits: VisitRow[]; samples: SampleRow[]; qc: QcRow[]; delays: DelayRow[]
   names: Map<string, string>; reasons: Map<string, string>; stations: StationRow[]
 }
@@ -24,7 +25,8 @@ const when = (at: string) => new Date(at).toLocaleString('th-TH', { timeZone: 'A
 
 async function load(jobId: string): Promise<History> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
-  const [ev, vi, sa, qc, de, rc, st, nm] = await Promise.all([
+  const [job, ev, vi, sa, qc, de, rc, st, nm] = await Promise.all([
+    supabase.from('jobs').select('unit').eq('id', jobId).single(),
     supabase.from('events').select('id, type, phase, station_code, payload, by, at').eq('job_id', jobId).order('at').order('id'),
     supabase.from('station_visits').select('station_code, phase, visit, started_at, done_at, rework').eq('job_id', jobId),
     supabase.from('sample_results').select('round, result, note, customer_confirmed_at, by, at').eq('job_id', jobId).order('round'),
@@ -34,9 +36,10 @@ async function load(jobId: string): Promise<History> {
     supabase.from('stations').select('code, name, substeps'),
     rpc<{ user_id: string; name: string }[]>('staff_names', {}),
   ])
-  const err = ev.error ?? vi.error ?? sa.error ?? qc.error ?? de.error ?? rc.error ?? st.error
+  const err = job.error ?? ev.error ?? vi.error ?? sa.error ?? qc.error ?? de.error ?? rc.error ?? st.error
   if (err) throw new Error(err.message)
   return {
+    unit: job.data?.unit ?? 'ชิ้น',
     events: (ev.data ?? []) as EventRow[],
     visits: (vi.data ?? []) as VisitRow[],
     samples: (sa.data ?? []) as SampleRow[],
@@ -164,7 +167,7 @@ function HistoryView({ data: h, role, now, jobId, onChanged }: { data: History; 
         {h.events.length === 0 ? <p className="text-muted">ยังไม่มีการกดบันทึก</p> : (
           <ol className="grid gap-1">
             {shown.map(e => (
-              <TimelineItem key={e.id} e={e} line={eventLine(e, names)} who={who(e.by)} fixedReason={fixed.get(e.id)}
+              <TimelineItem key={e.id} e={e} line={eventLine(e, names, h.unit)} who={who(e.by)} fixedReason={fixed.get(e.id)}
                 canCorrect={canCorrect && e.type !== 'correction'} jobId={jobId} onChanged={onChanged} />
             ))}
           </ol>

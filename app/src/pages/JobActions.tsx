@@ -101,7 +101,7 @@ export function JobActions({ job: j, role, version, now, refresh }: {
       {usesFilm(j.route) && !j.film?.received && j.phase !== 'done' && (
         <Film job={j} ordered={d.filmOrdered} admin={admin} busy={busy} now={now}
           onOrder={eta => act('order_film', { p_eta: eta }, `บันทึกสั่ง${filmLabel(j.route)} · คาดว่าได้รับ ${eta}`)}
-          onReceive={() => act('receive_film', {}, `บันทึกได้รับ${filmLabel(j.route)}แล้ว · เริ่มรีดฟิล์มได้`)} />
+          onReceive={() => act('receive_film', {}, `บันทึกได้รับ${spaced(filmLabel(j.route))}แล้ว · เริ่มรีดฟิล์มได้`)} />
       )}
       {j.phase === 'sample_review' && (
         <SampleResult job={j} admin={admin} busy={busy}
@@ -216,7 +216,7 @@ function Film({ job: j, ordered, admin, busy, now, onOrder, onReceive }: {
           </button>
           {ordered && (
             <button type="button" disabled={busy} className={`${okBtn} sm:col-span-2`} onClick={() => void onReceive()}>
-              <IconCheck className="size-5" />ได้รับ{label}แล้ว
+              <IconCheck className="size-5" />ได้รับ{spaced(label)}แล้ว
             </button>
           )}
         </div>

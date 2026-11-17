@@ -37,6 +37,21 @@ test('ไทม์ไลน์: งานแก้ พักงาน ราย�
   assert.equal(eventLine(ev('something_new'), names).title, 'something_new')
 })
 
+test('ไทม์ไลน์: ผ่าน QC แสดงจำนวนและหน่วยจริงของงาน', () => {
+  const qc = ev('qc_result', { payload: { passed: 1250 } })
+  assert.equal(eventLine(qc, names, 'ผืน').title, 'บันทึกผ่าน QC 1,250 ผืน')
+  assert.equal(eventLine(qc, names, ' ใบ ').title, 'บันทึกผ่าน QC 1,250 ใบ')
+  assert.equal(eventLine(qc, names).title, 'บันทึกผ่าน QC 1,250 ชิ้น')
+  assert.equal(eventLine(qc, names, ' ').title, 'บันทึกผ่าน QC 1,250 ชิ้น')
+})
+
+test('ไทม์ไลน์: รับงานและส่งแก้ใช้หน่วยที่ระบุในใบงาน', () => {
+  const received = ev('received', { payload: { qty: 3, sample: false } })
+  const rework = ev('rework', { payload: { qty: 2 } })
+  assert.equal(eventLine(received, names, 'ตัว').detail, '3 ตัว · ไม่ขึ้นตัวอย่าง')
+  assert.equal(eventLine(rework, names, 'ใบ').title, 'QC ส่งกลับแก้ 2 ใบ')
+})
+
 test('แจ้งกดผิด: จับคู่กับรายการเดิมด้วย event_id · ประวัติเดิมยังอยู่', () => {
   const map = corrections([
     ev('station_done', { id: 7 }),

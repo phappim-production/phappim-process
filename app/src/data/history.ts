@@ -43,14 +43,15 @@ const thaiDate = (v: unknown) => {
 }
 
 /** ข้อความ 1 บรรทัดของการกด 1 ครั้ง · ชนิดที่ไม่รู้จักแสดงรหัสเดิม (ดีกว่าซ่อน) */
-export function eventLine(e: EventRow, n: Names): EventLine {
+export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLine {
   const p = e.payload ?? {}
+  const jobUnit = str(unit) || 'ชิ้น'
   const st = e.station_code ? n.station(e.station_code) : ''
   const sample = e.phase === 'sample' ? ' (ตัวอย่าง)' : ''
   const round = p.round !== undefined ? ` รอบ ${str(p.round)}` : ''
   switch (e.type) {
     case 'received': {
-      const bits = [str(p.qty) && `${num(p.qty)} ชิ้น`, p.sample === false ? 'ไม่ขึ้นตัวอย่าง' : p.sample === true ? 'ขึ้นตัวอย่าง' : ''].filter(Boolean)
+      const bits = [str(p.qty) && `${num(p.qty)} ${jobUnit}`, p.sample === false ? 'ไม่ขึ้นตัวอย่าง' : p.sample === true ? 'ขึ้นตัวอย่าง' : ''].filter(Boolean)
       return { title: 'รับงานเข้าโรงงาน', detail: bits.join(' · ') || undefined, tone: 'brand' }
     }
     case 'material_checked': return { title: `ติ๊กวัตถุดิบ: ${str(p.name)}`, tone: 'ok' }
@@ -75,9 +76,9 @@ export function eventLine(e: EventRow, n: Names): EventLine {
       return p.pass === true
         ? { title: `ตัวอย่างผ่าน${round}`, tone: 'ok' }
         : { title: `ตัวอย่างไม่ผ่าน${round}`, detail: str(p.note) ? `ต้องแก้: ${str(p.note)}` : undefined, tone: 'danger' }
-    case 'qc_result': return { title: `บันทึกผ่าน QC ${num(p.passed)} ชิ้น`, tone: 'ok' }
+    case 'qc_result': return { title: `บันทึกผ่าน QC ${num(p.passed)} ${jobUnit}`, tone: 'ok' }
     case 'rework':
-      return { title: `QC ส่งกลับแก้ ${num(p.qty)} ชิ้น`, detail: [st && `ที่${st}`, str(p.reason) && `สาเหตุ: ${str(p.reason)}`].filter(Boolean).join(' · ') || undefined, tone: 'danger' }
+      return { title: `QC ส่งกลับแก้ ${num(p.qty)} ${jobUnit}`, detail: [st && `ที่${st}`, str(p.reason) && `สาเหตุ: ${str(p.reason)}`].filter(Boolean).join(' · ') || undefined, tone: 'danger' }
     case 'hold': return { title: `พักงาน${st ? ` ที่${st}` : ''}`, detail: str(p.reason) || undefined, tone: 'danger' }
     case 'resume': return { title: 'แก้แล้ว ทำต่อ', detail: str(p.note) || undefined, tone: 'ok' }
     case 'delay_report':
