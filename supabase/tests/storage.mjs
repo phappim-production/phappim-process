@@ -23,5 +23,21 @@ export async function storageTests({ db, ok, as }) {
   await tryReceive('ชื่อลูกค้าว่าง รับงานไม่ได้', 'SC-ST-REAL', 'SC-ST-REAL/1.pdf', /ชื่อลูกค้า/, '  ')
   await tryReceive('อัปโหลด PDF แล้ว รับงานได้', 'SC-ST-REAL', 'SC-ST-REAL/1.pdf')
   ok('รับงานแล้วเก็บ path ของไฟล์', (await db.query(`select confirmation_pdf_path p from public.jobs where confirmation_no = 'SC-ST-REAL'`)).rows[0]?.p === 'SC-ST-REAL/1.pdf')
+
+  // แนบ PDF ทีหลัง (20261119230000)
+  await tryReceive('ส่งงานเข้าโดยยังไม่มี PDF ได้', 'SC-ST-LATER', '')
+  const later = (await db.query(`select id from public.jobs where confirmation_no = 'SC-ST-LATER'`)).rows[0].id
+  const attach = (uid, path) => as(uid, () => db.query(`select public.attach_confirmation_pdf('${later}', '${path}')`))
+  const tryAttach = async (name, uid, path, re) => {
+    try { await attach(uid, path); ok(name, !re, re ? 'ควรถูกปฏิเสธแต่ผ่าน' : '') }
+    catch (e) { ok(name, !!re && re.test(e.message), e.message.split(String.fromCharCode(10))[0]) }
+  }
+  await tryAttach('แนบ PDF ที่ยังไม่อัปโหลดไม่ได้', prod, 'SC-ST-LATER/1.pdf', /ยังไม่พบไฟล์ PDF/)
+  await db.exec(`insert into storage.objects values ('confirmations', 'SC-ST-LATER/1.pdf')`)
+  await tryAttach('ฝ่ายผลิตแนบ PDF ใบยืนยันไม่ได้', '00000000-0000-0000-0000-000000000013', 'SC-ST-LATER/1.pdf', /ทำขั้นนี้ไม่ได้|แอดมิน/)
+  await tryAttach('แอดมินแนบ PDF ทีหลังได้', prod, 'SC-ST-LATER/1.pdf')
+  ok('แนบแล้วงานมี path และบันทึกใน events', (await db.query(`select j.confirmation_pdf_path p,
+      (select count(*)::int from public.events e where e.job_id = j.id and e.type = 'confirmation_pdf') n
+    from public.jobs j where j.id = '${later}'`)).rows.every(r => r.p === 'SC-ST-LATER/1.pdf' && r.n === 1))
   await db.exec('drop schema storage cascade')
 }

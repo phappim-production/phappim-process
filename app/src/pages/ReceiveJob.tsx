@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { confirmationPath, draftFromConfirmation, pdfProblem, type ReceiveDraft } from '../data/confirmation'
+import { draftLabel, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
 import { receiveForecast, type SewFloor } from '../proto/capacity'
 import { Dialog, fieldClass, primaryBtn, secondaryBtn } from '../components/Dialog'
@@ -26,10 +27,14 @@ function FilePick({ accept, chosen, onPick }: { accept: string; chosen: string; 
 }
 const EMPTY: ReceiveDraft = { no: '', rev: 0, customer: '', jobName: '', product: '', qty: 0, spare: 0, due: '', route: 'normal', needsSample: null, spec: {} }
 
-/** รับงานเข้าโรงงาน (S2): แนบ PDF ที่ลูกค้าเซ็นครบ + ไฟล์ .json จากฟอร์มใบยืนยัน (ถ้ามี) เพื่อดึงข้อมูลหัวใบ */
-export function ReceiveJob({ onClose, onDone, jobs, now, floor }: {
+/**
+ * รับงานเข้าโรงงาน (S2): เลือกใบยืนยันที่บันทึกจากฟอร์มเข้าระบบ (หรือไฟล์ .json / กรอกเอง)
+ * PDF ที่ลูกค้าเซ็นไม่บังคับ (17 พ.ย.) · แนบทีหลังได้ที่รายละเอียดงาน
+ */
+export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
   onClose: () => void; onDone: (no: string) => void
   jobs: Job[]; now: Date; floor: SewFloor   // งานทั้งโรงงาน + จักรจริง ใช้คาดวันเสร็จก่อนส่งงานเข้า
+  draftId?: string                          // เปิดมาจาก "ส่งงานเข้าโรงงานเลย" หลังบันทึกใบจากฟอร์ม
 }) {
   const [products, setProducts] = useState<Product[] | null>(null)
   const [draft, setDraft] = useState<ReceiveDraft>(EMPTY)
@@ -38,6 +43,8 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor }: {
   const [jsonName, setJsonName] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState<string | null>(null)
+  const [drafts, setDrafts] = useState<DraftRow[] | null>(null)
+  const [picked, setPicked] = useState('')
 
   useEffect(() => {
     let alive = true
@@ -49,6 +56,40 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor }: {
     return () => { alive = false }
   }, [])
 
+  // ใบยืนยันที่บันทึกจากฟอร์มเข้าระบบแล้ว ยังไม่ได้ส่งงานเข้า (ล่าสุดก่อน)
+  useEffect(() => {
+    let alive = true
+    void supabase?.from('confirmation_drafts').select('id, confirmation_no, customer_name, data, updated_at')
+      .eq('status', 'draft').order('updated_at', { ascending: false }).limit(100)
+      .then(({ data, error: e }) => {
+        if (!alive) return
+        if (e) { setDrafts([]); return }
+        const rows = (data ?? []) as DraftRow[]
+        setDrafts(rows)
+        const first = draftId ? rows.find(r => r.id === draftId) : undefined
+        if (first) pickDraft(first)
+      })
+    return () => { alive = false }
+  }, [draftId])   // หน้าต่างเปิดใหม่ทุกครั้ง draftId จึงไม่เปลี่ยนระหว่างเปิด
+
+  function pickDraft(row: DraftRow | undefined) {
+    setPicked(row?.id ?? '')
+    if (!row) return
+    const d = draftFromConfirmation(row.data)
+    if (!d) { setJsonNote({ ok: false, text: `อ่านใบ ${row.confirmation_no} ไม่ได้ ให้เปิดในฟอร์มแล้วบันทึกเข้าระบบอีกครั้ง` }); return }
+    setDraft(d)
+    setJsonName('')
+    setJsonNote({ ok: true, text: `ดึงข้อมูลจากใบ ${row.confirmation_no} แล้ว · ตรวจอีกครั้งก่อนรับงาน` })
+  }
+
+  // แก้ใบที่บันทึกไว้: ส่งข้อมูลให้ฟอร์มผ่าน localStorage แล้วเปิดฟอร์มแท็บใหม่
+  function openInForm() {
+    const row = drafts?.find(r => r.id === picked)
+    if (!row) return
+    try { window.localStorage.setItem(INBOX_KEY, JSON.stringify(row.data)) } catch { setError('เปิดในฟอร์มไม่ได้ (พื้นที่เบราว์เซอร์เต็ม)'); return }
+    window.open(CONFIRMATION_FORM, '_blank', 'noopener')
+  }
+
   const set = <K extends keyof ReceiveDraft>(k: K, v: ReceiveDraft[K]) => { setDraft(d => ({ ...d, [k]: v })); setError('') }
   const product = products?.find(p => p.code === draft.product)
   // คาดวันเสร็จจากคิวงานและจักรจริง · เตือนอย่างเดียว ไม่บล็อกการส่งงานเข้า
@@ -58,7 +99,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor }: {
   const pdfIssue = pdfProblem(pdf)
   const missing = [
     !draft.no.trim() && 'เลขที่ใบยืนยัน', !draft.customer.trim() && 'ชื่อลูกค้า', !product && 'ประเภทสินค้า',
-    draft.qty <= 0 && 'จำนวน', !draft.due && 'กำหนดส่ง', draft.needsSample === null && 'ขึ้นตัวอย่างหรือไม่', pdfIssue && 'PDF ใบยืนยัน',
+    draft.qty <= 0 && 'จำนวน', !draft.due && 'กำหนดส่ง', draft.needsSample === null && 'ขึ้นตัวอย่างหรือไม่', pdf && pdfIssue && 'PDF ใบยืนยัน',
   ].filter(Boolean) as string[]
 
   async function readJson(file: File | undefined) {
@@ -74,15 +115,19 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor }: {
   }
 
   async function submit() {
-    if (missing.length || !pdf || !product || !supabase || draft.needsSample === null) return
+    if (missing.length || !product || !supabase || draft.needsSample === null) return
     setError('')
-    setSaving('กำลังอัปโหลด PDF…')
-    const path = confirmationPath(draft.no, new Date())
-    const up = await supabase.storage.from('confirmations').upload(path, pdf, { contentType: 'application/pdf', upsert: false })
-    if (up.error) {
-      setSaving(null)
-      setError(thaiError(up.error.message))
-      return
+    // PDF ไม่บังคับ: มีไฟล์ = อัปโหลดก่อน · ไม่มี = ส่งงานเข้าเลย แนบทีหลังได้
+    let path: string | null = null
+    if (pdf) {
+      setSaving('กำลังอัปโหลด PDF…')
+      path = confirmationPath(draft.no, new Date())
+      const up = await supabase.storage.from('confirmations').upload(path, pdf, { contentType: 'application/pdf', upsert: false })
+      if (up.error) {
+        setSaving(null)
+        setError(thaiError(up.error.message))
+        return
+      }
     }
     setSaving('กำลังรับงาน…')
     const r = await rpc<string>('receive_job', {
@@ -101,10 +146,20 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor }: {
     <Dialog title="รับงานเข้าโรงงาน" icon={IconInbox} onClose={onClose} wide>
       <div className="mt-3 grid gap-4">
         <div className="grid gap-2 rounded-xl border border-line bg-paper p-3">
-          <p className="text-sm text-muted">ยังไม่มีใบยืนยัน: กรอกฟอร์ม → กด &quot;บันทึกไฟล์&quot; (.json) และพิมพ์ PDF ให้ลูกค้าเซ็น → กลับมาแนบทั้ง 2 ไฟล์ที่นี่</p>
-          <a href={CONFIRMATION_FORM} target="_blank" rel="noopener" className={`${secondaryBtn} text-center`}>เปิดฟอร์มใบยืนยันการผลิต (แท็บใหม่)</a>
+          <label className={label}>ใบยืนยันที่บันทึกเข้าระบบแล้ว
+            <select value={picked} onChange={e => pickDraft(drafts?.find(r => r.id === e.target.value))} className={fieldClass} disabled={!drafts}>
+              <option value="">{!drafts ? 'กำลังโหลดใบยืนยัน…' : drafts.length ? 'เลือกใบยืนยัน' : 'ยังไม่มีใบที่บันทึกเข้าระบบ'}</option>
+              {drafts?.map(d => <option key={d.id} value={d.id}>{draftLabel(d)}</option>)}
+            </select>
+          </label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <a href={CONFIRMATION_FORM} target="_blank" rel="noopener" className={`${secondaryBtn} text-center`}>เปิดฟอร์มใบยืนยัน (ใบใหม่)</a>
+            <button type="button" className={secondaryBtn} disabled={!picked} onClick={openInForm}
+              title={picked ? undefined : 'เลือกใบยืนยันก่อน'}>{picked ? 'แก้ใบนี้ในฟอร์ม' : 'แก้ใบในฟอร์ม (เลือกใบก่อน)'}</button>
+          </div>
+          <p className="text-sm text-muted">กรอกฟอร์ม → กด &quot;บันทึกเข้าระบบ&quot; → ใบขึ้นในรายการนี้ · ส่งออก PDF ให้ลูกค้าเซ็นจากฟอร์มได้ตามเดิม</p>
         </div>
-        <label className={label}>ไฟล์ที่บันทึกจากฟอร์มใบยืนยัน (ปุ่ม &quot;บันทึกไฟล์&quot;) · ไม่บังคับ
+        <label className={label}>หรือแนบไฟล์ .json ที่บันทึกจากฟอร์ม (ปุ่ม &quot;บันทึกไฟล์&quot;) · ไม่บังคับ
           <FilePick accept=".json,application/json" chosen={jsonName} onPick={f => { setJsonName(f?.name ?? ''); void readJson(f) }} />
           {jsonNote && <span role={jsonNote.ok ? 'status' : 'alert'} className={`text-sm ${jsonNote.ok ? 'text-ok' : 'text-warn'}`}>{jsonNote.text}</span>}
         </label>
@@ -158,7 +213,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor }: {
           </div>
         </fieldset>
 
-        <label className={label}>PDF ใบยืนยันที่ลูกค้าเซ็นครบ (ไม่เกิน 20 MB)
+        <label className={label}>PDF ใบยืนยันที่ลูกค้าเซ็นครบ · ไม่บังคับ (ลูกค้ายังไม่เซ็น แนบทีหลังได้ที่รายละเอียดงาน · ไม่เกิน 20 MB)
           <FilePick accept="application/pdf,.pdf" chosen={pdf?.name ?? ''} onPick={f => { setPdf(f ?? null); setError('') }} />
           {pdf && pdfIssue && <span role="alert" className="text-sm text-danger">{pdfIssue}</span>}
         </label>

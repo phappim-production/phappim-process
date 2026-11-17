@@ -51,7 +51,7 @@ export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLi
   const round = p.round !== undefined ? ` รอบ ${str(p.round)}` : ''
   switch (e.type) {
     case 'received': {
-      const bits = [str(p.qty) && `${num(p.qty)} ${jobUnit}`, p.sample === false ? 'ไม่ขึ้นตัวอย่าง' : p.sample === true ? 'ขึ้นตัวอย่าง' : ''].filter(Boolean)
+      const bits = [str(p.qty) && `${num(p.qty)} ${jobUnit}`, p.sample === false ? 'ไม่ขึ้นตัวอย่าง' : p.sample === true ? 'ขึ้นตัวอย่าง' : '', p.pdf === false ? 'ยังไม่มี PDF ที่ลูกค้าเซ็น' : ''].filter(Boolean)
       return { title: 'รับงานเข้าโรงงาน', detail: bits.join(' · ') || undefined, tone: 'brand' }
     }
     case 'material_checked': return { title: `ติ๊กวัตถุดิบ: ${str(p.name)}`, tone: 'ok' }
@@ -90,6 +90,7 @@ export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLi
       return { title: 'จองจักร', detail: [list(p.machines), str(p.starts_at) && `${thaiDate(p.starts_at)} – ${thaiDate(p.ends_at)}`].filter(Boolean).join(' · ') || undefined, tone: 'neutral' }
     case 'booking_cancelled': return { title: 'ยกเลิกการจองจักร', tone: 'neutral' }
     case 'correction': return { title: 'แจ้งว่ารายการก่อนหน้ากดผิด', detail: str(p.reason) || undefined, tone: 'warn' }
+    case 'confirmation_pdf': return { title: p.replaced ? 'เปลี่ยน PDF ใบยืนยัน' : 'แนบ PDF ใบยืนยันที่ลูกค้าเซ็น', tone: 'ok' }
     case 'done': return { title: 'งานเสร็จ · พร้อมส่ง', tone: 'ok' }
     default: return { title: e.type, tone: 'neutral' }
   }

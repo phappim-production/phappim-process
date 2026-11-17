@@ -74,8 +74,10 @@ export async function workflowTests({ db, ok, as }) {
   catch (e) { ok('กฎ 12: ผู้ควบคุมงานเขียน events ตรงไม่ได้', /row-level security/.test(e.message), e.message.split('\n')[0]) }
 
   // ---------- กฎข้อ 1: รับงาน ----------
-  await reject('กฎ 1: รับงานโดยไม่แนบ PDF ไม่ได้', U.admin, receive('SC-NOPDF2', 'normal', { pdf: "''" }), /ต้องแนบ PDF/)
-  await reject('กฎ 1: ไฟล์ที่ไม่ใช่ PDF ไม่ได้', U.admin, receive('SC-JPG', 'normal', { pdf: "'x.jpg'" }), /ต้องแนบ PDF/)
+  // กฎ 1 เปลี่ยน 17 พ.ย. (20261119230000): PDF ที่ลูกค้าเซ็นไม่บังคับ แนบทีหลังได้ · ถ้าแนบต้องเป็น PDF
+  await pass('กฎ 1: ส่งงานเข้าได้โดยยังไม่มี PDF ที่ลูกค้าเซ็น', U.admin, receive('SC-NOPDF2', 'normal', { pdf: "''" }))
+  ok('งานที่ยังไม่มี PDF เก็บ path ว่าง', (await db.query(`select confirmation_pdf_path p from public.jobs where confirmation_no = 'SC-NOPDF2'`)).rows[0]?.p === null)
+  await reject('กฎ 1: ไฟล์ที่ไม่ใช่ PDF ไม่ได้', U.admin, receive('SC-JPG', 'normal', { pdf: "'x.jpg'" }), /ต้องเป็น PDF/)
   await reject('รับงาน: จำนวน 0 ไม่ได้', U.admin, receive('SC-Q0B', 'normal', { qty: 0 }), /มากกว่า 0/)
   const A = await newJob('SC-A', 'normal')
   // ไม่มีขั้นรอวัตถุดิบแล้ว (20261119190000): แอดมินเตรียมของครบก่อนส่งงานเข้า → ไปสถานีแรกทันที

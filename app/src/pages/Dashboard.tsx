@@ -21,6 +21,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary'
 import { SewingNow, type SewActions } from './SewingNow'
 import { JobActions } from './JobActions'
 import { ReceiveJob } from './ReceiveJob'
+import { ConfirmationOutbox } from './ConfirmationOutbox'
 import { JobHistory } from './JobHistory'
 import type { EmployeeRole } from '../auth/access'
 import { IconInbox } from '../components/icons'
@@ -69,6 +70,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   const canReceive = role === 'admin' || role === 'owner'
   const [receiving, setReceiving] = useState(false)
   const [received, setReceived] = useState<string | null>(null)
+  const [draftId, setDraftId] = useState<string | undefined>(undefined)
   const now = useNow(30_000)
   const { jobs: allJobs, machines, bookings, needs, products, shared } = data
   const noOf = (jobId: string) => allJobs.find(j => j.id === jobId)?.no ?? ''
@@ -226,7 +228,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
       history={<JobHistory key={openJob.id} jobId={openJob.id} role={role} version={loadedAt.getTime()} now={now} onChanged={refresh} />} />
   )
   const receive = receiving && (
-    <ReceiveJob jobs={allJobs} now={now} floor={floor} onClose={() => setReceiving(false)} onDone={async no => {
+    <ReceiveJob jobs={allJobs} now={now} floor={floor} draftId={draftId} onClose={() => setReceiving(false)} onDone={async no => {
       setReceiving(false)
       setReceived(no)
       await refresh()
@@ -234,11 +236,12 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   )
   const receiveBar = canReceive && (
     <div className="flex flex-wrap items-center gap-2">
-      <button type="button" onClick={() => { setReceived(null); setReceiving(true) }}
+      <button type="button" onClick={() => { setReceived(null); setDraftId(undefined); setReceiving(true) }}
         className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white hover:bg-brand-700">
         <IconInbox className="size-5" />รับงานใหม่
       </button>
       {received && <p role="status" className="rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">ส่งงาน {received} เข้าโรงงานแล้ว · ขึ้นบอร์ดสถานีแรกทันที</p>}
+      <ConfirmationOutbox onReceive={id => { setReceived(null); setDraftId(id); setReceiving(true) }} />
     </div>
   )
 

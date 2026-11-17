@@ -19,7 +19,7 @@
 | `app/src/lib/supabase.ts` | client ของ Supabase |
 | `supabase/migrations/` | ฐานข้อมูล (PostgreSQL) · กฎ workflow อยู่ในฟังก์ชัน SQL |
 | `supabase/tests/run.mjs` | ทดสอบ migrations + กฎ บน PGlite (ไม่ต้องมี Docker) |
-| `production-confirmation.html` | ฟอร์มใบยืนยันการผลิต (ไฟล์เดียว แก้ที่นี่ที่เดียว) · build คัดลอกขึ้นเว็บที่ `/confirmation.html` (ปุ่มในหน้ารับงาน) |
+| `production-confirmation.html` | ฟอร์มใบยืนยันการผลิต (ไฟล์เดียว แก้ที่นี่ที่เดียว) · build คัดลอกขึ้นเว็บที่ `/confirmation` · ปุ่ม "บันทึกเข้าระบบ" ส่งผ่าน localStorage ให้หน้าระบบบันทึก (`app/src/data/confirmationDrafts.ts`) |
 | `docs/` | แผนงาน · ใบสั่งงาน · เอกสารเก็บข้อมูลหน้างาน |
 
 ## คำสั่ง

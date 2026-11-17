@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
+import { confirmationPath, pdfProblem } from '../data/confirmation'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
 import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job } from '../proto/model'
 import { spaced } from '../proto/format'
@@ -92,7 +93,9 @@ export function JobActions({ job: j, role, version, now, refresh }: {
   return (
     // ข้อความหลักบนแท็บเล็ตต้อง ≥ 16 px (แผงนี้อยู่ในรายละเอียดงานที่ตั้งตัวอักษรเล็กไว้)
     <div className="grid gap-4 text-base">
-      {d.pdfPath && <OpenPdf path={d.pdfPath} />}
+      {d.pdfPath ? <OpenPdf path={d.pdfPath} />
+        : admin ? <AttachPdf job={j} refresh={refresh} />
+        : <p className="text-muted">ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น (แอดมินแนบทีหลัง)</p>}
       {notice && (
         <p role={notice.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>{notice.text}</p>
       )}
@@ -114,6 +117,39 @@ export function JobActions({ job: j, role, version, now, refresh }: {
       {inStation && st !== 'sew' && (
         <Station job={j} detail={d} canPress={canStation} role={role} busy={busy} now={now} act={act} />
       )}
+    </div>
+  )
+}
+
+/** แนบ PDF ใบยืนยันที่ลูกค้าเซ็นทีหลัง (ส่งงานเข้าได้ก่อนลูกค้าเซ็น · 20261119230000) · แอดมิน / เจ้าของระบบ */
+function AttachPdf({ job, refresh }: { job: Job; refresh: () => Promise<void> }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const problem = pdfProblem(file)
+  async function attach() {
+    if (!file || problem || !supabase) return
+    setBusy(true)
+    setError('')
+    const path = confirmationPath(job.no, new Date())
+    const up = await supabase.storage.from('confirmations').upload(path, file, { contentType: 'application/pdf', upsert: false })
+    if (up.error) { setBusy(false); setError(thaiError(up.error.message)); return }
+    const r = await rpc('attach_confirmation_pdf', { p_job: job.id, p_path: path })
+    setBusy(false)
+    if (!r.ok) { setError(r.reason); return }
+    setFile(null)
+    await refresh()
+  }
+  return (
+    <div className="grid gap-2 rounded-xl border border-warn/30 bg-warn-soft p-3">
+      <p className="font-medium text-warn">ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น</p>
+      <input type="file" accept="application/pdf,.pdf" aria-label="เลือก PDF ใบยืนยันที่ลูกค้าเซ็น" className={fieldClass}
+        onChange={e => { setFile(e.target.files?.[0] ?? null); setError('') }} />
+      {file && problem && <p role="alert" className="text-danger">{problem}</p>}
+      <button type="button" className={primaryBtn} disabled={!file || !!problem || busy} onClick={() => void attach()}>
+        {busy ? 'กำลังแนบ PDF…' : file ? 'แนบ PDF ใบยืนยัน' : 'แนบ PDF ใบยืนยัน (เลือกไฟล์ก่อน)'}
+      </button>
+      {error && <p role="alert" className="text-danger">{error}</p>}
     </div>
   )
 }

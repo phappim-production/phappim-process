@@ -88,9 +88,9 @@ ok('owner แก้ข้อมูลตั้งค่าได้', (await db.
 await db.exec(`update public.stations set name='ตัดงาน' where code='cut'`)
 
 // ---- 5. กฎข้อมูล ----
-await expectError('รับงานโดยไม่มี PDF ใบยืนยันไม่ได้',
-  `insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code)
-   values ('SC-NOPDF','a','b','tshirt',1,'ตัว','2026-12-31','normal')`, /confirmation_pdf_path/)
+// PDF ใบยืนยันว่างได้ตั้งแต่ 20261119230000 (แนบทีหลัง) · ทดสอบใน workflow.mjs / storage.mjs
+ok('ตาราง jobs ยอมให้ PDF ใบยืนยันว่าง (แนบทีหลังได้)', (await db.query(`select is_nullable from information_schema.columns
+  where table_schema = 'public' and table_name = 'jobs' and column_name = 'confirmation_pdf_path'`)).rows[0]?.is_nullable === 'YES')
 await expectError('เลขที่ใบยืนยันซ้ำไม่ได้',
   `insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, confirmation_pdf_path)
    values ('SC-TEST','a','b','tshirt',1,'ตัว','2026-12-31','normal','x.pdf')`, /duplicate|unique/)
@@ -166,6 +166,8 @@ const { staffTests } = await import('./staff.mjs')
 await staffTests({ db, ok, as })
 const { historyTests } = await import('./history.mjs')
 await historyTests({ db, ok, as })
+const { confirmationTests } = await import('./confirmations.mjs')
+await confirmationTests({ db, ok, as })
 
 console.log(`\nผ่าน ${pass} · ไม่ผ่าน ${fail}`)
 process.exit(fail ? 1 : 0)
