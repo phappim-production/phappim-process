@@ -7,10 +7,11 @@ import { dueDate, thaiError, type JobRow } from '../../data/live'
 import { isJobId } from '../../data/useFactoryData'
 import { supabase } from '../../lib/supabase'
 import { qrMatrix, qrSvgPath } from './qr'
+import { sampleText } from './sampleText'
 import './label.css'
 
 type LabelJob = Pick<JobRow, 'id' | 'confirmation_no' | 'customer_name' | 'job_name' | 'product_type_code' |
-  'qty' | 'unit' | 'due_date' | 'route_code' | 'needs_sample' | 'sample_round'>
+  'qty' | 'unit' | 'due_date' | 'route_code' | 'needs_sample' | 'sample_round' | 'phase'>
 type Station = { seq: number; station_code: string }
 type Label = {
   job: LabelJob
@@ -27,7 +28,7 @@ type LoadState =
 
 const day = new Intl.DateTimeFormat('th-TH-u-ca-buddhist', { dateStyle: 'medium', timeZone: 'Asia/Bangkok' })
 const quantity = new Intl.NumberFormat('th-TH')
-const columns = 'id, confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, needs_sample, sample_round'
+const columns = 'id, confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, needs_sample, sample_round, phase'
 
 async function loadLabel(jobId: string, signal: AbortSignal): Promise<Label | null> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
@@ -82,7 +83,7 @@ function LabelSheet({ label, printedOn }: { label: Label; printedOn: string }) {
         <div><dt>จำนวน</dt><dd>{quantity.format(job.qty)} {job.unit}</dd></div>
         <div><dt>กำหนดส่ง</dt><dd>{day.format(dueDate(job.due_date))}</dd></div>
         <div><dt>เส้นทาง</dt><dd>{route}</dd></div>
-        <div><dt>ตัวอย่าง</dt><dd>{job.needs_sample === false ? 'ไม่ขึ้นตัวอย่าง' : 'ขึ้นตัวอย่าง รอบ ' + job.sample_round}</dd></div>
+        <div><dt>ตัวอย่าง</dt><dd>{sampleText(job)}</dd></div>
         <div><dt>วันที่พิมพ์ใบ</dt><dd>{printedOn}</dd></div>
       </dl>
       <table className="job-label-stations" aria-label="ลำดับสถานี">

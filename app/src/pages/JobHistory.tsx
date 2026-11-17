@@ -89,7 +89,7 @@ function HistoryView({ data: h, role, now, jobId, onChanged }: { data: History; 
   }
   const who = (id: string | null) => (id ? h.names.get(id) ?? 'ไม่ทราบชื่อ' : 'ระบบ')
   const fixed = corrections(h.events)
-  const visits = visitLines(h.visits, names, now)
+  const visits = visitLines(h.visits, names, now, h.events)
   const timeline = [...h.events].reverse()
   const shown = all ? timeline : timeline.slice(0, SHOW)
   // แจ้งกดผิดได้เฉพาะคนคุมหน้างาน (ฐานข้อมูลตรวจซ้ำใน correct_event)
@@ -150,13 +150,13 @@ function HistoryView({ data: h, role, now, jobId, onChanged }: { data: History; 
       )}
 
       {visits.length > 0 && (
-        <Box title="เวลาที่ใช้ต่อสถานี">
+        <Box title="เวลาที่ใช้ต่อสถานี (ไม่นับเวลาพัก)">
           <ul className="divide-y divide-line">
             {visits.map((v, i) => (
               <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-2">
                 <span className="min-w-0 flex-1 font-medium">{v.label}</span>
                 <span className={v.end ? 'tabular-nums' : 'font-semibold text-info tabular-nums'}>{v.span}</span>
-                <span className="w-full text-sm text-muted">เริ่ม {when(v.start.toISOString())}{v.end ? ` · เสร็จ ${when(v.end.toISOString())}` : ''}</span>
+                <span className="w-full text-sm text-muted">เริ่ม {when(v.start.toISOString())}{v.end ? ` · เสร็จ ${when(v.end.toISOString())}` : ''}{v.paused ? ` · ไม่นับเวลาพัก ${v.paused}` : ''}</span>
               </li>
             ))}
           </ul>

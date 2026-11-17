@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { corrections, eventLine, spanText, visitLines } from '../src/data/history.ts'
+import { corrections, eventLine, pauseRanges, spanText, visitLines } from '../src/data/history.ts'
 
 const names = {
   station: code => ({ print: 'พิมพ์งาน', qc_pack: 'QC + Packing', sew: 'เย็บงาน' })[code] ?? code,
@@ -77,4 +77,21 @@ test('เวลาต่อสถานี: เรียงตามเวลา
   ], names, now)
   assert.deepEqual(lines.map(l => l.label), ['พิมพ์งาน (ตัวอย่าง)', 'เย็บงาน (งานแก้)'])
   assert.deepEqual(lines.map(l => l.span), ['30 นาที', '1 ชม. (ยังทำอยู่)'])
+})
+
+test('เวลาต่อสถานี: หักช่วงพักงาน (พักงาน → ทำต่อ) · พักค้างนับถึงตอนนี้ · พักนอกรอบไม่นับ', () => {
+  const now = new Date('2026-11-17T06:00:00Z')
+  const rows = [
+    { station_code: 'print', phase: 'production', visit: 1, started_at: '2026-11-17T01:00:00Z', done_at: '2026-11-17T03:00:00Z', rework: false },
+    { station_code: 'cut', phase: 'production', visit: 2, started_at: '2026-11-17T04:00:00Z', done_at: null, rework: false },
+  ]
+  const events = [
+    { type: 'hold', at: '2026-11-17T01:30:00Z' }, { type: 'resume', at: '2026-11-17T02:00:00Z' },
+    { type: 'hold', at: '2026-11-17T03:30:00Z' }, { type: 'resume', at: '2026-11-17T03:45:00Z' },  // ระหว่างสถานี
+    { type: 'hold', at: '2026-11-17T05:00:00Z' },                                               // ยังพักอยู่
+  ]
+  const lines = visitLines(rows, names, now, events)
+  assert.deepEqual(lines.map(l => l.span), ['1.5 ชม.', '1 ชม. (ยังทำอยู่)'])
+  assert.deepEqual(lines.map(l => l.paused), ['30 นาที', '1 ชม.'])
+  assert.deepEqual(pauseRanges(events, now).length, 3)
 })
