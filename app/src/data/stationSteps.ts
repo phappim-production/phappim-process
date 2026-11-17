@@ -1,4 +1,4 @@
-// ขั้นย่อยที่ยังขาดก่อนกดเสร็จ · กฎเดียวกับ private.missing_substeps ในฐานข้อมูล
+// สิ่งที่ยังขาดก่อนกดเสร็จ · กฎเดียวกับ private.missing_substeps ในฐานข้อมูล (20261119180000)
 // หน้าเว็บใช้บอกเหตุผลก่อนกด (ปุ่มที่กดไม่ได้ต้องบอกว่าทำไม) · ฐานข้อมูลตรวจซ้ำเสมอ
 import type { Phase, StationCode } from '../proto/model.ts'
 
@@ -19,10 +19,11 @@ export type StepContext = {
   qty: number
 }
 
-/** ขั้นนี้ต้องทำก่อนกดเสร็จไหม (ตัวอย่างบังคับเฉพาะ req · QC ตอนขึ้นตัวอย่างไม่บังคับ) */
+/** ขั้นนี้ต้องทำก่อนกดเสร็จไหม · ตั้งแต่ 17 พ.ย. สถานีเหลือ เริ่ม → เสร็จ (ไม่บังคับเช็คลิสต์)
+ *  เหลือแค่ รอฟิล์ม (lock · แอดมินบันทึกรับ) และ QC ผลิตจริงต้องผ่านครบจำนวน (ส่วนไม่ผ่านส่งกลับแก้) */
 export function isRequired(s: Substep, c: Pick<StepContext, 'phase' | 'station'>): boolean {
-  if (c.phase === 'sample') return s.kind === 'req' && c.station !== 'qc_pack'
-  return s.kind !== 'opt'
+  if (s.kind === 'lock') return true
+  return c.station === 'qc_pack' && s.key === 'inspect' && c.phase === 'production'
 }
 
 export function isStepDone(s: Substep, c: StepContext): boolean {

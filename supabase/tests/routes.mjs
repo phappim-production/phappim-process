@@ -87,11 +87,9 @@ export async function routeTests({ db, ok, as }) {
   await doStation(E, 'cut', 'production')
   ok('ปัก: ตัดเสร็จ → ส่งปัก', (await live(E)).current_station === 'emb')
   await step('ปัก: เริ่ม', U.prod, `public.start_station('${E}')`)
-  await step('ปัก: ส่งชิ้นผ้า', U.prod, sub(E, 'send_out', 10))
-  await reject('ปัก: ยังไม่รับงานปักกลับ กดเสร็จไม่ได้', U.prod, `public.finish_station('${E}')`, /รับงานปักกลับ/)
+  // ขั้นย่อย (ส่ง/รับกลับ/ตรวจ) ไม่บังคับแล้ว (20261119180000) · ถ้ากรอก จำนวนยังต้องเป็นตัวเลข
   await reject('ปัก: จำนวนชิ้นที่รับกลับต้องเป็นตัวเลข', U.prod, sub(E, 'receive_back'), /ต้องกรอกตัวเลข/)
-  ok('ปัก: รับกลับ + ตรวจแล้วกดเสร็จ → เย็บ',
-    await step('ปัก: รับกลับ', U.prod, sub(E, 'receive_back', 10)) && await step('ปัก: ตรวจ', U.prod, sub(E, 'check_emb')) &&
+  ok('ปัก: เริ่ม → เสร็จ โดยไม่ติ๊กขั้นย่อย → เย็บ',
     await step('ปัก: เสร็จ', U.prod, `public.finish_station('${E}')`) && (await live(E)).current_station === 'sew')
   await reject('ปัก: แอดมินสั่งฟิล์มให้งานปักไม่ได้', U.admin, `public.order_film('${E}', '2026-12-01')`, /ไม่ต้องสั่งฟิล์ม/)
 

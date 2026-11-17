@@ -32,7 +32,7 @@ QC ส่งแก้: send_rework → กลับสถานีต้นเ�
 | `finish_sewing` | `p_job` | supervisor เฟส 2 / ทุกเฟส · owner | ยืนยันเย็บเสร็จครั้งเดียวจากสถานะกำลังเย็บ · ส่งต่อ QC + Packing · คืนจักร/ช่วงจอง · ตรวจเวลามาตรฐานตามเดิม |
 | `report_sewing_issue` | `p_job, p_reason, p_pause = false` | supervisor เฟส 2 / ทุกเฟส · owner | บันทึกปัญหาในไทม์ไลน์ของงานที่กำลังเย็บ · เลือกพักงานได้ · รายงานเกินเวลามาตรฐานใช้ `submit_delay_report` |
 | `resume_sewing` | `p_job` | supervisor เฟส 2 / ทุกเฟส · owner | เย็บต่อเมื่องานพัก · จ่ายเฉพาะจักรที่ขาด · ถ้าจักรยังไม่ครบคงสถานะพัก |
-| `finish_station` | `p_job` | supervisor · qc (เฉพาะ QC+Packing) | ตรวจขั้นย่อยครบ + เวลามาตรฐาน แล้วส่งต่อ · ปฏิเสธ: "ยังทำขั้นย่อยไม่ครบ: …", เกินเวลาแต่ยังไม่รายงาน |
+| `finish_station` | `p_job` | supervisor · qc (เฉพาะ QC+Packing) | **ไม่บังคับเช็คลิสต์ขั้นย่อย** (`20261119180000` · เหลือ รอฟิล์ม + QC ผ่านครบจำนวน) + เวลามาตรฐาน แล้วส่งต่อ · ปฏิเสธ: "ยังทำขั้นย่อยไม่ครบ: …", เกินเวลาแต่ยังไม่รายงาน |
 | `record_sample_result` | `p_job, p_pass, p_note = null, p_customer_confirmed_at = null` | admin | ผ่าน → ผลิตจริง · ไม่ผ่าน (ต้องมี note) → ตัวอย่างรอบใหม่ |
 | `open_issue` | `p_job, p_reason` | supervisor / qc / admin / production | พักงาน · ต้องมีสาเหตุ · คืน id |
 | `close_issue` | `p_job, p_note = null` | supervisor / qc / admin / production | แก้แล้ว · กลับสถานะก่อนพัก |
