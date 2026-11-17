@@ -1,6 +1,6 @@
 // อ่านไฟล์ .json ที่ฟอร์มใบยืนยันการผลิต (production-confirmation.html) บันทึกไว้ → เติมช่องหน้ารับงานให้
 // ไม่ต้องพิมพ์เลขที่ใบ ลูกค้า จำนวน กำหนดส่ง ซ้ำ (พิมพ์ซ้ำ = โอกาสพิมพ์ผิด)
-import type { RouteCode } from '../proto/model.ts'
+import { ROUTES, type RouteCode } from '../proto/model.ts'
 
 export type ReceiveDraft = {
   no: string
@@ -22,8 +22,19 @@ const num = (v: unknown) => {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
 }
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
+const isRouteCode = (v: unknown): v is RouteCode =>
+  typeof v === 'string' && Object.prototype.hasOwnProperty.call(ROUTES, v)
 
-// ยอดรวม: ตารางไซซ์ (ทุกช่องในแต่ละแถว) → ช่องจำนวน · เหมือน totalQty() ในฟอร์ม
+// คำตอบของสินค้าอยู่ใน d.p[d.product] · รองรับไฟล์รุ่นเก่าที่เก็บคำตอบไว้ที่ d.p ตรงๆ
+function productAnswers(p: Answers, product: string): Answers {
+  const scoped = p[product]
+  if (scoped && typeof scoped === 'object' && !Array.isArray(scoped)) {
+    return scoped as Answers
+  }
+  return p
+}
+
+// ยอดรวม: ตารางไซซ์ → ตารางรายการ (คอลัมน์ qty) → ช่องจำนวน · ลำดับเดียวกับ totalQty() ในฟอร์ม
 export function totalQty(p: Answers): number {
   const sizes = p.sizes
   if (Array.isArray(sizes) && sizes.length) {
@@ -32,15 +43,28 @@ export function totalQty(p: Answers): number {
       return sum + (q ? Object.values(q).reduce((s: number, v) => s + num(v), 0) : 0)
     }, 0)
   }
+  const items = p.items
+  if (Array.isArray(items) && items.length) {
+    return items.reduce((sum: number, row: unknown) => {
+      const q = row && typeof row === 'object' ? (row as { qty?: unknown }).qty : undefined
+      return sum + num(q)
+    }, 0)
+  }
   return num(p.qty)
 }
 
-// เทคนิคที่เลือกกำหนดเส้นทาง: ฟิล์มที่สั่งเข้า (DTF / DTG / สกรีน) ก่อน · ปัก (มีพิมพ์ซับด้วย = พิมพ์ + ปัก)
-// · ซับลิเมชั่น/ดิจิทัล = ปกติ · นอกนั้น ไม่พิมพ์ · หลายเทคนิคที่ไม่มีเส้นทางรวม ให้ผู้รับงานตรวจอีกครั้ง
+// เทคนิคที่เลือกกำหนดเส้นทาง: ฟิล์มที่สั่งเข้า (DTF / DTG / สกรีน) ก่อน · ปัก (มีพิมพ์ซับ/ดิจิทัลด้วย = พิมพ์ + ปัก)
+// · ซับ/ดิจิทัล = ปกติ · นอกนั้น ไม่พิมพ์ · ตรงกับ route() ใน production-confirmation.html
 export function suggestRoute(p: Answers): RouteCode {
-  const methods = ([] as unknown[]).concat(p.print_method ?? []).map(String)
+  const other = text(p.print_method__other) || 'อื่นๆ'
+  const methods = ([] as unknown[])
+    .concat(p.print_method ?? [])
+    .map(x => {
+      const s = String(x)
+      return s === 'อื่นๆ' ? other : s
+    })
   const has = (re: RegExp) => methods.some(m => re.test(m))
-  const sub = has(/ซับลิเมชั่น|ดิจิทัล/)
+  const sub = has(/ซับ|ดิจิทัล/)
   if (has(/DTF/i)) return 'dtf'
   if (has(/DTG/i)) return 'dtg'
   if (has(/ซิลค์|สกรีน/)) return 'screen'
@@ -60,8 +84,18 @@ export function sampleChoice(h: Answers): boolean | null {
 /** null = ไม่ใช่ไฟล์จากฟอร์มใบยืนยัน */
 export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
   if (!raw || typeof raw !== 'object') return null
-  const d = raw as { h?: Answers; p?: Answers; product?: unknown; imgs?: unknown }
+  const d = raw as {
+    h?: Answers
+    p?: Answers
+    product?: unknown
+    summary?: { qty?: unknown; route?: unknown }
+    imgs?: unknown
+  }
   if (!d.h || !d.p || typeof d.product !== 'string') return null
+  const ans = productAnswers(d.p, d.product)
+  const sum = d.summary && typeof d.summary === 'object' ? d.summary : undefined
+  const sumQty = sum ? num(sum.qty) : 0
+  const sumRoute = sum && isRouteCode(sum.route) ? sum.route : null
   // ภาพม็อคอัพในไฟล์หนักหลาย MB ไม่เก็บลงฐานข้อมูล (ดูภาพได้จาก PDF)
   const { imgs: _imgs, ...spec } = d as Record<string, unknown>
   return {
@@ -70,10 +104,10 @@ export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
     customer: text(d.h.customer),
     jobName: text(d.h.job_name),
     product: d.product,
-    qty: totalQty(d.p),
-    spare: num(d.p.spare),
+    qty: sumQty > 0 ? sumQty : totalQty(ans),
+    spare: num(ans.spare),
     due: /^\d{4}-\d{2}-\d{2}$/.test(text(d.h.due_date)) ? text(d.h.due_date) : '',
-    route: suggestRoute(d.p),
+    route: sumRoute ?? suggestRoute(ans),
     needsSample: sampleChoice(d.h),
     spec,
   }

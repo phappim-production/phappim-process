@@ -1,0 +1,25 @@
+{
+  "app": "phappim-confirm",
+  "v": 1,
+  "h": {
+    "issue_date": "2026-11-17",
+    "doc_no": "TEST-C7-2",
+    "job_name": "โปโล DTF ทดสอบ",
+    "sample": "ไม่ขึ้นตัวอย่าง",
+    "due_date": "2026-11-26",
+    "customer": "ลูกค้าทดสอบ 2"
+  },
+  "product": "polo",
+  "pickOpen": false,
+  "p": {
+    "tshirt": { "size_sets": ["ไซซ์ผู้ใหญ่"], "pocket_rows": [], "sizes": [{ "q": {} }] },
+    "polo": {
+      "size_sets": ["ไซซ์ผู้ใหญ่"],
+      "print_method": ["DTF (ฟิล์มรีดร้อน)"],
+      "pocket_rows": [],
+      "sizes": [{ "q": { "S": "10", "M": "15" } }],
+      "spare": "1"
+    }
+  },
+  "summary": { "qty": 25, "route": "dtf" }
+}

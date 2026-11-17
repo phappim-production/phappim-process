@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { confirmationPath, draftFromConfirmation, pdfProblem, sampleChoice, suggestRoute, totalQty } from '../src/data/confirmation.ts'
 import { etaFromDay, missingSteps } from '../src/data/stationSteps.ts'
@@ -6,9 +7,11 @@ import { etaFromDay, missingSteps } from '../src/data/stationSteps.ts'
 const form = (over = {}) => ({
   app: 'phappim-confirm', v: 1, product: 'polo', imgs: ['data:image/png;base64,AAAA'],
   h: { doc_no: ' SC691451 ', rev: '1', job_name: 'เสื้อทีม', customer: 'บริษัท เซอร์ราวด์', due_date: '2026-11-30' },
-  p: { sizes: [{ q: { S: '10', M: 20 } }, { q: { L: '5', XL: '' } }], spare: '3', print_method: ['DTF (ฟิล์มรีดร้อน)'] },
+  p: { polo: { sizes: [{ q: { S: '10', M: 20 } }, { q: { L: '5', XL: '' } }], spare: '3', print_method: ['DTF (ฟิล์มรีดร้อน)'] } },
   ...over,
 })
+
+const loadFixture = name => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'))
 
 test('ไฟล์ .json จากฟอร์มใบยืนยัน → ช่องหน้ารับงาน', () => {
   const d = draftFromConfirmation(form())
@@ -20,6 +23,23 @@ test('ไฟล์ .json จากฟอร์มใบยืนยัน → �
   assert.equal(d.spare, 3)
   assert.equal(d.due, '2026-11-30')
   assert.equal(d.route, 'dtf')
+})
+
+test('กรณีบั๊กจริง G1 รอบ 2: เสื้อยืด + งานปัก + ซับลิเมชั่น พิมพ์ทั้งตัว + M=20 → print_emb · 20', () => {
+  const d = draftFromConfirmation(form({
+    product: 'tshirt',
+    h: { doc_no: 'TEST-G2-JSON', customer: 'ทดสอบ', job_name: 'TEST-G2-JSON', sample: 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)' },
+    p: {
+      tshirt: {
+        size_sets: ['ไซซ์ผู้ใหญ่'],
+        sizes: [{ q: { M: '20' } }],
+        print_method: ['งานปัก', 'ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)'],
+      },
+    },
+  }))
+  assert.equal(d.route, 'print_emb')
+  assert.equal(d.qty, 20)
+  assert.equal(d.needsSample, true)
 })
 
 test('ภาพม็อคอัพไม่ถูกเก็บลงฐานข้อมูล แต่คำตอบอื่นเก็บครบ', () => {
@@ -34,21 +54,86 @@ test('ไฟล์อื่นที่ไม่ใช่ใบยืนยั�
   assert.equal(draftFromConfirmation({ h: {}, p: {} }), null)
 })
 
-test('จำนวน: ไม่มีตารางไซซ์ใช้ช่องจำนวน · ค่าเพี้ยนนับเป็น 0', () => {
+test('จำนวน: ตารางไซซ์ → ตารางรายการ items → ช่องจำนวน · ค่าเพี้ยนนับเป็น 0', () => {
+  assert.equal(totalQty({ items: [{ qty: '5' }, { qty: 10 }, { qty: 'bad' }] }), 15)
   assert.equal(totalQty({ qty: '2' }), 2)
   assert.equal(totalQty({ sizes: [{ q: { S: 'สิบ', M: -3 } }] }), 0)
   assert.equal(totalQty({}), 0)
 })
 
-test('เส้นทางตามเทคนิคพิมพ์: ฟิล์มที่สั่งเข้า · ปัก · ซับลิเมชั่น/ดิจิทัล = ปกติ · อื่นๆ = ไม่พิมพ์', () => {
+test('เส้นทางครบ 7 แบบที่ฟอร์มให้ได้ · อื่นๆ ใช้ print_method__other · print_method เป็น string', () => {
   assert.equal(suggestRoute({ print_method: ['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)', 'DTF (ฟิล์มรีดร้อน)'] }), 'dtf')
   assert.equal(suggestRoute({ print_method: ['DTG'] }), 'dtg')
   assert.equal(suggestRoute({ print_method: ['ซิลค์สกรีน'] }), 'screen')
-  assert.equal(suggestRoute({ print_method: ['งานปัก'] }), 'emb')
   assert.equal(suggestRoute({ print_method: ['ซับลิเมชั่น เฉพาะจุด', 'งานปัก'] }), 'print_emb')
+  assert.equal(suggestRoute({ print_method: ['งานปัก'] }), 'emb')
   assert.equal(suggestRoute({ print_method: 'ดิจิทัลพริ้นท์' }), 'normal')
+  assert.equal(suggestRoute({ print_method: ['ซับเต็มผืน'] }), 'normal')
+  assert.equal(suggestRoute({ print_method: ['อื่นๆ'], print_method__other: 'ซับเฉพาะจุด' }), 'normal')
   assert.equal(suggestRoute({ print_method: ['ไม่มีลาย'] }), 'plain')
   assert.equal(suggestRoute({}), 'plain')
+})
+
+test('รองรับไฟล์รุ่นเก่า (p เก็บคำตอบไว้ชั้นบนสุด) และตารางรายการ items ใน draftFromConfirmation', () => {
+  const legacy = draftFromConfirmation(form({
+    p: { sizes: [{ q: { S: '4', M: '6' } }], spare: '1', print_method: 'งานปัก' },
+  }))
+  assert.equal(legacy.qty, 10)
+  assert.equal(legacy.spare, 1)
+  assert.equal(legacy.route, 'emb')
+
+  const itemJob = draftFromConfirmation(form({
+    product: 'banner',
+    p: { banner: { items: [{ name: 'A', qty: '7' }, { name: 'B', qty: '8' }], spare: '2', print_method: ['ซิลค์สกรีน'] } },
+  }))
+  assert.equal(itemJob.qty, 15)
+  assert.equal(itemJob.spare, 2)
+  assert.equal(itemJob.route, 'screen')
+})
+
+test('ใช้ summary จากฟอร์มก่อนเมื่อมีค่าถูกต้อง · summary.route เป็น custom หรือว่าง ให้คำนวณเอง', () => {
+  const withSummary = draftFromConfirmation(form({
+    // จำลองค่าค้างใน sizes ของชุดไซซ์ที่ปิดไปแล้ว แต่ฟอร์มสรุปยอดจริงใน summary เป็น 12 และ route เป็น emb
+    p: { polo: { sizes: [{ q: { S: '99' } }], spare: '2', print_method: ['DTF (ฟิล์มรีดร้อน)'] } },
+    summary: { qty: 12, route: 'emb' },
+  }))
+  assert.equal(withSummary.qty, 12)
+  assert.equal(withSummary.route, 'emb')
+
+  const customRoute = draftFromConfirmation(form({
+    summary: { qty: 35, route: 'custom' },
+  }))
+  assert.equal(customRoute.qty, 35)
+  assert.equal(customRoute.route, 'dtf')
+
+  const emptySummary = draftFromConfirmation(form({
+    summary: { qty: 0, route: '' },
+  }))
+  assert.equal(emptySummary.qty, 35)
+  assert.equal(emptySummary.route, 'dtf')
+})
+
+test('อ่านไฟล์ fixture จริงจาก production-confirmation.html 3 แบบได้ถูกต้อง (ทั้งมี summary และไม่มี summary)', () => {
+  const cases = [
+    ['tshirt-print-emb.json', 'TEST-C7-1', 'tshirt', 20, 2, 'print_emb', true],
+    ['polo-dtf.json', 'TEST-C7-2', 'polo', 25, 1, 'dtf', false],
+    ['banner-items.json', 'TEST-C7-3', 'banner', 15, 1, 'normal', true],
+  ]
+  for (const [file, no, product, qty, spare, route, needsSample] of cases) {
+    const raw = loadFixture(file)
+    const d1 = draftFromConfirmation(raw)
+    assert.equal(d1.no, no)
+    assert.equal(d1.product, product)
+    assert.equal(d1.qty, qty)
+    assert.equal(d1.spare, spare)
+    assert.equal(d1.route, route)
+    assert.equal(d1.needsSample, needsSample)
+
+    const { summary: _s, ...withoutSummary } = raw
+    const d2 = draftFromConfirmation(withoutSummary)
+    assert.equal(d2.qty, qty)
+    assert.equal(d2.route, route)
+  }
 })
 
 test('ขึ้นตัวอย่าง: อ่านจากใบยืนยัน · ไฟล์รุ่นเก่าไม่มีช่องนี้ = ยังไม่เลือก', () => {

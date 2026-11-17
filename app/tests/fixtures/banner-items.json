@@ -1,0 +1,26 @@
+{
+  "app": "phappim-confirm",
+  "v": 1,
+  "h": {
+    "issue_date": "2026-11-17",
+    "doc_no": "TEST-C7-3",
+    "job_name": "ป้ายผ้างานวิ่งทดสอบ",
+    "sample": "ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)",
+    "due_date": "2026-11-27",
+    "customer": "ลูกค้าทดสอบ 3"
+  },
+  "product": "banner",
+  "pickOpen": false,
+  "p": {
+    "tshirt": { "size_sets": ["ไซซ์ผู้ใหญ่"], "pocket_rows": [], "sizes": [{ "q": {} }] },
+    "banner": {
+      "print_method": ["ซับลิเมชั่น พิมพ์เต็มผืน"],
+      "items": [
+        { "q": {}, "name": "ป้ายหน้างาน", "w": "200", "h": "100", "qty": "5" },
+        { "name": "ป้ายบอกทาง", "w": "100", "h": "50", "qty": "10" }
+      ],
+      "spare": "1"
+    }
+  },
+  "summary": { "qty": 15, "route": "normal" }
+}
