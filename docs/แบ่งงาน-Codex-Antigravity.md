@@ -89,7 +89,7 @@ git worktree add ../pp142-c2 -b codex/c2-settings main
 |---|---|---|---|---|---|
 | **C1** | ทดสอบหน้าเว็บ + CI ครบทุกด่าน ([C1.md](codex/C1.md) + **แก้ข้อ 4.1**) | `app/package.json` · `app/package-lock.json` · `app/vitest.config.ts` · `app/src/**/*.test.ts` · `.github/workflows/ci.yml` | — | ข้อ 3 ขั้น 2 | พ. 18 12:00 |
 | **C2** | หน้าตั้งค่า S9 ([C2.md](codex/C2.md)) | `app/src/pages/settings/**` · `supabase/tests/settings.mjs` · 2 บรรทัดใน `supabase/tests/run.mjs` | `20261119100000_settings.sql` | **เริ่มได้แล้ว** (`../pp142-c2`) | พฤ. 19 18:00 |
-| **C4** | หน้ารายงาน S11 ([C4.md](codex/C4.md)) | `app/src/pages/reports/**` | — (อ่านอย่างเดียว) | C1 merge | ศ. 20 12:00 |
+| **C4** | หน้ารายงาน S11 ([C4.md](codex/C4.md)) | `app/src/pages/reports/**` | — (อ่านอย่างเดียว) | **เริ่มได้แล้ว** (`../pp142-c4`) | ศ. 20 12:00 |
 | **C6** | แก้ประวัติงาน: เวลาต่อสถานี (view `station_visits`) · หน่วย · เว้นวรรค · เมนูซ้าย ([C6.md](codex/C6.md)) · **ทำก่อน C4** | ตามใบสั่งงาน | `20261119150000_station_visits_end.sql` | **เริ่มได้แล้ว** (`../pp142-c6`) | พ. 18 18:00 |
 | **C5** | QR + ใบปะงาน S12 (ข้อ 4.2) | `app/src/pages/job-label/**` | — | C1 merge | ศ. 20 18:00 |
 
