@@ -158,7 +158,7 @@ function NewJobCheck({ jobs, now }: { jobs: Job[]; now: Date }) {
         <p className="mx-5 mt-4 rounded-2xl bg-warn-soft p-4 text-sm font-semibold text-warn">ใส่จำนวนชิ้นอย่างน้อย 1 ชิ้น เพื่อคำนวณวันเสร็จ</p>
       ) : (
       <div className={`mx-5 mt-4 flex items-center gap-4 rounded-2xl p-4 ${late === null ? 'bg-brand-soft' : late > 0 ? 'bg-danger-soft' : 'bg-ok-soft'}`}>
-        <div className="grid size-14 shrink-0 place-items-center rounded-xl bg-card text-center leading-none shadow-card">
+        <div className="grid size-14 shrink-0 place-items-center rounded-xl bg-card text-center leading-tight shadow-card">
           <span className="text-xs text-muted">{finish.toLocaleDateString('th-TH', { month: 'short' })}</span>
           <span className="text-xl font-bold">{finish.getDate()}</span>
         </div>

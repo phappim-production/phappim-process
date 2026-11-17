@@ -6,18 +6,24 @@
   --font-sans: "Sarabun", system-ui, sans-serif;
 
   /* ขนาดตัวอักษรขั้นต่ำ 14 px · ข้อความรอง 16 px · ตัวหลัก 17 px ให้อ่านได้บนแท็บเล็ตที่วางห่างตัว */
+  /* ระยะบรรทัด: Sarabun สูง 1.30 em แต่สระ+วรรณยุกต์ซ้อน (ขึ้น สื้อ) สูงถึง 1.29 em เหนือเส้นฐาน และ ญู ฐุ ลงต่ำ 0.36 em
+     → บรรทัดชิดกว่า ~1.5 เท่า หัววรรณยุกต์ชนบรรทัด/กล่องข้างบน (วัดด้วย canvas measureText 17 พ.ย.) */
   --text-xs: 0.875rem;
-  --text-xs--line-height: 1.35;
+  --text-xs--line-height: 1.55;
   --text-sm: 1rem;
-  --text-sm--line-height: 1.45;
+  --text-sm--line-height: 1.55;
   --text-base: 1.0625rem;
-  --text-base--line-height: 1.5;
+  --text-base--line-height: 1.6;
   --text-lg: 1.25rem;
-  --text-lg--line-height: 1.4;
+  --text-lg--line-height: 1.5;
   --text-xl: 1.375rem;
-  --text-xl--line-height: 1.35;
+  --text-xl--line-height: 1.5;
   --text-2xl: 1.625rem;
-  --text-2xl--line-height: 1.3;
+  --text-2xl--line-height: 1.45;
+  --text-3xl--line-height: 1.4;
+  /* leading-tight / leading-snug ของ Tailwind (1.25 / 1.375) เตี้ยเกินสำหรับตัวไทย */
+  --leading-tight: 1.4;
+  --leading-snug: 1.5;
 
   /* แบรนด์ (เขียวภาพพิมพ์ 142 + ทองจากโลโก้) */
   --color-brand: #0f4a42;
@@ -54,6 +60,13 @@
   --animate-fade: fade 0.18s ease-out;
   @keyframes drawer { from { transform: translateX(24px); opacity: 0 } to { transform: none; opacity: 1 } }
   @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+}
+
+/* truncate เดิมใช้ overflow: hidden ซึ่งตัดหัววรรณยุกต์ที่สูงเกินบรรทัดด้วย (เสื้อยืด → หัว ื้ หาย)
+   ตัดเฉพาะแนวนอนพอ ยังขึ้น … ท้ายข้อความเหมือนเดิม · ไม่อยู่ใน @layer จึงชนะ utility ของ Tailwind */
+.truncate {
+  overflow: visible;
+  overflow-x: clip;
 }
 
 body {

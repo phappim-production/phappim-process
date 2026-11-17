@@ -63,7 +63,7 @@ export default function JobFinder({ jobs, now, forecast, onOpen }: Props) {
               <li key={j.id}>
                 <button onMouseDown={e => e.preventDefault()} onClick={() => pick(j)}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-brand-soft/50">
-                  <span className="w-24 shrink-0 font-semibold">{j.no}</span>
+                  <span className="shrink-0 font-semibold whitespace-nowrap">{j.no}</span>
                   <span className="min-w-0 flex-1 truncate text-muted">{j.customer} · {j.product}</span>
                   <span className="hidden truncate text-xs sm:block">{stageText(j)}</span>
                 </button>
@@ -129,7 +129,7 @@ function JobStatus({ job: j, now, forecast, onOpen }: { job: Job; now: Date; for
       <div className={`mx-4 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl p-4 sm:mx-5 ${hold ? 'bg-danger-soft' : j.phase === 'done' ? 'bg-ok-soft' : 'bg-info-soft'}`}>
         <div>
           <p className="text-xs text-muted">ตอนนี้อยู่ที่</p>
-          <p className={`text-2xl font-bold ${hold ? 'text-danger' : j.phase === 'done' ? 'text-ok' : 'text-info'}`}>
+          <p className={`mt-1 text-2xl font-bold ${hold ? 'text-danger' : j.phase === 'done' ? 'text-ok' : 'text-info'}`}>
             {j.phase === 'sample' ? `ขึ้นตัวอย่าง · ${where}` : where}
           </p>
           <p className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold">
