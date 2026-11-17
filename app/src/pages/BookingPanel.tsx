@@ -2,7 +2,7 @@ import { useId, useMemo, useState, type ReactNode } from 'react'
 import { Card, CardHeader, Pill, RouteBadge } from '../components/ui'
 import { IconCalendar } from '../components/icons'
 import { STATION_NAME, type Job } from '../proto/model'
-import { BOOKING_TIME_ZONE, bookingDay, bookingTime, checkBooking, freeDuring, groupBookings, isBookingSunday, jobsBookedDuring, moveBookingDay, MACHINE_PREFIX, MACHINE_TYPE_NAME, MACHINE_TYPES, SEW_NEEDS, type Booking, type Machine } from '../proto/sewing'
+import { BOOKING_TIME_ZONE, bookingDay, bookingTime, checkBooking, freeDuring, groupBookings, isBookingSunday, jobsBookedDuring, moveBookingDay, MACHINE_PREFIX, MACHINE_TYPE_NAME, MACHINE_TYPES, type Booking, type Machine, type Need } from '../proto/sewing'
 
 // จองจักรเป็นวัน-เวลา (S14) · ตารางรายวันต่อจักร + ฟอร์มจอง · กฎเดียวกับ public.book_machines
 type Result = { ok: true; picked?: string[] } | { ok: false; reason: string }
@@ -24,10 +24,11 @@ function nextWorkday(day: string) {
   return isBookingSunday(next) ? moveBookingDay(next, 1) : next
 }
 
-export function BookingPanel({ jobs, machines, bookings, now, onOpen, onBook, onCancel }: {
+export function BookingPanel({ jobs, machines, bookings, needs, now, onOpen, onBook, onCancel }: {
   jobs: Job[]; machines: Machine[]; bookings: Booking[]; now: Date; onOpen: (id: string) => void
-  onBook?: (jobId: string, starts: Date, ends: Date) => Result   // ไม่ส่ง = ดูอย่างเดียว
-  onCancel?: (jobId: string) => Result
+  needs: Record<string, Need[]>
+  onBook?: (jobId: string, starts: Date, ends: Date) => Promise<Result>   // ไม่ส่ง = ดูอย่างเดียว
+  onCancel?: (jobId: string) => Promise<Result>
 }) {
   const [day, setDay] = useState(() => bookingDay(now))
   const [view, setView] = useState<'job' | 'machine'>('job')
@@ -66,11 +67,11 @@ export function BookingPanel({ jobs, machines, bookings, now, onOpen, onBook, on
   const bookedToday = new Set(onDay.map(b => b.machineId))
   const visibleMachines = allMachines ? sewing : sewing.filter(m => bookedToday.has(m.id) || m.status !== 'ready')
 
-  function cancel(jobId: string) {
+  async function cancel(jobId: string) {
     if (!onCancel) return
     const label = byJob.get(jobId)?.no ?? 'งานนี้'
     if (!window.confirm(`ยกเลิกการจองจักรของ ${label} ใช่ไหม?`)) return
-    const r = onCancel(jobId)
+    const r = await onCancel(jobId)
     setNotice(r.ok ? { ok: true, text: `ยกเลิกการจองของ ${byJob.get(jobId)?.no ?? ''} แล้ว` } : { ok: false, text: r.reason })
   }
 
@@ -127,7 +128,7 @@ export function BookingPanel({ jobs, machines, bookings, now, onOpen, onBook, on
                     })()}
                   </button>
                   {onCancel && (
-                    <button onClick={() => cancel(g[0].jobId)}
+                    <button onClick={() => void cancel(g[0].jobId)}
                       className="min-h-12 shrink-0 rounded-xl border border-line px-4 font-semibold text-danger hover:bg-danger-soft">
                       ยกเลิกการจอง
                     </button>
@@ -221,10 +222,10 @@ export function BookingPanel({ jobs, machines, bookings, now, onOpen, onBook, on
       </div>
 
       {open && onBook && (
-        <BookDialog jobs={jobs} machines={machines} bookings={bookings} now={now} defaultDay={defaultDay} defaultStart={defaultStart}
+        <BookDialog jobs={jobs} machines={machines} bookings={bookings} needs={needs} now={now} defaultDay={defaultDay} defaultStart={defaultStart}
           onClose={() => setOpen(false)}
-          onSubmit={(jobId, starts, ends) => {
-            const r = onBook(jobId, starts, ends)
+          onSubmit={async (jobId, starts, ends) => {
+            const r = await onBook(jobId, starts, ends)
             if (r.ok) {
               setOpen(false)
               setDay(bookingDay(starts))
@@ -237,14 +238,15 @@ export function BookingPanel({ jobs, machines, bookings, now, onOpen, onBook, on
   )
 }
 
-function BookDialog({ jobs, machines, bookings, now, defaultDay, defaultStart, onClose, onSubmit }: {
+function BookDialog({ jobs, machines, bookings, needs, now, defaultDay, defaultStart, onClose, onSubmit }: {
   jobs: Job[]; machines: Machine[]; bookings: Booking[]; now: Date; defaultDay: string; defaultStart: string
-  onClose: () => void; onSubmit: (jobId: string, starts: Date, ends: Date) => Result
+  needs: Record<string, Need[]>
+  onClose: () => void; onSubmit: (jobId: string, starts: Date, ends: Date) => Promise<Result>
 }) {
   const id = useId()
   // งานที่จองได้: ยังไม่ผ่านเย็บ · รู้ว่าใช้จักรอะไร · ยังไม่มีการจอง · กำหนดส่งใกล้ก่อน
   const candidates = jobs
-    .filter(j => j.phase !== 'done' && !(j.phase === 'production' && j.station === 'qc_pack') && j.productCode && SEW_NEEDS[j.productCode] && !bookings.some(b => b.jobId === j.id && b.ends > now))
+    .filter(j => j.phase !== 'done' && !(j.phase === 'production' && j.station === 'qc_pack') && j.productCode && needs[j.productCode] && !bookings.some(b => b.jobId === j.id && b.ends > now))
     .sort((a, b) => a.due.getTime() - b.due.getTime())
   const [jobId, setJobId] = useState('')
   const [query, setQuery] = useState('')
@@ -254,10 +256,11 @@ function BookDialog({ jobs, machines, bookings, now, defaultDay, defaultStart, o
   const [endDay, setEndDay] = useState(defaultDay)
   const [endTime, setEndTime] = useState('17:00')
   const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
   const job = candidates.find(j => j.id === jobId)
   const starts = bookingTime(startDay, startTime)
   const ends = bookingTime(endDay, endTime)
-  const check = job ? checkBooking(job, machines, bookings, starts, ends, SEW_NEEDS, now) : null
+  const check = job ? checkBooking(job, machines, bookings, starts, ends, needs, now) : null
   const field = 'min-h-12 min-w-0 w-full rounded-xl border border-line bg-card px-3 text-base'
 
   return (
@@ -297,7 +300,7 @@ function BookDialog({ jobs, machines, bookings, now, defaultDay, defaultStart, o
             {job && !Number.isNaN(starts.getTime()) && !Number.isNaN(ends.getTime()) && ends > starts && (() => {
               const others = jobsBookedDuring(bookings, starts, ends).map(id => jobs.find(j => j.id === id)?.no).filter(Boolean)
               const free = freeDuring(machines, bookings, starts, ends, now, job.id)
-              const needs = (job.productCode && SEW_NEEDS[job.productCode]) || []
+              const jobNeeds = (job.productCode && needs[job.productCode]) || []
               return (
                 <div className="rounded-xl border border-line px-3 py-2 text-sm">
                   <p className="text-muted">
@@ -305,7 +308,7 @@ function BookDialog({ jobs, machines, bookings, now, defaultDay, defaultStart, o
                   </p>
                   <p className="mt-1 font-medium">{job.product} ต้องใช้จักรครบชุด:</p>
                   <ul className="mt-1 grid gap-0.5">
-                    {needs.map(n => {
+                    {jobNeeds.map(n => {
                       const enough = free[n.type] >= n.qty
                       return (
                         <li key={n.type} className={`flex items-center gap-2 ${enough ? 'text-ok' : 'font-semibold text-danger'}`}>
@@ -333,10 +336,15 @@ function BookDialog({ jobs, machines, bookings, now, defaultDay, defaultStart, o
         )}
         <div className="mt-4 grid gap-2">
           {candidates.length > 0 && (
-            <button type="button" disabled={!check?.ok}
-              onClick={() => { const r = onSubmit(jobId, starts, ends); if (!r.ok) setError(r.reason) }}
+            <button type="button" disabled={!check?.ok || saving}
+              onClick={async () => {
+                setSaving(true)
+                const r = await onSubmit(jobId, starts, ends)
+                setSaving(false)
+                if (!r.ok) setError(r.reason)
+              }}
               className="min-h-12 rounded-xl bg-brand px-4 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-line disabled:text-muted ">
-              {check?.ok ? 'ยืนยันจอง' : job ? 'ช่วงเวลานี้จองไม่ได้' : 'เลือกงานก่อนจอง'}
+              {saving ? 'กำลังจอง…' : check?.ok ? 'ยืนยันจอง' : job ? 'ช่วงเวลานี้จองไม่ได้' : 'เลือกงานก่อนจอง'}
             </button>
           )}
           <button type="button" onClick={onClose} className="min-h-12 rounded-xl px-4 font-semibold text-muted hover:bg-paper">ปิด</button>

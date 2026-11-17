@@ -126,12 +126,9 @@ function Workspace({ page: requested, profile, email }: {
               </Card>
             </main>
           ) : page === 'overview' || page === 'board' ? (
-            <>
-              <p className="border-b border-warn/30 bg-warn-soft px-4 py-1.5 text-sm font-medium text-warn sm:px-6">หน้าทดลอง · ใช้ข้อมูลจำลอง</p>
-              <Suspense fallback={<main className="p-5"><p role="status">กำลังโหลดหน้าติดตามการผลิต…</p></main>}>
-                <Dashboard view={page} today={today} scope={scope} />
-              </Suspense>
-            </>
+            <Suspense fallback={<main className="p-5"><p role="status">กำลังโหลดหน้าติดตามการผลิต…</p></main>}>
+              <Dashboard view={page} today={today} role={profile.role} scope={scope} />
+            </Suspense>
           ) : (
             <main className="flex-1 overflow-y-auto">
               {page === 'system' && (

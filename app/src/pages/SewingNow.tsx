@@ -7,9 +7,9 @@ import { type Machine } from '../proto/sewing'
 
 type Result = { ok: true; text: string } | { ok: false; reason: string }
 export type SewActions = {
-  report: (jobId: string, reason: string, pause: boolean) => Result
-  resume: (jobId: string) => Result
-  finish: (jobId: string) => Result
+  report: (jobId: string, reason: string, pause: boolean) => Promise<Result>
+  resume: (jobId: string) => Promise<Result>
+  finish: (jobId: string) => Promise<Result>
 }
 
 const secondaryButton = 'min-h-12 rounded-xl border border-line px-4 font-semibold text-brand hover:bg-brand-soft'
@@ -24,6 +24,8 @@ export function SewingNow({ jobs, machines, now, onOpen, actions }: {
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const [dialog, setDialog] = useState<{ type: 'report' | 'finish'; job: Job } | null>(null)
   const [error, setError] = useState('')
+  // รอคำตอบจากฐานข้อมูล = ปิดปุ่มไว้ กันกดซ้ำตอนเน็ตช้า
+  const [busy, setBusy] = useState(false)
   const list = jobs
     .filter(j => j.station === 'sew' && (j.status === 'doing' || j.status === 'hold'))
     .sort((a, b) => Number(b.status === 'hold') - Number(a.status === 'hold') || a.due.getTime() - b.due.getTime())
@@ -33,7 +35,10 @@ export function SewingNow({ jobs, machines, now, onOpen, actions }: {
     setDialog({ type, job })
   }
 
-  function submit(result: Result) {
+  async function submit(pending: Promise<Result>) {
+    setBusy(true)
+    const result = await pending
+    setBusy(false)
     if (result.ok) {
       setNotice({ ok: true, text: result.text })
       setDialog(null)
@@ -75,10 +80,12 @@ export function SewingNow({ jobs, machines, now, onOpen, actions }: {
                 {actions && (
                   <div className="flex flex-wrap gap-2">
                     {held ? (
-                      <button type="button" className={resumeButton} onClick={() => {
-                        const result = actions.resume(job.id)
+                      <button type="button" className={resumeButton} disabled={busy} onClick={async () => {
+                        setBusy(true)
+                        const result = await actions.resume(job.id)
+                        setBusy(false)
                         setNotice(result.ok ? { ok: true, text: result.text } : { ok: false, text: result.reason })
-                      }}>เย็บต่อ</button>
+                      }}>{busy ? 'กำลังบันทึก…' : 'เย็บต่อ'}</button>
                     ) : (
                       <>
                         <button type="button" className={secondaryButton} onClick={() => show('report', job)}>รายงานปัญหา</button>
@@ -98,14 +105,16 @@ export function SewingNow({ jobs, machines, now, onOpen, actions }: {
       {dialog && actions && (
         <Dialog title={`${dialog.type === 'finish' ? 'ยืนยันเย็บเสร็จ' : 'รายงานปัญหา'} ${dialog.job.no}`} onClose={() => setDialog(null)}>
           {dialog.type === 'report' ? (
-            <ReportForm error={error} onCancel={() => setDialog(null)}
-              onSave={(reason, pause) => submit(actions.report(dialog.job.id, reason, pause))} />
+            <ReportForm error={error} busy={busy} onCancel={() => setDialog(null)}
+              onSave={(reason, pause) => void submit(actions.report(dialog.job.id, reason, pause))} />
           ) : (
             <>
               <p className="mt-3">ยืนยันว่าเย็บงานครบแล้ว ระบบจะส่งงานให้ QC + Packing และคืนจักรให้งานถัดไป</p>
               {error && <p role="alert" className="mt-3 text-danger">{error}</p>}
               <div className="mt-4 grid gap-2">
-                <button type="button" className={finishButton} onClick={() => submit(actions.finish(dialog.job.id))}>ยืนยันเย็บเสร็จ</button>
+                <button type="button" className={finishButton} disabled={busy} onClick={() => void submit(actions.finish(dialog.job.id))}>
+                  {busy ? 'กำลังบันทึก…' : 'ยืนยันเย็บเสร็จ'}
+                </button>
                 <button type="button" className={secondaryButton} onClick={() => setDialog(null)}>ยกเลิก</button>
               </div>
             </>
@@ -116,8 +125,8 @@ export function SewingNow({ jobs, machines, now, onOpen, actions }: {
   )
 }
 
-function ReportForm({ error, onCancel, onSave }: {
-  error: string; onCancel: () => void; onSave: (reason: string, pause: boolean) => void
+function ReportForm({ error, busy, onCancel, onSave }: {
+  error: string; busy: boolean; onCancel: () => void; onSave: (reason: string, pause: boolean) => void
 }) {
   const [reason, setReason] = useState('')
   const [pause, setPause] = useState(false)
@@ -132,8 +141,8 @@ function ReportForm({ error, onCancel, onSave }: {
         พักงานไว้ก่อน
       </label>
       {error && <p role="alert" className="text-danger">{error}</p>}
-      <button type="submit" className="min-h-12 rounded-xl bg-brand px-4 font-semibold text-white">
-        {pause ? 'บันทึกและพักงาน' : 'บันทึกรายงาน'}
+      <button type="submit" disabled={busy} className="min-h-12 rounded-xl bg-brand px-4 font-semibold text-white disabled:opacity-60">
+        {busy ? 'กำลังบันทึก…' : pause ? 'บันทึกและพักงาน' : 'บันทึกรายงาน'}
       </button>
       <button type="button" className={secondaryButton} onClick={onCancel}>ยกเลิก</button>
     </form>
