@@ -16,13 +16,15 @@ export type LoadState =
 const DAY = 86_400_000
 // ตารางที่เปลี่ยนแล้วต้องโหลดใหม่ · ทุกการกดงานบันทึก events จึงครอบทุกขั้นของงาน
 const WATCH = ['jobs', 'events', 'job_materials', 'issues', 'sewing_machines', 'machine_assignments', 'machine_bookings'] as const
+// เฉพาะคอลัมน์ที่หน้าจอใช้ · ไม่ดึง spec (คำตอบทั้งใบยืนยัน) เพราะโหลดใหม่ทุกครั้งที่มีคนกด
+const JOB_COLUMNS = 'id, confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, phase, current_station, station_status, stage_entered_at, sample_round, materials_waiting_depts, dtf_film_eta, dtf_film_received_at, sew_count, is_rework, rework_qty, hold_reason, finished_at'
 
 async function load(): Promise<FactoryData> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
   const recent = new Date(Date.now() - 14 * DAY).toISOString()
   const [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs] = await Promise.all([
     // งานเสร็จเก่ากว่า 14 วันไม่ต้องแสดงบนบอร์ด
-    supabase.from('job_live').select('*').neq('phase', 'cancelled').or(`phase.neq.done,finished_at.gte.${recent}`),
+    supabase.from('job_live').select(JOB_COLUMNS).neq('phase', 'cancelled').or(`phase.neq.done,finished_at.gte.${recent}`),
     supabase.from('product_types').select('code, name'),
     supabase.from('qc_results').select('job_id, failed, reasons, at').gt('failed', 0),
     supabase.from('events').select('job_id, type, payload, at').eq('station_code', 'sew').in('type', ['sewing_issue_reported', 'hold']),
@@ -44,7 +46,9 @@ async function load(): Promise<FactoryData> {
 /** ข้อมูลหน้างานจริง + อัปเดตสดเมื่อมีคนกดที่เครื่องอื่น (Realtime) */
 export function useFactoryData() {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
-  const [live, setLive] = useState(true)
+  // ขาดการเชื่อมต่อ = โหลดล่าสุดไม่สำเร็จ หรือ Realtime หลุด · แยกกันเพื่อให้แถบเตือนหายเองเมื่อกลับมาครบทั้งคู่
+  const [fetchOk, setFetchOk] = useState(true)
+  const [channelOk, setChannelOk] = useState(true)
   const seq = useRef(0)
 
   const refresh = useCallback(async () => {
@@ -52,13 +56,16 @@ export function useFactoryData() {
     try {
       const data = await load()
       // คำขอที่ส่งทีหลังชนะเสมอ กันข้อมูลเก่ามาทับข้อมูลใหม่
-      if (mine === seq.current) setState({ status: 'ready', data, loadedAt: new Date() })
+      if (mine === seq.current) {
+        setState({ status: 'ready', data, loadedAt: new Date() })
+        setFetchOk(true)
+      }
     } catch (e) {
       if (mine !== seq.current) return
       const message = thaiError(e instanceof Error ? e.message : undefined)
       // โหลดได้แล้วครั้งหนึ่ง = เก็บข้อมูลเดิมไว้ แล้วขึ้นแถบเตือนแทน ไม่ล้างจอ
       setState(s => (s.status === 'ready' ? s : { status: 'error', message }))
-      setLive(false)
+      setFetchOk(false)
     }
   }, [])
 
@@ -72,11 +79,11 @@ export function useFactoryData() {
     let channel = client.channel('factory-live')
     for (const table of WATCH) channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, soon)
     channel.subscribe(status => {
-      setLive(status === 'SUBSCRIBED')
+      setChannelOk(status === 'SUBSCRIBED')
       if (status === 'SUBSCRIBED') soon()   // ต่อกลับได้ = โหลดใหม่ เผื่อพลาดการเปลี่ยนระหว่างหลุด
     })
     const online = () => soon()
-    const offline = () => setLive(false)
+    const offline = () => setFetchOk(false)
     const visible = () => { if (document.visibilityState === 'visible') soon() }
     window.addEventListener('online', online)
     window.addEventListener('offline', offline)
@@ -90,7 +97,7 @@ export function useFactoryData() {
     }
   }, [refresh])
 
-  return { state, live, refresh }
+  return { state, live: fetchOk && channelOk, refresh }
 }
 
 export type RpcResult<T> = { ok: true; data: T } | { ok: false; reason: string }

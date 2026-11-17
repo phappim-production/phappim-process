@@ -17,7 +17,7 @@ type Sla = {
   segment_name?: string; segment_sla_days?: number; segment_days?: number; segment_warn?: boolean; segment_over?: boolean; segment_reported?: boolean
 }
 type Detail = {
-  qcPassed: number; sla: Sla; filmOrdered: boolean
+  qcPassed: number; sla: Sla; filmOrdered: boolean; pdfPath: string | null
   materials: Material[]; steps: Substep[]; done: Map<string, unknown>; reasons: Reason[]
 }
 type Notice = { ok: boolean; text: string } | null
@@ -25,18 +25,18 @@ type Notice = { ok: boolean; text: string } | null
 async function loadDetail(job: Job): Promise<Detail> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
   const [live, materials, station, reasons] = await Promise.all([
-    supabase.from('job_live').select('visit, qc_passed, sla, dtf_film_ordered_at').eq('id', job.id).single(),
+    supabase.from('job_live').select('visit, qc_passed, sla, dtf_film_ordered_at, confirmation_pdf_path').eq('id', job.id).single(),
     supabase.from('job_materials').select('id, name, dept, key, checked_at').eq('job_id', job.id).order('id'),
     job.station ? supabase.from('stations').select('substeps').eq('code', job.station).single() : Promise.resolve({ data: null, error: null }),
     supabase.from('reason_codes').select('code, grp, name').eq('active', true).order('sort'),
   ])
   const failed = [live, materials, station, reasons].find(r => r.error)
   if (failed?.error) throw new Error(failed.error.message)
-  const row = live.data as { visit: number; qc_passed: number; sla: Sla | null; dtf_film_ordered_at: string | null }
+  const row = live.data as { visit: number; qc_passed: number; sla: Sla | null; dtf_film_ordered_at: string | null; confirmation_pdf_path: string | null }
   const subs = await supabase.from('job_substeps').select('substep_key, value').eq('job_id', job.id).eq('visit', row.visit)
   if (subs.error) throw new Error(subs.error.message)
   return {
-    qcPassed: row.qc_passed, sla: row.sla ?? {}, filmOrdered: !!row.dtf_film_ordered_at,
+    qcPassed: row.qc_passed, sla: row.sla ?? {}, filmOrdered: !!row.dtf_film_ordered_at, pdfPath: row.confirmation_pdf_path,
     materials: materials.data as Material[],
     steps: ((station.data as { substeps: Substep[] } | null)?.substeps) ?? [],
     done: new Map((subs.data as { substep_key: string; value: unknown }[]).map(s => [s.substep_key, s.value])),
@@ -48,35 +48,38 @@ async function loadDetail(job: Job): Promise<Detail> {
 export function JobActions({ job: j, role, version, now, refresh }: {
   job: Job; role: EmployeeRole; version: number; now: Date; refresh: () => Promise<void>
 }) {
-  const [detail, setDetail] = useState<{ for: string; data?: Detail; error?: string } | null>(null)
+  const [detail, setDetail] = useState<{ shape: string; data?: Detail; error?: string } | null>(null)
   const [notice, setNotice] = useState<Notice>(null)
   const [busy, setBusy] = useState(false)
-  const key = `${j.id}/${j.phase}/${j.station ?? ''}/${j.status ?? ''}/${version}`
+  // งานย้ายขั้น/สถานี/สถานะ = รายการขั้นย่อยเดิมใช้ไม่ได้แล้ว ต้องรอโหลดใหม่ (กดขั้นของสถานีเก่าจะส่งคีย์ผิด)
+  // แค่ข้อมูลอัปเดต (version) = แสดงของเดิมไปก่อนระหว่างโหลด ไม่กระพริบ
+  const shape = `${j.id}/${j.phase}/${j.station ?? ''}/${j.status ?? ''}/${j.rework ? 'r' : ''}/${j.sampleRound}`
 
   useEffect(() => {
     let alive = true
     loadDetail(j).then(
-      data => { if (alive) setDetail({ for: key, data }) },
-      (e: unknown) => { if (alive) setDetail({ for: key, error: thaiError(e instanceof Error ? e.message : undefined) }) },
+      data => { if (alive) setDetail({ shape, data }) },
+      (e: unknown) => { if (alive) setDetail({ shape, error: thaiError(e instanceof Error ? e.message : undefined) }) },
     )
     return () => { alive = false }
-  }, [key, j])
+  }, [shape, version, j])
 
   // ทุกปุ่มเรียกฟังก์ชันในฐานข้อมูล · สำเร็จแล้วโหลดใหม่ทั้งหน้า (อีกเครื่องเห็นผ่าน Realtime)
-  async function act(name: string, args: Record<string, unknown>, ok: string) {
+  // ฟังก์ชันส่วนใหญ่รับ p_job · check_material รับ id ของรายการวัตถุดิบแทน
+  async function act(name: string, args: Record<string, unknown>, ok: string, withJob = true) {
     setBusy(true)
     setNotice(null)
-    const r = await rpc(name, { p_job: j.id, ...args })
+    const r = await rpc(name, withJob ? { p_job: j.id, ...args } : args)
     if (r.ok) await refresh()
     setBusy(false)
     setNotice(r.ok ? { ok: true, text: ok } : { ok: false, text: r.reason })
     return r.ok
   }
 
-  const d = detail?.data
-  if (!detail || detail.for !== key && !d) return <Section title="สิ่งที่ต้องทำ"><p role="status" className="text-muted">กำลังโหลด…</p></Section>
-  if (detail.error && !d) return <Section title="สิ่งที่ต้องทำ"><p role="alert" className="text-danger">{detail.error}</p></Section>
-  if (!d) return null
+  const current = detail?.shape === shape ? detail : null
+  const d = current?.data
+  if (current?.error && !d) return <Section title="สิ่งที่ต้องทำ"><p role="alert" className="text-danger">{current.error}</p></Section>
+  if (!d) return <Section title="สิ่งที่ต้องทำ"><p role="status" className="text-muted">กำลังโหลด…</p></Section>
 
   const owner = role === 'owner'
   const floor = role === 'production' || role === 'supervisor' || owner
@@ -86,12 +89,14 @@ export function JobActions({ job: j, role, version, now, refresh }: {
   const inStation = (j.phase === 'sample' || j.phase === 'production') && !!st
 
   return (
-    <div className="grid gap-4">
+    // ข้อความหลักบนแท็บเล็ตต้อง ≥ 16 px (แผงนี้อยู่ในรายละเอียดงานที่ตั้งตัวอักษรเล็กไว้)
+    <div className="grid gap-4 text-base">
+      {d.pdfPath && <OpenPdf path={d.pdfPath} />}
       {notice && (
         <p role={notice.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>{notice.text}</p>
       )}
       {j.phase === 'materials' && <Materials materials={d.materials} role={role} busy={busy}
-        onCheck={(m, on) => act('check_material', { p_material_id: m.id, p_checked: on, p_job: undefined }, on ? `ติ๊ก "${m.name}" แล้ว` : `ยกเลิกติ๊ก "${m.name}" แล้ว`)} />}
+        onCheck={(m, on) => act('check_material', { p_material_id: m.id, p_checked: on }, on ? `ติ๊ก "${m.name}" แล้ว` : `ยกเลิกติ๊ก "${m.name}" แล้ว`, false)} />}
       {j.route === 'dtf' && !j.film?.received && j.phase !== 'done' && (
         <Film job={j} ordered={d.filmOrdered} admin={admin} busy={busy} now={now}
           onOrder={eta => act('order_film', { p_eta: eta }, `บันทึกสั่งฟิล์ม · คาดว่าได้รับ ${eta}`)}
@@ -108,6 +113,30 @@ export function JobActions({ job: j, role, version, now, refresh }: {
       {inStation && st !== 'sew' && (
         <Station job={j} detail={d} canPress={canStation} role={role} busy={busy} now={now} act={act} />
       )}
+    </div>
+  )
+}
+
+/** เปิด PDF ใบยืนยันที่เซ็นครบ (S8) · ลิงก์มีอายุ 5 นาที เพราะไฟล์ไม่เปิดสาธารณะ */
+function OpenPdf({ path }: { path: string }) {
+  const [error, setError] = useState('')
+  async function open() {
+    setError('')
+    // เปิดหน้าต่างก่อนรอลิงก์ ไม่อย่างนั้นเบราว์เซอร์บนมือถือจะบล็อกป๊อปอัป
+    const win = window.open('', '_blank')
+    const r = await supabase?.storage.from('confirmations').createSignedUrl(path, 300)
+    if (!r || r.error || !r.data) {
+      win?.close()
+      setError(r?.error ? thaiError(r.error.message) : 'ยังไม่ได้ตั้งค่า Supabase')
+      return
+    }
+    if (win) win.location.href = r.data.signedUrl
+    else window.location.href = r.data.signedUrl
+  }
+  return (
+    <div className="grid gap-1">
+      <button type="button" className={secondaryBtn} onClick={() => void open()}>เปิด PDF ใบยืนยัน</button>
+      {error && <p role="alert" className="text-danger">{error}</p>}
     </div>
   )
 }
