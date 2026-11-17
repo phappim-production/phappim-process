@@ -226,7 +226,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
       history={<JobHistory key={openJob.id} jobId={openJob.id} role={role} version={loadedAt.getTime()} now={now} onChanged={refresh} />} />
   )
   const receive = receiving && (
-    <ReceiveJob onClose={() => setReceiving(false)} onDone={async no => {
+    <ReceiveJob jobs={allJobs} now={now} floor={floor} onClose={() => setReceiving(false)} onDone={async no => {
       setReceiving(false)
       setReceived(no)
       await refresh()

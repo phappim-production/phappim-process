@@ -92,7 +92,7 @@ export const LEAD = {
   materials: 2,      // จากรอวัตถุดิบ → ขึ้นตัวอย่างเสร็จ + ลูกค้ายืนยัน
   sample: 2,         // จากกำลังขึ้นตัวอย่าง → ลูกค้ายืนยัน
   sampleReview: 1,   // รอลูกค้ายืนยัน
-  newJob: 4,         // งานใหม่: รับงาน + วัตถุดิบ + ตัวอย่าง + ลูกค้ายืนยัน
+  newJob: 3,         // งานใหม่ที่ไม่รู้ว่าขึ้นตัวอย่างไหม: เผื่อขึ้นตัวอย่าง + ลูกค้ายืนยัน (ไม่มีขั้นวัตถุดิบแล้ว 17 พ.ย.)
   hold: 0.5,         // งานที่ติดปัญหาอยู่ คิดว่าเสียเวลาเพิ่ม
 }
 // เกณฑ์ตัดสิน "รับงานใหม่ได้ไหม" (จำนวนวันที่คิวสถานีที่แน่นที่สุดยาว)
@@ -106,7 +106,8 @@ export type Forecast = {
   load: Record<StationCode, StationLoad>  // งานที่ยังต้องผ่านสถานีนี้
   bottleneck: StationCode
 }
-export type NewJob = { route: RouteCode; qty: number; productCode?: string }
+// lead = วันทำงานก่อนเข้าสถานีแรก (ไม่ใส่ = LEAD.newJob)
+export type NewJob = { route: RouteCode; qty: number; productCode?: string; lead?: number }
 
 /**
  * ประมาณการแบบง่าย: แต่ละสถานีทำได้ทีละงาน (ยกเว้นเย็บ) ใช้เวลา = จำนวนชิ้นที่เหลือ ÷ กำลังผลิตต่อวัน
@@ -137,7 +138,7 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
       lineRate: lineRate(j.productCode),
     }
   })
-  if (extra) runs.push({ id: '__new', stations: ROUTES[extra.route].stations, i: 0, ready: LEAD.newJob, due: Infinity, filmDay: 0, firstQty: extra.qty, qty: extra.qty, needs: floor.needsOf(extra.productCode), lineRate: lineRate(extra.productCode), isExtra: true })
+  if (extra) runs.push({ id: '__new', stations: ROUTES[extra.route].stations, i: 0, ready: extra.lead ?? LEAD.newJob, due: Infinity, filmDay: 0, firstQty: extra.qty, qty: extra.qty, needs: floor.needsOf(extra.productCode), lineRate: lineRate(extra.productCode), isExtra: true })
 
   // ภาระงานของสถานี = ชิ้นที่ยังต้องผ่าน ÷ กำลังผลิตต่อวัน (ไม่รวมเวลารอสถานีก่อนหน้า จึงชี้คอขวดได้ตรง)
   for (const r of runs) {
@@ -217,6 +218,20 @@ export function workdaysUntil(date: Date, now: Date) {
 /** วันปฏิทินที่ช้ากว่ากำหนด (ค่าบวก = ไม่ทัน) */
 export function lateDays(finish: Date, due: Date) {
   return Math.round((startOfDay(finish).getTime() - startOfDay(due).getTime()) / 86_400_000)
+}
+
+/**
+ * คาดวันเสร็จของงานที่กำลังจะส่งเข้า (หน้ารับงานใหม่) · เตือนอย่างเดียว ไม่บล็อก (เจ้าของตัดสินใจ 17 พ.ย. หลังจำลอง 30 งาน)
+ * ไม่มีขั้นวัตถุดิบแล้ว: ไม่ขึ้นตัวอย่าง = เข้าสถานีแรกทันที · ขึ้นตัวอย่าง = เผื่อขึ้นตัวอย่าง + รอลูกค้ายืนยัน
+ * due = วันที่ 'YYYY-MM-DD' · late > 0 = ช้ากว่ากำหนดส่งกี่วัน
+ */
+export function receiveForecast(jobs: Job[], now: Date, floor: SewFloor | undefined,
+  job: { route: RouteCode; qty: number; productCode?: string; needsSample: boolean; due: string }): { finish: Date; late: number | null } {
+  const lead = job.needsSample ? LEAD.sample + LEAD.sampleReview : 0
+  const r = simulate(jobs, now, { route: job.route, qty: Math.max(1, job.qty), productCode: job.productCode, lead }, floor)
+  const finish = workdayToDate(r.extraFinishDay ?? 0, now)
+  const late = /^\d{4}-\d{2}-\d{2}$/.test(job.due) ? lateDays(finish, new Date(`${job.due}T00:00:00`)) : null
+  return { finish, late }
 }
 
 export type Verdict = { level: 'ok' | 'tight' | 'full'; title: string }
