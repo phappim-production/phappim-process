@@ -1,0 +1,391 @@
+<title>ผังระบบ PP142</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sarabun:wght@400;600&display=swap">
+<style>
+/* layout: เอกสารยาวอ่านลงล่าง · สารบัญด้านบน · แต่ละหัวข้อ = คำอธิบายสั้น + ผัง (เลื่อนแนวนอนได้เมื่อจอแคบ) */
+:root {
+  --bg: #f4f6f5; --surface: #ffffff; --ink: #14231f; --muted: #5a6b66; --line: #d7dfdb;
+  --brand: #0f4a42; --brand-soft: #e2efec; --gold: #b8892b; --gold-soft: #f7efdc;
+  --danger: #b4372d; --danger-soft: #f8e4e1; --ok: #1f7a4d; --ok-soft: #e0f2e8; --info: #1d5f9e; --info-soft: #e1ecf7; --warn: #a8620a; --warn-soft: #fbeedb;
+  --f-display: "IBM Plex Sans Thai", "Sarabun", system-ui, sans-serif;
+  --f-body: "Sarabun", "IBM Plex Sans Thai", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1614; --surface: #17211e; --ink: #e5ece9; --muted: #9db0aa; --line: #2b3a35;
+  --brand: #7cc7b8; --brand-soft: #1b302b; --gold: #e2b75c; --gold-soft: #2e2615;
+  --danger: #ef8a7f; --danger-soft: #3a1f1c; --ok: #7fd3a6; --ok-soft: #173025; --info: #8ab9ea; --info-soft: #172739; --warn: #f0b35e; --warn-soft: #36270f;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1614; --surface: #17211e; --ink: #e5ece9; --muted: #9db0aa; --line: #2b3a35;
+  --brand: #7cc7b8; --brand-soft: #1b302b; --gold: #e2b75c; --gold-soft: #2e2615;
+  --danger: #ef8a7f; --danger-soft: #3a1f1c; --ok: #7fd3a6; --ok-soft: #173025; --info: #8ab9ea; --info-soft: #172739; --warn: #f0b35e; --warn-soft: #36270f;
+  color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--f-body); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--f-display); line-height: 1.3; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.6rem, 4vw, 2.3rem); color: var(--brand); }
+h2 { font-size: 1.3rem; }
+h3 { font-size: 1.02rem; }
+p { margin: 0; max-width: 68ch; }
+.lead { color: var(--muted); }
+.eyebrow { font: 600 .78rem/1 var(--f-display); letter-spacing: .08em; color: var(--gold); text-transform: uppercase; }
+header { display: grid; gap: 10px; border-bottom: 2px solid var(--brand); padding-bottom: 18px; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+nav.toc a { font: 500 .9rem var(--f-display); color: var(--brand); background: var(--brand-soft); padding: 6px 12px; border-radius: 999px; text-decoration: none; }
+nav.toc a:focus-visible, nav.toc a:hover { outline: 2px solid var(--brand); outline-offset: 1px; }
+section { display: grid; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; scroll-margin-top: 12px; }
+section > .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.num { font: 700 .85rem var(--f-display); color: var(--surface); background: var(--brand); border-radius: 8px; padding: 2px 8px; }
+.diagram { overflow-x: auto; background: var(--bg); border-radius: 10px; padding: 12px; border: 1px solid var(--line); }
+.diagram pre.mermaid { margin: 0; min-width: 640px; background: transparent; }
+ul.notes { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; max-width: 80ch; }
+ul.notes li::marker { color: var(--gold); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 .85rem var(--f-display); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); }
+.c-admin { background: var(--gold-soft); color: var(--warn); }
+.c-prod { background: var(--info-soft); color: var(--info); }
+.c-qc { background: var(--ok-soft); color: var(--ok); }
+.c-sys { background: var(--brand-soft); color: var(--brand); }
+.c-block { background: var(--danger-soft); color: var(--danger); }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: .95rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { font-family: var(--f-display); color: var(--muted); font-weight: 600; }
+td.y { color: var(--ok); font-weight: 600; }
+td.n { color: var(--muted); }
+code { font-size: .9em; background: var(--brand-soft); padding: 1px 5px; border-radius: 5px; }
+footer { color: var(--muted); font-size: .9rem; }
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">ภาพพิมพ์ 142 · ระบบติดตามการผลิต · สถานะ 17 พ.ย. 2569 (main = aec2979)</span>
+  <h1>ผังระบบทั้งหมด ตั้งแต่ใบยืนยันถึงพร้อมส่ง</h1>
+  <p class="lead">ทุกกฎที่เป็นกล่องแดงในผัง ระบบบังคับที่ฐานข้อมูล (ไม่ใช่แค่ซ่อนปุ่ม) · ทุกการกดบันทึก 1 แถวในไทม์ไลน์และแก้/ลบไม่ได้</p>
+  <div class="legend" aria-label="สีในผัง">
+    <span class="chip c-admin">แอดมิน</span>
+    <span class="chip c-prod">ฝ่ายผลิต</span>
+    <span class="chip c-qc">ฝ่าย QC</span>
+    <span class="chip c-sys">ระบบทำเอง</span>
+    <span class="chip c-block">กฎที่ระบบบังคับ / ถูกปฏิเสธ</span>
+  </div>
+  <nav class="toc" aria-label="สารบัญ">
+    <a href="#overview">1 ภาพรวม</a><a href="#arch">2 ส่วนประกอบระบบ</a><a href="#intake">3 รับงานเข้า</a>
+    <a href="#sample">4 ขึ้นตัวอย่าง</a><a href="#routes">5 เส้นทางผลิต</a><a href="#station">6 สถานะสถานี</a>
+    <a href="#film">7 ฟิล์ม</a><a href="#sew">8 เย็บ + จักร</a><a href="#qc">9 QC + งานแก้</a>
+    <a href="#sla">10 เวลามาตรฐาน</a><a href="#inbox">11 แจ้งเตือน</a><a href="#forecast">12 คาดวันเสร็จ</a><a href="#roles">13 สิทธิ์ตามบทบาท</a>
+  </nav>
+</header>
+
+<section id="overview">
+  <div class="head"><span class="num">1</span><h2>ภาพรวมทั้งระบบ</h2></div>
+  <p>เส้นทางหลักของงาน 1 งาน · รายละเอียดแต่ละขั้นอยู่ในหัวข้อถัดไป</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart TD
+  A["แอดมินดีลงานกับลูกค้า<br/>เตรียมวัตถุดิบให้ครบ"]:::admin --> B["กรอกฟอร์มใบยืนยัน<br/>pp142.pages.dev/confirmation"]:::admin
+  B --> C["กด บันทึกเข้าระบบ<br/>= ใบยืนยันร่าง"]:::admin
+  B --> D["ส่งออก PDF A4<br/>ให้ลูกค้าเซ็น"]:::admin
+  C --> E["รับงานใหม่<br/>เลือกใบจากรายการ"]:::admin
+  E --> F{"ขึ้นตัวอย่าง?"}
+  F -- ขึ้น --> G["ขึ้นตัวอย่าง<br/>เดินสถานีเหมือนงานจริง"]:::prod
+  G --> H{"ลูกค้ายืนยันตัวอย่าง"}:::admin
+  H -- ไม่ผ่าน --> G
+  H -- ผ่าน --> I
+  F -- ไม่ขึ้น --> I["ผลิตจริง สถานีแรกของเส้นทาง"]:::sys
+  I --> J["พิมพ์ / รีด / ตัด / รีดฟิล์ม / ส่งปัก<br/>เฟส 1 · เริ่ม → เสร็จ"]:::prod
+  J --> K["เย็บ · ได้จักรประจำไลน์<br/>เฟส 2"]:::prod
+  K --> L["QC + Packing<br/>ตรวจผ่านครบจำนวน"]:::qc
+  L -- ชิ้นไม่ผ่าน --> M["ส่งแก้ กลับสถานีต้นเหตุ"]:::qc
+  M --> L
+  L --> N["เสร็จ / พร้อมส่ง"]:::sys
+  D -. เซ็นแล้ว แนบทีหลังได้ .-> P["แนบ PDF ที่รายละเอียดงาน"]:::admin
+  classDef admin fill:#f7efdc,stroke:#b8892b,color:#5a3d06
+  classDef prod fill:#e1ecf7,stroke:#1d5f9e,color:#0e3357
+  classDef qc fill:#e0f2e8,stroke:#1f7a4d,color:#0d3d24
+  classDef sys fill:#e2efec,stroke:#0f4a42,color:#0f4a42
+  </pre></div>
+</section>
+
+<section id="arch">
+  <div class="head"><span class="num">2</span><h2>ส่วนประกอบของระบบ</h2></div>
+  <p>หน้าเว็บอ่านข้อมูลอย่างเดียว · การเขียนทุกอย่างผ่านฟังก์ชันในฐานข้อมูลซึ่งตรวจบทบาทและกฎทุกครั้ง</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart LR
+  subgraph Device["แท็บเล็ต / มือถือ / คอม"]
+    F["ฟอร์มใบยืนยัน<br/>/confirmation · ไม่ต้องล็อกอิน"]
+    APP["แอปติดตามการผลิต (PWA)<br/>React · ติดตั้งบนหน้าจอได้"]
+    SW["Service worker<br/>ตรวจรุ่นใหม่ทุก 10 นาที<br/>แถบ มีระบบรุ่นใหม่"]
+    F -- "localStorage<br/>ส่งใบไปบันทึก / เปิดใบมาแก้" --> APP
+    APP --- SW
+  end
+  CF["Cloudflare Pages<br/>pp142.pages.dev<br/>deploy ทันทีที่ merge"]
+  subgraph SB["Supabase"]
+    AUTH["ล็อกอิน + บทบาท"]
+    RPC["ฟังก์ชัน RPC<br/>กฎ workflow ทั้งหมด"]
+    DB[("PostgreSQL + RLS<br/>jobs · events · จักร · ใบยืนยันร่าง")]
+    ST[("Storage<br/>PDF ใบยืนยัน")]
+    RT["Realtime<br/>อีกจอเห็นภายใน ~2 วิ"]
+    CRON["pg_cron ทุก 5 นาที<br/>ตรวจเกินเวลา / ใกล้กำหนดส่ง"]
+  end
+  GH["GitHub Actions<br/>ทดสอบทุก PR · สำรองข้อมูลทุกอาทิตย์"]
+  CF --> APP
+  APP --> AUTH
+  APP -- "อ่าน" --> DB
+  APP -- "กดปุ่ม" --> RPC --> DB
+  APP -- "อัปโหลด/เปิด PDF" --> ST
+  DB --> RT --> APP
+  CRON --> DB
+  GH --> CF
+  GH -. สำรอง .-> DB
+  </pre></div>
+</section>
+
+<section id="intake">
+  <div class="head"><span class="num">3</span><h2>รับงานเข้าโรงงาน</h2></div>
+  <p>แอดมินหรือเจ้าของระบบเท่านั้น · ไม่มีขั้นรอวัตถุดิบ · PDF ที่ลูกค้าเซ็นไม่บังคับ (แนบทีหลังได้)</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart TD
+  S(["เปิดฟอร์มใบยืนยัน"]):::admin --> FILL["กรอก 11 หัวข้อ<br/>สินค้า · ลูกค้า · ผ้า · ไซซ์และจำนวน · ขึ้นตัวอย่าง ฯลฯ"]:::admin
+  FILL --> SAVE["กด บันทึกเข้าระบบ"]:::admin
+  SAVE --> NOQ{"มีเลขที่ใบ?"}
+  NOQ -- ไม่มี --> X1["ฟอร์มเตือน ใส่เลขที่ใบยืนยันก่อน"]:::block
+  NOQ -- มี --> OUT["ฟอร์มส่งข้อมูลให้แท็บระบบ<br/>ที่ล็อกอินอยู่"]:::sys
+  OUT --> RPC1{"save_confirmation_draft"}:::sys
+  RPC1 -- "ไม่ใช่แอดมิน" --> X2["ปฏิเสธ"]:::block
+  RPC1 -- "เลขนี้ส่งงานเข้าแล้ว" --> X3["ปฏิเสธ · ให้ออกใบใหม่"]:::block
+  RPC1 -- "เลขใหม่ / เลขเดิมยังเป็นร่าง" --> DR[("ใบยืนยันร่าง<br/>ไม่เก็บรูป")]:::sys
+  DR --> PICK["รับงานใหม่ → เลือกใบจากรายการ<br/>หรือแนบ .json / กรอกเอง"]:::admin
+  PICK -. ต้องแก้ .-> EDIT["แก้ใบนี้ในฟอร์ม → บันทึกอีกครั้ง"]:::admin
+  EDIT -.-> SAVE
+  PICK --> FC["กล่องคาดว่าเสร็จ<br/>แดง = ไม่ทันกำหนดส่ง (เตือนอย่างเดียว)"]:::sys
+  FC --> PDFQ{"มี PDF ที่ลูกค้าเซ็น?"}
+  PDFQ -- มี --> UP["อัปโหลดเข้า Storage"]:::sys
+  PDFQ -- ยังไม่มี --> RJ
+  UP --> RJ{"receive_job"}:::sys
+  RJ -- "ฝ่ายผลิต / QC / ผู้บริหาร" --> X4["ปฏิเสธ · ให้แจ้งแอดมิน"]:::block
+  RJ -- "เลขที่ใบซ้ำ" --> X5["ปฏิเสธ"]:::block
+  RJ -- "ไฟล์ไม่ใช่ PDF / ยังไม่อัปโหลดจริง" --> X6["ปฏิเสธ"]:::block
+  RJ -- "ไม่เลือกขึ้นตัวอย่าง" --> X7["ปฏิเสธ"]:::block
+  RJ -- ผ่าน --> JOB["สร้างงาน + ไทม์ไลน์ รับงานเข้าโรงงาน<br/>ใบร่างเลขเดียวกัน = ส่งงานเข้าแล้ว"]:::sys
+  JOB --> REL{"ขึ้นตัวอย่าง?"}
+  REL -- ขึ้น --> SMP["ขึ้นตัวอย่าง รอบ 1"]:::prod
+  REL -- ไม่ขึ้น --> FIRST["สถานีแรกของการผลิตจริง"]:::prod
+  JOB -. ภายหลัง .-> ATT["รายละเอียดงาน → แนบ PDF ใบยืนยัน<br/>attach_confirmation_pdf"]:::admin
+  classDef admin fill:#f7efdc,stroke:#b8892b,color:#5a3d06
+  classDef prod fill:#e1ecf7,stroke:#1d5f9e,color:#0e3357
+  classDef sys fill:#e2efec,stroke:#0f4a42,color:#0f4a42
+  classDef block fill:#f8e4e1,stroke:#b4372d,color:#6b1a13
+  </pre></div>
+</section>
+
+<section id="sample">
+  <div class="head"><span class="num">4</span><h2>ขึ้นตัวอย่าง</h2></div>
+  <p>ตัวอย่างเดินสถานีเดียวกับงานจริง (ไม่ต้องตรวจ QC ครบจำนวน) · ผลิตจริงเริ่มไม่ได้จนกว่าตัวอย่างจะผ่าน</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart LR
+  A["ขึ้นตัวอย่าง รอบ N<br/>เดินทุกสถานีของเส้นทาง"]:::prod --> B["รอผลตัวอย่าง<br/>ส่งให้ลูกค้าดู"]:::sys
+  B --> C{"แอดมินบันทึกผล"}:::admin
+  C -- "ไม่ผ่าน + เหตุผล" --> D["รอบ N+1 · แจ้งเตือน ตัวอย่างไม่ผ่าน"]:::block
+  D --> A
+  C -- "ผ่าน + วันที่ลูกค้ายืนยัน" --> E["ผลิตจริง สถานีแรก<br/>ใบปะงานขึ้น ผ่านตัวอย่างแล้ว (รอบ N)"]:::sys
+  classDef admin fill:#f7efdc,stroke:#b8892b,color:#5a3d06
+  classDef prod fill:#e1ecf7,stroke:#1d5f9e,color:#0e3357
+  classDef sys fill:#e2efec,stroke:#0f4a42,color:#0f4a42
+  classDef block fill:#f8e4e1,stroke:#b4372d,color:#6b1a13
+  </pre></div>
+</section>
+
+<section id="routes">
+  <div class="head"><span class="num">5</span><h2>เส้นทางผลิต 8 แบบ</h2></div>
+  <p>ระบบเลือกเส้นทางจากเทคนิคพิมพ์ในใบยืนยัน · ข้ามสถานีไม่ได้ · สถานีถัดไปเริ่มได้เมื่อสถานีก่อนเสร็จทั้งก้อน</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart LR
+  N0["ปกติ ซับลิเมชั่น / ดิจิทัล"] --> N1[พิมพ์] --> N2[รีด] --> N3[ตัด] --> N4[เย็บ] --> N5["QC + Packing"]
+  D0["DTF"] --> D1[ตัด] --> D2["รีดฟิล์ม 🔒ฟิล์ม"] --> D3[เย็บ] --> D4["QC + Packing"]
+  G0["DTG"] --> G1[ตัด] --> G2["รีดฟิล์ม 🔒งาน DTG"] --> G3[เย็บ] --> G4["QC + Packing"]
+  S0["ซิลค์สกรีน"] --> S1[ตัด] --> S2["รีดฟิล์ม 🔒ของสกรีน"] --> S3[เย็บ] --> S4["QC + Packing"]
+  E0["ปัก"] --> E1[ตัด] --> E2["ส่งปัก ร้านนอก"] --> E3[เย็บ] --> E4["QC + Packing"]
+  P0["พิมพ์ + ปัก"] --> P1[พิมพ์] --> P2[รีด] --> P3[ตัด] --> P4["ส่งปัก ร้านนอก"] --> P5[เย็บ] --> P6["QC + Packing"]
+  C0["ตัดงานลูกค้า"] --> C1[ตัด] --> C2["QC + Packing"]
+  L0["ไม่มีงานพิมพ์"] --> L1[ตัด] --> L2[เย็บ] --> L3["QC + Packing"]
+  </pre></div>
+  <ul class="notes">
+    <li>🔒 = เริ่มสถานีรีดฟิล์มไม่ได้จนแอดมินบันทึก "ได้รับ" (หัวข้อ 7)</li>
+    <li>ปุ่มสถานีบนหน้างานแบ่ง 3 กลุ่ม: ก่อนผลิต (ขึ้นตัวอย่าง · รอผลตัวอย่าง) · เฟส 1 (พิมพ์ · รีด · ตัด · รีดฟิล์ม · ส่งปัก) · เฟส 2 (เย็บ · QC + Packing · เสร็จ) · เครื่องจำสถานีที่เลือกไว้</li>
+  </ul>
+</section>
+
+<section id="station">
+  <div class="head"><span class="num">6</span><h2>สถานะของงานในแต่ละสถานี</h2></div>
+  <p>ทุกสถานีกดแค่ เริ่ม → เสร็จ (ไม่มีเช็คลิสต์ขั้นย่อยแล้ว) · 2 คนกดพร้อมกัน ระบบรับครั้งแรก อีกคนได้ข้อความ "สถานะเปลี่ยนแล้ว กรุณาโหลดใหม่"</p>
+  <div class="diagram"><pre class="mermaid">
+stateDiagram-v2
+  [*] --> รอเริ่ม: งานมาถึงสถานี
+  รอเริ่ม --> กำลังทำ: เริ่ม (ฝ่ายผลิต)
+  กำลังทำ --> พักงาน: พักงาน / ติดปัญหา + สาเหตุ
+  พักงาน --> กำลังทำ: แก้แล้ว ทำต่อ
+  กำลังทำ --> ตรวจก่อนเสร็จ: กด เสร็จ
+  state ตรวจก่อนเสร็จ <<choice>>
+  ตรวจก่อนเสร็จ --> กำลังทำ: ถูกปฏิเสธ · QC ยังผ่านไม่ครบ / เกินเวลามาตรฐานยังไม่รายงาน
+  ตรวจก่อนเสร็จ --> สถานีถัดไป: ผ่าน
+  สถานีถัดไป --> [*]
+  note right of พักงาน
+    เวลาพักไม่นับในเวลามาตรฐาน
+    และไม่นับใน เวลาที่ใช้ต่อสถานี
+  end note
+  </pre></div>
+  <ul class="notes">
+    <li>กดผิด: ปุ่ม "แจ้งว่ากดผิด" ในไทม์ไลน์ บันทึกพร้อมเหตุผล แต่ไม่ย้อนสถานะงาน (ต้องย้อนจริงให้เจ้าของระบบแจ้ง Claude)</li>
+    <li>QC กดได้เฉพาะสถานี QC + Packing · แอดมิน / ผู้บริหาร กดสถานีไม่ได้</li>
+  </ul>
+</section>
+
+<section id="film">
+  <div class="head"><span class="num">7</span><h2>ฟิล์ม DTF / งาน DTG / ของสกรีน</h2></div>
+  <p>สั่งและบันทึกได้รับได้ทุกช่วงของงาน (ไม่ต้องรอถึงสถานี)</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart LR
+  A["แอดมินบันทึกสั่ง + วันคาดว่าได้รับ"]:::admin --> B{"ถึงวันคาดว่าได้รับแล้วยังไม่ได้?"}
+  B -- ใช่ --> C["แจ้งเตือน ฟิล์มเลยกำหนด"]:::block
+  A --> D["แอดมินบันทึก ได้รับแล้ว"]:::admin
+  D --> E["ปลดล็อกสถานีรีดฟิล์ม"]:::sys
+  F["ฝ่ายผลิตกด เริ่ม ที่รีดฟิล์ม"]:::prod --> G{"ได้รับแล้ว?"}
+  G -- ยัง --> H["ปฏิเสธ · ยังไม่ได้รับฟิล์ม เริ่มรีดฟิล์มไม่ได้"]:::block
+  G -- แล้ว --> I["กำลังรีดฟิล์ม"]:::prod
+  classDef admin fill:#f7efdc,stroke:#b8892b,color:#5a3d06
+  classDef prod fill:#e1ecf7,stroke:#1d5f9e,color:#0e3357
+  classDef sys fill:#e2efec,stroke:#0f4a42,color:#0f4a42
+  classDef block fill:#f8e4e1,stroke:#b4372d,color:#6b1a13
+  </pre></div>
+</section>
+
+<section id="sew">
+  <div class="head"><span class="num">8</span><h2>เย็บแบบไลน์ + จักรเย็บ</h2></div>
+  <p>1 งาน = 1 ไลน์ (ช่างราว 3 คน) · จักรประจำไลน์ถูกจ่ายให้งานจนเย็บเสร็จ · จักรใช้ร่วมทุกไลน์สลับใช้ได้ไม่ผูกกับงาน · หัวหน้าหน้างานคุมจำนวนไลน์เอง</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart TD
+  A["งานถึงสถานีเย็บ = รอเย็บ"]:::prod --> B["กด เริ่มเย็บ"]:::prod
+  B --> C{"จักรประจำไลน์ (เช่น เข็มเดี่ยว)<br/>ว่างครบตามสูตรสินค้า?"}
+  C -- ไม่ครบ --> X1["ปฏิเสธ · บอกตัวที่ติด<br/>เช่น SN-001 ใช้กับ SC… / เสีย / จองให้งานอื่น"]:::block
+  C -- ครบ --> D{"จักรใช้ร่วม (จักรลา · โพ้ง 4 เส้น ·<br/>ติดกระดุม · เจาะรังดุม) ใช้ได้พอจำนวน?"}
+  D -- ไม่พอ --> X2["ปฏิเสธ · เช่น โพ้ง 4 เส้น ใช้ได้ 1 ตัว ต้องใช้ 2 ตัว"]:::block
+  D -- พอ --> E["จ่ายจักรประจำไลน์ให้งาน (บันทึกรหัส)<br/>สถานะ กำลังเย็บ"]:::sys
+  E --> F["รายงานปัญหาระหว่างเย็บ<br/>เลือกพักงานได้"]:::prod
+  F -- พัก --> G["พักงาน · จักรยังอยู่กับงาน"]:::prod
+  G --> H["เย็บต่อ · ระบบจ่ายเฉพาะจักรที่ขาด"]:::prod
+  H --> E
+  E --> M["จักรประจำไลน์เสียระหว่างเย็บ"]:::block
+  M --> G
+  E --> I["เย็บเสร็จ (ยืนยันครั้งเดียว)"]:::prod
+  I --> J["คืนจักร + ช่วงจองที่เหลืออัตโนมัติ<br/>ส่งต่อ QC + Packing"]:::sys
+  K["จองจักรล่วงหน้า วัน-เวลา<br/>(ฝ่ายผลิตเท่านั้น · จองเฉพาะจักรประจำไลน์)"]:::prod -. งานอื่นใช้จักรช่วงนั้นไม่ได้ .-> C
+  classDef prod fill:#e1ecf7,stroke:#1d5f9e,color:#0e3357
+  classDef sys fill:#e2efec,stroke:#0f4a42,color:#0f4a42
+  classDef block fill:#f8e4e1,stroke:#b4372d,color:#6b1a13
+  </pre></div>
+  <ul class="notes">
+    <li>จักรจริงตอนนี้: เข็มเดี่ยว 14 · โพ้ง 4 เส้น 4 · จักรลา 1 · ติดกระดุม 1 · เจาะรังดุม 1 · เจ้าของตั้ง "ใช้ร่วม / ประจำไลน์" ได้ที่ ตั้งค่า → จักรเย็บ → ชนิดจักร</li>
+    <li>เปลี่ยนชนิดจักรเป็นใช้ร่วม: ระบบปล่อยจักรชนิดนั้นที่ผูกกับงาน และยกเลิกการจองที่ยังไม่เริ่มให้เอง</li>
+    <li>สูตรจักรต่อสินค้าแก้ได้ที่ ตั้งค่า → จักรเย็บ → จำนวนจักรตามสินค้า</li>
+  </ul>
+</section>
+
+<section id="qc">
+  <div class="head"><span class="num">9</span><h2>QC + Packing และงานแก้</h2></div>
+  <div class="diagram"><pre class="mermaid">
+flowchart TD
+  A["งานถึง QC + Packing"]:::qc --> B["เริ่ม (QC หรือฝ่ายผลิต)"]:::qc
+  B --> C["บันทึกจำนวนที่ตรวจผ่าน"]:::qc
+  C --> D{"ผ่านครบจำนวนสั่ง?"}
+  D -- ไม่ครบ กด เสร็จ --> X["ปฏิเสธ · QC ตรวจผ่าน 140/150 ชิ้น ยังไม่ครบ"]:::block
+  D -- มีชิ้นไม่ผ่าน --> R["ส่งแก้: จำนวน + สาเหตุ + สถานีต้นเหตุ"]:::qc
+  R --> S["งานกลับสถานีต้นเหตุ ป้ายแดง งานแก้ N<br/>แจ้งเตือน งานแก้"]:::block
+  S --> T["แก้เสร็จ → กลับ QC ทันที<br/>(ไม่ต้องเดินสถานีระหว่างทาง)"]:::sys
+  T --> C
+  D -- ครบ --> E["เสร็จ / พร้อมส่ง"]:::sys
+  classDef qc fill:#e0f2e8,stroke:#1f7a4d,color:#0d3d24
+  classDef sys fill:#e2efec,stroke:#0f4a42,color:#0f4a42
+  classDef block fill:#f8e4e1,stroke:#b4372d,color:#6b1a13
+  </pre></div>
+</section>
+
+<section id="sla">
+  <div class="head"><span class="num">10</span><h2>เวลามาตรฐาน + รายงานปัญหา</h2></div>
+  <p>นับเป็นวันทำงาน (จันทร์–เสาร์) · ไม่นับช่วงพักงาน · มีทั้งเวลาต่อสถานี และเวลารวมของช่วง (เช่น พิมพ์ → ตัด 3 วัน · 700 ชิ้นขึ้นไป 5 วัน)</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart LR
+  A["เริ่มสถานี"]:::prod --> B{"ใช้เวลาไปเท่าไร"}
+  B -- "ไม่ถึง 80%" --> C["ปกติ"]:::sys
+  B -- "80% ขึ้นไป" --> D["การ์ดส้ม ใกล้ครบ"]:::warn
+  B -- "เกินเวลามาตรฐาน" --> E["การ์ดแดง + แจ้งเตือน เกินเวลา"]:::block
+  E --> F{"กด เสร็จ"}
+  F -- "ยังไม่ส่งรายงาน" --> X["ปฏิเสธ · ต้องส่งรายงานปัญหาก่อน"]:::block
+  F -- "ส่งรายงานแล้ว<br/>รหัสสาเหตุ + อธิบาย + วันเสร็จใหม่" --> G["เสร็จได้ · แจ้งเตือน รายงานล่าช้า"]:::sys
+  classDef prod fill:#e1ecf7,stroke:#1d5f9e,color:#0e3357
+  classDef sys fill:#e2efec,stroke:#0f4a42,color:#0f4a42
+  classDef warn fill:#fbeedb,stroke:#a8620a,color:#5c3504
+  classDef block fill:#f8e4e1,stroke:#b4372d,color:#6b1a13
+  </pre></div>
+</section>
+
+<section id="inbox">
+  <div class="head"><span class="num">11</span><h2>กล่องจดหมายแจ้งเตือน</h2></div>
+  <p>ขึ้นภายใน ~2 วินาทีเมื่อมีการกด · เรื่องที่ต้องตรวจตามเวลา ระบบตรวจทุก 5 นาที · ไม่ซ้ำเรื่องเดิม · อ่านแล้วแยกรายคน · เจ้าของปิดเปิดแต่ละเรื่องได้ที่ ตั้งค่า → การแจ้งเตือน</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart LR
+  subgraph Now["เกิดทันทีเมื่อกด"]
+    H["พักงาน"] ; DR["รายงานล่าช้า"] ; RW["งานแก้"] ; SI["ปัญหาระหว่างเย็บ"] ; MB["จักรเสีย"] ; SF["ตัวอย่างไม่ผ่าน"]
+  end
+  subgraph Scan["ระบบตรวจทุก 5 นาที"]
+    SO["เกินเวลามาตรฐาน"] ; FL["ฟิล์มเลยกำหนด"] ; DS["ใกล้กำหนดส่ง วันนี้/พรุ่งนี้"]
+  end
+  Now --> BOX["กระดิ่ง + กล่องจดหมาย<br/>ส่งถึงบทบาทที่เกี่ยวข้อง"]
+  Scan --> BOX
+  BOX --> OPEN["กดข้อความ → เปิดรายละเอียดงาน"]
+  </pre></div>
+</section>
+
+<section id="forecast">
+  <div class="head"><span class="num">12</span><h2>คาดวันเสร็จและคอขวด</h2></div>
+  <p>ใช้ในหน้าภาพรวม หน้ารับงานใหม่ และตามหางาน · เป็นการประมาณ ไม่ใช่กฎ</p>
+  <div class="diagram"><pre class="mermaid">
+flowchart TD
+  A["งานทุกงานที่ยังไม่เสร็จ + งานใหม่ที่กำลังจะรับ"] --> B["แต่ละสถานีทำได้ทีละงาน<br/>ตามกำลังผลิตต่อวัน"]
+  A --> C["เย็บ: 1 งาน = 1 ไลน์ · ไลน์ละ ~71 ตัว/วัน (เสื้อยืด 20.17 นาที/ตัว/คน)<br/>สูงสุด 5 ไลน์ (ช่าง 15 คน) · เปิดไลน์ได้เมื่อจักรประจำไลน์ว่างครบ"]
+  A --> D["รีดฟิล์มรอถึงวันคาดว่าได้รับฟิล์ม · งานพักอยู่เผื่อเวลาเพิ่ม"]
+  A --> E["งานใหม่: ไม่ขึ้นตัวอย่าง = เข้าสถานีแรกทันที · ขึ้น = เผื่อตัวอย่าง + ลูกค้ายืนยัน"]
+  B --> F["วันคาดว่าเสร็จของทุกงาน<br/>(นับวันทำงาน จันทร์–เสาร์)"]
+  C --> F
+  D --> F
+  E --> F
+  F --> G["ภาพรวม: คอขวด · งานเสี่ยงไม่ทัน · รับงานใหม่ได้ไหม"]
+  F --> H["หน้ารับงาน: คาดว่าเสร็จ … · แดงถ้าไม่ทันกำหนดส่ง"]
+  </pre></div>
+  <ul class="notes">
+    <li>เวลาเย็บต่อชิ้นที่มีข้อมูลจริง: เสื้อยืด 20.17 นาที · ป้ายผ้า 60x60 20 นาที · สินค้าอื่นใช้ค่าเสื้อยืดไปก่อน (หน้าจอบอกว่ายังไม่มีเวลาจริง)</li>
+    <li>กำลังผลิตสถานีอื่น (พิมพ์ 600 · รีด 600 · ตัด 800 · รีดฟิล์ม 400 · QC 800 ชิ้น/วัน) ยังเป็นค่าร่าง</li>
+  </ul>
+</section>
+
+<section id="roles">
+  <div class="head"><span class="num">13</span><h2>ใครทำอะไรได้</h2></div>
+  <p>ระบบบังคับที่ฐานข้อมูลทุกช่อง · ทุกคนที่ล็อกอินอ่านงานได้ (ใบยืนยันร่างอ่านได้เฉพาะแอดมิน ผู้บริหาร เจ้าของระบบ)</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>การกระทำ</th><th>แอดมิน</th><th>ฝ่ายผลิต</th><th>QC</th><th>ผู้บริหาร</th><th>เจ้าของระบบ</th></tr></thead>
+    <tbody>
+      <tr><td>บันทึกใบยืนยัน · ส่งงานเข้า · แนบ PDF</td><td class="y">ได้</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="y">ได้</td></tr>
+      <tr><td>สั่ง / รับฟิล์ม · บันทึกผลตัวอย่าง</td><td class="y">ได้</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="y">ได้</td></tr>
+      <tr><td>เริ่ม / เสร็จ / พักงาน สถานีพิมพ์ถึงเย็บ</td><td class="n">—</td><td class="y">ได้</td><td class="n">—</td><td class="n">—</td><td class="y">ได้</td></tr>
+      <tr><td>QC + Packing · ส่งแก้</td><td class="n">—</td><td class="y">ได้</td><td class="y">ได้</td><td class="n">—</td><td class="y">ได้</td></tr>
+      <tr><td>เริ่มเย็บ · จองจักร · แจ้งจักรเสีย</td><td class="n">—</td><td class="y">ได้</td><td class="n">—</td><td class="n">—</td><td class="y">ได้</td></tr>
+      <tr><td>พักงาน · รายงานปัญหา / เกินเวลา</td><td class="y">ได้</td><td class="y">ได้</td><td class="y">ได้</td><td class="n">—</td><td class="y">ได้</td></tr>
+      <tr><td>แจ้งว่ากดผิด (บันทึกในไทม์ไลน์)</td><td class="n">—</td><td class="y">ได้</td><td class="n">—</td><td class="n">—</td><td class="y">ได้</td></tr>
+      <tr><td>หน้ารายงาน</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="y">ได้</td><td class="y">ได้</td></tr>
+      <tr><td>หน้าตั้งค่า 7 แท็บ (ผู้ใช้ · สถานี · เวลามาตรฐาน · จักร · รหัสสาเหตุ · แจ้งเตือน)</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="y">ได้</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>สร้างจากโค้ดและฐานข้อมูลจริงของระบบ ณ 17 พ.ย. 2569 · ขั้นย่อยและแม่แบบวัตถุดิบยังอยู่ในหน้าตั้งค่าแต่ระบบไม่ใช้แล้ว</footer>
+</div>
