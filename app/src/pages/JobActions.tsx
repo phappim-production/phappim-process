@@ -285,7 +285,10 @@ function Station({ job: j, detail: d, canPress, role, busy, now, act }: {
   const s = d.sla
   const needReport = (s.station_over && !s.station_reported) || (s.segment_over && !s.segment_reported)
   const name = STATION_NAME[st]
-  const finishBlock = missing.length ? `ยังไม่ได้ทำ: ${missing.map(m => m.name).join(' · ')}` : needReport ? 'เกินเวลามาตรฐาน ต้องส่งรายงานปัญหาก่อน' : null
+  // ข้อความเดียวกับฐานข้อมูล (finish_station) · บอกสิ่งที่ต้องทำจริง ไม่ใช่ชื่อขั้นย่อย
+  const missingText = (m: Substep) => m.kind === 'lock' ? `รอแอดมินบันทึก "${m.name}"`
+    : m.key === 'inspect' ? `QC ตรวจผ่าน ${d.qcPassed}/${j.qty} ชิ้น ยังไม่ครบ (ชิ้นไม่ผ่านให้กด "ส่งแก้")` : m.name
+  const finishBlock = missing.length ? `ยังกดเสร็จไม่ได้: ${missing.map(missingText).join(' · ')}` : needReport ? 'เกินเวลามาตรฐาน ต้องส่งรายงานปัญหาก่อน' : null
   const sample = j.phase === 'sample'
 
   return (
