@@ -1,0 +1,144 @@
+
+.job-label-print {
+  display: none;
+}
+
+.job-label-sheet {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: clamp(.75rem, 3vw, 1.5rem);
+  overflow-wrap: anywhere;
+}
+
+.job-label-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .5rem;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.job-label-heading p,
+.job-label-details dt {
+  color: var(--color-muted);
+}
+
+.job-label-heading h1 {
+  font-size: clamp(1.375rem, 4vw, 2.25rem);
+  font-weight: 700;
+}
+
+.job-label-qr {
+  width: clamp(5.5rem, 26vw, 9rem);
+  height: auto;
+  color: black;
+  background: white;
+}
+
+.job-label-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .625rem .75rem;
+}
+
+.job-label-details dt {
+  font-size: .875rem;
+}
+
+.job-label-details dd {
+  font-weight: 600;
+}
+
+.job-label-stations {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: .875rem;
+}
+
+.job-label-stations th,
+.job-label-stations td {
+  border: 1px solid var(--color-line);
+  padding: .375rem;
+  height: 2.5rem;
+  text-align: left;
+}
+
+.job-label-stations th:first-child {
+  width: 37%;
+}
+
+.job-label-stations thead {
+  background: var(--color-paper);
+}
+
+@page jobLabel {
+  size: A5 portrait;
+  margin: 8mm;
+}
+
+@media print {
+  body:has(> .job-label-print) {
+    margin: 0;
+    background: white;
+    color: black;
+  }
+
+  body:has(> .job-label-print) > :not(.job-label-print) {
+    display: none !important;
+  }
+
+  .job-label-print {
+    display: block;
+    page: jobLabel;
+  }
+
+  .job-label-print .job-label-sheet {
+    padding: 0;
+    gap: 3mm;
+    font-size: 10pt;
+    line-height: 1.25;
+  }
+
+  .job-label-print .job-label-heading {
+    border-color: currentColor;
+  }
+
+  .job-label-print .job-label-heading h1 {
+    font-size: 22pt;
+  }
+
+  .job-label-print .job-label-heading p,
+  .job-label-print .job-label-details dt {
+    color: inherit;
+    font-size: 9pt;
+  }
+
+  .job-label-print .job-label-qr {
+    width: 42mm;
+  }
+
+  .job-label-print .job-label-details {
+    gap: 2mm 4mm;
+  }
+
+  .job-label-print .job-label-stations {
+    font-size: 10pt;
+  }
+
+  .job-label-print .job-label-stations thead {
+    background: white;
+  }
+
+  .job-label-print .job-label-stations tr {
+    break-inside: avoid;
+  }
+
+  .job-label-print .job-label-stations th,
+  .job-label-print .job-label-stations td {
+    border-color: currentColor;
+    padding: 1.5mm;
+    height: 12mm;
+  }
+}
