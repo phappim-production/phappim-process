@@ -147,5 +147,9 @@ await teamTests({ db, ok, as })
 const { sewingTests } = await import('./sewing.mjs')
 await sewingTests({ db, ok, as })
 
+// ---- 10. PDF ใบยืนยันใน Storage (A3) ----
+const { storageTests } = await import('./storage.mjs')
+await storageTests({ db, ok, as })
+
 console.log(`\nผ่าน ${pass} · ไม่ผ่าน ${fail}`)
 process.exit(fail ? 1 : 0)

@@ -18,6 +18,10 @@ import type { MachineStatus } from '../proto/sewing'
 import { BookingPanel } from './BookingPanel'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { SewingNow, type SewActions } from './SewingNow'
+import { JobActions } from './JobActions'
+import { ReceiveJob } from './ReceiveJob'
+import type { EmployeeRole } from '../auth/access'
+import { IconInbox } from '../components/icons'
 
 type Filter = 'all' | 'overdue' | 'hold' | 'film' | 'doneToday'
 type View = 'overview' | 'board'
@@ -28,7 +32,7 @@ const STATUS_FILTERS: [Filter, string][] = [
 const filterField = 'min-h-12 w-full min-w-0 rounded-xl border border-line bg-card px-3 focus-visible:outline-2 focus-visible:outline-brand'
 
 // ภาพรวมแอดมิน + บอร์ดสถานี + จักรเย็บ · ข้อมูลจริงจากฐานข้อมูล อัปเดตสดผ่าน Realtime (A5) · DEVELOPMENT.md หัวข้อ 8
-export default function Dashboard({ view, today, scope = FACTORY_SCOPE }: { view: View; today: string; scope?: BoardScope }) {
+export default function Dashboard({ view, today, role, scope = FACTORY_SCOPE }: { view: View; today: string; role: EmployeeRole; scope?: BoardScope }) {
   const { state, live, refresh } = useFactoryData()
   if (state.status === 'loading') {
     return <main className="flex-1 p-5"><p role="status" className="text-muted">กำลังโหลดข้อมูลงาน…</p></main>
@@ -51,14 +55,18 @@ export default function Dashboard({ view, today, scope = FACTORY_SCOPE }: { view
           ขาดการเชื่อมต่อ · ข้อมูลอาจไม่ใช่ล่าสุด (อัปเดตล่าสุด {state.loadedAt.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })} น.) · ระบบจะโหลดใหม่เองเมื่อเน็ตกลับมา
         </p>
       )}
-      <DashboardView view={view} today={today} myScope={scope} data={state.data} loadedAt={state.loadedAt} refresh={refresh} />
+      <DashboardView view={view} today={today} role={role} myScope={scope} data={state.data} loadedAt={state.loadedAt} refresh={refresh} />
     </>
   )
 }
 
-function DashboardView({ view, today, myScope, data, loadedAt, refresh }: {
-  view: View; today: string; myScope: BoardScope; data: FactoryData; loadedAt: Date; refresh: () => Promise<void>
+function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: {
+  view: View; today: string; role: EmployeeRole; myScope: BoardScope; data: FactoryData; loadedAt: Date; refresh: () => Promise<void>
 }) {
+  // รับงานเข้าโรงงาน = ฝ่ายผลิต (คุมหน้างานทั้งหมด) · owner ทำแทนได้ · ฐานข้อมูลตรวจซ้ำ
+  const canReceive = role === 'production' || role === 'supervisor' || role === 'owner'
+  const [receiving, setReceiving] = useState(false)
+  const [received, setReceived] = useState<string | null>(null)
   const now = useNow(30_000)
   const { jobs: allJobs, machines, bookings, needs } = data
   const noOf = (jobId: string) => allJobs.find(j => j.id === jobId)?.no ?? ''
@@ -157,7 +165,26 @@ function DashboardView({ view, today, myScope, data, loadedAt, refresh }: {
   const visibleCount = matchingColumns.reduce((sum, c) => sum + (byColumn.get(c.key)?.length ?? 0), 0)
   const hasFilters = filter !== 'all' || route !== 'all' || wholeFactory
   const openFinish = openJob && openJob.phase !== 'done' ? workdayToDate(forecast.finishDay.get(openJob.id) ?? 0, now) : undefined
-  const drawer = openJob && <JobDrawer job={openJob} now={now} finish={openFinish} onClose={() => setOpenId(null)} />
+  const drawer = openJob && (
+    <JobDrawer job={openJob} now={now} finish={openFinish} onClose={() => setOpenId(null)}
+      actions={<JobActions job={openJob} role={role} version={loadedAt.getTime()} now={now} refresh={refresh} />} />
+  )
+  const receive = receiving && (
+    <ReceiveJob onClose={() => setReceiving(false)} onDone={async no => {
+      setReceiving(false)
+      setReceived(no)
+      await refresh()
+    }} />
+  )
+  const receiveBar = canReceive && (
+    <div className="flex flex-wrap items-center gap-2">
+      <button type="button" onClick={() => { setReceived(null); setReceiving(true) }}
+        className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white hover:bg-brand-700">
+        <IconInbox className="size-5" />รับงานใหม่
+      </button>
+      {received && <p role="status" className="rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">รับงาน {received} แล้ว · รอทุกฝ่ายติ๊กวัตถุดิบ</p>}
+    </div>
+  )
 
   if (view === 'overview') {
     return (
@@ -167,6 +194,7 @@ function DashboardView({ view, today, myScope, data, loadedAt, refresh }: {
           <Overview jobs={jobs} now={now} forecast={forecast} onOpen={setOpenId} />
         </div>
         {drawer}
+        {receive}
       </div>
     )
   }
@@ -176,6 +204,7 @@ function DashboardView({ view, today, myScope, data, loadedAt, refresh }: {
     <div className="min-h-0 flex-1 overflow-y-auto">
      <div className="mx-auto flex max-w-[1400px] flex-col gap-4 p-4 sm:p-6">
       <PageHeader title={myScope.title} today={today} updated={loadedAt} />
+      {receiveBar}
       <RoleSummary scope={myScope} jobs={allJobs} machines={machines} now={now}
         onPick={(t, v) => {
           if (!myScope.tabs.includes(t)) return
@@ -283,6 +312,7 @@ function DashboardView({ view, today, myScope, data, loadedAt, refresh }: {
 
      </div>
       {drawer}
+      {receive}
     </div>
   )
 }
@@ -424,7 +454,7 @@ function CardStatus({ job: j, now }: { job: Job; now: Date }) {
   return <div className="mt-2.5 flex flex-col items-start gap-1.5 border-t border-dashed border-line pt-2.5 text-xs">{rows}</div>
 }
 
-function JobDrawer({ job: j, now, finish, onClose }: { job: Job; now: Date; finish?: Date; onClose: () => void }) {
+function JobDrawer({ job: j, now, finish, onClose, actions }: { job: Job; now: Date; finish?: Date; onClose: () => void; actions?: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -470,6 +500,7 @@ function JobDrawer({ job: j, now, finish, onClose }: { job: Job; now: Date; fini
         </header>
 
         <div className="grid gap-4 p-4 text-sm">
+          {actions}
           <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
               <Info label="สินค้า">{j.product}</Info>

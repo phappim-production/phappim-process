@@ -127,7 +127,7 @@ function Workspace({ page: requested, profile, email }: {
             </main>
           ) : page === 'overview' || page === 'board' ? (
             <Suspense fallback={<main className="p-5"><p role="status">กำลังโหลดหน้าติดตามการผลิต…</p></main>}>
-              <Dashboard view={page} today={today} scope={scope} />
+              <Dashboard view={page} today={today} role={profile.role} scope={scope} />
             </Suspense>
           ) : (
             <main className="flex-1 overflow-y-auto">
