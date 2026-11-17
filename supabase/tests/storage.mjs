@@ -2,7 +2,7 @@
 // PGlite ไม่มี Storage จึงจำลองตาราง storage.buckets / storage.objects แบบย่อ แล้วลบทิ้งหลังทดสอบ
 
 export async function storageTests({ db, ok, as }) {
-  const prod = '00000000-0000-0000-0000-000000000013'
+  const prod = '00000000-0000-0000-0000-000000000011' // แอดมินเป็นคนส่งงานเข้า (migration 20261119170000)
   const receive = (no, path, customer = 'ลูกค้าทดสอบ') => as(prod, () => db.query(`select public.receive_job(
     '${no}', '${customer}', 'งานทดสอบ', 'tshirt', 10, 'ตัว', '2026-12-31', 'normal', '${path}') as id`))
   const tryReceive = async (name, no, path, re, customer) => {

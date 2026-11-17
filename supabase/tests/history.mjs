@@ -12,7 +12,7 @@ export async function historyTests({ db, ok, as }) {
   async function receive(name, sample) {
     const result = await call(`public.receive_job('TEST-C6-${name}', 'ลูกค้าทดสอบ', 'งานทดสอบประวัติ',
       'tshirt', 10, 'ตัว', '2026-12-31', 'cut_only', 'confirmations/TEST-C6-${name}.pdf',
-      p_needs_sample => ${sample}) as id`)
+      p_needs_sample => ${sample}) as id`, 'admin')
     const id = result.rows[0].id
     const { rows } = await db.query('select id, dept from public.job_materials where job_id = $1 order by id', [id])
     for (const material of rows) await call(`public.check_material(${material.id})`, material.dept)

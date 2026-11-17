@@ -31,7 +31,7 @@ export async function workflowTests({ db, ok, as }) {
   const job = async id => (await db.query(`select * from public.job_live where id = '${id}'`)).rows[0]
   const sqlStr = s => `'${String(s).replace(/'/g, "''")}'`
   const receive = (no, route, extra = {}) => `public.receive_job(${sqlStr(no)}, 'ลูกค้าทดสอบ', 'งานทดสอบ', 'tshirt', ${extra.qty ?? 10}, 'ตัว', '2026-12-31', ${sqlStr(route)}, ${extra.pdf === undefined ? `'confirmations/${no}.pdf'` : extra.pdf})`
-  const newJob = async (no, route, extra) => (await q(U.sup, `select ${receive(no, route, extra)} as id`))[0].id
+  const newJob = async (no, route, extra) => (await q(U.admin, `select ${receive(no, route, extra)} as id`))[0].id
   const materials = async (id) => (await db.query(`select id, dept, key from public.job_materials where job_id = '${id}' order by id`)).rows
   const checkAll = async (id) => {
     for (const m of await materials(id)) {
@@ -66,20 +66,21 @@ export async function workflowTests({ db, ok, as }) {
   catch (e) { ok('กฎ 12: คนไม่ล็อกอินเรียกรับงานไม่ได้', /permission denied/.test(e.message), e.message.split('\n')[0]) }
   finally { await db.exec('reset role') }
   await reject('กฎ 12: ผู้ใช้ไม่มีบทบาทรับงานไม่ได้', U.nobody, receive('SC-NOROLE', 'normal'), /เข้าสู่ระบบ/)
-  await reject('กฎ 12: แอดมินรับงานไม่ได้', U.admin, receive('SC-PROD', 'normal'), /ทำขั้นนี้ไม่ได้/)
+  await reject('กฎ 12: ผู้ควบคุมงานรับงานไม่ได้ (แอดมินเป็นคนส่งงานเข้า)', U.sup, receive('SC-PROD', 'normal'), /แอดมินเป็นคนส่งงานเข้าโรงงาน/)
+  await reject('กฎ 12: QC รับงานไม่ได้', U.qc, receive('SC-QCR', 'normal'), /ทำขั้นนี้ไม่ได้/)
   await reject('กฎ 12: ผู้บริหาร (อ่านอย่างเดียว) รับงานไม่ได้', U.mgr, receive('SC-MGR', 'normal'), /ทำขั้นนี้ไม่ได้/)
   await reject('กฎ 12: เรียกฟังก์ชันช่วยใน private ตรงไม่ได้', U.sup, `private.require_role('owner')`, /permission denied/)
   try { await q(U.sup, `insert into public.events (job_id, type) select id, 'x' from public.jobs limit 1`); ok('กฎ 12: ผู้ควบคุมงานเขียน events ตรงไม่ได้', false) }
   catch (e) { ok('กฎ 12: ผู้ควบคุมงานเขียน events ตรงไม่ได้', /row-level security/.test(e.message), e.message.split('\n')[0]) }
 
   // ---------- กฎข้อ 1: รับงาน ----------
-  await reject('กฎ 1: รับงานโดยไม่แนบ PDF ไม่ได้', U.sup, receive('SC-NOPDF2', 'normal', { pdf: "''" }), /ต้องแนบ PDF/)
-  await reject('กฎ 1: ไฟล์ที่ไม่ใช่ PDF ไม่ได้', U.sup, receive('SC-JPG', 'normal', { pdf: "'x.jpg'" }), /ต้องแนบ PDF/)
-  await reject('รับงาน: จำนวน 0 ไม่ได้', U.sup, receive('SC-Q0B', 'normal', { qty: 0 }), /มากกว่า 0/)
+  await reject('กฎ 1: รับงานโดยไม่แนบ PDF ไม่ได้', U.admin, receive('SC-NOPDF2', 'normal', { pdf: "''" }), /ต้องแนบ PDF/)
+  await reject('กฎ 1: ไฟล์ที่ไม่ใช่ PDF ไม่ได้', U.admin, receive('SC-JPG', 'normal', { pdf: "'x.jpg'" }), /ต้องแนบ PDF/)
+  await reject('รับงาน: จำนวน 0 ไม่ได้', U.admin, receive('SC-Q0B', 'normal', { qty: 0 }), /มากกว่า 0/)
   const A = await newJob('SC-A', 'normal')
   ok('รับงานสำเร็จ → อยู่ขั้นรอวัตถุดิบ', (await job(A)).phase === 'materials')
   ok('สร้างรายการวัตถุดิบจากแม่แบบ (ปกติ 5 รายการ ไม่มีฟิล์ม)', (await materials(A)).length === 5)
-  await reject('รับงาน: เลขที่ใบซ้ำไม่ได้', U.sup, receive('SC-A', 'normal'), /รับเข้าระบบไปแล้ว/)
+  await reject('รับงาน: เลขที่ใบซ้ำไม่ได้', U.admin, receive('SC-A', 'normal'), /รับเข้าระบบไปแล้ว/)
 
   // ---------- กฎข้อ 2: วัตถุดิบ ----------
   await reject('กฎ 2: วัตถุดิบยังไม่ครบ เริ่มสถานีไม่ได้', U.sup, `public.start_station('${A}')`, /สถานะงานเปลี่ยนไปแล้ว/)
