@@ -1,6 +1,8 @@
 // ทดสอบ workflow (A1) · เดินงานจริง 3 เส้นทาง และพยายามข้ามกฎทั้ง 12 ข้อ (docs/แผน-1-สัปดาห์.md หัวข้อ 3)
 // เรียกจาก run.mjs หลังโหลด migrations แล้ว
 
+import { requiredSteps } from './steps.mjs'
+
 export async function workflowTests({ db, ok, as }) {
   const U = {
     owner: '00000000-0000-0000-0000-000000000001', sup: '00000000-0000-0000-0000-000000000002',
@@ -44,11 +46,12 @@ export async function workflowTests({ db, ok, as }) {
     for (const [k, v] of steps) await call(uid, `public.complete_substep('${id}', ${sqlStr(k)}${v === undefined ? '' : `, '${JSON.stringify(v)}'::jsonb`})`)
     await call(uid, `public.finish_station('${id}')`)
   }
-  // ขั้นบังคับตอนขึ้นตัวอย่าง (เฉพาะ req · QC ไม่บังคับ)
-  const SAMPLE = { print: [['check_print']], press: [['check_color']], cut: [], dtf_press: [['check_adhesion']],
-                   sew: [['issue_to_sew'], ['finishing']], qc_pack: [] }
+  // ขั้นบังคับอ่านจากขั้นย่อยจริงในตาราง (ตัวอย่าง = เฉพาะ req · QC ไม่บังคับ · ผลิตจริง = req + num + appr)
+  const SAMPLE = s => requiredSteps(db, s, 'sample')
+  const PROD = (s, opts) => requiredSteps(db, s, 'production', opts)
+  const tick = async (id, steps, uid = U.sup) => { for (const [k, v] of steps) await call(uid, `public.complete_substep('${id}', ${sqlStr(k)}${v === undefined ? '' : `, '${JSON.stringify(v)}'::jsonb`})`) }
   const route = async code => (await db.query(`select station_code from public.route_stations where route_code = '${code}' order by seq`)).rows.map(r => r.station_code)
-  const walkSample = async (id, code) => { for (const s of await route(code)) await station(id, SAMPLE[s]) }
+  const walkSample = async (id, code) => { for (const s of await route(code)) await station(id, await SAMPLE(s)) }
 
   // ---------- เวลาทำงาน (ไม่นับวันอาทิตย์) ----------
   const wd = async (a, b) => Number((await db.query(`select private.work_days('${a}'::timestamptz, '${b}'::timestamptz) d`)).rows[0].d)
@@ -97,6 +100,7 @@ export async function workflowTests({ db, ok, as }) {
   await reject('ฝ่าย QC เริ่มสถานีพิมพ์ไม่ได้', U.qc, `public.start_station('${A}')`, /เฉพาะสถานี QC/)
   await pass('เริ่มสถานีพิมพ์', U.sup, `public.start_station('${A}')`)
   await reject('กฎ 11: กดเริ่มซ้ำ (อีกคนกดไปแล้ว) → แจ้งให้โหลดใหม่', U.sup, `public.start_station('${A}')`, /สถานะงานเปลี่ยนไปแล้ว/)
+  await tick(A, await requiredSteps(db, 'print', 'sample', { except: ['check_print'] }))
   await reject('กฎ 5: ยังไม่ติ๊ก "ตรวจงานพิมพ์" กดเสร็จไม่ได้', U.sup, `public.finish_station('${A}')`, /ตรวจงานพิมพ์/)
   await reject('ขั้นย่อยที่ไม่มีในสถานีนี้ติ๊กไม่ได้', U.sup, `public.complete_substep('${A}', 'check_color')`, /ไม่พบขั้นย่อย/)
   await call(U.sup, `public.complete_substep('${A}', 'check_print')`)
@@ -104,12 +108,12 @@ export async function workflowTests({ db, ok, as }) {
   a = await job(A)
   ok('กฎ 4: เสร็จแล้วไปสถานีถัดไป (รีด) อัตโนมัติ', a.current_station === 'press' && a.station_status === 'queued')
   await reject('กฎ 11: กดเสร็จซ้ำ → แจ้งให้โหลดใหม่', U.sup, `public.finish_station('${A}')`, /สถานะงานเปลี่ยนไปแล้ว/)
-  await station(A, SAMPLE.press)
-  await station(A, SAMPLE.cut)
+  await station(A, await SAMPLE('press'))
+  await station(A, await SAMPLE('cut'))
   await call(U.sup, `public.start_station('${A}')`)
   await reject('ขึ้นตัวอย่างไม่มีด่านตัวแรก', U.sup, `public.complete_substep('${A}', 'first_piece')`, /ไม่มีด่านตัวแรก/)
   await pass('เย็บตัวอย่างกดเสร็จครั้งเดียวไป QC', U.sup, `public.finish_sewing('${A}')`)
-  await station(A, SAMPLE.qc_pack, U.qc)
+  await station(A, await SAMPLE('qc_pack'), U.qc)
   a = await job(A)
   ok('ตัวอย่างเดินครบทุกสถานี → รอผลตัวอย่าง', a.phase === 'sample_review' && a.current_station === null)
 
@@ -127,12 +131,12 @@ export async function workflowTests({ db, ok, as }) {
   ok('ประวัติผลตัวอย่างครบ 2 รอบ', (await db.query(`select count(*)::int n from public.sample_results where job_id = '${A}'`)).rows[0].n === 2)
 
   // ---------- ผลิตจริง + กฎข้อ 10 (ช่วงพิมพ์+รีด+ตัด) ----------
-  await station(A, [['check_print']])
-  await station(A, [['check_color']])
+  await station(A, await PROD('print'))
+  await station(A, await PROD('press'))
   await call(U.sup, `public.start_station('${A}')`)
-  await reject('กฎ 5: ตัดงานผลิตจริงต้องกรอกจำนวนชิ้น', U.sup, `public.finish_station('${A}')`, /คัดแยกชิ้นและนับ/)
+  await reject('กฎ 5: ตัดงานผลิตจริงต้องกรอกจำนวนชิ้น', U.sup, `public.finish_station('${A}')`, /นับชิ้น/)
   await reject('ขั้น [กรอกค่า] ต้องเป็นตัวเลข', U.sup, `public.complete_substep('${A}', 'sort_count', '"สิบ"'::jsonb)`, /ต้องกรอกตัวเลข/)
-  await call(U.sup, `public.complete_substep('${A}', 'sort_count', '10'::jsonb)`)
+  await tick(A, await PROD('cut'))
   ok('จำนวนชิ้นตัดบันทึกลงงาน', (await job(A)).cut_count === 10)
   // จำลองว่าเริ่มพิมพ์มา 5 วันแล้ว (ช่วงพิมพ์+รีด+ตัดเกิน 3 วัน) แต่สถานีตัดยังไม่เกิน
   await db.exec(`insert into public.events (job_id, type, phase, station_code, at) values ('${A}', 'station_start', 'production', 'print', now() - interval '5 days')`)
@@ -173,7 +177,7 @@ export async function workflowTests({ db, ok, as }) {
   await call(U.qc, `public.start_station('${A}')`)
   await reject('กฎ 5: QC ผ่านยังไม่ครบจำนวน กดเสร็จไม่ได้', U.qc, `public.finish_station('${A}')`, /ตรวจ/)
   await call(U.qc, `public.record_qc('${A}', 3)`)
-  await call(U.qc, `public.complete_substep('${A}', 'count', '10'::jsonb)`)
+  await tick(A, await PROD('qc_pack', { except: ['boxed'] }), U.qc)
   await reject('กฎ 5: ยังไม่ติ๊ก "ลงลัง"', U.qc, `public.finish_station('${A}')`, /ลงลัง/)
   await call(U.qc, `public.complete_substep('${A}', 'boxed')`)
   await pass('QC ครบ กดเสร็จ', U.qc, `public.finish_station('${A}')`)
@@ -194,16 +198,18 @@ export async function workflowTests({ db, ok, as }) {
   await call(U.admin, `public.order_film('${B}', '2026-11-20')`)
   await checkAll(B)
   ok('สั่งฟิล์มแล้ว + วัตถุดิบครบ → ขึ้นตัวอย่าง', (await job(B)).phase === 'sample')
-  await station(B, SAMPLE.cut)
+  await station(B, await SAMPLE('cut'))
   await reject('กฎ 6: ยังไม่ได้รับฟิล์ม เริ่มรีด DTF ไม่ได้', U.sup, `public.start_station('${B}')`, /ยังไม่ได้รับฟิล์ม DTF/)
   await call(U.admin, `public.receive_film('${B}')`)
   await pass('กฎ 6: ได้รับฟิล์มแล้วเริ่มรีด DTF ได้', U.sup, `public.start_station('${B}')`)
-  await call(U.sup, `public.complete_substep('${B}', 'check_adhesion')`)
+  await tick(B, await SAMPLE('dtf_press'))
   await call(U.sup, `public.finish_station('${B}')`)
-  for (const s of ['sew', 'qc_pack']) await station(B, SAMPLE[s], s === 'qc_pack' ? U.qc : U.sup)
+  for (const s of ['sew', 'qc_pack']) await station(B, await SAMPLE(s), s === 'qc_pack' ? U.qc : U.sup)
   await call(U.admin, `public.record_sample_result('${B}', true)`)
   await call(U.sup, `public.start_station('${B}')`)
-  await call(U.sup, `public.complete_substep('${B}', 'sort_count', '10'::jsonb)`)
+  await tick(B, await PROD('cut'))
+  // ตัดไม่จับเวลารายสถานีตาม SOP จริง (คุมทั้งช่วง) → ตั้งเวลามาตรฐานสั้นๆ เพื่อทดสอบกลไกกฎ 10 ระดับสถานี
+  await db.exec(`update public.stations set sla_days = 1 where code = 'cut'`)
   await db.exec(`update public.jobs set station_started_at = now() - interval '5 days' where id = '${B}'`)
   let b = await job(B)
   ok('สถานะเวลา: สถานีตัดเกินมาตรฐาน 1 วัน', b.sla.station_over === true && b.sla.station_sla_days == 1, JSON.stringify(b.sla))
@@ -226,7 +232,7 @@ export async function workflowTests({ db, ok, as }) {
   await pass('กด "แก้แล้ว"', U.sup, `public.close_issue('${C}')`)
   ok('แก้แล้วกลับสถานะเดิม (รอคิว)', (await job(C)).station_status === 'queued')
   await call(U.sup, `public.start_station('${C}')`)
-  await call(U.sup, `public.complete_substep('${C}', 'sort_count', '10'::jsonb)`)
+  await tick(C, await PROD('cut'))
   // เริ่มตัดมา 2 วัน แต่พักงาน (มีสาเหตุ) เกือบตลอด → เวลาทำงานจริงไม่ถึง 1 วัน ไม่ต้องรายงาน
   await db.exec(`
     update public.jobs set station_started_at = now() - interval '2 days' where id = '${C}';
@@ -235,6 +241,7 @@ export async function workflowTests({ db, ok, as }) {
   const c = await job(C)
   ok('กฎ 9: เวลาพักไม่นับเป็นเวลาทำงาน', c.sla.station_over === false && Number(c.sla.station_days) < 0.01, JSON.stringify(c.sla))
   await pass('ไม่เกินเวลา กดเสร็จได้โดยไม่ต้องรายงาน', U.sup, `public.finish_station('${C}')`)
+  await db.exec(`update public.stations set sla_days = null where code = 'cut'`)
 
   // ---------- อ่านข้อมูล ----------
   ok('ผู้บริหารอ่านภาพรวมงานได้', (await q(U.mgr, `select id from public.job_live`)).length >= 3)

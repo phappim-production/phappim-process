@@ -1,6 +1,8 @@
 // ฝ่ายผลิตคุมหน้างานทั้งหมด ตั้งแต่พิมพ์ถึง QC + Packing (migration 20261118000004)
 // เรียกจาก run.mjs หลัง sections.mjs และก่อน sewing.mjs (ยังไม่มีจักรในระบบ = เริ่มสถานีเย็บได้โดยไม่ต้องจ่ายจักร)
 
+import { requiredSteps, substepSql } from './steps.mjs'
+
 export async function productionTests({ db, ok, as }) {
   const U = {
     prod: '00000000-0000-0000-0000-000000000013', admin: '00000000-0000-0000-0000-000000000011',
@@ -31,6 +33,7 @@ export async function productionTests({ db, ok, as }) {
   await reject('ฝ่าย QC เริ่มสถานีพิมพ์ไม่ได้ (QC กดได้เฉพาะ QC + Packing)', U.qc, `public.start_station('${p}')`)
   await pass('ฝ่ายผลิตเริ่มสถานีพิมพ์ได้', U.prod, `public.start_station('${p}')`)
   await pass('ฝ่ายผลิตติ๊กขั้นย่อยสถานีพิมพ์ได้', U.prod, `public.complete_substep('${p}', 'check_print')`)
+  for (const [k, v] of await requiredSteps(db, 'print', 'production', { except: ['check_print'] })) await call(U.prod, substepSql(p, k, v))
   await pass('ฝ่ายผลิตกดเสร็จสถานีพิมพ์ได้', U.prod, `public.finish_station('${p}')`)
   ok('งานไปสถานีถัดไป (รีด) รอคิว', (await state(p)).station_seq === 2 && (await state(p)).station_status === 'queued')
 

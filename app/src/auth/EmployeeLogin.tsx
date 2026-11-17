@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Card } from '../components/ui'
+import { requiredThai } from '../components/forms'
 import { supabase } from '../lib/supabase'
 import { MIN_PASSWORD_LENGTH, newPasswordProblem, passwordChangeErrorMessage, signInErrorMessage } from './messages'
 
@@ -34,7 +35,8 @@ function PasswordField({ label, name, autoComplete, minLength }: {
       <label htmlFor={id} className="font-medium">{label}</label>
       <div className="flex gap-2">
         <input id={id} className={inputClass} type={shown ? 'text' : 'password'} name={name}
-          autoComplete={autoComplete} minLength={minLength} required />
+          autoComplete={autoComplete} minLength={minLength}
+          {...requiredThai(minLength ? `กรุณากรอกรหัสผ่านอย่างน้อย ${minLength} ตัวอักษร` : 'กรุณากรอกรหัสผ่าน')} />
         <button type="button" className="min-h-12 shrink-0 rounded-xl border border-line px-3 text-sm font-semibold text-brand hover:bg-brand-soft"
           aria-controls={id} aria-pressed={shown} onClick={() => setShown(value => !value)}>
           {shown ? 'ซ่อน' : 'แสดง'}
@@ -149,7 +151,7 @@ export default function EmployeeLogin() {
         <label className="grid gap-1 font-medium">
           อีเมล
           <input className={inputClass} type="email" name="email" autoComplete="username" inputMode="email"
-            autoCapitalize="none" spellCheck={false} required />
+            autoCapitalize="none" spellCheck={false} {...requiredThai('กรุณากรอกอีเมลของบัญชีพนักงานให้ถูกต้อง')} />
         </label>
         <PasswordField label="รหัสผ่าน" name="password" autoComplete="current-password" />
         {error && <p role="alert" className="text-danger">{error}</p>}
