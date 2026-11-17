@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
+import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
   COLUMNS, DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME,
   columnOf, filmLabel, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
@@ -8,6 +8,7 @@ import {
 import { lateDays, simulate, workdayToDate } from '../proto/capacity'
 import { duration, relDay, shortDate } from '../proto/format'
 import { Card, DueLabel, Pill, StatTile, ViewSwitch, pillGroup, pillItem, pillOff, pillOn } from '../components/ui'
+import { thaiError } from '../data/live'
 import type { Tone } from '../components/tone'
 import { IconAlert, IconCheck, IconClipboard, IconClock, IconFactory, IconFilm, IconPackage, IconSearch, IconSewing, IconX } from '../components/icons'
 import { roleSummary, type SewingView, type SummaryIcon } from '../proto/summary'
@@ -134,20 +135,26 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   const [station, setStation] = useState<ColumnKey | 'all'>('all')
   const [route, setRoute] = useState<RouteCode | 'all'>('all')
   const [query, setQuery] = useState('')
-  const [open, setOpen] = useState<{ id: string; view: View } | null>(() => {
+  const [lookup, setLookup] = useState<{ id: string; job: Job | null; error?: string } | null>(null)
+  const [open, setOpen] = useState<{ id: string; source: View | 'link' } | null>(() => {
     const id = jobFromHash()
-    return id ? { id, view } : null
+    return id !== null ? { id, source: 'link' } : null
   })
   // ลิงก์ #/board?job=<id> จากกล่องจดหมายและ QR ใบปะงาน เปิดรายละเอียดงานทันที (กดลิงก์ขณะเปิดหน้านี้อยู่ด้วย)
   useEffect(() => {
-    const on = () => { const id = jobFromHash(); if (id) setOpen({ id, view }) }
+    const on = () => {
+      const id = jobFromHash()
+      setLookup(null)
+      setOpen(current => id !== null ? { id, source: 'link' } : current?.source === 'link' ? null : current)
+    }
     window.addEventListener('hashchange', on)
     return () => window.removeEventListener('hashchange', on)
-  }, [view])
+  }, [])
   const setOpenId = (id: string | null) => {
-    setOpen(id ? { id, view } : null)
+    setLookup(null)
+    setOpen(id ? { id, source: view } : null)
     // ปิดแล้วเอา ?job= ออก ไม่อย่างนั้นรีเฟรชหน้าจะเปิดงานเดิมซ้ำ
-    if (!id && jobFromHash()) window.location.replace(window.location.hash.split('?')[0])
+    if (!id && jobFromHash() !== null) window.location.replace(window.location.hash.split('?')[0])
   }
   const forecast = useMemo(() => simulate(jobs, now), [jobs, now])
 
@@ -174,7 +181,32 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     return map
   }, [visible, now])
 
-  const openJob = (open?.view === view && (jobs.find(j => j.id === open.id) ?? allJobs.find(j => j.id === open.id))) || null
+  const fromLink = open?.source === 'link' ? decideBoardJob(open.id, allJobs) : null
+  const fetchId = fromLink?.status === 'fetch' ? fromLink.id : undefined
+  useEffect(() => {
+    if (!fetchId) return
+    const controller = new AbortController()
+    void fetchBoardJob(fetchId, controller.signal).then(job => {
+      if (!controller.signal.aborted) setLookup({ id: fetchId, job })
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) {
+        setLookup({ id: fetchId, job: null, error: thaiError(error instanceof Error ? error.message : undefined) })
+      }
+    })
+    return () => controller.abort()
+  }, [fetchId, open])
+
+  const fetched = lookup?.id === fetchId ? lookup : null
+  const openJob = fromLink?.status === 'found' ? fromLink.job
+    : fromLink ? fetched?.job
+    : open?.source === view ? allJobs.find(j => j.id === open.id) : undefined
+  const linkLoading = fetchId !== undefined && !fetched
+  const linkMissing = fromLink?.status === 'missing' || (fetched && !fetched.job && !fetched.error)
+  const linkNotice = (linkLoading || linkMissing || fetched?.error) && (
+    <p role={linkLoading ? 'status' : 'alert'} className={linkLoading ? 'px-5 py-3 text-muted' : 'border-b border-danger/30 bg-danger-soft px-5 py-3 font-medium text-danger'}>
+      {linkLoading ? 'กำลังโหลดรายละเอียดงาน…' : fetched?.error ?? 'ไม่พบงานนี้'}
+    </p>
+  )
   const matchingColumns = columns.filter(c => station === 'all' ? (byColumn.get(c.key)?.length ?? 0) > 0 : c.key === station)
   const visibleCount = matchingColumns.reduce((sum, c) => sum + (byColumn.get(c.key)?.length ?? 0), 0)
   const hasFilters = filter !== 'all' || route !== 'all' || wholeFactory
@@ -206,6 +238,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-5 p-4 sm:p-6">
           <PageHeader title="ภาพรวมการผลิต" today={today} updated={loadedAt} />
+          {linkNotice}
           <Overview jobs={jobs} now={now} forecast={forecast} onOpen={setOpenId} />
         </div>
         {drawer}
@@ -219,6 +252,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     <div className="min-h-0 flex-1 overflow-y-auto">
      <div className="mx-auto flex max-w-[1400px] flex-col gap-4 p-4 sm:p-6">
       <PageHeader title={myScope.title} today={today} updated={loadedAt} />
+      {linkNotice}
       {receiveBar}
       <RoleSummary scope={myScope} jobs={allJobs} machines={machines} now={now}
         onPick={(t, v) => {
@@ -507,6 +541,10 @@ function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Jo
             </div>
             <button onClick={onClose} className="ml-auto grid size-12 place-items-center rounded-full bg-paper transition hover:bg-line" aria-label="ปิด"><IconX className="size-4" /></button>
           </div>
+          <a href={'#/label?id=' + encodeURIComponent(j.id)}
+            className="mt-2 inline-flex min-h-12 items-center gap-2 rounded-xl border border-line px-3 font-semibold text-brand hover:bg-brand-soft">
+            <IconClipboard className="size-5" /> พิมพ์ใบปะงาน
+          </a>
           {finish && (
             <div className={`mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${late > 0 ? 'bg-danger-soft text-danger' : 'bg-ok-soft text-ok'}`}>
               {late > 0 ? <IconAlert className="size-4" /> : <IconCheck className="size-4" />}

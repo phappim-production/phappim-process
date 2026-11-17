@@ -19,6 +19,38 @@ const WATCH = ['jobs', 'events', 'job_materials', 'issues', 'sewing_machines', '
 // เฉพาะคอลัมน์ที่หน้าจอใช้ · ไม่ดึง spec (คำตอบทั้งใบยืนยัน) เพราะโหลดใหม่ทุกครั้งที่มีคนกด
 const JOB_COLUMNS = 'id, confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, phase, current_station, station_status, stage_entered_at, sample_round, needs_sample, materials_waiting_depts, dtf_film_eta, dtf_film_received_at, sew_count, is_rework, rework_qty, hold_reason, finished_at'
 
+export function isJobId(id: string) {
+  return /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id)
+}
+
+export function decideBoardJob(id: string, jobs: readonly Job[]):
+  | { status: 'found'; job: Job }
+  | { status: 'fetch'; id: string }
+  | { status: 'missing' } {
+  if (!isJobId(id)) return { status: 'missing' }
+  const key = id.toLowerCase()
+  const job = jobs.find(row => row.id === key)
+  return job ? { status: 'found', job } : { status: 'fetch', id: key }
+}
+
+export async function fetchBoardJob(id: string, signal: AbortSignal): Promise<Job | null> {
+  if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
+  const result = await supabase.from('job_live').select(JOB_COLUMNS)
+    .eq('id', id).neq('phase', 'cancelled').abortSignal(signal).maybeSingle()
+  if (result.error) throw new Error(result.error.message)
+  if (!result.data) return null
+  const row = result.data as JobRow
+  const [products, reworks, sewEvents] = await Promise.all([
+    supabase.from('product_types').select('code, name').eq('code', row.product_type_code).abortSignal(signal),
+    supabase.from('qc_results').select('job_id, failed, reasons, at').eq('job_id', id).gt('failed', 0).abortSignal(signal),
+    supabase.from('events').select('job_id, type, payload, at').eq('job_id', id).eq('station_code', 'sew')
+      .in('type', ['sewing_issue_reported', 'hold']).abortSignal(signal),
+  ])
+  const failed = [products, reworks, sewEvents].find(response => response.error)
+  if (failed?.error) throw new Error(failed.error.message)
+  return toJobs([row], products.data as ProductRow[], reworks.data as ReworkRow[], sewEvents.data as SewEventRow[])[0] ?? null
+}
+
 async function load(): Promise<FactoryData> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
   const recent = new Date(Date.now() - 14 * DAY).toISOString()
