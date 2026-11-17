@@ -1,18 +1,42 @@
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
+// ฟอร์มใบยืนยันการผลิตเป็นไฟล์เดียวที่รากโปรเจกต์ (แก้ที่เดียว) · คัดลอกขึ้นเว็บเดียวกันที่ /confirmation.html
+// ให้แอดมินกดเปิดจากหน้ารับงานได้ ไม่ต้องมีไฟล์ในเครื่อง
+const CONFIRMATION_FORM = '/confirmation.html'
+const formSource = fileURLToPath(new URL('../production-confirmation.html', import.meta.url))
+function confirmationForm(): Plugin {
+  return {
+    name: 'pp142-confirmation-form',
+    configureServer(server) {
+      server.middlewares.use(CONFIRMATION_FORM, (_req, res) => {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8')
+        res.end(readFileSync(formSource, 'utf8'))
+      })
+    },
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: CONFIRMATION_FORM.slice(1), source: readFileSync(formSource, 'utf8') })
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    confirmationForm(),
     // ติดตั้งบนแท็บเล็ต/มือถือได้ (Add to Home Screen)
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,
       includeAssets: ['logo.webp', 'favicon.ico', 'favicon-32.png', 'favicon-48.png', 'apple-touch-icon.png'],
+      // ไม่ให้ service worker ตอบหน้าแอปแทนฟอร์มใบยืนยัน (ฟอร์มเป็นหน้าแยก ไม่ใช่เส้นทางของแอป)
+      workbox: { navigateFallbackDenylist: [/^\/confirmation\.html/] },
       manifest: {
         name: 'ภาพพิมพ์ 142 · ติดตามการผลิต',
         short_name: 'PP142 ผลิต',

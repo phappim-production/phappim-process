@@ -9,6 +9,8 @@ import { Dialog, fieldClass, primaryBtn, secondaryBtn } from '../components/Dial
 import { IconInbox } from '../components/icons'
 
 type Product = { code: string; name: string; unit: string }
+// ฟอร์มใบยืนยันอยู่บนเว็บเดียวกัน (vite.config.ts คัดลอก production-confirmation.html ขึ้นไป)
+const CONFIRMATION_FORM = '/confirmation.html'
 
 // ปุ่มเลือกไฟล์ของเบราว์เซอร์แสดงภาษาของเครื่อง (มักเป็นอังกฤษ) จึงซ่อนแล้วใช้ปุ่มภาษาไทยแทน
 function FilePick({ accept, chosen, onPick }: { accept: string; chosen: string; onPick: (f: File | undefined) => void }) {
@@ -98,7 +100,11 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor }: {
   return (
     <Dialog title="รับงานเข้าโรงงาน" icon={IconInbox} onClose={onClose} wide>
       <div className="mt-3 grid gap-4">
-        <label className={label}>ไฟล์ที่บันทึกจากฟอร์มใบยืนยัน (ปุ่ม "บันทึกไฟล์") · ไม่บังคับ
+        <div className="grid gap-2 rounded-xl border border-line bg-paper p-3">
+          <p className="text-sm text-muted">ยังไม่มีใบยืนยัน: กรอกฟอร์ม → กด &quot;บันทึกไฟล์&quot; (.json) และพิมพ์ PDF ให้ลูกค้าเซ็น → กลับมาแนบทั้ง 2 ไฟล์ที่นี่</p>
+          <a href={CONFIRMATION_FORM} target="_blank" rel="noopener" className={`${secondaryBtn} text-center`}>เปิดฟอร์มใบยืนยันการผลิต (แท็บใหม่)</a>
+        </div>
+        <label className={label}>ไฟล์ที่บันทึกจากฟอร์มใบยืนยัน (ปุ่ม &quot;บันทึกไฟล์&quot;) · ไม่บังคับ
           <FilePick accept=".json,application/json" chosen={jsonName} onPick={f => { setJsonName(f?.name ?? ''); void readJson(f) }} />
           {jsonNote && <span role={jsonNote.ok ? 'status' : 'alert'} className={`text-sm ${jsonNote.ok ? 'text-ok' : 'text-warn'}`}>{jsonNote.text}</span>}
         </label>
