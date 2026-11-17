@@ -12,6 +12,7 @@ import { unreadBadge } from './pages/inbox/format'
 import { useInbox } from './pages/inbox/useInbox'
 import JobLabel from './pages/job-label'
 import { Card, CardHeader } from './components/ui'
+import { AppUpdate } from './components/AppUpdate'
 import { IconChart, IconColumns, IconGauge, IconInbox, IconSliders, IconUser } from './components/icons'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -31,6 +32,15 @@ const NAV: NavItem[] = [
 const HIDDEN: Partial<Record<string, PageKey>> = { '#/label': 'label' }
 
 export default function App() {
+  return (
+    <div className="flex h-dvh flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto"><AppContent /></div>
+      <AppUpdate />
+    </div>
+  )
+}
+
+function AppContent() {
   const hash = useHash()
   const { session, result, retry } = useEmployeeAccount()
   const path = hash.split('?')[0]
@@ -88,7 +98,7 @@ function Workspace({ page: requested, labelId, profile, email }: {
   const inboxBadge = unreadBadge(unreadCount)
 
   return (
-    <div className="flex h-dvh">
+    <div className="flex h-full">
       {/* จอใหญ่: เมนูด้านซ้ายมีชื่อเต็ม · จอเล็ก/แท็บเล็ตใช้แถบล่าง */}
       <aside className="hidden w-64 shrink-0 flex-col bg-brand text-white lg:flex">
         <div className="flex items-center gap-3 px-5 pt-5 pb-6">
