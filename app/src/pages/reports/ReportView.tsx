@@ -109,7 +109,7 @@ function ReportTile({ icon: Icon, label, value, note, tone }: {
         <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${TONE[tone].soft}`}><Icon className="size-5" /></span>
         <span className="min-w-0 text-sm font-semibold leading-tight text-muted">{label}</span>
       </div>
-      <p className={`mt-1.5 break-words text-3xl font-bold leading-none tabular-nums ${TONE[tone].text}`}>{value}</p>
+      <p className={`mt-1.5 break-words text-3xl font-bold leading-tight tabular-nums ${TONE[tone].text}`}>{value}</p>
       <p className="mt-1 text-sm leading-snug text-muted">{note}</p>
     </Card>
   )
