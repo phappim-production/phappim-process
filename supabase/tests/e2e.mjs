@@ -48,10 +48,7 @@ export async function teamTests({ db, ok, as }) {
 
   // ---------- 1. งานปกติ ตั้งแต่รับงานจนเสร็จ (ตัวอย่างไม่ผ่าน 1 รอบ) ----------
   const A = await receive('SC-TEAM-A', 'normal')
-  ok('ทีมจริง: ฝ่ายผลิตรับงานได้ → รอวัตถุดิบ', (await live(A)).phase === 'materials')
-  await reject('ทีมจริง: ยังติ๊กวัตถุดิบไม่ครบ ขึ้นตัวอย่างไม่ได้', U.prod, `public.start_station('${A}')`)
-  ok('ทีมจริง: ทุกฝ่ายติ๊กวัตถุดิบของตัวเองได้', await tickMaterials(A))
-  ok('ทีมจริง: วัตถุดิบครบ → ขึ้นตัวอย่างอัตโนมัติ', (await live(A)).phase === 'sample')
+  ok('ทีมจริง: แอดมินส่งงานเข้า → ขึ้นตัวอย่างทันที (ไม่มีขั้นรอวัตถุดิบ)', (await live(A)).phase === 'sample')
   let walked = true
   for (const s of await route('normal')) walked = walked && await doStation(A, s, 'sample')
   ok('ทีมจริง: ฝ่ายผลิตเดินตัวอย่างครบทุกสถานี (พิมพ์ถึง QC)', walked && (await live(A)).phase === 'sample_review')

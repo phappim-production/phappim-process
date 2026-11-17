@@ -70,7 +70,7 @@ it('ระบุเฉพาะฝ่ายที่ยังไม่ยืน�
 })
 
 const columns: [Phase, ColumnKey][] = [
-  ['materials', 'materials'],
+  ['materials', 'sample'],   // ไม่มีขั้นรอวัตถุดิบแล้ว · งานเก่าแสดงที่จุดถัดไป
   ['sample', 'sample'],
   ['sample_review', 'sample_review'],
   ['production', 'cut'],
@@ -81,13 +81,17 @@ it.each(columns)('งานสถานะ %s อยู่คอลัมน์ 
   expect(columnOf({ ...job, phase })).toBe(column)
 })
 
+it('งานเก่าค้างรอวัตถุดิบแบบไม่ขึ้นตัวอย่าง แสดงที่สถานีแรกของเส้นทาง', () => {
+  expect(columnOf({ ...job, phase: 'materials', route: 'normal', needsSample: false })).toBe('print')
+})
+
 it('บอร์ดวางงานผลิตที่ขาดสถานีไว้คอลัมน์แรกของเส้นทาง', () => {
   expect(columnOf({ ...job, route: 'normal', station: undefined })).toBe('print')
 })
 
 it('แบ่งสถานีเป็น ก่อนผลิต / เฟส 1 / เฟส 2 ตามลำดับ · ตัดกลุ่มที่บทบาทนี้ไม่เห็นทิ้ง', () => {
   expect(groupColumns(COLUMNS).map(g => [g.name, g.columns.map(c => c.key)])).toEqual([
-    ['ก่อนผลิต', ['materials', 'sample', 'sample_review']],
+    ['ก่อนผลิต', ['sample', 'sample_review']],
     ['เฟส 1', ['print', 'press', 'cut', 'dtf_press', 'emb']],
     ['เฟส 2', ['sew', 'qc_pack', 'done']],
   ])

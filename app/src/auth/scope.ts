@@ -69,8 +69,8 @@ export function boardScope(role: EmployeeRole, section: Section | null): BoardSc
     case 'qc':
       return {
         title: 'งาน QC + Packing',
-        sub: 'งานรอตรวจ · วัตถุดิบที่รอฝ่าย QC ติ๊ก · งานเสร็จล่าสุด',
-        columns: ['materials', 'qc_pack', 'done'],
+        sub: 'งานรอตรวจ · งานเสร็จล่าสุด',
+        columns: ['qc_pack', 'done'],
         materialsDept: 'qc',
         summary: 'qc',
         showFilm: false,

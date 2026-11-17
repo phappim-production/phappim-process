@@ -113,7 +113,7 @@ export async function inboxTests({ db, ok, as }) {
   `)
 
   const scan1 = (await as(U.admin, () => db.query(`select public.inbox_scan() as n`))).rows[0].n
-  ok('inbox: inbox_scan() สร้างข้อความสำหรับงานเข้าเงื่อนไข', scan1 >= 3, `added=${scan1}`)
+  ok('inbox: inbox_scan() สร้างข้อความสำหรับงานเข้าเงื่อนไข', scan1 >= 2, `added=${scan1}`)
   ok('inbox: งานที่ไม่เข้าเงื่อนไข -> ไม่มีข้อความ',
     (await db.query(`select count(*)::int n from public.inbox_messages where job_id = '${jOk}'`)).rows[0].n === 0)
 

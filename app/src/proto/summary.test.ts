@@ -49,14 +49,8 @@ it('งานแก้ที่อยู่นอกขอบเขต QC ยั
   expect(tiles.find(tile => tile.key === 'done')?.value).toBe(0)
 })
 
-it('ฝ่ายผลิตนับเฉพาะวัตถุดิบที่ยังรอการยืนยันของฝ่ายผลิต', () => {
-  const jobs: Job[] = [
-    { ...job, phase: 'materials', materials: { ...job.materials, production: false } },
-    { ...job, id: 'waiting-qc', phase: 'materials', materials: { ...job.materials, qc: false } },
-    { ...job, id: 'cutting', materials: { ...job.materials, production: false } },
-  ]
-
-  const materials = roleSummary('production', jobs, jobs, [], now).find(tile => tile.key === 'materials')
-
-  expect(materials).toMatchObject({ value: 1, tab: 'todo' })
+it('ฝ่ายผลิตไม่มีตัวนับวัตถุดิบแล้ว (แอดมินเตรียมวัตถุดิบก่อนส่งงานเข้า) · มีตัวนับงานกำลังทำแทน', () => {
+  const tiles = roleSummary('production', [job], [job], [], now)
+  expect(tiles.find(tile => tile.key === 'materials')).toBeUndefined()
+  expect(tiles.find(tile => tile.key === 'doing')).toBeDefined()
 })

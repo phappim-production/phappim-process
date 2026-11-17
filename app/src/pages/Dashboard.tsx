@@ -183,7 +183,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
 
   const byColumn = useMemo(() => {
     const map = new Map<ColumnKey, Job[]>(COLUMNS.map(c => [c.key, []]))
-    for (const j of visible) map.get(columnOf(j))!.push(j)
+    for (const j of visible) map.get(columnOf(j))?.push(j)
     for (const list of map.values()) list.sort((a, b) => priority(a, now) - priority(b, now) || a.due.getTime() - b.due.getTime())
     return map
   }, [visible, now])
@@ -236,7 +236,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
         className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white hover:bg-brand-700">
         <IconInbox className="size-5" />รับงานใหม่
       </button>
-      {received && <p role="status" className="rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">รับงาน {received} แล้ว · รอทุกฝ่ายติ๊กวัตถุดิบ</p>}
+      {received && <p role="status" className="rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">ส่งงาน {received} เข้าโรงงานแล้ว · ขึ้นบอร์ดสถานีแรกทันที</p>}
     </div>
   )
 
@@ -530,7 +530,7 @@ function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Jo
   const curIdx = j.station ? stations.indexOf(j.station) : -1
   const late = finish ? lateDays(finish, j.due) : 0
   const steps: { label: string; state: StepState }[] = [
-    { label: 'วัตถุดิบครบ', state: j.phase === 'materials' ? 'current' : 'done' },
+    { label: 'รับงานเข้า', state: 'done' },
     ...(j.needsSample === false ? [] : [
       { label: `ขึ้นตัวอย่าง${j.sampleRound > 1 ? ` (รอบ ${j.sampleRound})` : ''}`, state: (j.phase === 'materials' ? 'todo' : j.phase === 'sample' ? 'current' : 'done') as StepState },
       { label: 'ลูกค้ายืนยันตัวอย่าง', state: (['materials', 'sample'].includes(j.phase) ? 'todo' : j.phase === 'sample_review' ? 'current' : 'done') as StepState },
