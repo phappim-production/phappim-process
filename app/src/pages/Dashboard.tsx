@@ -5,7 +5,7 @@ import {
   columnOf, filmLabel, groupColumns, savedStation, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
   type ColumnKey, type Job, type RouteCode,
 } from '../proto/model'
-import { lateDays, simulate, workdayToDate } from '../proto/capacity'
+import { lateDays, sewFloorOf, simulate, workdayToDate } from '../proto/capacity'
 import { duration, relDay, shortDate } from '../proto/format'
 import { Card, DueLabel, Pill, StatTile, ViewSwitch, pillGroup, pillItem, pillOff, pillOn } from '../components/ui'
 import { thaiError } from '../data/live'
@@ -70,7 +70,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   const [receiving, setReceiving] = useState(false)
   const [received, setReceived] = useState<string | null>(null)
   const now = useNow(30_000)
-  const { jobs: allJobs, machines, bookings, needs } = data
+  const { jobs: allJobs, machines, bookings, needs, products } = data
   const noOf = (jobId: string) => allJobs.find(j => j.id === jobId)?.no ?? ''
   // ทุกปุ่มเรียกฟังก์ชันในฐานข้อมูล (กฎตรวจที่นั่น) แล้วโหลดใหม่ทันที ไม่รอ Realtime
   async function call<T>(name: string, args: Record<string, unknown>) {
@@ -163,7 +163,9 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     // ปิดแล้วเอา ?job= ออก ไม่อย่างนั้นรีเฟรชหน้าจะเปิดงานเดิมซ้ำ
     if (!id && jobFromHash() !== null) window.location.replace(window.location.hash.split('?')[0])
   }
-  const forecast = useMemo(() => simulate(jobs, now), [jobs, now])
+  // คาดวันเสร็จจากจักรจริง: เย็บได้พร้อมกันกี่งานขึ้นกับจักรครบชุดของแต่ละสินค้า
+  const floor = useMemo(() => sewFloorOf(machines, needs), [machines, needs])
+  const forecast = useMemo(() => simulate(jobs, now, undefined, floor), [jobs, now, floor])
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -247,7 +249,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
           <PageHeader title="ภาพรวมการผลิต" today={today} updated={loadedAt} />
           {linkNotice}
           {receiveBar}
-          <Overview jobs={jobs} now={now} forecast={forecast} onOpen={setOpenId} />
+          <Overview jobs={jobs} now={now} forecast={forecast} floor={floor} products={products} onOpen={setOpenId} />
         </div>
         {drawer}
         {receive}

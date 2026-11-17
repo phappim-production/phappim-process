@@ -7,7 +7,7 @@ import {
   type AssignmentRow, type BookingRow, type JobRow, type MachineRow, type NeedRow, type ProductRow, type ReworkRow, type SewEventRow,
 } from './live'
 
-export type FactoryData = { jobs: Job[]; machines: Machine[]; bookings: Booking[]; needs: Record<string, Need[]> }
+export type FactoryData = { jobs: Job[]; machines: Machine[]; bookings: Booking[]; needs: Record<string, Need[]>; products: ProductRow[] }
 export type LoadState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
@@ -72,6 +72,7 @@ async function load(): Promise<FactoryData> {
     machines: toMachines(machines.data as MachineRow[], assignments.data as AssignmentRow[]),
     bookings: toBookings(bookings.data as BookingRow[]),
     needs: toNeeds(needs.data as NeedRow[]),
+    products: products.data as ProductRow[],
   }
 }
 

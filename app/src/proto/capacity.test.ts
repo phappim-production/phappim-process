@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPACITY, LEAD, lateDays, piecesPerDay, simulate, verdict, workdaysUntil, workdayToDate } from './capacity'
+import { CAPACITY, LEAD, SEW_LINE_RATE, hasSewMinutes, lineRate, SEW_MAX_LINES, canOpenLine, lateDays, linesFor, machineSets, piecesPerDay, sewFloorOf, simulate, verdict, workdaysUntil, workdayToDate } from './capacity'
 import type { Job } from './model'
 
 const day = (date: number) => new Date(2026, 10, date)
@@ -48,7 +48,7 @@ describe('คาดการณ์คิวโรงงาน', () => {
   it('โรงงานว่าง งานใหม่ใช้วันเผื่อและกำลังผลิตทุกสถานีในเส้นทาง', () => {
     const result = simulate([], friday, { qty: 600, route: 'normal' })
     const stationDays = 600 / CAPACITY.print + 600 / CAPACITY.press + 600 / CAPACITY.cut
-      + 600 / CAPACITY.sew + 600 / CAPACITY.qc_pack
+      + 600 / SEW_LINE_RATE + 600 / CAPACITY.qc_pack
 
     expect(result.extraFinishDay).toBeCloseTo(LEAD.newJob + stationDays)
     expect(result.extraWaitAt).toBeUndefined()
@@ -74,24 +74,26 @@ describe('คาดการณ์คิวโรงงาน', () => {
   it('งาน DTF รอฟิล์มจนถึง ETA ก่อนคำนวณเวลารีดและสถานีถัดไป', () => {
     const waiting: Job = { ...job, route: 'dtf', station: 'dtf_press', film: { eta: monday, received: false } }
     const result = simulate([waiting], friday)
-    const stationDays = 80 / CAPACITY.dtf_press + 80 / CAPACITY.sew + 80 / CAPACITY.qc_pack
+    const stationDays = 80 / CAPACITY.dtf_press + 80 / SEW_LINE_RATE + 80 / CAPACITY.qc_pack
 
     expect(result.finishDay.get(job.id)).toBeCloseTo(2 + stationDays)
-    expect(workdayToDate(result.finishDay.get(job.id)!, friday)).toEqual(monday)
+    // ฟิล์มถึงจันทร์ · 1 ไลน์เย็บ 80 ตัวใช้เกิน 1 วัน (71 ตัว/วัน) → เสร็จอังคาร
+    expect(workdayToDate(result.finishDay.get(job.id)!, friday)).toEqual(day(24))
   })
 
   it('คาดการณ์ล้านชิ้นได้เป็นจำนวนวันจำกัด', () => {
     const result = simulate([{ ...job, qty: 1_000_000 }], friday)
 
     expect(Number.isFinite(result.finishDay.get(job.id))).toBe(true)
-    expect(result.finishDay.get(job.id)).toBeCloseTo(1_000_000 / CAPACITY.cut + 1_000_000 / CAPACITY.sew + 1_000_000 / CAPACITY.qc_pack)
+    expect(result.finishDay.get(job.id)).toBeCloseTo(1_000_000 / CAPACITY.cut + 1_000_000 / SEW_LINE_RATE + 1_000_000 / CAPACITY.qc_pack)
   })
 
-  it('กำลังเย็บคำนวณจากจำนวนช่าง · 20.17 นาทีต่อตัว · 480 นาทีต่อวัน', () => {
-    expect(piecesPerDay(3, 20.17, 480)).toBe(71)    // กลุ่มที่จับเวลา
+  it('กำลังเย็บ: ไลน์ละช่าง 3 คน · 20.17 นาทีต่อตัว · 480 นาทีต่อวัน · ช่าง 15 คน = 5 ไลน์', () => {
+    expect(piecesPerDay(3, 20.17, 480)).toBe(71)
     expect(piecesPerDay(3, 20, 480)).toBe(72)       // ป้ายผ้า 60x60
-    expect(piecesPerDay(15, 20.17, 480)).toBe(356)  // ทั้งโรงงาน
-    expect(CAPACITY.sew).toBe(356)
+    expect(SEW_LINE_RATE).toBe(71)
+    expect(SEW_MAX_LINES).toBe(5)
+    expect(CAPACITY.sew).toBe(355)
   })
 
   it('งานผลิตที่ไม่มีสถานีเริ่มคำนวณจากสถานีแรกของเส้นทาง', () => {
@@ -125,5 +127,77 @@ describe('คาดการณ์คิวโรงงาน', () => {
 
     expect(result.bottleneck).toBe('sew')
     expect(verdict(result, atRisk).level).toBe(level)
+  })
+})
+
+// จักรจริงในโรงงาน 17 พ.ย.: เข็มเดี่ยว 14 · โพ้ง 4 เส้น 4 · จักรลา 1 · ติดกระดุม 1 · เจาะรังดุม 1
+describe('ไลน์เย็บตามจักรที่มี', () => {
+  const ready = { single: 14, ovl4: 4, cover: 1, button: 1, buttonhole: 1 }
+  const tee = [{ type: 'ovl4' as const, qty: 2 }, { type: 'cover' as const, qty: 1 }, { type: 'single' as const, qty: 1 }]
+  const banner = [{ type: 'single' as const, qty: 1 }]
+  const floor = { ready, needsOf: (code?: string) => (code === 'banner' ? banner : tee) }
+  const sewJob = (id: string, productCode: string, qty: number): Job => ({ ...job, id, productCode, qty, route: 'normal', station: 'sew', status: 'queued', phase: 'production', sewCount: 0 })
+
+  it('นับชุดจักรครบได้กี่ชุด · จักรลา 1 ตัว = เสื้อยืดได้ 1 ไลน์', () => {
+    expect(machineSets(tee, ready)).toBe(1)
+    expect(machineSets(banner, ready)).toBe(14)
+    expect(machineSets([], ready)).toBe(Infinity)
+    expect(linesFor(tee, ready)).toBe(1)
+    expect(linesFor(banner, ready)).toBe(5)              // ช่างพอแค่ 5 ไลน์
+    expect(linesFor(tee, { ...ready, cover: 0 })).toBe(1) // จักรลาเสีย → ถือว่าซ่อมได้ ไม่เป็นอนันต์
+  })
+
+  it('เปิดไลน์ใหม่ไม่ได้ถ้าจักรที่ต้องใช้ถูกไลน์อื่นใช้อยู่ หรือไลน์เต็ม', () => {
+    const teeLine = { start: 0, end: 2, needs: tee }
+    expect(canOpenLine(0, 1, tee, [teeLine], ready)).toBe(false)
+    expect(canOpenLine(2, 1, tee, [teeLine], ready)).toBe(true)
+    expect(canOpenLine(0, 1, banner, [teeLine], ready)).toBe(true)
+    const full = Array.from({ length: 5 }, () => ({ start: 0, end: 3, needs: banner }))
+    expect(canOpenLine(1, 1, banner, full, ready)).toBe(false)
+    // ไลน์อื่นที่จะเริ่มกลางช่วงก็กันจักรด้วย
+    expect(canOpenLine(0, 3, tee, [{ start: 1, end: 2, needs: tee }], ready)).toBe(false)
+  })
+
+  it('เสื้อยืด 2 งานต้องเย็บต่อกัน · ป้ายผ้าเย็บพร้อมกันได้', () => {
+    const r = simulate([sewJob('t1', 'tshirt', 71), sewJob('t2', 'tshirt', 71), sewJob('b1', 'banner', 71)], friday, undefined, floor)
+    const qcDays = 71 / CAPACITY.qc_pack
+    expect(r.finishDay.get('t1')! + r.finishDay.get('t2')!).toBeCloseTo(1 + 2 + qcDays * 2 + qcDays, 0)
+    expect(Math.max(r.finishDay.get('t1')!, r.finishDay.get('t2')!)).toBeGreaterThanOrEqual(2)
+    expect(r.finishDay.get('b1')!).toBeLessThan(2)
+  })
+
+  it('ภาระสถานีเย็บของเสื้อยืดคิดเป็น 1 ไลน์', () => {
+    const r = simulate([sewJob('t1', 'tshirt', 142)], friday, undefined, floor)
+    expect(r.load.sew.days).toBeCloseTo(2)
+    expect(Math.round(r.load.sew.rate)).toBe(71)
+  })
+
+  it('sewFloorOf นับเฉพาะจักรที่ใช้ได้ และใช้สูตรเสื้อยืดเมื่อไม่รู้สินค้า', () => {
+    const f = sewFloorOf([
+      { id: '1', code: 'CV-001', type: 'cover', status: 'ready', jobId: 'x' },
+      { id: '2', code: 'CV-002', type: 'cover', status: 'broken' },
+    ], { tshirt: tee })
+    expect(f.ready.cover).toBe(1)
+    expect(f.needsOf()).toEqual(tee)
+    expect(f.needsOf('unknown')).toEqual([])
+  })
+
+  it('สินค้าต่างกันใช้จักรต่างกัน: กางเกงไม่ใช้จักรลา จึงเย็บพร้อมเสื้อยืดได้ · ฮาวายใช้จักรลา ต้องรอ', () => {
+    const pants = [{ type: 'ovl4' as const, qty: 1 }, { type: 'single' as const, qty: 1 }]
+    const hawaii = [{ type: 'ovl4' as const, qty: 1 }, { type: 'cover' as const, qty: 1 }, { type: 'single' as const, qty: 1 }, { type: 'button' as const, qty: 1 }, { type: 'buttonhole' as const, qty: 1 }]
+    const mixed = { ready, needsOf: (code?: string) => (code === 'pajama' ? pants : code === 'hawaii' ? hawaii : tee) }
+    const r = simulate([sewJob('t1', 'tshirt', 142), sewJob('p1', 'pajama', 71), sewJob('h1', 'hawaii', 71)], friday, undefined, mixed)
+    const qc = 142 / CAPACITY.qc_pack
+    expect(r.finishDay.get('p1')!).toBeLessThan(1.5)            // ไลน์ของตัวเองทันที
+    expect(r.finishDay.get('h1')! + r.finishDay.get('t1')!).toBeGreaterThan(3 + qc)  // แย่งจักรลาตัวเดียว ต้องเย็บต่อกัน
+  })
+
+  it('เวลาเย็บต่อชิ้นตามสินค้า · สินค้าที่ยังไม่จับเวลาใช้เวลาเสื้อยืด', () => {
+    expect(lineRate('tshirt')).toBe(71)
+    expect(lineRate('banner')).toBe(72)
+    expect(lineRate()).toBe(71)
+    expect(hasSewMinutes('banner')).toBe(true)
+    expect(hasSewMinutes('pajama')).toBe(false)
+    expect(lineRate('pajama')).toBe(71)
   })
 })
