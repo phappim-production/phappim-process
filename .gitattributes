@@ -1,0 +1,2 @@
+# สคริปต์ shell รันใน Linux (Docker / GitHub Actions) ต้องเป็น LF แม้ checkout บน Windows
+*.sh text eol=lf
