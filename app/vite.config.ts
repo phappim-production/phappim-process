@@ -10,7 +10,8 @@ export default defineConfig({
     tailwindcss(),
     // ติดตั้งบนแท็บเล็ต/มือถือได้ (Add to Home Screen)
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      injectRegister: false,
       includeAssets: ['logo.webp', 'favicon.ico', 'favicon-32.png', 'favicon-48.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'ภาพพิมพ์ 142 · ติดตามการผลิต',
