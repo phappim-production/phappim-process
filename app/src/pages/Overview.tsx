@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { CAPACITY, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, lateDays, simulate, verdict, workdayToDate, type Forecast } from '../proto/capacity'
+import { DEFAULT_SEW_PRODUCT, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, hasSewMinutes, lateDays, lineRate, linesFor, machineSets, simulate, verdict, workdayToDate, type Forecast, type SewFloor } from '../proto/capacity'
+import { MACHINE_TYPE_NAME } from '../proto/sewing'
 import { ROUTES, STATION_NAME, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
 import { duration, shortDate, stageSteps, stageText } from '../proto/format'
 import { Card, CardHeader, DueLabel, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
@@ -7,7 +8,8 @@ import { TONE, type Tone } from '../components/tone'
 import JobFinder from '../components/JobFinder'
 import { IconAlert, IconCalculator, IconCheck, IconChevronRight, IconClipboard, IconFactory, IconLayers, IconPause, IconTrendingUp } from '../components/icons'
 
-type Props = { jobs: Job[]; now: Date; forecast: Forecast; onOpen: (id: string) => void }
+type Product = { code: string; name: string }
+type Props = { jobs: Job[]; now: Date; forecast: Forecast; floor: SewFloor; products: Product[]; onOpen: (id: string) => void }
 type Row = { job: Job; finish: Date; late: number }
 
 const OVERVIEW_VIEWS = [
@@ -17,7 +19,7 @@ const OVERVIEW_VIEWS = [
 ] as const
 
 // เฟส 1: ภาพรวมสำหรับแอดมิน — งานแต่ละงานอยู่ขั้นไหน และรับงานใหม่เพิ่มได้หรือยัง
-export default function Overview({ jobs, now, forecast, onOpen }: Props) {
+export default function Overview({ jobs, now, forecast, floor, products, onOpen }: Props) {
   const [view, setView] = useState<(typeof OVERVIEW_VIEWS)[number][0]>('follow')
   const rows: Row[] = useMemo(() => jobs.filter(j => j.phase !== 'done').map(j => {
     const finish = workdayToDate(forecast.finishDay.get(j.id) ?? 0, now)
@@ -52,7 +54,7 @@ export default function Overview({ jobs, now, forecast, onOpen }: Props) {
         <div className="grid gap-4">
           <VerdictHero forecast={forecast} atRisk={atRisk.length} />
           <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
-            <NewJobCheck jobs={jobs} now={now} />
+            <NewJobCheck jobs={jobs} now={now} floor={floor} products={products} />
             <StationLoadCard forecast={forecast} />
           </div>
         </div>
@@ -103,7 +105,7 @@ function VerdictHero({ forecast, atRisk }: { forecast: Forecast; atRisk: number 
         <div className="grid gap-3 sm:grid-cols-3">
           <HeroStat label="คอขวดตอนนี้" value={STATION_NAME[forecast.bottleneck]} note={`งานค้าง ~${days(b.days)} วันทำงาน`} />
           <HeroStat label="งานเสี่ยงไม่ทันกำหนด" value={`${atRisk} งาน`} note={atRisk ? 'ควรเคลียร์ก่อนรับงานด่วน' : 'ทุกงานคาดว่าทัน'} />
-          <HeroStat label="ชิ้นงานที่ต้องผ่านคอขวด" value={`${Math.round(b.qty).toLocaleString('th-TH')} ชิ้น`} note={`${b.jobs} งาน · ทำได้ ~${CAPACITY[forecast.bottleneck]}/วัน`} />
+          <HeroStat label="ชิ้นงานที่ต้องผ่านคอขวด" value={`${Math.round(b.qty).toLocaleString('th-TH')} ชิ้น`} note={`${b.jobs} งาน · ทำได้ ~${Math.round(b.rate)}/วัน`} />
         </div>
       </div>
     </section>
@@ -120,15 +122,16 @@ function HeroStat({ label, value, note }: { label: string; value: string; note: 
   )
 }
 
-function NewJobCheck({ jobs, now }: { jobs: Job[]; now: Date }) {
+function NewJobCheck({ jobs, now, floor, products }: { jobs: Job[]; now: Date; floor: SewFloor; products: Product[] }) {
   const [route, setRoute] = useState<RouteCode>('normal')
+  const [product, setProduct] = useState(DEFAULT_SEW_PRODUCT)
   const [qty, setQty] = useState(300)
   const [due, setDue] = useState('')
 
   const qtyOk = Number.isFinite(qty) && qty >= 1
-  const r = useMemo(() => simulate(jobs, now, { route, qty: Math.max(1, qty || 0) }), [jobs, now, route, qty])
+  const r = useMemo(() => simulate(jobs, now, { route, qty: Math.max(1, qty || 0), productCode: product }, floor), [jobs, now, route, qty, product, floor])
   // ตารางเทียบวันเสร็จตามจำนวน (เส้นทางเดียวกัน) ไว้ตอบลูกค้าได้ทันที
-  const quotes = useMemo(() => [100, 500, 1000, 2000].map(q => ({ q, d: workdayToDate(simulate(jobs, now, { route, qty: q }).extraFinishDay ?? 0, now) })), [jobs, now, route])
+  const quotes = useMemo(() => [100, 500, 1000, 2000].map(q => ({ q, d: workdayToDate(simulate(jobs, now, { route, qty: q, productCode: product }, floor).extraFinishDay ?? 0, now) })), [jobs, now, route, product, floor])
   const finish = workdayToDate(r.extraFinishDay ?? 0, now)
   const dueDate = due ? new Date(`${due}T17:00`) : null
   const late = dueDate ? lateDays(finish, dueDate) : null
@@ -144,6 +147,14 @@ function NewJobCheck({ jobs, now }: { jobs: Job[]; now: Date }) {
             {(Object.keys(ROUTES) as RouteCode[]).map(k => <option key={k} value={k}>{ROUTES[k].name}</option>)}
           </select>
         </label>
+        <label className="col-span-2 grid gap-1">
+          <span className="text-xs font-medium text-muted">สินค้า (ใช้จักรเย็บต่างกัน)</span>
+          <select value={product} onChange={e => setProduct(e.target.value)} className={input}>
+            {products.length === 0 && <option value={DEFAULT_SEW_PRODUCT}>เสื้อยืด</option>}
+            {products.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}
+          </select>
+        </label>
+        {ROUTES[route].stations.includes('sew') && <SewLineNote product={product} floor={floor} />}
         <label className="grid gap-1">
           <span className="text-xs font-medium text-muted">จำนวน (ชิ้น)</span>
           <input type="number" min={1} inputMode="numeric" value={Number.isNaN(qty) ? '' : qty} onChange={e => setQty(e.target.value === '' ? NaN : Number(e.target.value))}
@@ -192,6 +203,24 @@ function NewJobCheck({ jobs, now }: { jobs: Job[]; now: Date }) {
   )
 }
 
+// สินค้านี้ใช้จักรอะไร เปิดไลน์เย็บพร้อมกันได้กี่ไลน์ · บอกเมื่อจักรไม่ครบชุดหรือยังไม่มีเวลาเย็บจริง
+function SewLineNote({ product, floor }: { product: string; floor: SewFloor }) {
+  const needs = floor.needsOf(product)
+  const sets = machineSets(needs, floor.ready)
+  const missing = needs.filter(n => (floor.ready[n.type] ?? 0) < n.qty)
+  return (
+    <div className="col-span-2 grid gap-1 rounded-xl bg-paper p-3">
+      {needs.length === 0
+        ? <p className="font-semibold text-warn">ยังไม่ได้ตั้งจักรที่สินค้านี้ใช้ (หน้าตั้งค่า) · คิดเฉพาะจำนวนช่าง</p>
+        : <p>ใช้จักร {needs.map(n => `${MACHINE_TYPE_NAME[n.type]} ×${n.qty}`).join(' · ')}</p>}
+      {sets === 0
+        ? <p className="font-semibold text-danger">จักรไม่ครบชุด: ขาด {missing.map(n => `${MACHINE_TYPE_NAME[n.type]} ${n.qty - (floor.ready[n.type] ?? 0)} ตัว`).join(' · ')} · เย็บได้เมื่อซ่อม/เพิ่มจักร</p>
+        : <p className="text-muted">เย็บพร้อมกันได้ {linesFor(needs, floor.ready)} ไลน์ (ถ้าไม่มีงานอื่นใช้จักรเดียวกัน) · ไลน์ละช่าง 3 คน ~{lineRate(product)} ชิ้น/วัน</p>}
+      {!hasSewMinutes(product) && <p className="font-semibold text-warn">ยังไม่มีเวลาเย็บจริงของสินค้านี้ · คิดเวลาเท่าเสื้อยืดไปก่อน</p>}
+    </div>
+  )
+}
+
 function StationLoadCard({ forecast }: { forecast: Forecast }) {
   const max = Math.max(QUEUE_FULL_DAYS + 2, ...Object.values(forecast.load).map(l => l.days))
   const order: StationCode[] = ['print', 'press', 'cut', 'dtf_press', 'emb', 'sew', 'qc_pack']
@@ -214,7 +243,7 @@ function StationLoadCard({ forecast }: { forecast: Forecast }) {
                 <div className="absolute -inset-y-1 w-0.5 bg-ink/25" style={{ left: `${(QUEUE_OK_DAYS / max) * 100}%` }} />
                 <div className="absolute -inset-y-1 w-0.5 bg-ink/25" style={{ left: `${(QUEUE_FULL_DAYS / max) * 100}%` }} />
               </div>
-              <div className="mt-1 text-sm text-muted">{l.jobs} งาน · {Math.round(l.qty).toLocaleString('th-TH')} ชิ้น · ทำได้ ~{CAPACITY[s]}/วัน</div>
+              <div className="mt-1 text-sm text-muted">{l.jobs} งาน · {Math.round(l.qty).toLocaleString('th-TH')} ชิ้น · ทำได้ ~{Math.round(l.rate)}/วัน</div>
             </li>
           )
         })}
