@@ -120,6 +120,13 @@ const fkNoIdx = await db.query(`
     and not exists (select 1 from pg_index i where i.indrelid = c.conrelid and i.indkey[0] = c.conkey[1])`)
 ok('foreign key ทุกตัวมี index', fkNoIdx.rows.length === 0, fkNoIdx.rows.map(r => r.conname).join(','))
 
+// ---- 6.1 ข้อมูลจริงจาก PP-SOP-01 ----
+const { sopTests } = await import('./sop.mjs')
+await sopTests({ db, ok })
+// ชุดทดสอบ workflow เดินงานแบบ "ยังไม่ได้ใส่จักร" (ไม่บังคับจักร) และ sewing.mjs ตั้งจักรสมมติของตัวเอง
+// จึงล้างจักรจริงออกหลังตรวจข้อมูลแล้ว
+await db.exec('delete from public.sewing_machines')
+
 // ---- 7. workflow (A1) ----
 const { workflowTests } = await import('./workflow.mjs')
 await workflowTests({ db, ok, as })

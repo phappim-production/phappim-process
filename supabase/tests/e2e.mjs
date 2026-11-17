@@ -1,6 +1,8 @@
 // เดินงานแบบทีมจริงหลังเลิกใช้ผู้ควบคุมงาน: ฝ่ายผลิต + แอดมิน + QC เท่านั้น (ไม่มีบัญชี supervisor)
 // ตามรายการตรวจทั้งระบบ docs/แผน-1-สัปดาห์.md หัวข้อ 4.3 · เรียกจาก run.mjs ก่อน sewing.mjs (ยังไม่มีจักร)
 
+import { requiredSteps, substepSql } from './steps.mjs'
+
 export async function teamTests({ db, ok, as }) {
   const U = {
     admin: '00000000-0000-0000-0000-000000000011', qc: '00000000-0000-0000-0000-000000000012',
@@ -25,10 +27,8 @@ export async function teamTests({ db, ok, as }) {
     }
     return all
   }
-  // ขั้นที่ต้องทำในแต่ละสถานี (ตัวอย่าง = เฉพาะ req · ผลิตจริง = ครบทุกขั้นบังคับ)
-  const SAMPLE = { print: [['check_print']], press: [['check_color']], cut: [], dtf_press: [['check_adhesion']], sew: [], qc_pack: [] }
-  const PROD = { print: [['check_print']], press: [['check_color']], cut: [['sort_count', 10]], dtf_press: [['check_adhesion']] }
-  const sub = (id, k, v) => `public.complete_substep('${id}', '${k}'${v === undefined ? '' : `, '${JSON.stringify(v)}'::jsonb`})`
+  // ขั้นที่ต้องทำในแต่ละสถานี อ่านจากขั้นย่อยจริงในตาราง (ตัวอย่าง = เฉพาะ req · ผลิตจริง = ครบทุกขั้นบังคับ)
+  const sub = substepSql
   const route = async code => (await db.query(`select station_code from public.route_stations where route_code = '${code}' order by seq`)).rows.map(r => r.station_code)
 
   // สถานีหนึ่งตามที่คนหน้างานกดจริง · เย็บ = เริ่ม → (ผลิตจริง: ตัวแรก + ยอดเย็บ) → เย็บเสร็จ · QC = บันทึกผ่าน + นับ + ลงลัง
@@ -41,10 +41,8 @@ export async function teamTests({ db, ok, as }) {
       }
       return step('เย็บ: เย็บเสร็จ', who, `public.finish_sewing('${id}')`)
     }
-    if (s === 'qc_pack' && phase === 'production') {
-      for (const sql of [`public.record_qc('${id}', 10)`, sub(id, 'count', 10), sub(id, 'boxed')]) if (!await step('QC', who, sql)) return false
-    }
-    for (const [k, v] of (phase === 'sample' ? SAMPLE : PROD)[s] ?? []) if (!await step(`${s}: ${k}`, who, sub(id, k, v))) return false
+    if (s === 'qc_pack' && phase === 'production' && !await step('QC: บันทึกผ่าน', who, `public.record_qc('${id}', 10)`)) return false
+    for (const [k, v] of await requiredSteps(db, s, phase)) if (!await step(`${s}: ${k}`, who, sub(id, k, v))) return false
     return step(`${s}: เสร็จ`, who, `public.finish_station('${id}')`)
   }
 

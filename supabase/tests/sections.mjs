@@ -1,6 +1,8 @@
 // ทดสอบผู้ควบคุมงาน 2 เฟส (docs/แผน-1-สัปดาห์.md หัวข้อ 1.3)
 // เรียกจาก run.mjs หลัง workflow.mjs · ใช้ผู้ใช้จาก run.mjs/workflow.mjs ร่วม (owner, sup ไม่กำหนดเฟส, qc)
 
+import { requiredSteps, substepSql } from './steps.mjs'
+
 export async function sectionTests({ db, ok, as }) {
   const U = {
     owner: '00000000-0000-0000-0000-000000000001', sup: '00000000-0000-0000-0000-000000000002',
@@ -45,6 +47,7 @@ export async function sectionTests({ db, ok, as }) {
   await pass('ผู้ควบคุมงานเฟส 1 เริ่มสถานีพิมพ์ได้', U.sup1, `public.start_station('${p1}')`)
   await reject('ผู้ควบคุมงานเฟส 2 ติ๊กขั้นย่อยสถานีพิมพ์ไม่ได้', U.sup2, `public.complete_substep('${p1}', 'check_print')`, /เฟส 1/)
   await pass('ผู้ควบคุมงานเฟส 1 ติ๊กขั้นย่อยสถานีพิมพ์ได้', U.sup1, `public.complete_substep('${p1}', 'check_print')`)
+  for (const [k, v] of await requiredSteps(db, 'print', 'production', { except: ['check_print'] })) await call(U.sup1, substepSql(p1, k, v))
   await reject('ผู้ควบคุมงานเฟส 2 กดเสร็จสถานีพิมพ์ไม่ได้', U.sup2, `public.finish_station('${p1}')`, /เฟส 1/)
   await pass('ผู้ควบคุมงานเฟส 1 กดเสร็จสถานีพิมพ์ได้', U.sup1, `public.finish_station('${p1}')`)
 

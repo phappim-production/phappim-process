@@ -35,8 +35,11 @@ export async function sewingTests({ db, ok, as }) {
   const count = async t => (await db.query(`select count(*)::int n from public.${t}`)).rows[0].n
   ok('ชนิดจักร 11 ชนิด มีรหัสนำหน้าทุกชนิด', await count('machine_types') === 11
     && (await db.query(`select count(*)::int n from public.machine_types where prefix is null`)).rows[0].n === 0)
+  // ชุดนี้ทดสอบกลไกจักร จึงใช้สูตรสมมติที่มีหลายชนิด (เพิ่มลาคอให้เสื้อยืด · เข้าขอบให้ผ้ากันเปื้อน)
+  // สูตรจริงตามหน้างานตรวจใน sop.mjs
+  await db.exec(`insert into public.product_machine_needs (product_type_code, type_code, qty) values ('tshirt','flat',1),('apron','binding',1)`)
   const tee = (await db.query(`select type_code, qty from public.product_machine_needs where product_type_code = 'tshirt' order by type_code`)).rows
-  ok('เสื้อยืดใช้ โพ้ง 4 ×2 · ลา · ลาคอ · เข็มเดี่ยว', JSON.stringify(tee) === JSON.stringify([
+  ok('สูตรสมมติ: เสื้อยืดใช้ โพ้ง 4 ×2 · ลา · ลาคอ · เข็มเดี่ยว', JSON.stringify(tee) === JSON.stringify([
     { type_code: 'cover', qty: 1 }, { type_code: 'flat', qty: 1 }, { type_code: 'ovl4', qty: 2 }, { type_code: 'single', qty: 1 }]))
   ok('หมวกยังไม่มีสูตรจักร (ไม่เดา)', (await db.query(`select 1 from public.product_machine_needs where product_type_code = 'hat'`)).rows.length === 0)
 
