@@ -6,6 +6,9 @@ import { canOpenPage, roleLabel as labelFor, type EmployeeRole, type PageKey, ty
 import { boardScope, homePage } from './auth/scope'
 import ReportsPage from './pages/reports'
 import SettingsPage from './pages/settings'
+import InboxPage from './pages/inbox'
+import { InboxBell } from './pages/inbox/InboxBell'
+import JobLabel from './pages/job-label'
 import { Card, CardHeader } from './components/ui'
 import { IconChart, IconColumns, IconGauge, IconSliders, IconUser } from './components/icons'
 
@@ -21,10 +24,15 @@ const NAV: NavItem[] = [
   { key: 'system', hash: '#/system', name: 'บัญชี', short: 'บัญชี', icon: IconUser },
 ]
 
+// หน้าที่ไม่อยู่ในเมนู: กล่องจดหมาย (กดกระดิ่ง) · ใบปะงาน (#/label?id=<job id> จากรายละเอียดงาน)
+const HIDDEN: Partial<Record<string, PageKey>> = { '#/inbox': 'inbox', '#/label': 'label' }
+
 export default function App() {
   const hash = useHash()
   const { session, result, retry } = useEmployeeAccount()
-  const page = NAV.find(item => item.hash === hash.split('?')[0])?.key ?? 'overview'
+  const path = hash.split('?')[0]
+  const page = NAV.find(item => item.hash === path)?.key ?? HIDDEN[path] ?? 'overview'
+  const labelId = new URLSearchParams(hash.split('?')[1] ?? '').get('id') ?? ''
 
   if (!isConfigured) {
     return (
@@ -54,11 +62,12 @@ export default function App() {
     )
   }
 
-  return <Workspace key={session.user.id} page={page} profile={result.profile} email={session.user.email} />
+  return <Workspace key={session.user.id} page={page} labelId={labelId} profile={result.profile} email={session.user.email} />
 }
 
-function Workspace({ page: requested, profile, email }: {
+function Workspace({ page: requested, labelId, profile, email }: {
   page: PageKey
+  labelId: string
   profile: { name: string; role: EmployeeRole; section: Section | null }
   email?: string
 }) {
@@ -80,6 +89,7 @@ function Workspace({ page: requested, profile, email }: {
         <div className="flex items-center gap-3 px-5 pt-5 pb-6">
           <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-10 rounded-lg ring-1 ring-white/20" />
           <span className="text-lg font-bold leading-tight">ติดตาม<br />การผลิต</span>
+          <span className="ml-auto"><InboxBell /></span>
         </div>
         <nav aria-label="เมนูหลัก" className="grid gap-1 px-3">
           {visibleNav.map(({ key, name, hash, icon: Icon }) => {
@@ -106,7 +116,8 @@ function Workspace({ page: requested, profile, email }: {
           <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-9 rounded-md" />
           <span className="hidden font-bold whitespace-nowrap sm:inline">ติดตามการผลิต</span>
           {/* แท็บเล็ตใช้ร่วมกันหลายคน ต้องเห็นตลอดว่าใครล็อกอินอยู่ เพราะทุกการกดบันทึกชื่อผู้กด */}
-          <a href="#/system" className="ml-auto flex min-h-12 min-w-0 items-center gap-2 rounded-xl px-2 hover:bg-white/10">
+          <span className="ml-auto"><InboxBell /></span>
+          <a href="#/system" className="flex min-h-12 min-w-0 items-center gap-2 rounded-xl px-2 hover:bg-white/10">
             <span className="min-w-0 text-right leading-tight">
               <span className="block truncate font-semibold">{profile.name}</span>
               <span className="block truncate text-sm text-white/80">{roleLabel}</span>
@@ -157,6 +168,8 @@ function Workspace({ page: requested, profile, email }: {
               )}
               {page === 'reports' && <ReportsPage />}
               {page === 'settings' && <SettingsPage />}
+              {page === 'inbox' && <InboxPage />}
+              {page === 'label' && <JobLabel jobId={labelId} />}
             </main>
           )}
         </div>

@@ -30,6 +30,7 @@ export function TodoPanel({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpe
                   <span className={`block font-semibold ${a.tone === 'danger' ? 'text-danger' : 'text-ink'}`}>{a.text}</span>
                   <span className="flex flex-wrap items-baseline gap-x-1.5 text-sm text-muted">
                     <span className="font-medium text-ink">{a.job.no}</span><RouteBadge route={a.job.route} />
+                    {a.job.rework && <Pill tone="danger">งานแก้ {a.job.rework.qty.toLocaleString('th-TH')}</Pill>}
                     <span className="min-w-0 truncate">{a.job.customer}</span>
                   </span>
                 </span>
@@ -112,6 +113,7 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
                         <Pill tone="warn" dot>รอเย็บ</Pill>
                         <span className="font-semibold">{job.no}</span><RouteBadge route={job.route} />
                         {job.phase === 'sample' && <Pill tone="info">ตัวอย่าง</Pill>}
+                        {job.rework && <Pill tone="danger">งานแก้ {job.rework.qty.toLocaleString('th-TH')}</Pill>}
                         <span className="text-sm"><DueLabel job={job} now={now} /></span>
                       </span>
                       <span className="mt-0.5 block truncate text-sm text-muted">{job.customer} · {job.product} {job.qty.toLocaleString('th-TH')} {job.unit}</span>
