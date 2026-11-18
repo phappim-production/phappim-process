@@ -93,7 +93,7 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       <ViewSwitch variant="sub" label="มุมมองจักรเย็บ" value={view} onChange={setView} options={SEWING_VIEWS} />
       <section hidden={view !== 'work'}>
-        <div className="grid gap-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           {sewing}
           <Card>
             <CardHeader icon={IconSewing} tone={startable ? 'ok' : queue.length ? 'warn' : 'brand'}
