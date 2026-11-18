@@ -1,6 +1,6 @@
 // แปลงแถวจากฐานข้อมูลจริง (view job_live และตารางจักร) เป็นรูปแบบที่หน้าจอใช้ (proto/model · proto/sewing)
 // แยกเป็น pure function เพื่อทดสอบได้โดยไม่ต้องต่อ Supabase · ตัวดึงข้อมูลอยู่ที่ useFactoryData.ts
-import { usesFilm, type Dept, type Job, type Phase, type RouteCode, type StationCode, type StationStatus } from '../proto/model.ts'
+import { thaiWorkEnd, usesFilm, type Dept, type Job, type Phase, type RouteCode, type StationCode, type StationStatus } from '../proto/model.ts'
 import type { Booking, Machine, MachineStatus, MachineType, Need } from '../proto/sewing.ts'
 
 export type JobRow = {
@@ -36,9 +36,9 @@ export type AssignmentRow = { machine_id: number; job_id: string }
 export type BookingRow = { id: number; machine_id: number; job_id: string; starts_at: string; ends_at: string }
 export type NeedRow = { product_type_code: string; type_code: MachineType; qty: number }
 
-// กำหนดส่งเป็นวันที่ไทย · ใช้ 17:00 (เลิกงาน) เหมือนข้อมูลจำลองเดิม การเทียบวันจึงไม่เพี้ยนตามเขตเวลาเครื่อง
+// กำหนดส่งเป็นวันที่ไทย · ใช้เวลาเลิกงานของวันนั้น การเทียบวันจึงไม่เพี้ยนตามเขตเวลาเครื่อง
 export function dueDate(day: string): Date {
-  return new Date(`${day}T17:00:00+07:00`)
+  return thaiWorkEnd(day)
 }
 
 const DEPTS: Dept[] = ['admin', 'qc', 'production']

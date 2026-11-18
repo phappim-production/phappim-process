@@ -2,7 +2,7 @@ import { useId, useState, type ReactNode } from 'react'
 import { Card, CardHeader, DueLabel, Pill, RouteBadge, ViewSwitch } from '../components/ui'
 import { TONE } from '../components/tone'
 import { IconClipboard, IconClock, IconSewing } from '../components/icons'
-import type { Job } from '../proto/model'
+import { WORK_END, WORK_START, type Job } from '../proto/model'
 import { todoList } from '../proto/actions'
 import {
   bookedByOther, checkStartSewing, floorSummary, repairEtaProblem, repairStatus, MACHINE_PREFIX, MACHINE_STATE_NAME, MACHINE_TYPE_NAME, MACHINE_TYPES, machineState, sewQueue, type Need,
@@ -345,12 +345,16 @@ function Modal({ title, tone, onClose, children }: { title: string; tone: 'dange
 function EtaPicker({ value, onChange, now }: { value?: Date; onChange: (d?: Date) => void; now: Date }) {
   const id = useId()
   const pad = (n: number) => String(n).padStart(2, '0')
-  const tomorrow8 = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (now.getDay() === 6 ? 2 : 1), 8)
+  // ปุ่มลัดตรงเวลางาน 09:00–18:00 · พรุ่งนี้ของวันเสาร์ = จันทร์ (อาทิตย์หยุด)
+  const at = (offset: number, hhmm: string) => {
+    const [h, m] = hhmm.split(':').map(Number)
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, h, m)
+  }
   const quick: [string, Date][] = [
     ['1 ชั่วโมง', new Date(now.getTime() + 3_600_000)],
     ['3 ชั่วโมง', new Date(now.getTime() + 3 * 3_600_000)],
-    ['เย็นนี้ 17:00', new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17)],
-    ['พรุ่งนี้ 08:00', tomorrow8],
+    [`เย็นนี้ ${WORK_END}`, at(0, WORK_END)],
+    [`พรุ่งนี้ ${WORK_START}`, at(now.getDay() === 6 ? 2 : 1, WORK_START)],
   ].filter(([, d]) => (d as Date) > now) as [string, Date][]
   const date = value ? `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}` : ''
   const time = value ? `${pad(value.getHours())}:${pad(value.getMinutes())}` : ''
@@ -366,7 +370,7 @@ function EtaPicker({ value, onChange, now }: { value?: Date; onChange: (d?: Date
         ))}
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <input id={`${id}-d`} type="date" aria-label="วันที่ซ่อมเสร็จ" value={date} onChange={e => set(e.target.value, time || '17:00')}
+        <input id={`${id}-d`} type="date" aria-label="วันที่ซ่อมเสร็จ" value={date} onChange={e => set(e.target.value, time || WORK_END)}
           className="min-h-12 w-full rounded-xl border border-line px-3 text-base" />
         <input type="time" aria-label="เวลาซ่อมเสร็จ" value={time} onChange={e => set(date || `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`, e.target.value)}
           className="min-h-12 w-full rounded-xl border border-line px-3 text-base" />

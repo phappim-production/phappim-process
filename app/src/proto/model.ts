@@ -118,6 +118,12 @@ export function thaiDayDiff(a: Date, b: Date) {
   return Math.round((Date.parse(thaiDay(a)) - Date.parse(thaiDay(b))) / DAY)
 }
 
+// เวลางานโรงงาน 09:00–18:00 (จันทร์–เสาร์) · ที่เดียวที่กำหนด หน้าจอที่แปลง "วันที่" เป็นเวลาใช้ค่านี้ทั้งหมด
+export const WORK_START = '09:00'
+export const WORK_END = '18:00'
+/** เวลาเลิกงานของวันที่ไทย (YYYY-MM-DD) · ระบุ +07:00 จึงไม่เพี้ยนตามเขตเวลาเครื่อง */
+export const thaiWorkEnd = (day: string) => new Date(`${day}T${WORK_END}:00+07:00`)
+
 export function isOverdue(j: Job, now: Date) {
   return j.phase !== 'done' && thaiDay(j.due) < thaiDay(now)
 }
