@@ -22,6 +22,13 @@ describe('สถานะเวลามาตรฐานบนการ์ด'
     expect(attachSla([base], [row({ warn: true, over: true, need_report: true })])[0].sla).toBe('report')
   })
 
+  it('โหลดสถานะเวลาใหม่ทุก 5 นาที: งานที่รายงานหรือเสร็จแล้วต้องล้างสีเดิมออก', () => {
+    const red = { ...base, sla: 'report' as const }
+    expect('sla' in attachSla([red], [])[0]).toBe(false)
+    expect(attachSla([red], [row({ over: true })])[0].sla).toBe('over')
+    expect(attachSla([base], [])[0]).toBe(base)
+  })
+
   it('ต้องทำตอนนี้: เกินเวลายังไม่รายงาน = แดงบอกให้รายงาน · ใกล้ครบ = ส้ม', () => {
     const report = nextAction({ ...base, sla: 'report' }, now)
     expect(report?.tone).toBe('danger')
