@@ -32,6 +32,13 @@ export function isEmployeeRole(role: unknown): role is EmployeeRole {
   return typeof role === 'string' && Object.hasOwn(ROLE_LABELS, role)
 }
 
+// ปิดปัญหา ("แก้แล้ว ทำต่อ") ตรงกับ close_issue ในฐานข้อมูล · แอดมินไม่มีหน้าที่แก้ปัญหาของสถานี (เจ้าของ 18 พ.ย.)
+// งานเย็บที่พักใช้ resume_sewing ซึ่งต้องจ่ายจักร จึงเป็นของฝ่ายผลิตเท่านั้น
+export function canCloseIssue(role: EmployeeRole, station: string | null | undefined): boolean {
+  const floor = role === 'production' || role === 'supervisor' || role === 'owner'
+  return station === 'sew' ? floor : floor || role === 'manager'
+}
+
 export function canOpenPage(role: EmployeeRole, page: PageKey): boolean {
   switch (page) {
     case 'settings':

@@ -8,7 +8,7 @@ import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type J
 import { OutsourcePanel } from './OutsourcePanel'
 import { spaced } from '../proto/format'
 import { bookingDay } from '../proto/sewing'
-import type { EmployeeRole } from '../auth/access'
+import { canCloseIssue, type EmployeeRole } from '../auth/access'
 import { Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconAlert, IconCheck, IconClock, IconFilm, IconPause } from '../components/icons'
@@ -118,7 +118,7 @@ export function JobActions({ job: j, role, version, now, refresh, vendors = [] }
         <Section title="เย็บงาน"><p className="text-muted">เริ่มเย็บ รายงานปัญหา และเย็บเสร็จ กดที่แท็บ <b>จักรเย็บ</b> (ระบบเลือกจักรว่างให้)</p></Section>
       )}
       {inStation && st !== 'sew' && (
-        <Station job={j} detail={d} canPress={canStation} role={role} busy={busy} now={now} act={act} />
+        <Station job={j} detail={d} canPress={canStation} canResume={canCloseIssue(role, st)} role={role} busy={busy} now={now} act={act} />
       )}
     </div>
   )
@@ -310,8 +310,8 @@ function Confirm({ text, busy, danger, onYes, onNo }: { text: string; busy: bool
 
 type Act = (name: string, args: Record<string, unknown>, ok: string) => Promise<boolean>
 
-function Station({ job: j, detail: d, canPress, role, busy, now, act }: {
-  job: Job; detail: Detail; canPress: boolean; role: EmployeeRole; busy: boolean; now: Date; act: Act
+function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act }: {
+  job: Job; detail: Detail; canPress: boolean; canResume: boolean; role: EmployeeRole; busy: boolean; now: Date; act: Act
 }) {
   const st = j.station!
   const [confirmFinish, setConfirmFinish] = useState(false)
@@ -336,7 +336,7 @@ function Station({ job: j, detail: d, canPress, role, busy, now, act }: {
         <SlaBanner sla={s} />
       )}
       <Section title={`${sample ? 'ขึ้นตัวอย่าง · ' : ''}${name}${j.rework ? ' · งานแก้' : ''}`}>
-        {!canPress && <p className="mb-3 text-sm text-muted">{role === 'qc' ? 'ฝ่าย QC กดได้เฉพาะสถานี QC + Packing' : 'บทบาทนี้ดูได้อย่างเดียว'}</p>}
+        {!canPress && !(canResume && j.status === 'hold') && <p className="mb-3 text-sm text-muted">{role === 'qc' ? 'ฝ่าย QC กดได้เฉพาะสถานี QC + Packing' : 'บทบาทนี้ดูได้อย่างเดียว'}</p>}
 
         {j.status === 'queued' && canPress && (
           <button type="button" disabled={busy || (st === 'dtf_press' && !j.film?.received)} className={`${primaryBtn} w-full`}
@@ -349,7 +349,9 @@ function Station({ job: j, detail: d, canPress, role, busy, now, act }: {
         {j.status === 'hold' && (
           <div className="grid gap-2">
             <p className="font-medium text-danger">พักงาน · {j.holdReason}</p>
-            {canPress && <button type="button" disabled={busy} className={primaryBtn} onClick={() => void act('close_issue', { p_note: null }, 'แก้แล้ว · กลับมาทำต่อได้')}>แก้แล้ว ทำต่อ</button>}
+            {canResume
+              ? <button type="button" disabled={busy} className={primaryBtn} onClick={() => void act('close_issue', { p_note: null }, 'แก้แล้ว · กลับมาทำต่อได้')}>แก้แล้ว ทำต่อ</button>
+              : <p className="text-muted">รอผู้บริหารหรือฝ่ายผลิตกด "แก้แล้ว ทำต่อ"</p>}
           </div>
         )}
 

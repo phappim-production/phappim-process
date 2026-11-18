@@ -4,7 +4,8 @@ import { spaced } from '../proto/format'
 import { DueLabel, Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconAlert, IconCheck, IconChevronRight } from '../components/icons'
-import type { EmployeeRole } from '../auth/access'
+import { canCloseIssue, type EmployeeRole } from '../auth/access'
+import { TONE } from '../components/tone'
 
 export type QueueCall = (name: string, args: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; reason: string }>
 
@@ -65,7 +66,9 @@ export function StationQueue({ station, jobs, role, now, call, onOpen }: {
         {working.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">ยังไม่มีงานที่กำลังทำ · กดเริ่มงานคิวแรกด้านล่าง</p>}
         {working.map(j => (
           <QueueCard key={j.id} job={j} now={now} onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger" dot>พักงาน</Pill> : <Pill tone="info" dot>กำลังทำ</Pill>}>
-            {canPress && <WorkingActions job={j} station={station} busy={busy === j.id} run={run} onOpen={() => onOpen(j.id)} />}
+            {j.status === 'hold'
+              ? <HoldActions job={j} station={station} canResume={canCloseIssue(role, station)} busy={busy === j.id} run={run} />
+              : canPress && <WorkingActions job={j} station={station} busy={busy === j.id} run={run} onOpen={() => onOpen(j.id)} />}
           </QueueCard>
         ))}
       </section>
@@ -129,16 +132,23 @@ function QueueCard({ job: j, now, badge, first, onOpen, children }: {
 
 type Run = (job: Job, steps: [string, Record<string, unknown>][], ok: string) => Promise<boolean>
 
+// งานพัก: ปิดปัญหาได้เฉพาะฝ่ายผลิต / ผู้บริหาร · บทบาทอื่นเห็นว่าต้องรอใคร (ปุ่มที่กดไม่ได้ต้องบอกเหตุผล)
+function HoldActions({ job: j, station, canResume, busy, run }: { job: Job; station: StationCode; canResume: boolean; busy: boolean; run: Run }) {
+  if (!canResume) {
+    return <p className={`rounded-xl px-3 py-2 font-medium ${TONE.warn.soft}`}>
+      {station === 'sew' ? 'รอฝ่ายผลิตกด "แก้แล้ว เย็บต่อ" (ต้องจ่ายจักร)' : 'รอผู้บริหารหรือฝ่ายผลิตกด "แก้แล้ว ทำต่อ"'}
+    </p>
+  }
+  return station === 'sew'
+    ? <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['resume_sewing', {}]], `${j.no} เย็บต่อแล้ว`)}>แก้แล้ว เย็บต่อ</button>
+    : <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['close_issue', { p_note: null }]], `${j.no} แก้แล้ว · ทำต่อได้`)}>แก้แล้ว ทำต่อ</button>
+}
+
 function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; station: StationCode; busy: boolean; run: Run; onOpen: () => void }) {
   const [mode, setMode] = useState<'finish' | 'hold' | null>(null)
   const [reason, setReason] = useState('')
   // ชื่อสถานีที่ลงท้ายอังกฤษ (QC + Packing) ต้องเว้นวรรคก่อนคำไทย
   const name = spaced(STATION_NAME[station]).trimStart()
-  if (j.status === 'hold') {
-    return station === 'sew'
-      ? <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['resume_sewing', {}]], `${j.no} เย็บต่อแล้ว`)}>แก้แล้ว เย็บต่อ</button>
-      : <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['close_issue', { p_note: null }]], `${j.no} แก้แล้ว · ทำต่อได้`)}>แก้แล้ว ทำต่อ</button>
-  }
   if (mode === 'hold') {
     // เย็บพักผ่านรายงานปัญหาเย็บ (บันทึกที่สถานีเย็บ) · สถานีอื่นเปิดปัญหาตามปกติ
     const steps: [string, Record<string, unknown>][] = station === 'sew'

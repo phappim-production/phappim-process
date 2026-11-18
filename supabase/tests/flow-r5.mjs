@@ -40,7 +40,7 @@ const rules = {
   note_queue_skip: ['owner production qc', 'ABHJP'],
   finish_station: ['owner production qc', 'K'],
   open_issue: ['owner admin production qc', 'ABCHJKMP'],
-  close_issue: ['owner admin production qc', 'D'],
+  close_issue: ['owner manager production', 'D'],
   submit_delay_report: ['owner admin production qc', 'ABCDFGHIJKLMP'],
   start_sewing: ['owner production', 'H'],
   finish_sewing: ['owner production', 'K'],

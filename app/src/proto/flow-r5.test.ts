@@ -157,7 +157,11 @@ describe('R5 ปุ่มตามสถานะและบทบาท', () =
     expect(card(cut, get('A')).includes('เริ่มตัดงาน')).toBe(floor)
     expect(card(cut, get('B')).includes('เริ่มก่อนคิว')).toBe(floor)
     expect(card(cut, get('B')).includes('แทรกเป็นคิวแรก')).toBe(rush)
-    expect(card(sew, get('L')).includes('แก้แล้ว เย็บต่อ')).toBe(floor)
+    expect(card(sew, get('L')).includes('แก้แล้ว เย็บต่อ</button>')).toBe(floor)
+    // ปิดปัญหา: ฝ่ายผลิต / ผู้บริหาร / เจ้าของ (เจ้าของ 18 พ.ย.) · แอดมินกับ QC เห็นว่าต้องรอใคร
+    expect(card(cut, get('D')).includes('แก้แล้ว ทำต่อ</button>')).toBe(rush)
+    expect(card(cut, get('D')).includes('รอผู้บริหารหรือฝ่ายผลิตกด')).toBe(!rush)
+    expect(card(sew, get('L')).includes('รอฝ่ายผลิตกด')).toBe(!floor)
     expect(card(qc, get('C')).includes('บันทึกผล QC / Packing')).toBe(floor || role === 'qc')
     expect(card(film, get('J'))).not.toContain('เริ่มรีดฟิล์ม')
     expect(card(film, get('J')).includes('ยังไม่ได้รับฟิล์ม DTF')).toBe(floor)

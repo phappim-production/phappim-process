@@ -212,6 +212,12 @@ export async function workflowTests({ db, ok, as }) {
   ok('สถานะเป็นพักงาน + เห็นสาเหตุ', (await job(C)).station_status === 'hold' && (await job(C)).hold_reason === 'รอผ้าเพิ่ม')
   await reject('พักซ้ำไม่ได้', U.sup, `public.open_issue('${C}', 'x')`, /พักอยู่แล้ว/)
   await reject('พักอยู่ เริ่มสถานีไม่ได้', U.sup, `public.start_station('${C}')`, /พักอยู่/)
+  // ปิดปัญหาได้เฉพาะฝ่ายผลิต / ผู้บริหาร (เจ้าของ 18 พ.ย.) · แอดมินกับ QC ต้องถูกปฏิเสธพร้อมบอกว่าให้ใครกด
+  await reject('แอดมินปิดปัญหาไม่ได้', U.admin, `public.close_issue('${C}')`, /แจ้งผู้บริหารหรือฝ่ายผลิต/)
+  await reject('QC ปิดปัญหาไม่ได้', U.qc, `public.close_issue('${C}')`, /แจ้งผู้บริหารหรือฝ่ายผลิต/)
+  await pass('ผู้บริหารกด "แก้แล้ว" ได้', U.mgr, `public.close_issue('${C}')`)
+  ok('ผู้บริหารแก้แล้ว กลับสถานะเดิม', (await job(C)).station_status === 'queued')
+  await pass('ฝ่ายผลิตพักงานอีกรอบ', U.prod, `public.open_issue('${C}', 'จักรเสีย')`)
   await pass('กด "แก้แล้ว"', U.sup, `public.close_issue('${C}')`)
   ok('แก้แล้วกลับสถานะเดิม (รอคิว)', (await job(C)).station_status === 'queued')
   await call(U.sup, `public.start_station('${C}')`)
