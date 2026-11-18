@@ -46,17 +46,17 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 | `forward_out` | `p_run, p_vendor, p_last_station, …` → run id | admin · owner | บ.A เสร็จ → บ.B ทำสถานีถัดไปโดยไม่ผ่านโรงงาน · event `outsource_forwarded` · ปฏิเสธ: บริษัทเดิม, งานแก้, ถัดไปทำในโรงงาน |
 | `receive_back` | `p_run, p_note` | admin · owner | ของถึงโรงงาน → งานเข้าสถานีถัดไป (งานแก้ → QC) รอคิว · event `outsource_received` (`late`) |
 | `update_out_plan` | `p_run, p_arrive_at, p_lead_days, p_back_at` | admin · owner | แก้กำหนด · event `outsource_plan` |
-| `split_job` | `p_job, p_qty` → uuid งานใหม่ | admin · owner | งานผลิตจริงที่รอเริ่ม (ไม่ใช่งานแก้/QC) แยก `p_qty` เป็นงาน `เลขเดิม-2` สถานีเดียวกัน คิวถัดไป · event `job_split` / `job_split_from` |
+| `split_job` | `p_job, p_qty, p_request = null` → uuid งานใหม่ |  admin · owner | งานผลิตจริงที่รอเริ่ม (ไม่ใช่งานแก้/QC) แยก `p_qty` เป็นงาน `เลขเดิม-2` สถานีเดียวกัน คิวถัดไป · event `job_split` / `job_split_from` |
 
 ## สถานีทั่วไป
 | ฟังก์ชัน | อาร์กิวเมนต์ | ใครเรียก | ทำอะไร / ปฏิเสธเมื่อ |
 |---|---|---|---|
 | `start_station` | `p_job` | production · qc (เฉพาะ QC+Packing) · owner | queued → doing · ปฏิเสธ: เริ่มแล้ว, พักอยู่, **รีดฟิล์มยังไม่ได้รับฟิล์ม/งาน DTG/ของสกรีน** · สถานีเย็บต้องใช้ `start_sewing` (trigger บังคับจักรครบ) |
-| `finish_station` | `p_job` | production · qc (เฉพาะ QC+Packing) · owner | ไม่บังคับขั้นย่อย (`20261119180000`) · ตรวจ: พักอยู่ → "กด แก้แล้ว ก่อน" · `missing_substeps` = เฉพาะขั้น lock + QC ผ่านครบจำนวน → "ยังกดเสร็จไม่ได้: QC ตรวจผ่าน 10/25 ชิ้น ยังไม่ครบ …" (`20261119200000`) · เกินเวลามาตรฐานยังไม่รายงาน → ปฏิเสธ · งานแก้เสร็จ → กลับ QC ทันที · สถานีสุดท้าย → `done` (ตัวอย่าง → `sample_review`) |
+| `finish_station` | `p_job, p_station = null` (`20261120070000`: สถานีที่หน้าจอเห็น · ไม่ตรงสถานีปัจจุบัน = ปฏิเสธ "งานนี้ไปอยู่สถานีอื่นแล้ว" · หน้าเว็บส่งเสมอ) | production · qc (เฉพาะ QC+Packing) · owner | ไม่บังคับขั้นย่อย (`20261119180000`) · ตรวจ: พักอยู่ → "กด แก้แล้ว ก่อน" · `missing_substeps` = เฉพาะขั้น lock + QC ผ่านครบจำนวน → "ยังกดเสร็จไม่ได้: QC ตรวจผ่าน 10/25 ชิ้น ยังไม่ครบ …" (`20261119200000`) · เกินเวลามาตรฐานยังไม่รายงาน → ปฏิเสธ · งานแก้เสร็จ → กลับ QC ทันที · สถานีสุดท้าย → `done` (ตัวอย่าง → `sample_review`) |
 | `open_issue` | `p_job, p_reason` | production · qc · admin · owner | พักงาน (ต้องมีสาเหตุ) · event `hold` |
 | `close_issue` | `p_job, p_note = null` | production · **manager** · owner (`20261120050000`) | แก้แล้ว กลับสถานะก่อนพัก · event `resume` · **แอดมิน / QC ถูกปฏิเสธ** "แจ้งผู้บริหารหรือฝ่ายผลิตให้กด …" (เจ้าของ 18 พ.ย.: แอดมินไม่มีหน้าที่แก้ปัญหาของสถานี) · งานเย็บใช้ `resume_sewing` (ฝ่ายผลิต) |
 | `job_sla_flags` | — → `job_id, warn, over, need_report` | ทุกบทบาทที่ล็อกอิน (`20261120060000`) | อ่านอย่างเดียว · สถานะเวลามาตรฐานของงานผลิตที่กำลังทำ/พัก ให้การ์ดเป็นสีส้ม-แดง · ใช้ `private.sla_state` ตัวเดียวกับ `finish_station` |
-| `submit_delay_report` | `p_job, p_reasons text[], p_detail, p_new_eta, p_need_help = null` | production · qc · admin · owner | รายงานปัญหา/ล่าช้า (ส่งล่วงหน้าได้) · รหัสต้องอยู่ใน `reason_codes` · วันเสร็จใหม่ต้องเป็นอนาคต |
+| `submit_delay_report` | `p_job, p_reasons text[], p_detail, p_new_eta, p_need_help = null, p_request = null` | production · qc · admin · owner | รายงานปัญหา/ล่าช้า (ส่งล่วงหน้าได้) · รหัสต้องอยู่ใน `reason_codes` · วันเสร็จใหม่ต้องเป็นอนาคต |
 | `correct_event` | `p_job, p_event_id, p_reason` | production · owner | "แจ้งว่ากดผิด" บันทึก event `correction` · **ไม่ย้อนสถานะงาน** |
 | `complete_substep` | `p_job, p_key, p_value` | production · qc | ยังมีอยู่แต่หน้าเว็บไม่ใช้แล้ว |
 
@@ -66,6 +66,8 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 | `record_sample_result` | `p_job, p_pass, p_note, p_customer_confirmed_at` | admin · owner | ผ่าน → ผลิตจริงสถานีแรก · ไม่ผ่าน (ต้องมี note) → ตัวอย่างรอบใหม่ + แจ้งเตือน |
 | `order_film` | `p_job, p_eta` | admin · owner | บันทึกสั่ง + วันคาดว่าได้รับ · เส้นทางที่ไม่ใช้ฟิล์ม → "ไม่ต้องสั่งฟิล์ม" |
 | `receive_film` | `p_job` | admin · owner | บันทึกได้รับ → ปลดล็อกสถานีรีดฟิล์ม · ทำได้ทุกช่วงของงาน |
+
+**รหัสคำขอ `p_request`** (`20261120070000` · `private.rpc_requests`): หน้าเว็บสร้าง 1 รหัสต่อการกรอก 1 ครั้ง (`app/src/data/requestId.ts`) · ส่งรหัสเดิมซ้ำ = ไม่บันทึกซ้ำ คืนผลเดิม (`record_qc` · `split_job` คืนใบลูกเดิม · `submit_delay_report` คืนรายงานเดิม) · ไม่ส่ง = ทำงานแบบเดิม
 
 ## เย็บ + จักร
 **จักรใช้ร่วม** (`machine_types.shared` · `20261119210000`/`220000`): ตอนนี้ = จักรลา · โพ้ง 4 เส้น · ติดกระดุม · เจาะรังดุม · ไม่จ่าย/ไม่จองให้งาน · เริ่มเย็บได้เมื่อตัวที่ใช้ได้ (`status='ready'`) ≥ จำนวนที่สินค้าต้องใช้ · owner สลับได้ที่ ตั้งค่า → จักรเย็บ → ชนิดจักร (trigger `machine_types_release_on_shared` ปล่อยจักรที่ผูก + ยกเลิกการจองที่ยังไม่เริ่ม)
@@ -85,7 +87,7 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 ## QC
 | ฟังก์ชัน | อาร์กิวเมนต์ | ใครเรียก | ทำอะไร / ปฏิเสธเมื่อ |
 |---|---|---|---|
-| `record_qc` | `p_job, p_passed` | qc · production · owner | เพิ่มยอดผ่าน (สะสม) · ยอดสะสมเกินจำนวนงานไม่ได้ (บอกว่ายังบันทึกได้อีกกี่ชิ้น) |
+| `record_qc` | `p_job, p_passed, p_request = null` | qc · production · owner | เพิ่มยอดผ่าน (สะสม) · ยอดสะสมเกินจำนวนงานไม่ได้ (บอกว่ายังบันทึกได้อีกกี่ชิ้น) |
 | `send_rework` | `p_job, p_qty, p_reason, p_source_station` | qc · production · owner | ส่งกลับแก้ (จำนวน + สาเหตุ + สถานีต้นเหตุก่อน QC) · จำนวนไม่เกินชิ้นที่ยังไม่ผ่าน (จำนวนงาน − ยอดผ่านสะสม) · งานแก้ที่เย็บต้องได้จักรใหม่ผ่าน `start_sewing` |
 
 ## เวลามาตรฐาน (กฎข้อ 10)

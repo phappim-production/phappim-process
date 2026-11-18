@@ -187,7 +187,7 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
       <p className="font-semibold">ยืนยัน {j.no} {name}เสร็จทั้งก้อน? งานจะส่งต่อสถานีถัดไป</p>
       <div className="grid grid-cols-2 gap-2">
         <button type="button" disabled={busy} className={okBtn}
-          onClick={async () => { if (await run(j, [[finishFn, {}]], `${j.no} ${name}เสร็จ · ส่งต่อแล้ว`)) setMode(null) }}>{busy ? 'กำลังบันทึก…' : 'ยืนยัน'}</button>
+          onClick={async () => { if (await run(j, [[finishFn, finishFn === 'finish_station' ? { p_station: station } : {}]], `${j.no} ${name}เสร็จ · ส่งต่อแล้ว`)) setMode(null) }}>{busy ? 'กำลังบันทึก…' : 'ยืนยัน'}</button>
         <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode(null)}>ยกเลิก</button>
       </div>
     </div>

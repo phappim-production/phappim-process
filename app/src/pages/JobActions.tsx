@@ -8,6 +8,7 @@ import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type J
 import { OutsourcePanel } from './OutsourcePanel'
 import { FilePick } from '../components/FilePick'
 import { slaAmount, spaced } from '../proto/format'
+import { newRequestId } from '../data/requestId'
 import { bookingDay } from '../proto/sewing'
 import { canCloseIssue, type EmployeeRole } from '../auth/access'
 import { Pill } from '../components/ui'
@@ -316,6 +317,7 @@ function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act 
 }) {
   const st = j.station!
   const [confirmFinish, setConfirmFinish] = useState(false)
+  const [reportRequest, setReportRequest] = useState(newRequestId)
   const [holdText, setHoldText] = useState<string | null>(null)
   const ctx = {
     station: st, phase: j.phase, rework: !!j.rework, done: new Set(d.done.keys()),
@@ -363,7 +365,7 @@ function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act 
             {st === 'qc_pack' && !sample && canPress && <QcPanel job={j} passed={d.qcPassed} busy={busy} act={act} />}
             {canPress && (confirmFinish
               ? <Confirm text={`ยืนยัน${spaced(name)}เสร็จทั้งก้อน? งานจะส่งต่ออัตโนมัติ`} busy={busy}
-                  onYes={async () => { if (await act('finish_station', {}, `${spaced(name).trimStart()}เสร็จ · ส่งต่อแล้ว`)) setConfirmFinish(false) }} onNo={() => setConfirmFinish(false)} />
+                  onYes={async () => { if (await act('finish_station', { p_station: st }, `${spaced(name).trimStart()}เสร็จ · ส่งต่อแล้ว`)) setConfirmFinish(false) }} onNo={() => setConfirmFinish(false)} />
               : <button type="button" disabled={busy || !!finishBlock} className={okBtn} onClick={() => setConfirmFinish(true)}>
                   <IconCheck className="size-5" />{finishBlock ? 'ยังกดเสร็จไม่ได้' : `${spaced(name).trimStart()}เสร็จ`}
                 </button>)}
@@ -392,9 +394,13 @@ function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act 
       </Section>
       {j.phase === 'production' && canPress && (needReport || s.station_warn || s.segment_warn) && (
         <DelayReport reasons={d.reasons} busy={busy} now={now} required={!!needReport}
-          onSend={(codes, detail, eta, help) => act('submit_delay_report', {
-            p_reasons: codes, p_detail: detail, p_new_eta: eta.toISOString(), p_need_help: help || null,
-          }, 'ส่งรายงานปัญหาแล้ว')} />
+          onSend={async (codes, detail, eta, help) => {
+            const ok = await act('submit_delay_report', {
+              p_reasons: codes, p_detail: detail, p_new_eta: eta.toISOString(), p_need_help: help || null, p_request: reportRequest,
+            }, 'ส่งรายงานปัญหาแล้ว')
+            if (ok) setReportRequest(newRequestId())
+            return ok
+          }} />
       )}
     </>
   )
@@ -416,6 +422,7 @@ function SlaBanner({ sla: s }: { sla: Sla }) {
 
 function QcPanel({ job: j, passed, busy, act }: { job: Job; passed: number; busy: boolean; act: Act }) {
   const [pass, setPass] = useState('')
+  const [request, setRequest] = useState(newRequestId)
   const [rework, setRework] = useState<{ qty: string; reason: string; source: string } | null>(null)
   const sources = ROUTES[j.route].stations.filter(s => s !== 'qc_pack')
   return (
@@ -424,7 +431,7 @@ function QcPanel({ job: j, passed, busy, act }: { job: Job; passed: number; busy
       <div className="flex flex-wrap gap-2">
         <input type="number" min={1} inputMode="numeric" value={pass} onChange={e => setPass(e.target.value)} aria-label="จำนวนที่ผ่าน" placeholder="จำนวนที่ผ่าน" className={`${fieldClass} w-36 flex-1`} />
         <button type="button" disabled={busy || !(Number(pass) > 0)} className={okBtn}
-          onClick={async () => { if (await act('record_qc', { p_passed: Math.floor(Number(pass)) }, `บันทึกผ่าน QC ${pass} ${j.unit}`)) setPass('') }}>บันทึกผ่าน</button>
+          onClick={async () => { if (await act('record_qc', { p_passed: Math.floor(Number(pass)), p_request: request }, `บันทึกผ่าน QC ${pass} ${j.unit}`)) { setPass(''); setRequest(newRequestId()) } }}>บันทึกผ่าน</button>
       </div>
       {rework === null
         ? <button type="button" disabled={busy} className={dangerBtn} onClick={() => setRework({ qty: '', reason: '', source: sources.includes('sew') ? 'sew' : sources[0] })}>ส่งกลับแก้</button>
