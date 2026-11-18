@@ -79,22 +79,21 @@
   #print { display:none; }
   @media print {
     @page { size:A4; margin:12mm 12mm 12mm; }
-    body { background:#fff; font-size:11.5px; line-height:1.35; }
+    body { background:#fff; font-size:15px; line-height:1.4; }  /* ~11pt อ่านได้โดยไม่ต้องเพ่ง */
     #app, .bar, header.top, .toast { display:none !important; }
     #print { display:block; }
     .pp { break-before:page; }
     .pp:first-child { break-before:auto; }
-    .pp h2 { margin:0 0 2px; font-size:17px; color:var(--brand); }
-    .pp .meta { display:flex; justify-content:space-between; gap:12px; padding-bottom:4px; margin-bottom:6px; border-bottom:1px solid var(--rule); color:var(--muted); font-size:10.5px; }
-    .pp h3 { margin:7px 0 3px; padding:2px 6px; background:var(--brand-2); color:var(--brand); font-size:12px; break-after:avoid; }
-    .pf { display:grid; grid-template-columns:34% 1fr; gap:2px 10px; padding:3px 0; border-bottom:1px dotted var(--rule); break-inside:avoid; }
-    .pf .pl b { font-weight:600; }
-    .pf .pl .k { color:var(--muted); font-size:10px; }
-    .pf .po { display:flex; flex-wrap:wrap; gap:2px 12px; }
-    .pf .po span::before { content:"☐ "; font-size:12px; }
-    .pf .po .line { color:var(--faint); }
-    .pf .po .line::before { content:"☐ อื่นๆ "; color:var(--ink); }
-    .pp .pnote { margin-top:6px; padding:4px 6px; border:1px solid var(--rule); min-height:42px; color:var(--muted); font-size:10.5px; }
+    .pp h2 { margin:0 0 4px; font-size:24px; color:var(--brand); }
+    .pp .meta { display:flex; justify-content:space-between; gap:12px; padding-bottom:4px; margin-bottom:6px; border-bottom:1px solid var(--rule); color:var(--muted); font-size:13px; }
+    .pp h3 { margin:10px 0 4px; padding:3px 8px; background:var(--brand-2); color:var(--brand); font-size:16px; break-after:avoid; }
+    .pf { display:grid; grid-template-columns:30% 1fr; gap:2px 12px; padding:5px 0; border-bottom:1px dotted var(--rule); break-inside:avoid; }
+    .pf .pl b { font-weight:700; font-size:16px; }
+    .pf .pl .k { color:var(--muted); font-size:13px; }
+    .pf .po { display:flex; flex-wrap:wrap; gap:4px 18px; }
+    .pf .po > span::before { content:"☐ "; font-size:20px; line-height:1; vertical-align:-2px; }
+    .pf .po .line .dots { color:var(--faint); }
+    .pp .pnote { margin-top:8px; padding:6px 8px; border:1px solid var(--rule); min-height:80px; color:var(--muted); font-size:14px; }
   }
 </style>
 </head>
@@ -289,11 +288,11 @@ function renderPrint(only) {
   const cat = Object.fromEntries(DATA.cats);
   $('#print').innerHTML = list.map(prod => `<section class="pp">
     <div class="meta"><span>ภาพพิมพ์ 142 · แบบเก็บสเปกจริงของสินค้า · ${esc(cat[prod.k])}</span><span>ผู้ตอบ ............................ วันที่ ............</span></div>
-    <h2>${esc(prod.n)} <span style="font-size:11px;font-weight:400;color:var(--muted)">☐ สินค้านี้ไม่ได้ทำแล้ว</span></h2>
-    <div style="font-size:10.5px;color:var(--muted)">ติ๊ก ☑ ตัวเลือกที่ลูกค้าใช้จริง · ช่องที่ไม่เคยใช้ ติ๊ก "ไม่ใช้ช่องนี้" · ตัวเลือกที่ขาด เขียนต่อท้าย</div>
+    <h2>${esc(prod.n)} <span style="font-size:15px;font-weight:400;color:var(--ink)">☐ สินค้านี้ไม่ได้ทำแล้ว</span></h2>
+    <div style="font-size:13px;color:var(--muted)">ติ๊ก ☑ ตัวเลือกที่ลูกค้าใช้จริง · ช่องที่ไม่เคยใช้ ติ๊ก "ไม่ใช้ช่องนี้" · ตัวเลือกที่ขาด เขียนต่อท้าย</div>
     ${prod.s.map(s => `<h3>${esc(s.t)}</h3>${s.f.map(f => `<div class="pf">
       <div class="pl"><b>${esc(f.l)}</b>${f.u ? ` (${esc(f.u)})` : ''}<br><span class="k">${KIND[f.y] || ''}${f.w ? ' · บางกรณี' : ''} · ☐ ไม่ใช้ช่องนี้</span></div>
-      <div class="po">${(f.o || []).map(o => `<span>${esc(o)}</span>`).join('')}${(f.o || []).length || f.x ? '<span class="line">..........................</span>' : ''}</div>
+      <div class="po">${(f.o || []).map(o => `<span>${esc(o)}</span>`).join('')}${(f.o || []).length || f.x ? '<span class="line">อื่นๆ <span class="dots">..........................</span></span>' : ''}</div>
     </div>`).join('')}`).join('')}
     <div class="pnote">หมายเหตุ / สเปกที่ลูกค้าถามบ่อย:</div>
   </section>`).join('');
