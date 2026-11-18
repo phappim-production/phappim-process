@@ -1,0 +1,19 @@
+// ส่งงานออกบริษัทภายนอก: ฟังก์ชันคำนวณที่หน้าจอใช้ (ตรงกับ private.out_span ในฐานข้อมูล)
+import { OUTSOURCEABLE, ROUTES, type Job, type StationCode } from './model.ts'
+
+/** สถานีที่ส่งออกต่อกันได้จากตำแหน่ง from ของเส้นทาง (หยุดที่สถานีแรกที่ต้องทำในโรงงาน) */
+export function outSpan(job: Job, from: StationCode): StationCode[] {
+  const route = ROUTES[job.route].stations
+  const out: StationCode[] = []
+  for (const s of route.slice(route.indexOf(from))) {
+    if (!OUTSOURCEABLE.includes(s)) break
+    out.push(s)
+  }
+  return out
+}
+
+/** วันคาดว่าเสร็จ/ส่งกลับเริ่มต้น = ของถึง + จำนวนวันที่บริษัทใช้ (แก้เองได้) */
+export function defaultBack(arrive: Date, days: number): Date {
+  return new Date(arrive.getTime() + Math.max(0, days) * 86_400_000)
+}
+

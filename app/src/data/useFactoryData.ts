@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Job } from '../proto/model'
+import type { Job, Vendor } from '../proto/model'
 import type { Booking, Machine, MachineType, Need } from '../proto/sewing'
 import {
-  sharedTypes, thaiError, toBookings, toJobs, toMachines, toNeeds, type MachineTypeRow,
+  attachOutRuns, sharedTypes, thaiError, toBookings, toJobs, toMachines, toNeeds, toVendors, type MachineTypeRow, type OutRunRow, type VendorRow,
   type AssignmentRow, type BookingRow, type JobRow, type MachineRow, type NeedRow, type ProductRow, type ReworkRow, type SewEventRow,
 } from './live'
 
-export type FactoryData = { jobs: Job[]; machines: Machine[]; bookings: Booking[]; needs: Record<string, Need[]>; products: ProductRow[]; shared: MachineType[] }
+export type FactoryData = { vendors: Vendor[]; jobs: Job[]; machines: Machine[]; bookings: Booking[]; needs: Record<string, Need[]>; products: ProductRow[]; shared: MachineType[] }
 export type LoadState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
@@ -15,7 +15,7 @@ export type LoadState =
 
 const DAY = 86_400_000
 // ตารางที่เปลี่ยนแล้วต้องโหลดใหม่ · ทุกการกดงานบันทึก events จึงครอบทุกขั้นของงาน
-const WATCH = ['jobs', 'events', 'job_materials', 'issues', 'sewing_machines', 'machine_assignments', 'machine_bookings'] as const
+const WATCH = ['jobs', 'outsource_runs', 'events', 'job_materials', 'issues', 'sewing_machines', 'machine_assignments', 'machine_bookings'] as const
 // เฉพาะคอลัมน์ที่หน้าจอใช้ · ไม่ดึง spec (คำตอบทั้งใบยืนยัน) เพราะโหลดใหม่ทุกครั้งที่มีคนกด
 const JOB_COLUMNS = 'id, confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, phase, current_station, station_status, stage_entered_at, sample_round, needs_sample, materials_waiting_depts, dtf_film_eta, dtf_film_received_at, sew_count, is_rework, rework_qty, hold_reason, finished_at, queue_seq'
 
@@ -54,7 +54,7 @@ export async function fetchBoardJob(id: string, signal: AbortSignal): Promise<Jo
 async function load(): Promise<FactoryData> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
   const recent = new Date(Date.now() - 14 * DAY).toISOString()
-  const [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types] = await Promise.all([
+  const [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types, vendorRows, outRuns] = await Promise.all([
     // งานเสร็จเก่ากว่า 14 วันไม่ต้องแสดงบนบอร์ด
     supabase.from('job_live').select(JOB_COLUMNS).neq('phase', 'cancelled').or(`phase.neq.done,finished_at.gte.${recent}`),
     supabase.from('product_types').select('code, name'),
@@ -65,11 +65,15 @@ async function load(): Promise<FactoryData> {
     supabase.from('machine_bookings').select('id, machine_id, job_id, starts_at, ends_at').is('cancelled_at', null).gte('ends_at', new Date(Date.now() - 7 * DAY).toISOString()),
     supabase.from('product_machine_needs').select('product_type_code, type_code, qty'),
     supabase.from('machine_types').select('code, shared'),
+    supabase.from('vendors').select('id, name, stations').eq('active', true),
+    supabase.from('outsource_runs').select('id, job_id, vendor_id, stations, qty, is_rework, sent_at, arrive_at, lead_days, back_at, note').is('closed_at', null),
   ])
-  const failed = [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types].find(r => r.error)
+  const failed = [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types, vendorRows, outRuns].find(r => r.error)
   if (failed?.error) throw new Error(failed.error.message)
+  const vendors = toVendors(vendorRows.data as VendorRow[])
   return {
-    jobs: toJobs(jobs.data as JobRow[], products.data as ProductRow[], reworks.data as ReworkRow[], sewEvents.data as SewEventRow[]),
+    vendors,
+    jobs: attachOutRuns(toJobs(jobs.data as JobRow[], products.data as ProductRow[], reworks.data as ReworkRow[], sewEvents.data as SewEventRow[]), outRuns.data as OutRunRow[], vendors),
     machines: toMachines(machines.data as MachineRow[], assignments.data as AssignmentRow[]),
     bookings: toBookings(bookings.data as BookingRow[]),
     needs: toNeeds(needs.data as NeedRow[], new Set(sharedTypes(types.data as MachineTypeRow[]))),

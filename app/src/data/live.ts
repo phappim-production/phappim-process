@@ -1,6 +1,6 @@
 // แปลงแถวจากฐานข้อมูลจริง (view job_live และตารางจักร) เป็นรูปแบบที่หน้าจอใช้ (proto/model · proto/sewing)
 // แยกเป็น pure function เพื่อทดสอบได้โดยไม่ต้องต่อ Supabase · ตัวดึงข้อมูลอยู่ที่ useFactoryData.ts
-import { thaiWorkEnd, usesFilm, type Dept, type Job, type Phase, type RouteCode, type StationCode, type StationStatus } from '../proto/model.ts'
+import { thaiWorkEnd, usesFilm, type OutRun, type Vendor, type Dept, type Job, type Phase, type RouteCode, type StationCode, type StationStatus } from '../proto/model.ts'
 import type { Booking, Machine, MachineStatus, MachineType, Need } from '../proto/sewing.ts'
 
 export type JobRow = {
@@ -35,6 +35,29 @@ export type SewEventRow = { job_id: string; type: string; payload: { reason?: st
 export type MachineRow = { id: number; code: string; type_code: MachineType; status: MachineStatus; note: string | null; repair_eta: string | null; sort: number }
 export type AssignmentRow = { machine_id: number; job_id: string }
 export type BookingRow = { id: number; machine_id: number; job_id: string; starts_at: string; ends_at: string }
+export type VendorRow = { id: number; name: string; stations: StationCode[] | null }
+export type OutRunRow = {
+  id: number; job_id: string; vendor_id: number; stations: StationCode[]; qty: number; is_rework: boolean
+  sent_at: string; arrive_at: string; lead_days: number | string; back_at: string; note: string | null
+}
+export function toVendors(rows: VendorRow[]): Vendor[] {
+  return rows.map(r => ({ id: Number(r.id), name: r.name, stations: r.stations ?? [] })).sort((a, b) => a.name.localeCompare(b.name, 'th'))
+}
+/** ผูกรอบส่งออกที่ยังเปิดเข้ากับงาน (1 งาน = 1 รอบเปิด) */
+export function attachOutRuns(jobs: Job[], runs: OutRunRow[], vendors: Vendor[]): Job[] {
+  const name = new Map(vendors.map(v => [v.id, v.name]))
+  const byJob = new Map(runs.map(r => [r.job_id, r]))
+  return jobs.map(j => {
+    const r = byJob.get(j.id)
+    if (!r) return j
+    const out: OutRun = {
+      id: Number(r.id), vendorId: Number(r.vendor_id), vendor: name.get(Number(r.vendor_id)) ?? 'บริษัทภายนอก', stations: r.stations, qty: r.qty, rework: r.is_rework,
+      sentAt: new Date(r.sent_at), arriveAt: new Date(r.arrive_at), leadDays: Number(r.lead_days), backAt: new Date(r.back_at),
+    }
+    if (r.note) out.note = r.note
+    return { ...j, out }
+  })
+}
 export type NeedRow = { product_type_code: string; type_code: MachineType; qty: number }
 
 // กำหนดส่งเป็นวันที่ไทย · ใช้เวลาเลิกงานของวันนั้น การเทียบวันจึงไม่เพี้ยนตามเขตเวลาเครื่อง

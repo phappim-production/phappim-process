@@ -5,7 +5,8 @@ export type StationCode = 'print' | 'press' | 'cut' | 'dtf_press' | 'emb' | 'sew
 export type RouteCode = 'normal' | 'dtf' | 'dtg' | 'screen' | 'emb' | 'print_emb' | 'cut_only' | 'plain'
 export type Dept = 'admin' | 'qc' | 'production'
 export type Phase = 'materials' | 'sample' | 'sample_review' | 'production' | 'done'
-export type StationStatus = 'queued' | 'doing' | 'hold'
+// out = อยู่ที่บริษัทภายนอก (ส่งออก) · ปุ่มของโรงงานกดไม่ได้จนกว่าแอดมินรับของกลับ
+export type StationStatus = 'queued' | 'doing' | 'hold' | 'out'
 
 export const STATION_NAME: Record<StationCode, string> = {
   print: 'พิมพ์งาน',
@@ -34,7 +35,7 @@ export const filmLabel = (r: RouteCode) => (r === 'dtg' ? 'งาน DTG' : r ==
 
 export const DEPT_NAME: Record<Dept, string> = { admin: 'แอดมิน', qc: 'QC', production: 'ฝ่ายผลิต' }
 
-export const STATUS_NAME: Record<StationStatus, string> = { queued: 'รอคิว', doing: 'กำลังทำ', hold: 'ติดปัญหา' }
+export const STATUS_NAME: Record<StationStatus, string> = { queued: 'รอคิว', doing: 'กำลังทำ', hold: 'ติดปัญหา', out: 'ส่งออกข้างนอก' }
 
 export type Job = {
   id: string
@@ -60,7 +61,19 @@ export type Job = {
   holdReason?: string
   doneAt?: Date
   queue?: number             // ลำดับคิว (jobs.queue_seq) · ตามลำดับรับงานเข้า แทรกงานด่วนได้
+  out?: OutRun               // อยู่ที่บริษัทภายนอก (station_status = out)
 }
+
+// รอบส่งออกที่ยังเปิดอยู่ (outsource_runs) · บริษัททำ stations แล้วของถึงที่ต่อไปตาม backAt
+export type OutRun = {
+  id: number; vendor: string; vendorId: number; stations: StationCode[]; qty: number; rework: boolean
+  sentAt: Date; arriveAt: Date; leadDays: number; backAt: Date; note?: string
+}
+export type Vendor = { id: number; name: string; stations: StationCode[] }
+/** สถานีที่ส่งออกได้ (ตรงกับ private.outsourceable ในฐานข้อมูล) */
+export const OUTSOURCEABLE: StationCode[] = ['print', 'press', 'cut', 'sew', 'emb']
+/** ของจากบริษัทภายนอกเลยกำหนดถึงแล้วยังไม่รับ */
+export const isOutLate = (j: Job, now: Date) => !!j.out && j.out.backAt.getTime() < now.getTime()
 
 // คอลัมน์ของบอร์ด (DEVELOPMENT.md หัวข้อ 8)
 export type ColumnKey = 'materials' | 'sample' | 'sample_review' | StationCode | 'done'
@@ -145,6 +158,7 @@ export function stationCounts(jobs: Job[], now: Date) {
       waiting: here.filter(j => j.status === 'queued').length,
       doing: here.filter(j => j.status === 'doing').length,
       hold: here.filter(j => j.status === 'hold').length,
+      out: here.filter(j => j.status === 'out').length,
       late: here.filter(j => isOverdue(j, now)).length,
     }
   })

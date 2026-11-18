@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
-  COLUMNS, DEPT_NAME, ROUTES, byQueue, STATION_NAME, STATUS_NAME,
+  COLUMNS, DEPT_NAME, ROUTES, byQueue, isOutLate, STATION_NAME, STATUS_NAME,
   columnOf, filmLabel, groupColumns, savedStation, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
   type ColumnKey, type Job, type RouteCode, type StationCode,
 } from '../proto/model'
@@ -242,7 +242,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   const openFinish = openJob && openJob.phase !== 'done' ? workdayToDate(forecast.finishDay.get(openJob.id) ?? 0, now) : undefined
   const drawer = openJob && (
     <JobDrawer job={openJob} now={now} finish={openFinish} onClose={() => setOpenId(null)}
-      actions={<JobActions job={openJob} role={role} version={loadedAt.getTime()} now={now} refresh={refresh} />}
+      actions={<JobActions job={openJob} role={role} version={loadedAt.getTime()} now={now} refresh={refresh} vendors={data.vendors} />}
       history={<JobHistory key={openJob.id} jobId={openJob.id} role={role} version={loadedAt.getTime()} now={now} onChanged={refresh} />} />
   )
   const receive = receiving && (
@@ -452,14 +452,15 @@ function PageHeader({ title, today, updated }: { title: string; today: string; u
 
 function stripe(j: Job, now: Date): Tone {
   if (j.phase === 'done') return 'ok'
-  if (j.status === 'hold' || isOverdue(j, now)) return 'danger'
+  if (j.status === 'hold' || isOverdue(j, now) || isOutLate(j, now)) return 'danger'
   if (isFilmLate(j, now) || j.phase === 'materials') return 'warn'
   if (j.status === 'doing') return 'info'
   return 'neutral'
 }
 
 function JobCard({ job: j, now, onOpen }: { job: Job; now: Date; onOpen: () => void }) {
-  const label = j.status === 'hold' ? 'พักงาน'
+  const label = j.status === 'out' && j.out ? `ข้างนอก · ${j.out.vendor}`
+    : j.status === 'hold' ? 'พักงาน'
     : isWaitingFilm(j) ? 'รอฟิล์ม'
     : j.phase === 'done' ? 'เสร็จ'
     : j.phase === 'sample' && j.station ? STATION_NAME[j.station]
@@ -544,6 +545,7 @@ function CardStatus({ job: j, now }: { job: Job; now: Date }) {
     rows.push(<Pill key="s" tone={tone} dot>{j.phase === 'sample' ? `${STATION_NAME[j.station]} · ` : ''}{STATUS_NAME[j.status]}</Pill>)
   }
   if (j.holdReason) rows.push(<span key="h" className="text-danger">สาเหตุ: {j.holdReason}</span>)
+  if (j.out) rows.push(<span key="o" className={isOutLate(j, now) ? 'font-semibold text-danger' : 'text-info'}>ที่ {j.out.vendor} · คาดว่าของถึง {shortDate(j.out.backAt)}{isOutLate(j, now) ? ' (เลยกำหนด)' : ''}</span>)
   if (j.phase === 'sample_review') rows.push(<Pill key="r" tone="info" dot>รอลูกค้ายืนยัน (รอบ {j.sampleRound})</Pill>)
   if (j.rework) rows.push(<span key="w" className="text-danger">แก้ {j.rework.qty} {j.unit} · {j.rework.reason}</span>)
 

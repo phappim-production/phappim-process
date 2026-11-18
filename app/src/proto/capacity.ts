@@ -124,6 +124,16 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
   let lines: SewLine[] = []
   const runs: Run[] = jobs.filter(j => j.phase !== 'done').sort(byQueue).map((j, order) => {
     const stations = ROUTES[j.route].stations
+    // อยู่ที่บริษัทภายนอก: ข้ามสถานีที่บริษัททำ · พร้อมเข้าสถานีถัดไปเมื่อของถึงตามกำหนด (งานแก้กลับ QC)
+    if (j.status === 'out' && j.out) {
+      const last = j.out.stations[j.out.stations.length - 1]
+      const i = j.out.rework ? stations.length - 1 : stations.indexOf(last) + 1
+      return {
+        id: j.id, stations, isExtra: false, i: Math.min(Math.max(i, 0), stations.length), order,
+        ready: workdaysUntil(j.out.backAt, now), filmDay: 0,
+        firstQty: j.out.qty, qty: j.qty, needs: floor.needsOf(j.productCode), lineRate: lineRate(j.productCode),
+      }
+    }
     const inLine = j.phase === 'production'
     return {
       id: j.id, stations, isExtra: false,

@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { DEFAULT_SEW_PRODUCT, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, hasSewMinutes, lateDays, lineRate, linesFor, machineSets, simulate, verdict, workdayToDate, type Forecast, type SewFloor } from '../proto/capacity'
 import { MACHINE_TYPE_NAME } from '../proto/sewing'
-import { ROUTES, STATION_NAME, WORK_END, byQueue, stationCounts, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
+import { ROUTES, STATION_NAME, WORK_END, byQueue, isOutLate, stationCounts, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
 import { duration, shortDate, stageSteps, stageText } from '../proto/format'
 import { Card, CardHeader, DueLabel, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
 import { TONE, type Tone } from '../components/tone'
 import JobFinder from '../components/JobFinder'
-import { IconAlert, IconCalculator, IconCheck, IconChevronRight, IconClipboard, IconFactory, IconLayers, IconPause, IconTrendingUp } from '../components/icons'
+import { IconAlert, IconCalculator, IconCheck, IconChevronRight, IconClipboard, IconFactory, IconLayers, IconPause, IconTrendingUp, IconPackage } from '../components/icons'
 
 type Product = { code: string; name: string }
 type Props = { jobs: Job[]; now: Date; forecast: Forecast; floor: SewFloor; products: Product[]; onOpen: (id: string) => void }
@@ -36,6 +36,7 @@ export default function Overview({ jobs, now, forecast, floor, products, onOpen 
       {/* มุมมองแรกมีอย่างเดียว: งานที่ต้องตาม · ข้อมูลวางแผน (กราฟ) อยู่ในมุมมองวางแผน ไม่ปนกัน */}
       <section hidden={view !== 'follow'} className="grid gap-4">
         <StationNow jobs={jobs} now={now} />
+        <OutsideCard jobs={jobs} now={now} onOpen={onOpen} />
         <AdminTodo jobs={jobs} now={now} atRisk={atRisk} onOpen={onOpen} />
       </section>
       <section hidden={view !== 'find'}>
@@ -297,17 +298,51 @@ function StationNow({ jobs, now }: { jobs: Job[]; now: Date }) {
                 className={`flex h-full min-h-24 flex-col gap-1 rounded-xl border-2 px-3 py-2.5 hover:border-brand ${bad ? 'border-danger/50 bg-danger-soft/40' : 'border-line bg-card'}`}>
                 <span className="font-semibold">{r.name}</span>
                 <span className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-bold tabular-nums">{r.waiting + r.doing + r.hold}</span>
+                  <span className="text-2xl font-bold tabular-nums">{r.waiting + r.doing + r.hold + r.out}</span>
                   <span className="text-sm text-muted">งาน</span>
                 </span>
                 <span className="flex flex-wrap gap-x-2 text-sm">
                   {r.doing > 0 && <span className="text-info">ทำอยู่ {r.doing}</span>}
                   {r.waiting > 0 && <span className="text-muted">รอ {r.waiting}</span>}
                   {r.hold > 0 && <span className="font-semibold text-danger">ติดปัญหา {r.hold}</span>}
+                  {r.out > 0 && <span className="text-info">ข้างนอก {r.out}</span>}
                   {r.late > 0 && <span className="font-semibold text-danger">เลยกำหนด {r.late}</span>}
-                  {r.waiting + r.doing + r.hold === 0 && <span className="text-muted">ว่าง</span>}
+                  {r.waiting + r.doing + r.hold + r.out === 0 && <span className="text-muted">ว่าง</span>}
                 </span>
               </a>
+            </li>
+          )
+        })}
+      </ul>
+    </Card>
+  )
+}
+
+// งานที่อยู่บริษัทภายนอก: แอดมินตามของ · เรียงตามวันที่ของจะถึง · เลยกำหนดเป็นแดง
+function OutsideCard({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpen: (id: string) => void }) {
+  const list = jobs.filter(j => j.status === 'out' && j.out).sort((a, b) => a.out!.backAt.getTime() - b.out!.backAt.getTime())
+  if (!list.length) return null
+  const late = list.filter(j => isOutLate(j, now)).length
+  const when = (d: Date) => d.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' น.'
+  return (
+    <Card>
+      <CardHeader icon={IconPackage} tone={late ? 'danger' : 'info'} title={`งานที่ส่งออกข้างนอก ${list.length} งาน`}
+        sub={late ? `เลยกำหนดของถึง ${late} งาน · โทรตามบริษัท` : 'เรียงตามวันที่ของจะถึง · ของถึงแล้วเปิดงานกด "รับเข้า"'} />
+      <ul className="divide-y divide-line border-t border-line">
+        {list.map(j => {
+          const o = j.out!
+          const bad = isOutLate(j, now)
+          return (
+            <li key={j.id}>
+              <button onClick={() => onOpen(j.id)} className="flex min-h-14 w-full items-center gap-3 px-5 py-2.5 text-left transition hover:bg-paper">
+                <span className={`h-9 w-1 shrink-0 rounded-full ${bad ? TONE.danger.dot : TONE.info.dot}`} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5"><b>{j.no}</b><Pill tone={bad ? 'danger' : 'info'}>{o.vendor}</Pill>{o.rework && <Pill tone="danger">งานแก้</Pill>}</span>
+                  <span className="block text-sm text-muted">{o.stations.map(s => STATION_NAME[s]).join(' → ')} · {o.qty.toLocaleString('th-TH')} {j.unit}</span>
+                  <span className={`block text-sm ${bad ? 'font-semibold text-danger' : ''}`}>คาดว่าของถึง {when(o.backAt)}{bad ? ' · เลยกำหนด' : ''}</span>
+                </span>
+                <IconChevronRight className="size-4 shrink-0 text-muted" />
+              </button>
             </li>
           )
         })}
@@ -322,7 +357,8 @@ function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Date; atRi
   const lateBy = new Map(atRisk.map(r => [r.job.id, r]))
   for (const j of jobs) {
     if (j.phase === 'done') continue
-    if (j.status === 'hold') items.push({ id: j.id + 'h', tone: 'danger', tag: 'ติดปัญหา', text: j.holdReason ?? '', job: j })
+    if (isOutLate(j, now)) items.push({ id: j.id + 'o', tone: 'danger', tag: 'ของข้างนอกเลยกำหนด', text: `${j.out!.vendor} · คาดว่าถึง ${shortDate(j.out!.backAt)}`, job: j })
+    else if (j.status === 'hold') items.push({ id: j.id + 'h', tone: 'danger', tag: 'ติดปัญหา', text: j.holdReason ?? '', job: j })
     else if (isOverdue(j, now)) items.push({ id: j.id + 'd', tone: 'danger', tag: 'เลยกำหนดส่ง', text: `กำหนดส่ง ${shortDate(j.due)}`, job: j })
     else if (j.film && !j.film.received) {
       const late = isFilmLate(j, now)
