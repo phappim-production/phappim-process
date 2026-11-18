@@ -4,7 +4,8 @@ import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { confirmationPath, pdfProblem } from '../data/confirmation'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
-import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job } from '../proto/model'
+import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job, type Vendor } from '../proto/model'
+import { OutsourcePanel } from './OutsourcePanel'
 import { spaced } from '../proto/format'
 import { bookingDay } from '../proto/sewing'
 import type { EmployeeRole } from '../auth/access'
@@ -47,8 +48,8 @@ async function loadDetail(job: Job): Promise<Detail> {
 }
 
 /** ปุ่มทำงานของงานนี้ตามขั้นปัจจุบันและบทบาท · กฎทุกข้อตรวจซ้ำที่ฐานข้อมูล ปุ่มที่กดไม่ได้บอกเหตุผล */
-export function JobActions({ job: j, role, version, now, refresh }: {
-  job: Job; role: EmployeeRole; version: number; now: Date; refresh: () => Promise<void>
+export function JobActions({ job: j, role, version, now, refresh, vendors = [] }: {
+  job: Job; role: EmployeeRole; version: number; now: Date; refresh: () => Promise<void>; vendors?: Vendor[]
 }) {
   const [detail, setDetail] = useState<{ shape: string; data?: Detail; error?: string } | null>(null)
   const [notice, setNotice] = useState<Notice>(null)
@@ -88,7 +89,8 @@ export function JobActions({ job: j, role, version, now, refresh }: {
   const admin = role === 'admin' || owner
   const st = j.station
   const canStation = !!st && (floor || (role === 'qc' && st === 'qc_pack'))
-  const inStation = (j.phase === 'sample' || j.phase === 'production') && !!st
+  // อยู่ที่บริษัทภายนอก = ไม่มีปุ่มของสถานี (ดูแผงส่งออกแทน)
+  const inStation = (j.phase === 'sample' || j.phase === 'production') && !!st && j.status !== 'out'
 
   return (
     // ข้อความหลักบนแท็บเล็ตต้อง ≥ 16 px (แผงนี้อยู่ในรายละเอียดงานที่ตั้งตัวอักษรเล็กไว้)
@@ -99,6 +101,7 @@ export function JobActions({ job: j, role, version, now, refresh }: {
       {notice && (
         <p role={notice.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>{notice.text}</p>
       )}
+      <OutsourcePanel job={j} vendors={vendors} admin={admin} now={now} refresh={refresh} />
       {j.phase === 'materials' && <Materials materials={d.materials} role={role} busy={busy} sample={j.needsSample !== false}
         onCheck={(m, on) => act('check_material', { p_material_id: m.id, p_checked: on }, on ? `ติ๊ก "${m.name}" แล้ว` : `ยกเลิกติ๊ก "${m.name}" แล้ว`, false)} />}
       {usesFilm(j.route) && !j.film?.received && j.phase !== 'done' && (

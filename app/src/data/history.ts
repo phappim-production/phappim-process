@@ -42,6 +42,8 @@ const thaiDate = (v: unknown) => {
   return d.toLocaleString('th-TH', opts)
 }
 
+const stationNames = (v: unknown, n: Names) => (Array.isArray(v) ? v.map(x => n.station(str(x))).join(' → ') : '')
+
 /** ข้อความ 1 บรรทัดของการกด 1 ครั้ง · ชนิดที่ไม่รู้จักแสดงรหัสเดิม (ดีกว่าซ่อน) */
 export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLine {
   const p = e.payload ?? {}
@@ -89,6 +91,12 @@ export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLi
     case 'machines_booked':
       return { title: 'จองจักร', detail: [list(p.machines), str(p.starts_at) && `${thaiDate(p.starts_at)} – ${thaiDate(p.ends_at)}`].filter(Boolean).join(' · ') || undefined, tone: 'neutral' }
     case 'booking_cancelled': return { title: 'ยกเลิกการจองจักร', tone: 'neutral' }
+    case 'outsource_sent': return { title: `ส่งออก ${str(p.vendor)}`, detail: [list(p.stations) && `ทำ ${stationNames(p.stations, n)}`, str(p.arrive_at) && `ถึงบริษัท ${thaiDate(p.arrive_at)}`, p.lead_days != null && `ใช้ ${num(p.lead_days)} วัน`, str(p.back_at) && `คาดว่าของกลับ ${thaiDate(p.back_at)}`, str(p.note)].filter(Boolean).join(' · ') || undefined, tone: 'info' }
+    case 'outsource_forwarded': return { title: `ส่งต่อจาก ${str(p.from_vendor)} ไป ${str(p.vendor)}`, detail: [list(p.stations) && `ทำ ${stationNames(p.stations, n)}`, str(p.arrive_at) && `ถึงบริษัท ${thaiDate(p.arrive_at)}`, p.lead_days != null && `ใช้ ${num(p.lead_days)} วัน`, str(p.back_at) && `คาดว่าเสร็จ ${thaiDate(p.back_at)}`].filter(Boolean).join(' · ') || undefined, tone: 'info' }
+    case 'outsource_received': return { title: `รับของกลับจาก ${str(p.vendor)}`, detail: [list(p.done_stations) && `ทำแล้ว ${stationNames(p.done_stations, n)}`, p.late === true && 'ช้ากว่ากำหนด', str(p.note)].filter(Boolean).join(' · ') || undefined, tone: p.late === true ? 'warn' : 'ok' }
+    case 'outsource_plan': return { title: 'แก้กำหนดงานข้างนอก', detail: [str(p.back_at) && `คาดว่าของถึง ${thaiDate(p.back_at)}`, str(p.old_back_at) && `(เดิม ${thaiDate(p.old_back_at)})`].filter(Boolean).join(' ') || undefined, tone: 'warn' }
+    case 'job_split': return { title: `แบ่งงาน ${num(p.qty)} ชิ้นเป็น ${str(p.child)}`, detail: `งานนี้เหลือ ${num(p.left)} ชิ้น`, tone: 'neutral' }
+    case 'job_split_from': return { title: `แบ่งมาจาก ${str(p.parent)}`, detail: `${num(p.qty)} ชิ้น`, tone: 'neutral' }
     case 'queue_insert': return { title: `แทรกคิวงานด่วน (ก่อน ${str(p.before)})`, detail: str(p.reason) || undefined, tone: 'warn' }
     case 'queue_skip': return { title: `เริ่มก่อนคิว${st ? ` ที่${st}` : ''}`, detail: [str(p.reason), list(p.ahead) && `ข้ามคิว ${list(p.ahead)}`].filter(Boolean).join(' · ') || undefined, tone: 'warn' }
     case 'correction': return { title: 'แจ้งว่ารายการก่อนหน้ากดผิด', detail: str(p.reason) || undefined, tone: 'warn' }

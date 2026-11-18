@@ -37,6 +37,17 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 | `start_in_queue` | `p_job, p_reason` → `text[]` | production · qc (เฉพาะ QC+Packing) · owner | **ปุ่มเริ่มในหน้าคิวสถานีใช้ตัวนี้** · ไม่ใช่คิวแรกต้องมีเหตุผล (event `queue_skip`) · แล้วเรียก `start_station` / `start_sewing` ในธุรกรรมเดียว (เริ่มไม่ได้ = ไม่บันทึกอะไร) · เย็บคืนรหัสจักร |
 | `note_queue_skip` | `p_job, p_reason` → `boolean` | production · qc (เฉพาะ QC+Packing) · owner | ตรวจ/บันทึกข้ามคิวอย่างเดียว (หน้าเว็บไม่ใช้แล้ว) |
 
+## ส่งงานออกบริษัทภายนอก + แบ่งงาน (`20261120020000`)
+สถานีที่ส่งออกได้: พิมพ์ · รีด · ตัด · เย็บ · ปัก (ติดกันหลายสถานีในรอบเดียว) · งานข้างนอก `station_status = 'out'` · trigger `jobs_guard_outsourced` ห้ามปุ่มของโรงงานเปลี่ยนงานจนกว่าจะรับกลับ · ตาราง `vendors`, `outsource_runs` (อ่านได้ทุกคน · เขียนผ่านฟังก์ชันเท่านั้น)
+| ฟังก์ชัน | อาร์กิวเมนต์ | ใครเรียก | ทำอะไร / ปฏิเสธเมื่อ |
+|---|---|---|---|
+| `add_vendor` | `p_name, p_stations text[], p_contact` → `bigint` | admin · owner | เพิ่ม/เปิดใช้บริษัท · ปฏิเสธ: ชื่อว่าง, งานที่รับไม่ใช่ 5 สถานี |
+| `send_out` | `p_job, p_vendor, p_last_station, p_arrive_at, p_lead_days, p_back_at, p_note` → run id | admin · owner | งานรอเริ่ม (queued) ที่สถานีส่งออกได้ → บริษัททำถึง `p_last_station` · event `outsource_sent` · ปฏิเสธ: เริ่ม/พักแล้ว, อยู่ข้างนอกแล้ว, ข้ามสถานีที่ต้องทำในโรงงาน, ไม่อยู่ในเส้นทาง, กรอกกำหนดไม่ครบ / กลับก่อนถึง, งานแก้ส่งเกินสถานีต้นเหตุ |
+| `forward_out` | `p_run, p_vendor, p_last_station, …` → run id | admin · owner | บ.A เสร็จ → บ.B ทำสถานีถัดไปโดยไม่ผ่านโรงงาน · event `outsource_forwarded` · ปฏิเสธ: บริษัทเดิม, งานแก้, ถัดไปทำในโรงงาน |
+| `receive_back` | `p_run, p_note` | admin · owner | ของถึงโรงงาน → งานเข้าสถานีถัดไป (งานแก้ → QC) รอคิว · event `outsource_received` (`late`) |
+| `update_out_plan` | `p_run, p_arrive_at, p_lead_days, p_back_at` | admin · owner | แก้กำหนด · event `outsource_plan` |
+| `split_job` | `p_job, p_qty` → uuid งานใหม่ | admin · owner | งานผลิตจริงที่รอเริ่ม (ไม่ใช่งานแก้/QC) แยก `p_qty` เป็นงาน `เลขเดิม-2` สถานีเดียวกัน คิวถัดไป · event `job_split` / `job_split_from` |
+
 ## สถานีทั่วไป
 | ฟังก์ชัน | อาร์กิวเมนต์ | ใครเรียก | ทำอะไร / ปฏิเสธเมื่อ |
 |---|---|---|---|

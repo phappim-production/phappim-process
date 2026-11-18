@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { STATION_NAME, byQueue, filmLabel, isOverdue, waitingAt, type Job, type StationCode } from '../proto/model'
+import { STATION_NAME, byQueue, filmLabel, isOutLate, isOverdue, waitingAt, type Job, type StationCode } from '../proto/model'
 import { spaced } from '../proto/format'
 import { DueLabel, Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
@@ -21,6 +21,8 @@ export function StationQueue({ station, jobs, role, now, call, onOpen }: {
   const canInsert = floor || role === 'manager'
   const working = jobs.filter(j => (j.phase === 'sample' || j.phase === 'production') && j.station === station && (j.status === 'doing' || j.status === 'hold')).sort(byQueue)
   const queue = waitingAt(jobs, station)
+  // งานที่บริษัทภายนอกกำลังทำสถานีนี้ (รวมงานที่ส่งออกหลายสถานีในรอบเดียว)
+  const outside = jobs.filter(j => j.status === 'out' && j.out?.stations.includes(station)).sort((a, b) => a.out!.backAt.getTime() - b.out!.backAt.getTime())
   const [notice, setNotice] = useState<{ ok: boolean; text: string; jobId?: string } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
@@ -67,6 +69,22 @@ export function StationQueue({ station, jobs, role, now, call, onOpen }: {
           </QueueCard>
         ))}
       </section>
+
+      {outside.length > 0 && (
+        <section aria-labelledby="q-outside" className="grid gap-2">
+          <h2 id="q-outside" className="text-lg font-bold">ส่งออกข้างนอก <span className="font-medium text-muted">{outside.length} งาน · แอดมินรับของกลับแล้วจะเข้าคิว</span></h2>
+          {outside.map(j => {
+            const late = isOutLate(j, now)
+            return (
+              <QueueCard key={j.id} job={j} now={now} onOpen={() => onOpen(j.id)} badge={<Pill tone={late ? 'danger' : 'info'} dot>ข้างนอก</Pill>}>
+                <p className={`rounded-xl px-3 py-2 ${late ? 'bg-danger-soft font-semibold text-danger' : 'bg-info-soft text-info'}`}>
+                  {j.out!.vendor} · {j.out!.stations.map(s => STATION_NAME[s]).join(' → ')} · คาดว่าของถึง {j.out!.backAt.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} น.{late ? ' · เลยกำหนด' : ''}
+                </p>
+              </QueueCard>
+            )
+          })}
+        </section>
+      )}
 
       <section aria-labelledby="q-waiting" className="grid gap-2">
         <h2 id="q-waiting" className="text-lg font-bold">คิวรอเริ่ม <span className="font-medium text-muted">{queue.length} งาน · เรียงตามคิว</span></h2>

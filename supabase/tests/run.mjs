@@ -170,6 +170,8 @@ const { confirmationTests } = await import('./confirmations.mjs')
 await confirmationTests({ db, ok, as })
 const { queueTests } = await import('./queue.mjs')
 await queueTests({ db, ok, as })
+const { outsourcingTests } = await import('./outsourcing.mjs')
+await outsourcingTests({ db, ok, as })
 
 console.log(`\nผ่าน ${pass} · ไม่ผ่าน ${fail}`)
 process.exit(fail ? 1 : 0)
