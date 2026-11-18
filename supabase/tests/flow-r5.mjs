@@ -335,18 +335,30 @@ export async function flowR5Tests({ db, ok, as }) {
   ok('R5 เกินเวลา: รายงานแล้วจึงผ่านไป QC', (await live(m)).current_station === 'qc_pack')
 
   // เริ่มจาก QC ผ่านแล้ว 2 จาก 10 ชิ้น ตรวจขอบเขตยอดสะสมกับยอดส่งแก้จาก fixture เดิม
-  for (const [name, args, label] of [
-    ['record_qc', [c, 9], 'ยอด QC สะสม 11 จากงาน 10 ชิ้น'],
-    ['send_rework', [c, 11, reason, 'cut'], 'ส่งกลับแก้ 11 จากงาน 10 ชิ้น'],
+  // เพดาน = จำนวนงาน − ยอดผ่านสะสม (migration 20261120040000) · เกิน 1 ชิ้นต้องปฏิเสธ · พอดีต้องผ่าน
+  for (const [name, args, label, expected, pattern] of [
+    ['record_qc', [c, 9], 'ยอด QC สะสม 11 จากงาน 10 ชิ้น ต้องถูกปฏิเสธ', false, /ไม่เกิน 8 ชิ้น/],
+    ['send_rework', [c, 11, reason, 'cut'], 'ส่งกลับแก้ 11 จากงาน 10 ชิ้น ต้องถูกปฏิเสธ', false, /ไม่เกิน 8 ชิ้น/],
+    ['send_rework', [c, 9, reason, 'cut'], 'ส่งกลับแก้ 9 เมื่อผ่านแล้ว 2/10 ต้องถูกปฏิเสธ', false, /ไม่เกิน 8 ชิ้น/],
+    ['record_qc', [c, 8], 'ยอด QC สะสมครบ 10/10 พอดี ผ่าน', true, null],
+    ['send_rework', [c, 8, reason, 'cut'], 'ส่งกลับแก้ 8 ชิ้นที่ยังไม่ผ่าน ผ่าน', true, null],
   ]) {
     let accepted
     const trial = await probe(db, as, 'qc', name, args, async () => {
       const job = await live(c)
       accepted = name === 'record_qc' ? 'ยอดผ่านสะสม ' + job.qc_passed :
         'phase ' + job.phase + ', สถานี ' + job.current_station + ', ยอดแก้ ' + job.rework_qty
-    }, false)
-    ok('BUG: R5 ' + label + ' ต้องถูกปฏิเสธ', trial.matches,
-      trial.allowed ? 'ฐานรับยอดเกินจำนวนงาน · ' + accepted : trial.message)
+      if (name === 'record_qc') assert.ok(job.qc_passed <= 10, accepted)
+      else assert.ok(job.current_station === 'cut' && job.rework_qty === args[1], accepted)
+    }, expected)
+    ok('R5 ' + label, trial.matches && (!pattern || pattern.test(trial.message)),
+      trial.allowed ? (expected ? accepted : 'ฐานรับยอดเกินจำนวนงาน · ' + accepted) : trial.message)
+  }
+  // ยอดเต็มแล้ว: บันทึกเพิ่มหรือส่งแก้ต้องบอกให้กดเสร็จ
+  await rpc('qc', 'record_qc', [c, 8])
+  for (const [name, args] of [['record_qc', [c, 1]], ['send_rework', [c, 1, reason, 'cut']]]) {
+    const full = await probe(db, as, 'qc', name, args, async () => {}, false)
+    ok('R5 ผ่านครบ 10/10 แล้ว ' + name + ' ต้องบอกให้กดเสร็จ', full.matches && /ผ่านครบ 10\/10/.test(full.message), full.message)
   }
 }
 

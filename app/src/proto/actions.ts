@@ -1,6 +1,6 @@
 // "ต้องทำตอนนี้" ของแต่ละฝ่าย: แปลงสถานะงานเป็นสิ่งที่คนต้องลงมือ 1 อย่างต่องาน (หลัก 1 การ์ด = 1 สิ่งที่ต้องทำต่อ)
 // เรียงให้เรื่องด่วนขึ้นก่อน คนหน้างานจะได้ไม่ต้องไล่อ่านทุกการ์ดบนบอร์ด
-import { DEPT_NAME, byQueue, filmLabel, isOverdue, isWaitingFilm, missingDepts, STATION_NAME, type Job } from './model.ts'
+import { DEPT_NAME, byQueue, filmLabel, isOutLate, isOverdue, isWaitingFilm, missingDepts, STATION_NAME, type Job } from './model.ts'
 import { spaced } from './format.ts'
 
 export type ActionTone = 'danger' | 'warn' | 'info' | 'neutral'
@@ -19,6 +19,14 @@ export function nextAction(j: Job, now: Date): NextAction | null {
       return make(`ติ๊กวัตถุดิบ: รอ ${missingDepts(j).map(d => DEPT_NAME[d]).join(', ')}`, 'warn', 3)
     case 'sample_review':
       return make(`แอดมินบันทึกผลตัวอย่างรอบ ${j.sampleRound}`, 'info', 4)
+  }
+  // อยู่บริษัทภายนอก: โรงงานกดอะไรไม่ได้ · สิ่งที่ต้องทำคือแอดมินตามของและรับกลับ (QA รอบ 5)
+  if (j.status === 'out' && j.out) {
+    const back = j.out.backAt.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    const what = j.out.stations.map(s => STATION_NAME[s]).join(' → ') + (j.out.rework ? ' (งานแก้)' : '')
+    return isOutLate(j, now)
+      ? make(`ของจาก ${j.out.vendor} เลยกำหนด (${back} น.) · โทรตามบริษัท แล้วรับของกลับ`, 'danger', 1)
+      : make(`อยู่ที่ ${j.out.vendor}: ${what} · รอรับของกลับ ${back} น.`, 'info', 6)
   }
   if (j.status === 'hold') return make(`แก้ปัญหา ${at}: ${j.holdReason ?? 'ไม่ระบุสาเหตุ'}`, 'danger', 0)
   if (j.station === 'dtf_press' && isWaitingFilm(j)) return make(`รอ${filmLabel(j.route)}ก่อนเริ่มรีด`, 'warn', 2)

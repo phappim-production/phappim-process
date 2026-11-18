@@ -110,18 +110,18 @@ describe('R5 สถานะงานจาก job_live', () => {
     expect(repaired.load.qc_pack.qty).toBe(3)
   })
 
-  it.each(['F', 'G', 'I'] as const)('BUG: รายการต้องทำของ %s ต้องบอกว่ารอรับของจากบริษัทภายนอก', id => {
+  it.each(['F', 'G', 'I'] as const)('รายการต้องทำของ %s ต้องบอกว่ารอรับของจากบริษัทภายนอก', id => {
     const action = todoList([get(id)], now)[0]
     expect(action?.text).toMatch(/ข้างนอก|บริษัท|รับ.*กลับ/)
   })
 
-  it('BUG: งานแก้ในโรงงานคิดเฉพาะสถานีต้นเหตุและ QC ตามจำนวนที่ส่งกลับ', () => {
+  it('งานแก้ในโรงงานคิดเฉพาะสถานีต้นเหตุและ QC ตามจำนวนที่ส่งกลับ', () => {
     const repair = { ...get('H'), station: 'cut' as const }
     const { load } = simulate([repair], now)
     expect([load.cut.qty, load.sew.qty, load.qc_pack.qty]).toEqual([3, 0, 3])
   })
 
-  it('BUG: งานตัดข้างนอกที่กลับมารีด DTF ต้องรอวันคาดว่าได้รับฟิล์ม', () => {
+  it('งานตัดข้างนอกที่กลับมารีด DTF ต้องรอวันคาดว่าได้รับฟิล์ม', () => {
     const pending = row('J', { current_station: 'cut', station_status: 'out', dtf_film_eta: '2026-11-27' })
     const [job] = attachOutRuns(toJobs([pending], [], [], []), [run('J', ['cut'])], vendors)
     const finish = simulate([job], now).finishDay.get(job.id)
