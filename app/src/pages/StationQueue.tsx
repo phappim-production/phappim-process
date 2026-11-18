@@ -11,7 +11,7 @@ export type QueueCall = (name: string, args: Record<string, unknown>) => Promise
 /**
  * คิวของสถานีเดียว สำหรับคนหน้างานบนมือถือ: เห็นเฉพาะงานของสถานีตัวเอง เรียงตามคิว · กดเริ่ม/เสร็จบนการ์ดได้เลย
  * คิวแรกได้ปุ่มใหญ่ · เริ่มคิวหลังได้แต่ต้องใส่เหตุผล (เจ้าของเลือก "แค่เรียง + เตือน") · หัวหน้า/ผู้บริหารแทรกงานด่วนเป็นคิวแรกได้
- * กฎทุกข้อตรวจซ้ำที่ฐานข้อมูล (start_station · note_queue_skip · move_job_ahead)
+ * กฎทุกข้อตรวจซ้ำที่ฐานข้อมูล · เริ่มงานใช้ start_in_queue (ตรวจคิวล่าสุด + บันทึกเหตุผล + เริ่ม ในธุรกรรมเดียว · เย็บจ่ายจักรให้)
  */
 export function StationQueue({ station, jobs, role, now, call, onOpen }: {
   station: StationCode; jobs: Job[]; role: EmployeeRole; now: Date; call: QueueCall; onOpen: (id: string) => void
@@ -36,7 +36,6 @@ export function StationQueue({ station, jobs, role, now, call, onOpen }: {
     return true
   }
   const name = STATION_NAME[station]
-  const startFn = station === 'sew' ? 'start_sewing' : 'start_station'
 
   return (
     <div className="grid w-full max-w-3xl gap-4">
@@ -66,7 +65,7 @@ export function StationQueue({ station, jobs, role, now, call, onOpen }: {
           <QueueCard key={j.id} job={j} now={now} onOpen={() => onOpen(j.id)} first={i === 0}
             badge={<span className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${i === 0 ? 'bg-brand text-white' : 'bg-paper text-ink'}`}>คิว {i + 1}</span>}>
             <WaitingActions job={j} first={queue[0]} station={station} canPress={canPress} canInsert={canInsert && i > 0}
-              busy={busy === j.id} startFn={startFn} run={run} />
+              busy={busy === j.id} run={run} />
           </QueueCard>
         ))}
       </section>
@@ -129,8 +128,8 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
   )
 }
 
-function WaitingActions({ job: j, first, station, canPress, canInsert, busy, startFn, run }: {
-  job: Job; first: Job; station: StationCode; canPress: boolean; canInsert: boolean; busy: boolean; startFn: string; run: Run
+function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run }: {
+  job: Job; first: Job; station: StationCode; canPress: boolean; canInsert: boolean; busy: boolean; run: Run
 }) {
   const [mode, setMode] = useState<'skip' | 'insert' | null>(null)
   const [reason, setReason] = useState('')
@@ -153,7 +152,7 @@ function WaitingActions({ job: j, first, station, canPress, canInsert, busy, sta
           <button type="button" disabled={busy || !reason.trim()} className={skip ? dangerBtn : primaryBtn}
             onClick={async () => {
               const ok = skip
-                ? await run(j, [['note_queue_skip', { p_reason: reason.trim() }], [startFn, {}]], `เริ่ม ${j.no} ก่อนคิวแล้ว · บันทึกเหตุผลในประวัติงาน`)
+                ? await run(j, [['start_in_queue', { p_reason: reason.trim() }]], `เริ่ม ${j.no} ก่อนคิวแล้ว · บันทึกเหตุผลในประวัติงาน`)
                 : await run(j, [['move_job_ahead', { p_before: first.id, p_reason: reason.trim() }]], `แทรก ${j.no} เป็นคิวแรกแล้ว`)
               if (ok) { setMode(null); setReason('') }
             }}>
@@ -171,7 +170,7 @@ function WaitingActions({ job: j, first, station, canPress, canInsert, busy, sta
         ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2">เริ่มไม่ได้ · ยังไม่ได้รับ{filmLabel(j.route)} (แอดมินบันทึกเมื่อได้รับ)</p>
         : isFirst
           ? <button type="button" disabled={busy} className={`${primaryBtn} min-h-14 text-lg sm:col-span-2`}
-              onClick={() => void run(j, [[startFn, {}]], `เริ่ม ${j.no} แล้ว`)}>{busy ? 'กำลังเริ่ม…' : startLabel}</button>
+              onClick={() => void run(j, [['start_in_queue', { p_reason: null }]], `เริ่ม ${j.no} แล้ว`)}>{busy ? 'กำลังเริ่ม…' : startLabel}</button>
           : <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('skip')}>เริ่มก่อนคิว</button>
       )}
       {canInsert && <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('insert')}>แทรกเป็นคิวแรก (งานด่วน)</button>}

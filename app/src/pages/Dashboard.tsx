@@ -124,7 +124,8 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   }
   // คนหน้างานเห็นเฉพาะงานของตัวเองก่อน · กดดูทั้งโรงงานได้เมื่ออยากรู้ว่างานกำลังจะมาถึง
   const [wholeFactory, setWholeFactory] = useState(false)
-  const [tab, setTab] = useState<DashTab>(myScope.tabs[0])
+  // ลิงก์ #/board?station=… ตอนเปิดหน้าครั้งแรก → เปิดแท็บบอร์ด (คิวสถานี) ไม่ใช่แท็บแรกของบทบาท (QA รอบ 4 บั๊ก 5)
+  const [tab, setTab] = useState<DashTab>(() => stationFromHash() && myScope.tabs.includes('board') ? 'board' : myScope.tabs[0])
   const [sewFocus, setSewFocus] = useState<{ view?: SewingView; n: number }>({ n: 0 })
   const activeTab = myScope.tabs.includes(tab) ? tab : myScope.tabs[0]
   const scoped = myScope.columns !== null
