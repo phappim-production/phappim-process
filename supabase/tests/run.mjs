@@ -172,6 +172,8 @@ const { queueTests } = await import('./queue.mjs')
 await queueTests({ db, ok, as })
 const { outsourcingTests } = await import('./outsourcing.mjs')
 await outsourcingTests({ db, ok, as })
+const { flowR5Tests } = await import('./flow-r5.mjs')
+await flowR5Tests({ db, ok, as })
 
 console.log(`\nผ่าน ${pass} · ไม่ผ่าน ${fail}`)
 process.exit(fail ? 1 : 0)
