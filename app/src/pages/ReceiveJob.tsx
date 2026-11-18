@@ -204,7 +204,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
         <fieldset className="grid gap-2">
           <legend className="mb-1 font-medium">ขึ้นตัวอย่าง (ตามที่ตกลงกับลูกค้าในใบยืนยัน)</legend>
           <div className="grid gap-2 sm:grid-cols-2">
-            {([[true, 'ขึ้นตัวอย่าง', 'ลูกค้าจ่ายค่าตัวอย่าง · วัตถุดิบครบแล้วขึ้นตัวอย่างก่อน'], [false, 'ไม่ขึ้นตัวอย่าง', 'วัตถุดิบครบแล้วเข้าผลิตจริงเลย']] as const).map(([v, title, hint]) => (
+            {([[true, 'ขึ้นตัวอย่าง', 'ลูกค้าจ่ายค่าตัวอย่าง · ขึ้นตัวอย่างก่อนผลิตจริง'], [false, 'ไม่ขึ้นตัวอย่าง', 'เข้าสถานีแรกผลิตจริงทันที']] as const).map(([v, title, hint]) => (
               <label key={title} className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border p-3 ${draft.needsSample === v ? 'border-brand bg-brand-soft' : 'border-line'}`}>
                 <input type="radio" name="needs-sample" className="mt-1 size-5 shrink-0" checked={draft.needsSample === v} onChange={() => set('needsSample', v)} />
                 <span className="grid"><span className="font-medium">{title}</span><span className="text-sm text-muted">{hint}</span></span>

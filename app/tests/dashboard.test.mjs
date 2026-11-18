@@ -77,12 +77,12 @@ test('งานที่รอจักรไม่จองจักร งา�
   assert.deepEqual(plan.rows.map(r => r.verdict), ['wait', 'ready'])
 })
 
-test('งานรอเย็บแล้วมาก่อนงานกำลังมา และงานเลยกำหนดมาก่อน', () => {
-  const coming = job({ station: 'cut', status: 'doing', productCode: 'apron', due: day(-3) })
-  const waiting = job({ station: 'sew', status: 'queued', productCode: 'apron', due: day(5) })
-  const lateWaiting = job({ station: 'sew', status: 'queued', productCode: 'apron', due: day(-1) })
-  const plan = planSewing([coming, waiting, lateWaiting], [], SEW_NEEDS, now, true)
-  assert.deepEqual(plan.rows.map(r => r.job.id), [lateWaiting.id, waiting.id, coming.id])
+test('งานรอเย็บแล้วมาก่อนงานกำลังมา · แล้วตามคิว (เลยกำหนดไม่แซงคิว)', () => {
+  const coming = job({ station: 'cut', status: 'doing', productCode: 'apron', due: day(-3), queue: 1 })
+  const waiting = job({ station: 'sew', status: 'queued', productCode: 'apron', due: day(5), queue: 2 })
+  const lateWaiting = job({ station: 'sew', status: 'queued', productCode: 'apron', due: day(-1), queue: 3 })
+  const plan = planSewing([coming, lateWaiting, waiting], [], SEW_NEEDS, now, true)
+  assert.deepEqual(plan.rows.map(r => r.job.id), [waiting.id, lateWaiting.id, coming.id])
 })
 
 test('สินค้าที่ยังไม่มีข้อมูลจักร = ไม่รู้ ไม่เดาว่าขึ้นได้', () => {
@@ -117,10 +117,10 @@ test('สิ่งที่ต้องทำต่อของแต่ละ�
   assert.match(nextAction(job({ phase: 'sample_review', sampleRound: 2 }), now).text, /รอบ 2/)
 })
 
-test('งานเลยกำหนดเป็นสีแดงและขึ้นก่อนงานปกติ', () => {
-  const late = job({ station: 'cut', status: 'doing', due: day(-1) })
-  const normal = job({ station: 'cut', status: 'queued', due: day(5) })
-  const hold = job({ station: 'cut', status: 'hold', holdReason: 'x', due: day(5) })
+test('ต้องทำตอนนี้เรียงตามคิว · งานเลยกำหนดเป็นสีแดงแต่ไม่แซงคิว', () => {
+  const late = job({ station: 'cut', status: 'doing', due: day(-1), queue: 2 })
+  const normal = job({ station: 'cut', status: 'queued', due: day(5), queue: 3 })
+  const hold = job({ station: 'cut', status: 'hold', holdReason: 'x', due: day(5), queue: 1 })
   const list = todoList([normal, late, hold, job({ phase: 'done' })], now)
   assert.equal(list.length, 3)
   assert.deepEqual(list.map(a => a.job.id), [hold.id, late.id, normal.id])

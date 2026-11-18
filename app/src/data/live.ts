@@ -27,6 +27,7 @@ export type JobRow = {
   rework_qty: number | null
   hold_reason: string | null
   finished_at: string | null
+  queue_seq?: number | string     // numeric จาก PostgREST อาจมาเป็นข้อความ
 }
 export type ProductRow = { code: string; name: string }
 export type ReworkRow = { job_id: string; failed: number; reasons: string[] | null; at: string }
@@ -84,6 +85,7 @@ export function toJobs(rows: JobRow[], products: ProductRow[], reworks: ReworkRo
     if (r.is_rework) job.rework = { qty: r.rework_qty ?? 0, reason: reworkReason.get(r.id) ?? '' }
     if (r.hold_reason) job.holdReason = r.hold_reason
     if (r.finished_at) job.doneAt = new Date(r.finished_at)
+    if (r.queue_seq != null) job.queue = Number(r.queue_seq)
     const list = reports.get(r.id)
     if (list) job.sewingReports = list
     return job

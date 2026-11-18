@@ -23,7 +23,7 @@ test('ไทม์ไลน์: ตัวอย่างไม่ผ่านบ
 })
 
 test('ไทม์ไลน์: ปล่อยงาน · ขึ้นตัวอย่าง vs เข้าผลิตจริง (ไม่ขึ้นตัวอย่าง)', () => {
-  assert.equal(eventLine(ev('released', { phase: 'sample', payload: { round: 1 } }), names).title, 'วัตถุดิบครบ · ไปขึ้นตัวอย่าง รอบ 1')
+  assert.equal(eventLine(ev('released', { phase: 'sample', payload: { round: 1 } }), names).title, 'ไปขึ้นตัวอย่าง รอบ 1')
   assert.equal(eventLine(ev('released', { phase: 'production', payload: { sample: false } }), names).detail, 'งานนี้ไม่ขึ้นตัวอย่าง')
   assert.equal(eventLine(ev('received', { payload: { qty: 1200, sample: false } }), names).detail, '1,200 ชิ้น · ไม่ขึ้นตัวอย่าง')
 })

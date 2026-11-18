@@ -486,7 +486,7 @@ function DelayReport({ reasons, busy, now, required, onSend }: {
           <input type="date" value={day} min={bookingDay(now)} onChange={e => setDay(e.target.value)} className={fieldClass} />
         </label>
         <label className="grid gap-1 font-medium">ต้องการความช่วยเหลือจากใคร (ถ้ามี)
-          <input value={help} onChange={e => setHelp(e.target.value)} placeholder="เช่น ช่างซ่อม แอดมินตามวัตถุดิบ" className={fieldClass} />
+          <input value={help} onChange={e => setHelp(e.target.value)} placeholder="เช่น ช่างซ่อม แอดมินตามของ" className={fieldClass} />
         </label>
         <button type="button" disabled={busy || !!block} className={primaryBtn}
           onClick={async () => { if (eta && await onSend(codes, detail.trim(), eta, help.trim())) { setCodes([]); setDetail(''); setDay(''); setHelp('') } }}>
