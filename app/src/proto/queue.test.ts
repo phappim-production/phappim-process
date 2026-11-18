@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { byQueue, queueNo, waitingAt, type Job } from './model'
+import { byQueue, queueNo, stationCounts, waitingAt, type Job } from './model'
 
 const base: Job = {
   id: 'x', no: 'SC-X', customer: 'ลูกค้า', product: 'เสื้อยืด', unit: 'ตัว', qty: 10,
@@ -39,5 +39,19 @@ describe('คิวงาน', () => {
     const sample = job('s', { queue: 2, phase: 'sample' })
     const prod = job('p', { queue: 1 })
     expect(waitingAt([sample, prod], 'cut').map(j => j.id)).toEqual(['p', 's'])
+  })
+})
+
+describe('สถานีตอนนี้ (หน้าภาพรวม)', () => {
+  it('นับงานรอ กำลังทำ ติดปัญหา เลยกำหนด ต่อสถานี ตามลำดับกระบวนการ', () => {
+    const now = new Date('2026-11-25T10:00:00+07:00')
+    const jobs = [
+      job('a', {}), job('b', { status: 'doing' }), job('c', { status: 'hold', due: new Date('2026-11-20T18:00:00+07:00') }),
+      job('d', { station: 'sew', status: 'doing' }), job('e', { phase: 'done', station: undefined, status: undefined }),
+    ]
+    const rows = stationCounts(jobs, now)
+    expect(rows[0].key).toBe('print')
+    expect(rows.find(r => r.key === 'cut')).toMatchObject({ waiting: 1, doing: 1, hold: 1, late: 1 })
+    expect(rows.find(r => r.key === 'sew')).toMatchObject({ waiting: 0, doing: 1, hold: 0, late: 0 })
   })
 })

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { DEFAULT_SEW_PRODUCT, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, hasSewMinutes, lateDays, lineRate, linesFor, machineSets, simulate, verdict, workdayToDate, type Forecast, type SewFloor } from '../proto/capacity'
 import { MACHINE_TYPE_NAME } from '../proto/sewing'
-import { ROUTES, STATION_NAME, WORK_END, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
+import { ROUTES, STATION_NAME, WORK_END, byQueue, stationCounts, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
 import { duration, shortDate, stageSteps, stageText } from '../proto/format'
 import { Card, CardHeader, DueLabel, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
 import { TONE, type Tone } from '../components/tone'
@@ -33,8 +33,9 @@ export default function Overview({ jobs, now, forecast, floor, products, onOpen 
       <KpiRow jobs={jobs} now={now} atRisk={atRisk.length} />
       <ViewSwitch variant="sub" label="มุมมองภาพรวม" value={view} onChange={setView} options={OVERVIEW_VIEWS} />
       {/* มุมมองแรกมีอย่างเดียว: งานที่ต้องตาม · ข้อมูลวางแผน (กราฟ) อยู่ในมุมมองวางแผน ไม่ปนกัน */}
-      <section hidden={view !== 'follow'}>
-        <AdminTodo jobs={jobs} now={now} onOpen={onOpen} />
+      <section hidden={view !== 'follow'} className="grid gap-4">
+        <StationNow jobs={jobs} now={now} />
+        <AdminTodo jobs={jobs} now={now} atRisk={atRisk} onOpen={onOpen} />
       </section>
       <section hidden={view !== 'find'}>
         <JobFinder jobs={jobs} now={now} forecast={forecast} onOpen={onOpen} />
@@ -280,9 +281,44 @@ function Pipeline({ jobs, now }: { jobs: Job[]; now: Date }) {
   )
 }
 
-function AdminTodo({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpen: (id: string) => void }) {
+// สถานีตอนนี้: ผู้บริหาร/แอดมินเห็นทั้งโรงงานในจอเดียว · กดแล้วไปคิวของสถานีนั้นบนหน้างาน (#/board?station=…)
+function StationNow({ jobs, now }: { jobs: Job[]; now: Date }) {
+  const rows = stationCounts(jobs, now)
+  return (
+    <Card>
+      <CardHeader icon={IconFactory} title="สถานีตอนนี้" sub="กดสถานีเพื่อดูคิวงาน · แดง = มีงานติดปัญหาหรือเลยกำหนด" />
+      <ul className="grid grid-cols-2 gap-2 px-4 pb-4 sm:grid-cols-4">
+        {rows.map(r => {
+          const bad = r.hold > 0 || r.late > 0
+          return (
+            <li key={r.key} className="min-w-0">
+              <a href={`#/board?station=${r.key}`}
+                className={`flex h-full min-h-24 flex-col gap-1 rounded-xl border-2 px-3 py-2.5 hover:border-brand ${bad ? 'border-danger/50 bg-danger-soft/40' : 'border-line bg-card'}`}>
+                <span className="font-semibold">{r.name}</span>
+                <span className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold tabular-nums">{r.waiting + r.doing + r.hold}</span>
+                  <span className="text-sm text-muted">งาน</span>
+                </span>
+                <span className="flex flex-wrap gap-x-2 text-sm">
+                  {r.doing > 0 && <span className="text-info">ทำอยู่ {r.doing}</span>}
+                  {r.waiting > 0 && <span className="text-muted">รอ {r.waiting}</span>}
+                  {r.hold > 0 && <span className="font-semibold text-danger">ติดปัญหา {r.hold}</span>}
+                  {r.late > 0 && <span className="font-semibold text-danger">เลยกำหนด {r.late}</span>}
+                  {r.waiting + r.doing + r.hold === 0 && <span className="text-muted">ว่าง</span>}
+                </span>
+              </a>
+            </li>
+          )
+        })}
+      </ul>
+    </Card>
+  )
+}
+
+function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Date; atRisk: Row[]; onOpen: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false)
   const items: { id: string; tone: Tone; tag: string; text: string; job: Job }[] = []
+  const lateBy = new Map(atRisk.map(r => [r.job.id, r]))
   for (const j of jobs) {
     if (j.phase === 'done') continue
     if (j.status === 'hold') items.push({ id: j.id + 'h', tone: 'danger', tag: 'ติดปัญหา', text: j.holdReason ?? '', job: j })
@@ -293,9 +329,14 @@ function AdminTodo({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpen: (id:
     }
     else if (j.phase === 'materials' && !j.materials.admin) items.push({ id: j.id + 'm', tone: 'warn', tag: 'วัตถุดิบ', text: 'ฝ่ายแอดมินยังไม่ติ๊ก', job: j })
     else if (j.phase === 'sample_review') items.push({ id: j.id + 's', tone: 'info', tag: 'ตามลูกค้า', text: `ยืนยันตัวอย่าง · รอมา ${duration(now.getTime() - j.since.getTime())}`, job: j })
+    // ยังไม่เลยกำหนดแต่คาดว่าไม่ทัน → แจ้งลูกค้าล่วงหน้า หรือให้หัวหน้าพิจารณาแทรกคิว
+    else if (lateBy.has(j.id)) {
+      const r = lateBy.get(j.id)!
+      items.push({ id: j.id + 'r', tone: 'warn', tag: `คาดไม่ทัน ${r.late} วัน`, text: `คาดเสร็จ ${shortDate(r.finish)} · ส่ง ${shortDate(j.due)} · แจ้งลูกค้าหรือขอแทรกคิว`, job: j })
+    }
   }
   const rank: Partial<Record<Tone, number>> = { danger: 0, warn: 1, info: 2 }
-  items.sort((a, b) => (rank[a.tone] ?? 9) - (rank[b.tone] ?? 9) || a.job.due.getTime() - b.job.due.getTime())
+  items.sort((a, b) => (rank[a.tone] ?? 9) - (rank[b.tone] ?? 9) || byQueue(a.job, b.job))
 
   return (
     <Card>

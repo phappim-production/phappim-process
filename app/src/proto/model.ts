@@ -136,6 +136,20 @@ export function queueNo(job: Job, jobs: Job[]): number | undefined {
   return i < 0 ? undefined : i + 1
 }
 
+/** จำนวนงานต่อสถานี (รอ · กำลังทำ · ติดปัญหา · เลยกำหนด) เรียงตามกระบวนการ */
+export function stationCounts(jobs: Job[], now: Date) {
+  return COLUMNS.filter(c => c.key in STATION_NAME).map(c => {
+    const here = jobs.filter(j => (j.phase === 'sample' || j.phase === 'production') && j.station === c.key)
+    return {
+      key: c.key as StationCode, name: c.name,
+      waiting: here.filter(j => j.status === 'queued').length,
+      doing: here.filter(j => j.status === 'doing').length,
+      hold: here.filter(j => j.status === 'hold').length,
+      late: here.filter(j => isOverdue(j, now)).length,
+    }
+  })
+}
+
 // เวลางานโรงงาน 09:00–18:00 (จันทร์–เสาร์) · ที่เดียวที่กำหนด หน้าจอที่แปลง "วันที่" เป็นเวลาใช้ค่านี้ทั้งหมด
 export const WORK_START = '09:00'
 export const WORK_END = '18:00'

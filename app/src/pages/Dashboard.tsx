@@ -137,6 +137,12 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   const [filter, setFilter] = useState<Filter>('all')
   // แท็บเล็ตประจำสถานี: เปิดมาเจอสถานีที่เลือกไว้ครั้งก่อน (เก็บในเครื่อง · อ่านไม่ได้ = ทุกสถานี)
   const [station, setStationState] = useState<ColumnKey | 'all'>(() => {
+    const fromLink = stationFromHash()
+    if (fromLink) {
+      clearStationLink()
+      try { localStorage.setItem(STATION_KEY, fromLink) } catch { /* ไม่จำก็ใช้ได้ */ }
+      return savedStation(fromLink, columns)
+    }
     try { return savedStation(localStorage.getItem(STATION_KEY), columns) } catch { return 'all' }
   })
   const setStation = (key: ColumnKey | 'all') => {
@@ -156,6 +162,13 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   // ลิงก์ #/board?job=<id> จากกล่องจดหมายและ QR ใบปะงาน เปิดรายละเอียดงานทันที (กดลิงก์ขณะเปิดหน้านี้อยู่ด้วย)
   useEffect(() => {
     const on = () => {
+      // ลิงก์ #/board?station=… จากหน้าภาพรวม (สถานีตอนนี้) เปิดคิวของสถานีนั้น
+      const st = stationFromHash()
+      if (st) {
+        clearStationLink(); setStation(savedStation(st, COLUMNS)); setTab('board'); setPickStation(false)
+        // กล่องเลื่อนเดียวกับหน้าภาพรวม → กลับไปบนสุด ไม่ค้างตำแหน่งเดิม
+        requestAnimationFrame(() => document.querySelector('[data-scroll="dashboard"]')?.scrollTo(0, 0))
+      }
       const id = jobFromHash()
       setLookup(null)
       setOpen(current => id !== null ? { id, source: 'link' } : current?.source === 'link' ? null : current)
@@ -266,7 +279,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
 
   return (
     // ทั้งหน้าเลื่อนทีเดียว (ไม่ซ้อนกล่องเลื่อน) · แท็บหลักติดด้านบนให้สลับได้ทุกเมื่อ
-    <div className="min-h-0 flex-1 overflow-y-auto">
+    <div data-scroll="dashboard" className="min-h-0 flex-1 overflow-y-auto">
      <div className="mx-auto flex max-w-[1400px] flex-col gap-4 p-4 sm:p-6">
       <PageHeader title={myScope.title} today={today} updated={loadedAt} />
       {linkNotice}
@@ -679,6 +692,16 @@ function useNow(intervalMs: number) {
     return () => clearInterval(t)
   }, [intervalMs])
   return now
+}
+
+/** สถานีจากลิงก์ #/board?station=<code> · ไม่มี = null */
+function stationFromHash(): string | null {
+  return new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('station')
+}
+
+// อ่านแล้วเอา ?station= ออก ไม่อย่างนั้นรีเฟรชจะทับสถานีที่คนหน้างานเลือกเองทีหลัง
+function clearStationLink() {
+  window.history.replaceState(null, '', window.location.hash.split('?')[0])
 }
 
 /** id งานจากลิงก์ #/board?job=<id> · ไม่มี = null */
