@@ -35,8 +35,8 @@ export default defineConfig({
       registerType: 'prompt',
       injectRegister: false,
       includeAssets: ['logo.webp', 'favicon.ico', 'favicon-32.png', 'favicon-48.png', 'apple-touch-icon.png'],
-      // ไม่ให้ service worker ตอบหน้าแอปแทนฟอร์มใบยืนยัน (ฟอร์มเป็นหน้าแยก ไม่ใช่เส้นทางของแอป)
-      workbox: { navigateFallbackDenylist: [/^\/confirmation(\.html)?$/] },
+      // ไม่ให้ service worker ตอบหน้าแอปแทนฟอร์มใบยืนยัน / หน้าเก็บสเปกสินค้า (หน้าแยก ไม่ใช่เส้นทางของแอป)
+      workbox: { navigateFallbackDenylist: [/^\/confirmation(\.html)?$/, /^\/spec-check(\.html)?$/] },
       manifest: {
         name: 'ภาพพิมพ์ 142 · ติดตามการผลิต',
         short_name: 'PP142 ผลิต',

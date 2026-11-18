@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เก็บสเปกจริงของสินค้า · ภาพพิมพ์ 142</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* สีชุดเดียวกับแบบเก็บข้อมูลสถานี (docs/แบบเก็บข้อมูลสถานี.html) */
+  :root {
+    --ink:#1b2320; --muted:#5d6862; --faint:#8c968f; --rule:#cfd6d0; --band:#f1f4f1; --paper:#eef1ee;
+    --brand:#0f4a42; --brand-2:#e4efeb; --accent:#a8691b; --accent-2:#fbf1e1; --red:#a8261d; --red-2:#f8e3e0; --ok:#1f6b3a; --ok-2:#e2f1e6;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:17px/1.5 "Sarabun", system-ui, sans-serif; }
+  button, input, textarea { font:inherit; color:inherit; }
+  button { cursor:pointer; }
+  .wrap { max-width:860px; margin:0 auto; padding:0 16px 120px; }
+
+  header.top { position:sticky; top:0; z-index:5; background:var(--brand); color:#fff; }
+  header.top .wrap { display:flex; align-items:center; gap:10px; padding:10px 16px; min-height:56px; }
+  header.top h1 { margin:0; font-size:18px; line-height:1.3; flex:1; }
+  header.top .back { min-height:44px; padding:0 14px; border:1px solid #ffffff66; border-radius:10px; background:transparent; color:#fff; font-weight:600; }
+
+  .intro { margin:16px 0; padding:16px; border-radius:14px; background:#fff; border:1px solid var(--rule); }
+  .intro h2 { margin:0 0 6px; font-size:20px; color:var(--brand); }
+  .intro ol { margin:6px 0 0; padding-left:22px; }
+  .intro li { margin:2px 0; }
+  .who { display:grid; gap:4px; margin-top:12px; font-weight:600; }
+  .who input { min-height:48px; padding:0 12px; border:1px solid var(--rule); border-radius:10px; background:#fff; font-weight:400; }
+
+  .cat h3 { margin:22px 0 8px; font-size:16px; color:var(--muted); }
+  .plist { display:grid; gap:8px; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); }
+  .pbtn { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-height:72px; padding:12px 14px; border:2px solid var(--rule); border-radius:14px; background:#fff; text-align:left; }
+  .pbtn:hover { border-color:var(--brand); }
+  .pbtn b { font-size:17px; }
+  .tag { display:inline-block; padding:1px 10px; border-radius:999px; font-size:14px; font-weight:600; }
+  .t-todo { background:var(--band); color:var(--muted); } .t-part { background:var(--accent-2); color:var(--accent); }
+  .t-done { background:var(--ok-2); color:var(--ok); } .t-off { background:var(--red-2); color:var(--red); }
+
+  .ptitle { margin:18px 0 4px; font-size:24px; color:var(--brand); }
+  .pactions { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 4px; }
+  .sec h3 { margin:24px 0 8px; padding:8px 12px; border-radius:10px; background:var(--brand-2); color:var(--brand); font-size:17px; }
+  .field { margin:8px 0; padding:14px; border:1px solid var(--rule); border-radius:14px; background:#fff; }
+  .field.unused { background:var(--band); opacity:.75; }
+  .fhead { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px; }
+  .fhead b { font-size:18px; }
+  .kind { font-size:14px; color:var(--muted); }
+  .cond { font-size:14px; color:var(--accent); }
+  .opts { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .opt { display:inline-flex; align-items:center; gap:8px; min-height:48px; padding:6px 14px; border:2px solid var(--rule); border-radius:12px; background:#fff; text-align:left; }
+  .opt .box { display:grid; place-items:center; width:24px; height:24px; flex:none; border:2px solid var(--faint); border-radius:6px; font-weight:700; }
+  .opt[aria-pressed="true"] { border-color:var(--ok); background:var(--ok-2); font-weight:600; }
+  .opt[aria-pressed="true"] .box { border-color:var(--ok); background:var(--ok); color:#fff; }
+  .opt.added { border-style:dashed; }
+  .frow { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .btn { min-height:48px; padding:0 16px; border:1px solid var(--rule); border-radius:12px; background:#fff; font-weight:600; color:var(--brand); }
+  .btn.small { min-height:44px; font-size:15px; }
+  .btn.on { border-color:var(--red); background:var(--red-2); color:var(--red); }
+  .btn.main { border:0; background:var(--brand); color:#fff; }
+  .btn.okb { border:0; background:var(--ok); color:#fff; }
+  .add { display:flex; gap:8px; flex:1 1 260px; }
+  .add input, textarea { flex:1; min-width:0; min-height:44px; padding:8px 12px; border:1px solid var(--rule); border-radius:10px; background:#fff; }
+  textarea { width:100%; min-height:84px; }
+  .note { margin-top:18px; }
+  .note label { font-weight:600; }
+
+  .bar { position:fixed; left:0; right:0; bottom:0; z-index:6; background:#fff; border-top:1px solid var(--rule); }
+  .bar .wrap { display:grid; grid-template-columns:1fr 1fr 1.4fr; align-items:center; gap:6px 8px; padding:8px 16px; }
+  .bar .sum { grid-column:1 / -1; color:var(--muted); font-size:14px; }
+  .bar .btn { padding:0 8px; }
+  @media (min-width:700px) { .bar .wrap { grid-template-columns:1fr auto auto auto; } .bar .sum { grid-column:auto; } .bar .btn { padding:0 16px; } }
+  .toast { position:fixed; left:50%; bottom:90px; transform:translateX(-50%); padding:10px 18px; border-radius:12px; background:var(--ink); color:#fff; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.on { opacity:1; }
+
+  /* แบบกระดาษ: 1 สินค้า = เริ่มหน้าใหม่ · ช่องติ๊กว่างให้เขียนมือ */
+  #print { display:none; }
+  @media print {
+    @page { size:A4; margin:12mm 12mm 12mm; }
+    body { background:#fff; font-size:11.5px; line-height:1.35; }
+    #app, .bar, header.top, .toast { display:none !important; }
+    #print { display:block; }
+    .pp { break-before:page; }
+    .pp:first-child { break-before:auto; }
+    .pp h2 { margin:0 0 2px; font-size:17px; color:var(--brand); }
+    .pp .meta { display:flex; justify-content:space-between; gap:12px; padding-bottom:4px; margin-bottom:6px; border-bottom:1px solid var(--rule); color:var(--muted); font-size:10.5px; }
+    .pp h3 { margin:7px 0 3px; padding:2px 6px; background:var(--brand-2); color:var(--brand); font-size:12px; break-after:avoid; }
+    .pf { display:grid; grid-template-columns:34% 1fr; gap:2px 10px; padding:3px 0; border-bottom:1px dotted var(--rule); break-inside:avoid; }
+    .pf .pl b { font-weight:600; }
+    .pf .pl .k { color:var(--muted); font-size:10px; }
+    .pf .po { display:flex; flex-wrap:wrap; gap:2px 12px; }
+    .pf .po span::before { content:"☐ "; font-size:12px; }
+    .pf .po .line { color:var(--faint); }
+    .pf .po .line::before { content:"☐ อื่นๆ "; color:var(--ink); }
+    .pp .pnote { margin-top:6px; padding:4px 6px; border:1px solid var(--rule); min-height:42px; color:var(--muted); font-size:10.5px; }
+  }
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap"><h1 id="title">เก็บสเปกจริงของสินค้า</h1><button type="button" class="back" id="back" hidden>← รายการสินค้า</button></div></header>
+<main id="app" class="wrap"></main>
+<div class="bar"><div class="wrap">
+  <span class="sum" id="sum"></span>
+  <button type="button" class="btn small" id="printBtn">พิมพ์</button>
+  <button type="button" class="btn small" id="importBtn">เปิดไฟล์</button>
+  <button type="button" class="btn small main" id="exportBtn">ส่งผล (ไฟล์)</button>
+  <input type="file" id="importFile" accept=".json,application/json" hidden>
+</div></div>
+<div class="toast" id="toast" role="status"></div>
+<div id="print"></div>
+
+<script>
+// ข้อมูลสินค้า/ช่อง/ตัวเลือก คัดลอกจาก PRODUCTS ใน production-confirmation.html (สร้างเมื่อ /*STAMP*/)
+// ใช้ถามแอดมินผู้ประสานงานลูกค้าว่าสเปกไหนใช้จริง แล้วนำผลไปตัด/เพิ่มตัวเลือกในฟอร์มใบยืนยัน
+const DATA = /*DATA*/;
+const LS = 'pp142-spec-check-v1';
+const KIND = { radio:'เลือกได้ 1 ข้อ', check:'เลือกได้หลายข้อ', text:'ช่องกรอกข้อความ', number:'ช่องกรอกตัวเลข', textarea:'ช่องกรอกยาว',
+  dims:'ช่องกรอกขนาด', sizeTable:'ตารางจำนวนแยกไซซ์', itemTable:'ตารางรายการ (ตำแหน่ง/ชนิด)', placements:'ตารางตำแหน่งงานพิมพ์' };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const $ = s => document.querySelector(s);
+
+// state.p[code] = { off:bool, done:bool, note:'', f:{ [fieldId]: { used:[...], unused:bool, added:[...] } } }
+let state = { who:'', p:{} };
+try { const s = JSON.parse(localStorage.getItem(LS)); if (s && s.p) state = s; } catch (e) { /* โหมดส่วนตัว: ไม่จำก็ใช้ได้ */ }
+let current = null;
+function save() { state.savedAt = new Date().toISOString(); try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) { /* ไม่จำก็ใช้ได้ */ } }
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove('on'), 2400); }
+const P = code => (state.p[code] ||= { off:false, done:false, note:'', f:{} });
+const F = (code, id) => (P(code).f[id] ||= { used:[], unused:false, added:[] });
+const fields = prod => prod.s.flatMap(s => s.f);
+
+function status(prod) {
+  const st = state.p[prod.c];
+  if (!st) return ['t-todo', 'ยังไม่ได้ตรวจ'];
+  if (st.off) return ['t-off', 'ไม่ได้ทำสินค้านี้แล้ว'];
+  if (st.done) return ['t-done', '✓ ตรวจครบแล้ว'];
+  const touched = fields(prod).filter(f => { const x = st.f[f.i]; return x && (x.unused || x.used.length || x.added.length); }).length;
+  return touched ? ['t-part', `ตรวจแล้ว ${touched}/${fields(prod).length} ช่อง`] : ['t-todo', 'ยังไม่ได้ตรวจ'];
+}
+
+function renderList() {
+  current = null;
+  $('#title').textContent = 'เก็บสเปกจริงของสินค้า';
+  $('#back').hidden = true;
+  $('#app').innerHTML = `
+    <section class="intro">
+      <h2>ช่วยบอกว่าสเปกไหน "ใช้จริง" กับสินค้านี้</h2>
+      <p>ฟอร์มใบยืนยันการผลิตมีตัวเลือกเยอะเกินจริง เราจะตัดตัวเลือกที่ไม่เคยใช้ออก ให้กรอกเร็วขึ้น</p>
+      <ol>
+        <li>กดเลือกสินค้าที่เคยรับงาน</li>
+        <li>แตะ <b>ตัวเลือกที่ลูกค้าเลือกจริง</b> ให้ขึ้น ✓ สีเขียว (ไม่แตะ = ไม่เคยใช้)</li>
+        <li>ช่องไหนไม่เคยถามลูกค้าเลย กด <b>"ไม่ใช้ช่องนี้"</b> · มีตัวเลือกที่ไม่อยู่ในรายการ พิมพ์เพิ่มได้</li>
+        <li>เสร็จแล้วกด <b>"ส่งผล (ไฟล์)"</b> ด้านล่าง แล้วส่งไฟล์ที่ได้ให้เจ้าของโปรเจกต์ (ทำไม่จบ ปิดหน้าได้ ระบบจำไว้ในเครื่องนี้)</li>
+      </ol>
+      <label class="who">ชื่อผู้ตอบ<input id="who" value="${esc(state.who)}" placeholder="เช่น แอดมินฝ้าย" autocomplete="name"></label>
+    </section>
+    ${DATA.cats.map(([k, name]) => `<section class="cat"><h3>${esc(name)}</h3><div class="plist">${
+      DATA.products.filter(p => p.k === k).map(p => { const [cls, t] = status(p); return `<button type="button" class="pbtn" data-open="${p.c}"><b>${esc(p.n)}</b><span class="tag ${cls}">${t}</span></button>`; }).join('')
+    }</div></section>`).join('')}`;
+  $('#who').addEventListener('input', e => { state.who = e.target.value; save(); });
+  summary();
+  window.scrollTo(0, 0);
+}
+
+function fieldHtml(prod, f) {
+  const st = F(prod.c, f.i);
+  const opts = f.o || [];
+  const kind = KIND[f.y] || 'ช่องกรอก';
+  const unit = f.u ? ` (${esc(f.u)})` : '';
+  const chips = opts.map(o => chip(o, st.used.includes(o))).join('') + st.added.map(o => chip(o, true, true)).join('');
+  return `<div class="field ${st.unused ? 'unused' : ''}" data-field="${esc(f.i)}">
+    <div class="fhead"><b>${esc(f.l)}${unit}</b><span class="kind">${kind}${f.x ? ' · มีช่อง "อื่นๆ"' : ''}</span>${f.w ? '<span class="cond">แสดงบางกรณี</span>' : ''}</div>
+    ${opts.length || st.added.length ? `<div class="opts">${chips}</div>` : ''}
+    <div class="frow">
+      ${opts.length > 1 ? `<button type="button" class="btn small" data-all>ใช้ทุกข้อ</button>` : ''}
+      <button type="button" class="btn small ${st.unused ? 'on' : ''}" data-unused aria-pressed="${st.unused}">${st.unused ? '✕ ไม่ใช้ช่องนี้' : 'ไม่ใช้ช่องนี้'}</button>
+      ${opts.length || f.y === 'check' || f.y === 'radio' ? `<span class="add"><input placeholder="ตัวเลือกที่ขาด พิมพ์แล้วกดเพิ่ม" aria-label="เพิ่มตัวเลือก ${esc(f.l)}"><button type="button" class="btn small" data-add>เพิ่ม</button></span>` : ''}
+    </div>
+  </div>`;
+}
+const chip = (o, on, added = false) => `<button type="button" class="opt ${added ? 'added' : ''}" data-opt="${esc(o)}" ${added ? 'data-added' : ''} aria-pressed="${on}"><span class="box">${on ? '✓' : ''}</span>${esc(o)}</button>`;
+
+function renderProduct(code) {
+  const prod = DATA.products.find(p => p.c === code);
+  if (!prod) return renderList();
+  current = code;
+  const st = P(code);
+  $('#title').textContent = prod.n;
+  $('#back').hidden = false;
+  $('#app').innerHTML = `
+    <h2 class="ptitle">${esc(prod.n)}</h2>
+    <div class="pactions">
+      <button type="button" class="btn ${st.off ? 'on' : ''}" id="off" aria-pressed="${st.off}">${st.off ? '✕ ไม่ได้ทำสินค้านี้แล้ว' : 'สินค้านี้ไม่ได้ทำแล้ว'}</button>
+    </div>
+    <div id="secs" ${st.off ? 'hidden' : ''}>
+      ${prod.s.map(s => `<section class="sec"><h3>${esc(s.t)}</h3>${s.f.map(f => fieldHtml(prod, f)).join('')}</section>`).join('')}
+    </div>
+    <div class="note"><label for="pnote">หมายเหตุสินค้านี้ (สเปกที่ลูกค้าถามบ่อย · สิ่งที่ฟอร์มยังไม่มี)</label><textarea id="pnote">${esc(st.note)}</textarea></div>
+    <div class="pactions"><button type="button" class="btn okb" id="done">${st.done ? '✓ ตรวจครบแล้ว' : 'ตรวจสินค้านี้ครบแล้ว'}</button><button type="button" class="btn" id="next">สินค้าถัดไป →</button></div>`;
+  $('#off').onclick = () => { st.off = !st.off; save(); renderProduct(code); };
+  $('#pnote').oninput = e => { st.note = e.target.value; save(); };
+  $('#done').onclick = () => { st.done = true; save(); toast('บันทึกว่าตรวจครบแล้ว'); next(); };
+  $('#next').onclick = next;
+  $('#secs').addEventListener('click', e => onField(prod, e));
+  $('#secs').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.add input')) e.target.nextElementSibling.click(); });
+  summary();
+  window.scrollTo(0, 0);
+}
+function next() {
+  const i = DATA.products.findIndex(p => p.c === current);
+  const n = DATA.products[i + 1];
+  n ? renderProduct(n.c) : renderList();
+}
+
+function onField(prod, e) {
+  const box = e.target.closest('[data-field]');
+  if (!box) return;
+  const id = box.dataset.field;
+  const f = fields(prod).find(x => x.i === id);
+  const st = F(prod.c, id);
+  const optBtn = e.target.closest('[data-opt]');
+  if (optBtn) {
+    const o = optBtn.dataset.opt;
+    if (optBtn.hasAttribute('data-added')) st.added = st.added.filter(x => x !== o);   // ตัวเลือกที่เพิ่มเอง: แตะอีกครั้ง = ลบ
+    else st.used = st.used.includes(o) ? st.used.filter(x => x !== o) : [...st.used, o];
+    st.unused = false;
+  } else if (e.target.closest('[data-all]')) {
+    st.used = [...(f.o || [])]; st.unused = false;
+  } else if (e.target.closest('[data-unused]')) {
+    st.unused = !st.unused; if (st.unused) st.used = [];
+  } else if (e.target.closest('[data-add]')) {
+    const input = box.querySelector('.add input');
+    const v = input.value.trim();
+    if (!v) { input.focus(); return; }
+    if (!st.added.includes(v) && !(f.o || []).includes(v)) st.added.push(v);
+    st.unused = false;
+  } else return;
+  P(prod.c).done = false;
+  save();
+  box.outerHTML = fieldHtml(prod, f);
+  summary();
+}
+
+function summary() {
+  const done = DATA.products.filter(p => state.p[p.c]?.done || state.p[p.c]?.off).length;
+  $('#sum').textContent = `ตรวจครบ ${done} / ${DATA.products.length} สินค้า`;
+}
+
+// ผลที่ส่งกลับ: แยกตามสินค้า → ช่อง (ใช้ / ไม่ใช้ / เพิ่ม) อ่านง่ายทั้งคนและโปรแกรม
+function exportJson() {
+  const out = { app:'pp142-spec-check', v:1, who:state.who, exported_at:new Date().toISOString(), products:{} };
+  for (const prod of DATA.products) {
+    const st = state.p[prod.c];
+    if (!st) continue;
+    const fl = {};
+    for (const f of fields(prod)) {
+      const x = st.f[f.i];
+      if (!x || !(x.unused || x.used.length || x.added.length)) continue;
+      fl[f.i] = { label:f.l, unused:x.unused, used:x.used, not_used:(f.o || []).filter(o => !x.used.includes(o)), added:x.added };
+    }
+    out.products[prod.c] = { name:prod.n, discontinued:st.off, done:st.done, note:st.note, fields:fl };
+  }
+  const blob = new Blob([JSON.stringify(out, null, 1)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `สเปกสินค้า-${(state.who || 'แอดมิน').replace(/[\\/:*?"<>|]/g, '-')}-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast('ดาวน์โหลดไฟล์ผลแล้ว · ส่งไฟล์นี้ให้เจ้าของโปรเจกต์');
+}
+function importJson(file) {
+  file.text().then(t => {
+    const d = JSON.parse(t);
+    if (d.app !== 'pp142-spec-check') throw new Error('ไม่ใช่ไฟล์ผลของหน้านี้');
+    state = { who:d.who || '', p:{} };
+    for (const [code, x] of Object.entries(d.products || {})) {
+      const st = P(code); st.off = !!x.discontinued; st.done = !!x.done; st.note = x.note || '';
+      for (const [id, v] of Object.entries(x.fields || {})) st.f[id] = { used:v.used || [], unused:!!v.unused, added:v.added || [] };
+    }
+    save(); renderList(); toast('เปิดไฟล์ผลแล้ว');
+  }).catch(err => toast('เปิดไฟล์ไม่ได้: ' + err.message));
+}
+
+// แบบกระดาษ: ทุกสินค้า (หรือเฉพาะสินค้าที่เปิดอยู่) ช่องติ๊กว่างให้เขียนมือ
+function renderPrint(only) {
+  const list = only ? DATA.products.filter(p => p.c === only) : DATA.products;
+  const cat = Object.fromEntries(DATA.cats);
+  $('#print').innerHTML = list.map(prod => `<section class="pp">
+    <div class="meta"><span>ภาพพิมพ์ 142 · แบบเก็บสเปกจริงของสินค้า · ${esc(cat[prod.k])}</span><span>ผู้ตอบ ............................ วันที่ ............</span></div>
+    <h2>${esc(prod.n)} <span style="font-size:11px;font-weight:400;color:var(--muted)">☐ สินค้านี้ไม่ได้ทำแล้ว</span></h2>
+    <div style="font-size:10.5px;color:var(--muted)">ติ๊ก ☑ ตัวเลือกที่ลูกค้าใช้จริง · ช่องที่ไม่เคยใช้ ติ๊ก "ไม่ใช้ช่องนี้" · ตัวเลือกที่ขาด เขียนต่อท้าย</div>
+    ${prod.s.map(s => `<h3>${esc(s.t)}</h3>${s.f.map(f => `<div class="pf">
+      <div class="pl"><b>${esc(f.l)}</b>${f.u ? ` (${esc(f.u)})` : ''}<br><span class="k">${KIND[f.y] || ''}${f.w ? ' · บางกรณี' : ''} · ☐ ไม่ใช้ช่องนี้</span></div>
+      <div class="po">${(f.o || []).map(o => `<span>${esc(o)}</span>`).join('')}${(f.o || []).length || f.x ? '<span class="line">..........................</span>' : ''}</div>
+    </div>`).join('')}`).join('')}
+    <div class="pnote">หมายเหตุ / สเปกที่ลูกค้าถามบ่อย:</div>
+  </section>`).join('');
+}
+
+$('#back').onclick = renderList;
+$('#app').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) renderProduct(b.dataset.open); });
+$('#exportBtn').onclick = exportJson;
+$('#importBtn').onclick = () => $('#importFile').click();
+$('#importFile').onchange = e => { const f = e.target.files[0]; if (f) importJson(f); e.target.value = ''; };
+$('#printBtn').onclick = () => { renderPrint(current); window.print(); };
+window.addEventListener('beforeprint', () => { if (!$('#print').innerHTML) renderPrint(current); });
+window.addEventListener('afterprint', () => { $('#print').innerHTML = ''; });
+renderList();
+// #print = เตรียมแบบกระดาษทุกสินค้าไว้เลย (ใช้สร้าง PDF ด้วยเบราว์เซอร์แบบไม่มีหน้าจอ)
+if (location.hash === '#print') renderPrint();
+</script>
+</body>
+</html>
