@@ -184,7 +184,7 @@ describe('R6 คิวเย็บและงานข้างนอก', () =
     ])
   })
 
-  it('BUG: งานข้างนอกทำพิมพ์ถึงตัดแล้วกลับมาเย็บ หายจากแผนเครื่องจักร', () => {
+  it('งานข้างนอกทำพิมพ์ถึงตัดแล้วกลับมาเย็บ อยู่ในแผนเครื่องจักร (แก้แล้ว)', () => {
     const pending = outside('out-print-cut', 'print', ['print', 'press', 'cut'])
     expect(planSewing([pending], machines, needs, now, true).rows.map(r => [r.job.id, r.source])).toEqual([
       ['out-print-cut', 'coming'],
@@ -236,7 +236,7 @@ describe('R6 ใบยืนยันข้ามแท็บและหน่�
     expect(recentlyTaken(storage([[TAKEN_KEY, raw]]), 0)).toBeNull()
   })
 
-  it('BUG: เลขใบยืนยันชนิด object ถูกแปลงเป็นเลขใบแล้วส่งบันทึก', () => {
+  it('เลขใบยืนยันชนิด object ไม่ถูกบันทึก (แก้แล้ว)', () => {
     const store = storage([[OUTBOX_KEY, '{"h":{"doc_no":{"broken":true}}}']])
     const item = takeOutbox(store, time)
     expect({ item, marker: recentlyTaken(store, time) }).toEqual({ item: null, marker: null })

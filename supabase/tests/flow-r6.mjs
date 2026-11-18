@@ -287,9 +287,10 @@ export async function flowR6Tests({ db, ok, as }) {
     await denied(id, /ไม่ได้อยู่ในการผลิต/, () => report(id))
   })
 
-  await isolated('BUG: R6 คำสั่งเสร็จจากสถานีเดิมอาจจบสถานีถัดไปที่เริ่มแล้ว', async () => {
+  // แก้แล้ว (20261120070000): หน้าจอส่งสถานีที่เห็นไปด้วย · คำขอเก่าจากหน้าพิมพ์ต้องไม่จบสถานีรีด
+  await isolated('R6 คำสั่งเสร็จจากสถานีเดิมไม่จบสถานีถัดไปที่เริ่มแล้ว', async () => {
     const id = await job('finish-stale-visit', 'normal')
-    const staleFinish = () => finish(id)
+    const staleFinish = () => rpc('production', 'finish_station', id, 'print')
     await start(id)                      // พิมพ์
     await staleFinish()
     await start(id)                      // รีด
@@ -318,9 +319,10 @@ export async function flowR6Tests({ db, ok, as }) {
     assert.deepEqual([(await live(id)).rework_qty, (await live(id)).qc_passed], [8, 2])
   })
 
-  await isolated('BUG: R6 ส่งยอด QC เดิมซ้ำแล้วงานเสร็จทั้งที่ตรวจจริงครึ่งเดียว', async () => {
+  // แก้แล้ว (20261120070000): ยอด QC ที่ส่งซ้ำด้วยรหัสคำขอเดิมไม่นับซ้ำ · รหัสใหม่ (ตรวจเพิ่มจริง) ยังนับได้
+  await isolated('R6 ส่งยอด QC เดิมซ้ำไม่นับซ้ำ งานไม่เสร็จก่อนตรวจครบ', async () => {
     const id = await qcJob('qc-retry')
-    const pass = () => rpc('qc', 'record_qc', id, 5)
+    const pass = () => rpc('qc', 'record_qc', id, 5, '00000000-0000-4000-8000-0000000000a1')
     await changes(id, 'qc', ['qc_result'], pass)
     try { await savepoint('qc_retry', pass) } catch (error) { assert.match(error.message, /[ก-๙]/) }
     let didFinish = true
@@ -330,6 +332,8 @@ export async function flowR6Tests({ db, ok, as }) {
     }
     const j = await live(id)
     assert.deepEqual([j.qc_passed, j.phase, didFinish], [5, 'production', false])
+    await rpc('qc', 'record_qc', id, 5, '00000000-0000-4000-8000-0000000000a2')
+    assert.equal((await live(id)).qc_passed, 10, 'ตรวจเพิ่มจริง (รหัสคำขอใหม่) ต้องนับ')
   })
 
   await isolated('R6 แบ่งงานแล้วส่งแก้และส่งออกเฉพาะชิ้นที่ต้องแก้', async () => {
@@ -356,9 +360,10 @@ export async function flowR6Tests({ db, ok, as }) {
     assert.deepEqual(await live(parent), parentBefore)
   })
 
-    await isolated('BUG: R6 ส่งคำสั่งแบ่งงานเดิมซ้ำแล้วได้ใบลูกเพิ่มอีกใบ', async () => {
+    // แก้แล้ว (20261120070000): แบ่งงานซ้ำด้วยรหัสคำขอเดิม คืนใบลูกเดิม ไม่สร้างใบใหม่
+    await isolated('R6 ส่งคำสั่งแบ่งงานเดิมซ้ำได้ใบลูกใบเดียว', async () => {
     const parent = await job('split-retry')
-    const split = () => rpc('admin', 'split_job', parent, 3)
+    const split = () => rpc('admin', 'split_job', parent, 3, '00000000-0000-4000-8000-0000000000b1')
     const child = await changes(parent, 'admin', ['job_split'], split)
     assert.equal((await live(child)).qty, 3)
     try { await split() } catch (error) { assert.match(error.message, /[ก-๙]/) }
@@ -411,11 +416,13 @@ await isolated('R6 ส่งออกและรับกลับหลัง�
     assert.ok(skip.payload.ahead.includes((await live(urgent.at(-1))).confirmation_no))
   })
 
-  await isolated('BUG: R6 ส่งรายงานเดิมซ้ำในรอบเดียวเกิดสองรายงานและสองเหตุการณ์', async () => {
+  // แก้แล้ว (20261120070000): รายงานที่ส่งซ้ำด้วยรหัสคำขอเดิม ไม่เกิดรายงานที่สอง
+  await isolated('R6 ส่งรายงานเดิมซ้ำในรอบเดียวได้รายงานเดียว', async () => {
     const id = await job('report-retry')
     await start(id)
-    await changes(id, 'production', ['delay_report'], () => report(id))
-    try { await savepoint('report_retry', () => report(id)) } catch (error) { assert.match(error.message, /[ก-๙]/) }
+    const once = () => rpc('production', 'submit_delay_report', id, [delayReason], reason, eta, null, '00000000-0000-4000-8000-0000000000c1')
+    await changes(id, 'production', ['delay_report'], once)
+    try { await savepoint('report_retry', once) } catch (error) { assert.match(error.message, /[ก-๙]/) }
     const { n } = await one('select count(*)::int n from delay_reports where job_id = $1', [id])
     const eventCount = (await events(id)).filter(event => event.type === 'delay_report').length
     assert.deepEqual([n, eventCount], [1, 1])

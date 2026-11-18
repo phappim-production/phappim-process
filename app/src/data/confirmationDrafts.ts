@@ -30,7 +30,9 @@ export function takeOutbox(store: Store, now = Date.now()): { data: Record<strin
     const data: unknown = JSON.parse(raw)
     if (!data || typeof data !== 'object' || Array.isArray(data)) return null
     const h = (data as { h?: unknown }).h
-    const no = h && typeof h === 'object' ? String((h as { doc_no?: unknown }).doc_no ?? '').trim() : ''
+    // เลขใบต้องเป็นข้อความ · ชนิดอื่น (object / ตัวเลข) = ข้อมูลเสีย ไม่บันทึก ไม่จดว่าหยิบแล้ว (QA รอบ 6 C10 บั๊ก 6)
+    const docNo = h && typeof h === 'object' ? (h as { doc_no?: unknown }).doc_no : undefined
+    const no = typeof docNo === 'string' ? docNo.trim() : ''
     if (!no) return null
     try { store.setItem(TAKEN_KEY, JSON.stringify({ no, at: now })) } catch { /* จดไม่ได้ก็บันทึกต่อได้ */ }
     return { data: data as Record<string, unknown>, no }

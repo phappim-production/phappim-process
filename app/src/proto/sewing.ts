@@ -106,10 +106,14 @@ export type QueueRow = {
   missing: Need[]       // ขาดจักรชนิดใด กี่ตัว (เมื่อ verdict = wait)
 }
 
+// สถานีถัดไปหลังงานกลับเข้าโรงงาน: งานที่อยู่ข้างนอกนับต่อจากสถานีสุดท้ายที่บริษัททำ (ส่งออกพิมพ์ถึงตัด → กลับมาเย็บ)
+// งานแก้ที่รับกลับไป QC เสมอ จึงไม่ใช่งานกำลังมาเย็บ (QA รอบ 6 C10 บั๊ก 5)
 function nextStation(j: Job) {
   if (!j.station) return undefined
+  if (j.status === 'out' && j.out && j.out.rework) return undefined
+  const from = j.status === 'out' && j.out ? j.out.stations[j.out.stations.length - 1] : j.station
   const list = ROUTES[j.route].stations
-  return list[list.indexOf(j.station) + 1]
+  return list[list.indexOf(from) + 1]
 }
 
 // งานที่จะต้องใช้จักร: อยู่สถานีเย็บแต่ยังไม่ได้จักร + งานที่สถานีถัดไปคือเย็บ
