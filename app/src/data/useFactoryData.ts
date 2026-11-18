@@ -65,7 +65,7 @@ async function load(): Promise<FactoryData> {
     supabase.from('machine_bookings').select('id, machine_id, job_id, starts_at, ends_at').is('cancelled_at', null).gte('ends_at', new Date(Date.now() - 7 * DAY).toISOString()),
     supabase.from('product_machine_needs').select('product_type_code, type_code, qty'),
     supabase.from('machine_types').select('code, shared'),
-    supabase.from('vendors').select('id, name, stations').eq('active', true),
+    supabase.from('vendors').select('id, name, stations, kind, phone, address, map_url, specialty, contact').eq('active', true),
     supabase.from('outsource_runs').select('id, job_id, vendor_id, stations, qty, is_rework, sent_at, arrive_at, lead_days, back_at, note').is('closed_at', null),
   ])
   const failed = [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types, vendorRows, outRuns].find(r => r.error)

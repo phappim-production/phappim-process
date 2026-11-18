@@ -68,8 +68,19 @@ export type Job = {
 export type OutRun = {
   id: number; vendor: string; vendorId: number; stations: StationCode[]; qty: number; rework: boolean
   sentAt: Date; arriveAt: Date; leadDays: number; backAt: Date; note?: string
+  phone?: string; mapUrl?: string   // ของบริษัท · ให้แอดมินกดโทร/เปิดแผนที่ตามของ
 }
-export type Vendor = { id: number; name: string; stations: StationCode[] }
+// kind: outsource = รับงานไปทำแทน · supplier = ร้านขายวัตถุดิบ/ฟิล์ม (ไม่ขึ้นในรายการส่งออก)
+export type Vendor = {
+  id: number; name: string; stations: StationCode[]; kind: 'outsource' | 'supplier'
+  phone?: string; address?: string; mapUrl?: string; specialty?: string; contact?: string
+}
+/** ลิงก์โทรจากเบอร์ในชีต (มีชื่อคน/ตัวอักษรปน · บางเบอร์ไม่มี 0 นำหน้า) · ไม่ใช่เบอร์ = undefined */
+export function telHref(phone?: string): string | undefined {
+  const digits = (phone ?? '').match(/[\d\s-]{8,}/)?.[0].replace(/\D/g, '') ?? ''
+  if (digits.length < 9 || digits.length > 10) return undefined
+  return `tel:${digits.length === 9 && !digits.startsWith('0') ? '0' + digits : digits}`
+}
 /** สถานีที่ส่งออกได้ (ตรงกับ private.outsourceable ในฐานข้อมูล) */
 export const OUTSOURCEABLE: StationCode[] = ['print', 'press', 'cut', 'sew', 'emb']
 /** ของจากบริษัทภายนอกเลยกำหนดถึงแล้วยังไม่รับ */

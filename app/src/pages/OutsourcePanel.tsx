@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { rpc } from '../data/useFactoryData'
-import { OUTSOURCEABLE, ROUTES, STATION_NAME, isOutLate, type Job, type StationCode, type Vendor } from '../proto/model'
+import { OUTSOURCEABLE, ROUTES, STATION_NAME, isOutLate, telHref, type Job, type StationCode, type Vendor } from '../proto/model'
 import { defaultBack, outSpan } from '../proto/outsource'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconAlert, IconCheck, IconPackage } from '../components/icons'
@@ -58,6 +58,7 @@ export function OutsourcePanel({ job: j, vendors, admin, now, refresh }: {
               <dd className={late ? 'font-bold text-danger' : 'font-semibold'}>{when(out.backAt)}{late ? ' · เลยกำหนดแล้ว ตามบริษัท' : ''}</dd></div>
             {out.note && <div className="flex flex-wrap gap-x-2"><dt className="text-muted">หมายเหตุ</dt><dd>{out.note}</dd></div>}
           </dl>
+          <ContactLinks phone={out.phone} mapUrl={out.mapUrl} />
           {!admin && <p className="text-muted">แอดมินเป็นคนบันทึกรับของกลับ · ระหว่างนี้กดเริ่มงานที่โรงงานไม่ได้</p>}
           {admin && mode === null && (
             <div className="grid gap-2 sm:grid-cols-2">
@@ -115,7 +116,12 @@ function PlanForm({ job: j, vendors, from, busy, now, refresh, title, saveLabel,
 }) {
   // งานแก้ทำเฉพาะสถานีต้นเหตุ
   const span = j.rework ? [from] : outSpan(j, from)
-  const [vendor, setVendor] = useState<number | ''>(vendors.find(v => v.stations.includes(from))?.id ?? '')
+  // รายการส่งออกมีเฉพาะบริษัทที่รับงานไปทำ (ร้านขายวัตถุดิบไม่ขึ้น) · ที่รับงานสถานีนี้ขึ้นก่อน
+  const outsourcers = vendors.filter(v => v.kind === 'outsource')
+  const matching = outsourcers.filter(v => v.stations.includes(from))
+  const others = outsourcers.filter(v => !v.stations.includes(from))
+  const [vendor, setVendor] = useState<number | ''>(matching.length === 1 ? matching[0].id : '')
+  const chosen = outsourcers.find(v => v.id === vendor)
   const [last, setLast] = useState<StationCode>(span[0])
   const start = initial?.arriveAt ?? new Date(Math.ceil(now.getTime() / 1_800_000) * 1_800_000)
   const [arrive, setArrive] = useState(toLocal(start))
@@ -153,9 +159,26 @@ function PlanForm({ job: j, vendors, from, busy, now, refresh, title, saveLabel,
           <label className="grid gap-1 font-medium">บริษัท
             <select value={vendor} onChange={e => setVendor(e.target.value ? Number(e.target.value) : '')} className={fieldClass}>
               <option value="">— เลือกบริษัท —</option>
-              {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+              {matching.length > 0 && (
+                <optgroup label={`บริษัทที่รับ: ${STATION_NAME[from]}`}>
+                  {matching.map(v => <option key={v.id} value={v.id}>{v.name}{v.specialty ? ` · ${v.specialty}` : ''}</option>)}
+                </optgroup>
+              )}
+              {others.length > 0 && (
+                <optgroup label="บริษัทอื่น">
+                  {others.map(v => <option key={v.id} value={v.id}>{v.name}{v.specialty ? ` · ${v.specialty}` : ''}</option>)}
+                </optgroup>
+              )}
             </select>
           </label>
+          {chosen && (
+            <div className="grid gap-1 rounded-xl border border-line bg-card px-3 py-2 text-sm">
+              {chosen.specialty && <p><span className="text-muted">รับงาน </span>{chosen.specialty}</p>}
+              {chosen.address && <p className="text-muted">{chosen.address}</p>}
+              {chosen.contact && <p><span className="text-muted">ติดต่อ </span>{chosen.contact}</p>}
+              <ContactLinks phone={chosen.phone} mapUrl={chosen.mapUrl} />
+            </div>
+          )}
           {adding ? (
             <div className="grid gap-2">
               <div className="flex gap-2">
@@ -231,6 +254,18 @@ function SplitForm({ job: j, busy, onSave, onCancel }: { job: Job; busy: boolean
         </button>
         <button type="button" disabled={busy} className={secondaryBtn} onClick={onCancel}>ยกเลิก</button>
       </div>
+    </div>
+  )
+}
+
+/** ปุ่มโทร / เปิดแผนที่ของบริษัท (ข้อมูลจากชีต Supplier) · ไม่มีข้อมูล = ไม่แสดง */
+export function ContactLinks({ phone, mapUrl }: { phone?: string; mapUrl?: string }) {
+  const tel = telHref(phone)
+  if (!tel && !mapUrl) return null
+  return (
+    <div className="flex flex-wrap gap-2">
+      {tel && <a href={tel} className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-line bg-card px-3 font-semibold text-brand hover:bg-brand-soft">โทร {phone}</a>}
+      {mapUrl && <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center rounded-xl border border-line bg-card px-3 font-semibold text-brand hover:bg-brand-soft">เปิดแผนที่</a>}
     </div>
   )
 }
