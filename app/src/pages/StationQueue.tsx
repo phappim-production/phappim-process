@@ -39,7 +39,7 @@ export function StationQueue({ station, jobs, role, now, call, onOpen }: {
   const startFn = station === 'sew' ? 'start_sewing' : 'start_station'
 
   return (
-    <div className="grid gap-4">
+    <div className="grid w-full max-w-3xl gap-4">
       {notice && (
         <div role={notice.ok ? 'status' : 'alert'} className={`grid gap-2 rounded-xl px-4 py-3 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>
           <p>{notice.text}</p>
