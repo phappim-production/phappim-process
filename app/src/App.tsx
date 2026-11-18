@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type ComponentType } from 'react'
 import { isConfigured } from './lib/supabase'
-import EmployeeLogin, { AccountScreen, ChangePasswordForm, SignOutButton, primaryButton } from './auth/EmployeeLogin'
+import EmployeeLogin, { AccountScreen, SignOutButton, primaryButton } from './auth/EmployeeLogin'
 import { useEmployeeAccount } from './auth/useEmployeeAccount'
 import { canOpenPage, roleLabel as labelFor, type EmployeeRole, type PageKey, type Section } from './auth/access'
 import { boardScope, homePage } from './auth/scope'
@@ -11,6 +11,7 @@ import { InboxBell } from './pages/inbox/InboxBell'
 import { unreadBadge } from './pages/inbox/format'
 import { useInbox } from './pages/inbox/useInbox'
 import JobLabel from './pages/job-label'
+import AccountPage from './pages/AccountPage'
 import { Card, CardHeader } from './components/ui'
 import { AppUpdate } from './components/AppUpdate'
 import { IconChart, IconColumns, IconGauge, IconInbox, IconSliders, IconUser } from './components/icons'
@@ -163,30 +164,7 @@ function Workspace({ page: requested, labelId, profile, email }: {
             </Suspense>
           ) : (
             <main className="flex-1 overflow-y-auto">
-              {page === 'system' && (
-                <div className="mx-auto grid max-w-3xl gap-4 p-4 sm:p-6">
-                  <Card>
-                    <CardHeader icon={IconUser} title="บัญชีของฉัน" />
-                    <div className="space-y-4 px-5 pb-5">
-                      <div>
-                        <p className="break-words font-semibold">{profile.name}</p>
-                        <p>{roleLabel}</p>
-                        {email && <p className="break-all text-muted">{email}</p>}
-                      </div>
-                      <div className="grid sm:max-w-xs">
-                        <SignOutButton />
-                      </div>
-                      <p className="text-sm text-muted">ใช้เครื่องร่วมกับคนอื่น ให้กดออกจากระบบทุกครั้งก่อนส่งเครื่องต่อ</p>
-                    </div>
-                  </Card>
-                  <Card>
-                    <CardHeader title="เปลี่ยนรหัสผ่าน" sub="ควรเปลี่ยนรหัสที่ได้รับจากเจ้าของระบบเป็นรหัสของตัวเอง" />
-                    <div className="px-5 pb-5 sm:max-w-sm">
-                      <ChangePasswordForm />
-                    </div>
-                  </Card>
-                </div>
-              )}
+              {page === 'system' && <AccountPage name={profile.name} role={profile.role} roleLabel={roleLabel} email={email} />}
               {page === 'reports' && <ReportsPage />}
               {page === 'settings' && <SettingsPage />}
               {page === 'inbox' && <InboxPage />}

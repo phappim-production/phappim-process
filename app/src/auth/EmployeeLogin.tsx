@@ -46,7 +46,7 @@ function PasswordField({ label, name, autoComplete, minLength }: {
   )
 }
 
-export function SignOutButton() {
+export function SignOutButton({ className = secondaryButton, children }: { className?: string; children?: ReactNode }) {
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
 
@@ -69,8 +69,8 @@ export function SignOutButton() {
 
   return (
     <>
-      <button type="button" className={secondaryButton} disabled={busy} onClick={signOut}>
-        {busy ? 'กำลังออกจากระบบ…' : 'ออกจากระบบ'}
+      <button type="button" className={className} disabled={busy} onClick={signOut}>
+        {busy ? 'กำลังออกจากระบบ…' : children ?? 'ออกจากระบบ'}
       </button>
       {failed && <p role="alert" className="mt-2 text-danger">ออกจากระบบไม่สำเร็จ กรุณาลองอีกครั้ง</p>}
     </>
