@@ -54,7 +54,7 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 | `start_station` | `p_job` | production · qc (เฉพาะ QC+Packing) · owner | queued → doing · ปฏิเสธ: เริ่มแล้ว, พักอยู่, **รีดฟิล์มยังไม่ได้รับฟิล์ม/งาน DTG/ของสกรีน** · สถานีเย็บต้องใช้ `start_sewing` (trigger บังคับจักรครบ) |
 | `finish_station` | `p_job` | production · qc (เฉพาะ QC+Packing) · owner | ไม่บังคับขั้นย่อย (`20261119180000`) · ตรวจ: พักอยู่ → "กด แก้แล้ว ก่อน" · `missing_substeps` = เฉพาะขั้น lock + QC ผ่านครบจำนวน → "ยังกดเสร็จไม่ได้: QC ตรวจผ่าน 10/25 ชิ้น ยังไม่ครบ …" (`20261119200000`) · เกินเวลามาตรฐานยังไม่รายงาน → ปฏิเสธ · งานแก้เสร็จ → กลับ QC ทันที · สถานีสุดท้าย → `done` (ตัวอย่าง → `sample_review`) |
 | `open_issue` | `p_job, p_reason` | production · qc · admin · owner | พักงาน (ต้องมีสาเหตุ) · event `hold` |
-| `close_issue` | `p_job, p_note = null` | production · qc · admin · owner | แก้แล้ว กลับสถานะก่อนพัก · event `resume` |
+| `close_issue` | `p_job, p_note = null` | production · **manager** · owner (`20261120050000`) | แก้แล้ว กลับสถานะก่อนพัก · event `resume` · **แอดมิน / QC ถูกปฏิเสธ** "แจ้งผู้บริหารหรือฝ่ายผลิตให้กด …" (เจ้าของ 18 พ.ย.: แอดมินไม่มีหน้าที่แก้ปัญหาของสถานี) · งานเย็บใช้ `resume_sewing` (ฝ่ายผลิต) |
 | `submit_delay_report` | `p_job, p_reasons text[], p_detail, p_new_eta, p_need_help = null` | production · qc · admin · owner | รายงานปัญหา/ล่าช้า (ส่งล่วงหน้าได้) · รหัสต้องอยู่ใน `reason_codes` · วันเสร็จใหม่ต้องเป็นอนาคต |
 | `correct_event` | `p_job, p_event_id, p_reason` | production · owner | "แจ้งว่ากดผิด" บันทึก event `correction` · **ไม่ย้อนสถานะงาน** |
 | `complete_substep` | `p_job, p_key, p_value` | production · qc | ยังมีอยู่แต่หน้าเว็บไม่ใช้แล้ว |

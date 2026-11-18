@@ -360,7 +360,8 @@ function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Date; atRi
   for (const j of jobs) {
     if (j.phase === 'done') continue
     if (isOutLate(j, now)) items.push({ id: j.id + 'o', tone: 'danger', tag: 'ของข้างนอกเลยกำหนด', text: `${j.out!.vendor} · คาดว่าถึง ${shortDate(j.out!.backAt)}`, job: j })
-    else if (j.status === 'hold') items.push({ id: j.id + 'h', tone: 'danger', tag: 'ติดปัญหา', text: j.holdReason ?? '', job: j })
+    // แอดมินไม่ได้แก้ปัญหาของสถานี (เจ้าของ 18 พ.ย.) · เห็นไว้แจ้งลูกค้า · ผู้บริหารหรือฝ่ายผลิตเป็นคนกดแก้แล้ว
+    else if (j.status === 'hold') items.push({ id: j.id + 'h', tone: 'danger', tag: 'ติดปัญหา · รอผู้บริหารแก้', text: j.holdReason ?? '', job: j })
     else if (isOverdue(j, now)) items.push({ id: j.id + 'd', tone: 'danger', tag: 'เลยกำหนดส่ง', text: `กำหนดส่ง ${shortDate(j.due)}`, job: j })
     else if (j.film && !j.film.received) {
       const late = isFilmLate(j, now)
