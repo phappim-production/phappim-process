@@ -53,4 +53,169 @@ export async function queueTests({ db, ok, as }) {
   await reject('งานที่เริ่มแล้วไม่ต้องตรวจคิว', U.prod, `public.note_queue_skip('${c}', 'x')`, /สถานะงานเปลี่ยนไปแล้ว/)
   await db.exec(`update public.jobs set phase = 'cancelled', station_status = null where id = '${b}'`)
   await reject('งานยกเลิกแล้วแทรกคิวไม่ได้', U.prod, `public.move_job_ahead('${b}', '${c}', 'x')`, /เสร็จหรือยกเลิกแล้ว/)
+  await queueRound4({ db, ok, as, U, call, reject, receive })
+}
+
+async function queueRound4({ db, ok, as, U, call, reject }) {
+  const receive = async (no, route = 'plain', sample = false) => (await call(U.admin,
+    `public.receive_job('${no}', 'ลูกค้าคิว', 'งานคิว', 'tshirt', 10, 'ตัว', '2026-12-31', '${route}', null, p_needs_sample => ${sample})`
+  )).rows[0].r
+  const row = async id => (await db.query(
+    'select trim_scale(queue_seq)::text as queue_seq, current_station, phase, station_status, is_rework, sample_round from public.job_live where id = $1', [id],
+  )).rows[0]
+  const move = (job, before) => `public.move_job_ahead('${job}', '${before}', 'งานด่วนทดสอบ')`
+  const skip = (job, reason = 'null') => `public.note_queue_skip('${job}', ${reason})`
+  const retire = () => db.exec("update public.jobs set phase = 'cancelled', station_status = null where phase not in ('done', 'cancelled')")
+  const eventCount = async (id, type) => (await db.query(
+    'select count(*)::int as n from public.events where job_id = $1 and type = $2', [id, type],
+  )).rows[0].n
+
+  await retire()
+  const left = await receive('R4-LEFT')
+  const right = await receive('R4-RIGHT')
+  const inserted = []
+  const queueValues = [(await row(left)).queue_seq, (await row(right)).queue_seq]
+  for (let i = 1; i <= 60; i++) {
+    const id = await receive(`R4-MID-${i}`)
+    await call(U.prod, move(id, right))
+    inserted.push(id)
+    queueValues.push((await row(id)).queue_seq)
+  }
+  const { rows: dense } = await db.query(
+    'select id from public.jobs where id = any($1::uuid[]) order by queue_seq, id',
+    [[left, ...inserted, right]],
+  )
+  const firstDuplicate = values => values.findIndex((value, i) => values.indexOf(value) !== i)
+  const unique = new Set(queueValues).size
+  ok('BUG: แทรก 60 ครั้งในช่วงเดิมต้องได้ลำดับถูกและเลขไม่ซ้ำ',
+    unique === 62 && dense.every((r, i) => r.id === [left, ...inserted, right][i]),
+    `เลขคิวต่างกัน ${unique}/62, แทรกซ้ำครั้งแรกที่ ${unique === 62 ? 'ไม่มี' : firstDuplicate(queueValues) - 1}`)
+  const webValues = queueValues.map(Number)
+  const webUnique = new Set(webValues).size
+  ok('BUG: เลขคิว 62 งานต้องยังแยกกันได้เมื่อส่งเข้า byQueue', webUnique === 62,
+    `Number ต่างกัน ${webUnique}/62, แทรกซ้ำครั้งแรกที่ ${webUnique === 62 ? 'ไม่มี' : firstDuplicate(webValues) - 1}`)
+
+  await retire()
+  const anchor = await receive('R4-ANCHOR')
+  const targets = [await receive('R4-URGENT1'), await receive('R4-URGENT2')]
+  // PGlite มีหนึ่ง connection จึงใช้ตัวตนเดียวตลอด batch และวัดผลของการจัดคิวแบบอนุกรม
+  await as(U.prod, () => Promise.all(targets.map(id => db.query(`select ${move(id, anchor)}`))))
+  const ordered = (await db.query('select id from public.jobs where id = any($1::uuid[]) order by queue_seq', [[anchor, ...targets]])).rows
+  ok('แทรกก่อนงานเดียวกันสองคำขอแบบอนุกรม ได้คิวตามลำดับคำขอ',
+    ordered.map(r => r.id).join() === [...targets, anchor].join())
+  // สร้างเลขคิวเสมอกันในฐานจำลอง เพื่อทดสอบสัญญาเทียบกับตัวตัดสินคิวในหน้าเว็บ
+  await db.query("update public.jobs set queue_seq = (select queue_seq from public.jobs where id = $1) where id = $2",
+    [targets[0], targets[1]])
+  await db.query("update public.jobs set stage_entered_at = '2026-11-18 09:00+07' where id = $1", [targets[0]])
+  await db.query("update public.jobs set stage_entered_at = '2026-11-18 10:00+07' where id = $1", [targets[1]])
+  await reject('BUG: เลขคิวเท่ากัน งานที่หน้าเว็บจัดเป็นอันดับสองต้องใส่เหตุผล', U.prod,
+    skip(targets[1]), /ไม่ใช่คิวแรก.*R4-URGENT1/)
+
+  const roles = [
+    ['owner', '00000000-0000-0000-0000-000000000001', true, true],
+    ['admin', U.admin, false, false],
+    ['production', U.prod, true, true],
+    ['qc', U.qc, false, true],
+    ['manager', U.mgr, true, false],
+    ['supervisor', '00000000-0000-0000-0000-000000000002', true, true],
+    ['บัญชีปิดใช้', '00000000-0000-0000-0000-000000000004', false, false],
+  ]
+  const aclTarget = await receive('R4-ACL-FIRST', 'cut_only')
+  await db.query('update public.jobs set station_seq = (select seq from public.route_stations where route_code = $2 and station_code = $3) where id = $1',
+    [aclTarget, 'cut_only', 'qc_pack'])
+  for (const [role, uid, mayMove, mayNote] of roles) {
+    const id = await receive(`R4-ACL-${role}`, 'cut_only')
+    await db.query('update public.jobs set station_seq = (select station_seq from public.jobs where id = $2) where id = $1', [id, aclTarget])
+    const reason = role === 'บัญชีปิดใช้' ? /บัญชีที่ใช้งานอยู่/ : /ทำขั้นนี้ไม่ได้/
+    if (mayNote) {
+      const result = await call(uid, skip(id, "'ทดสอบบทบาท'"))
+      ok(`${role}: บันทึกเหตุผลข้ามคิว QC ได้`, result.rows[0].r === true && await eventCount(id, 'queue_skip') === 1)
+    } else {
+      await reject(`${role}: บันทึกเหตุผลข้ามคิวไม่ได้`, uid, skip(id, "'ทดสอบบทบาท'"), reason)
+    }
+    if (mayMove) {
+      await call(uid, move(id, aclTarget))
+      ok(`${role}: แทรกคิวผ่าน RPC ได้`, await eventCount(id, 'queue_insert') === 1)
+    } else {
+      await reject(`${role}: แทรกคิวไม่ได้`, uid, move(id, aclTarget), reason)
+    }
+    const before = (await row(id)).queue_seq
+    try { await as(uid, () => db.query('update public.jobs set queue_seq = -10000 where id = $1', [id])) }
+    catch (e) { if (e.code !== '42501') throw e }
+    ok(`${role}: แก้เลขคิวตรงไม่ได้`, (await row(id)).queue_seq === before)
+  }
+  const { rows: grants } = await db.query(`
+    select role,
+      has_function_privilege(role, 'public.move_job_ahead(uuid,uuid,text)', 'EXECUTE') as can_move,
+      has_function_privilege(role, 'public.note_queue_skip(uuid,text)', 'EXECUTE') as can_note,
+      has_sequence_privilege(role, 'public.job_queue_seq', 'USAGE, SELECT, UPDATE') as can_sequence
+    from (values ('anon'), ('authenticated')) as roles(role)
+  `)
+  const anonymous = grants.find(r => r.role === 'anon')
+  ok('ไม่ได้ล็อกอิน: ไม่มีสิทธิ์เรียก RPC คิวทั้งสอง', !anonymous.can_move && !anonymous.can_note)
+  ok('ทุกบทบาทแอปและผู้ไม่ล็อกอินไม่มีสิทธิ์ใช้ sequence ตรง', grants.every(r => !r.can_sequence))
+  const beforeAnon = (await row(aclTarget)).queue_seq
+  await db.exec("set role anon; select set_config('request.jwt.claim.sub', '', false)")
+  try { await db.query('update public.jobs set queue_seq = -10000 where id = $1', [aclTarget]) }
+  catch (e) { if (e.code !== '42501') throw e }
+  finally { await db.exec('reset role') }
+  ok('ไม่ได้ล็อกอิน: แก้เลขคิวตรงไม่ได้', (await row(aclTarget)).queue_seq === beforeAnon)
+
+  await retire()
+  const older = await receive('R4-HOLD')
+  const repair = await receive('R4-REWORK', 'cut_only')
+  const sample = await receive('R4-SAMPLE', 'cut_only', true)
+  const other = await receive('R4-PRINT', 'normal')
+  const waiting = await receive('R4-PLAIN')
+  const repairBefore = await row(repair)
+  const sampleBefore = await row(sample)
+  const workflow = (id, ...names) => names.reduce(
+    (previous, name) => previous.then(() => call(U.prod, `public.${name}('${id}')`)), Promise.resolve(),
+  )
+  await call(U.prod, `public.open_issue('${older}', 'รอผ้า')`)
+  await workflow(repair, 'start_station', 'finish_station', 'start_station')
+  await call(U.qc, `public.send_rework('${repair}', 1, 'ตัดคลาด', 'cut')`)
+  await workflow(sample, 'start_station', 'finish_station', 'start_station', 'finish_station')
+  await call(U.admin, `public.record_sample_result('${sample}', false, 'สีเพี้ยน')`)
+  const repairAfter = await row(repair)
+  const sampleAfter = await row(sample)
+  ok('ส่งกลับแก้กลับเข้าคิวเดิมของสถานีตัด',
+    repairAfter.is_rework && repairAfter.station_status === 'queued' && repairAfter.current_station === 'cut' &&
+    repairAfter.queue_seq === repairBefore.queue_seq)
+  ok('ตัวอย่างไม่ผ่านเริ่มรอบที่สองด้วยคิวเดิม',
+    sampleAfter.sample_round === 2 && sampleAfter.phase === 'sample' && sampleAfter.station_status === 'queued' &&
+    sampleAfter.queue_seq === sampleBefore.queue_seq)
+  ok('งานพักและงานคนละสถานีอยู่ในสถานะที่ใช้ทดสอบ',
+    (await row(older)).station_status === 'hold' && (await row(other)).current_station === 'print')
+  await reject('ข้ามคิวสถานีตัดนับงานแก้และตัวอย่างต่างเส้นทาง แต่ไม่นับงานพักหรือต่างสถานี',
+    U.prod, skip(waiting), /คิวก่อนหน้า: R4-REWORK, R4-SAMPLE\)/)
+
+  // ตั้งตัวอย่างคิวแรกติดลบเพื่อไม่ต้องแทรกผ่านงานเก่าที่ปิดไปแล้วจำนวนมาก
+  await db.query('update public.jobs set queue_seq = -2 where id = $1', [repair])
+  await call(U.prod, move(sample, repair))
+  const newcomer = await receive('R4-NEW')
+  const { rows: [fresh] } = await db.query(`
+    select (select queue_seq from public.jobs where id = $2) < 0 as negative,
+      queue_seq > (select max(queue_seq) from public.jobs where id <> $1) as last
+    from public.jobs where id = $1
+  `, [newcomer, sample])
+  ok('งานรับใหม่ต่อท้ายหลังแทรกคิวติดลบ', fresh.negative && fresh.last)
+
+  await retire()
+  const first = await receive('R4-SEW-FIRST')
+  const second = await receive('R4-SEW-SECOND')
+  await workflow(first, 'start_station', 'finish_station')
+  await workflow(second, 'start_station', 'finish_station')
+  const { rows: machines } = await db.query("select code from public.sewing_machines where status = 'ready' order by code")
+  const owner = roles[0][1]
+  for (const { code } of machines) await call(owner, `public.set_machine_status('${code}', 'off')`)
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    await call(U.prod, skip(second, "'ลูกค้าเร่ง'"))
+    await reject(`เริ่มเย็บถูกปฏิเสธเมื่อจักรไม่พร้อม (ครั้งที่ ${attempt})`, U.prod,
+      `public.start_sewing('${second}')`, /จักร/)
+  }
+  const skips = await eventCount(second, 'queue_skip')
+  const after = await row(second)
+  ok('BUG: บันทึกและเริ่ม เมื่อเริ่มไม่ผ่าน ต้องไม่มี queue_skip ค้าง',
+    after.station_status === 'queued' && skips === 0, `สถานะ ${after.station_status}, queue_skip ${skips}`)
 }
