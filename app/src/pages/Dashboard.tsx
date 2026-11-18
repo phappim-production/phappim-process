@@ -478,7 +478,8 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: Date; onOpen: () => v
       <span className="truncate text-sm text-muted">{j.product} · {j.qty.toLocaleString('th-TH')} {j.unit}</span>
       {(label || j.rework) && (
         <span className="mt-0.5 flex flex-wrap gap-1">
-          {label && <Pill tone={tone} dot>{label}</Pill>}
+          {/* ป้ายเวลามาตรฐานใช้สีของตัวเอง (ส้ม/แดง) ไม่ใช้สีแถบ ซึ่งอาจแดงเพราะเลยกำหนดส่ง */}
+          {label && <Pill tone={j.sla && label === SLA_LABEL[j.sla].text ? SLA_LABEL[j.sla].tone : tone} dot>{label}</Pill>}
           {j.rework && <Pill tone="danger">งานแก้</Pill>}
         </span>
       )}

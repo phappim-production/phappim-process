@@ -63,7 +63,10 @@ export function attachSla(jobs: Job[], rows: SlaFlagRow[]): Job[] {
   return jobs.map(j => {
     const r = byJob.get(j.id)
     const sla: SlaLevel | undefined = !r ? undefined : r.need_report ? 'report' : r.over ? 'over' : r.warn ? 'warn' : undefined
-    return sla ? { ...j, sla } : j
+    if (sla === j.sla) return j
+    if (sla) return { ...j, sla }
+    const { sla: _gone, ...rest } = j
+    return rest
   })
 }
 

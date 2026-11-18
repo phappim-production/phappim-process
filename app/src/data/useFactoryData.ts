@@ -128,8 +128,14 @@ export function useFactoryData() {
     const online = () => soon()
     const offline = () => setFetchOk(false)
     const visible = () => { if (document.visibilityState === 'visible') soon() }
-    // เวลามาตรฐานเดินเองโดยไม่มีใครกด · โหลดใหม่ทุก 5 นาทีให้การ์ดเปลี่ยนเป็นส้ม/แดงทันเวลา
-    const tick = setInterval(() => { if (document.visibilityState === 'visible') soon() }, 5 * 60 * 1000)
+    // เวลามาตรฐานเดินเองโดยไม่มีใครกด · ทุก 5 นาทีโหลดเฉพาะสถานะเวลา (ไม่ต้องโหลดทุกตาราง) ให้การ์ดเปลี่ยนสีทันเวลา
+    const tick = setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      void client.rpc('job_sla_flags').then(({ data, error }) => {
+        if (error) return
+        setState(s => s.status === 'ready' ? { ...s, data: { ...s.data, jobs: attachSla(s.data.jobs, (data ?? []) as SlaFlagRow[]) } } : s)
+      })
+    }, 5 * 60 * 1000)
     window.addEventListener('online', online)
     window.addEventListener('offline', offline)
     document.addEventListener('visibilitychange', visible)
