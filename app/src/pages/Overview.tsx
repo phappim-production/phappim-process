@@ -6,6 +6,7 @@ import { duration, shortDate, stageSteps, stageText } from '../proto/format'
 import { Card, CardHeader, DueLabel, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
 import { TONE, type Tone } from '../components/tone'
 import JobFinder from '../components/JobFinder'
+import { ContactLinks } from './OutsourcePanel'
 import { IconAlert, IconCalculator, IconCheck, IconChevronRight, IconClipboard, IconFactory, IconLayers, IconPause, IconTrendingUp, IconPackage } from '../components/icons'
 
 type Product = { code: string; name: string }
@@ -343,6 +344,7 @@ function OutsideCard({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpen: (i
                 </span>
                 <IconChevronRight className="size-4 shrink-0 text-muted" />
               </button>
+              {bad && (o.phone || o.mapUrl) && <div className="px-5 pb-3"><ContactLinks phone={o.phone} mapUrl={o.mapUrl} /></div>}
             </li>
           )
         })}

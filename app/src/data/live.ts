@@ -35,26 +35,40 @@ export type SewEventRow = { job_id: string; type: string; payload: { reason?: st
 export type MachineRow = { id: number; code: string; type_code: MachineType; status: MachineStatus; note: string | null; repair_eta: string | null; sort: number }
 export type AssignmentRow = { machine_id: number; job_id: string }
 export type BookingRow = { id: number; machine_id: number; job_id: string; starts_at: string; ends_at: string }
-export type VendorRow = { id: number; name: string; stations: StationCode[] | null }
+export type VendorRow = {
+  id: number; name: string; stations: StationCode[] | null; kind?: 'outsource' | 'supplier' | null
+  phone?: string | null; address?: string | null; map_url?: string | null; specialty?: string | null; contact?: string | null
+}
 export type OutRunRow = {
   id: number; job_id: string; vendor_id: number; stations: StationCode[]; qty: number; is_rework: boolean
   sent_at: string; arrive_at: string; lead_days: number | string; back_at: string; note: string | null
 }
 export function toVendors(rows: VendorRow[]): Vendor[] {
-  return rows.map(r => ({ id: Number(r.id), name: r.name, stations: r.stations ?? [] })).sort((a, b) => a.name.localeCompare(b.name, 'th'))
+  return rows.map(r => {
+    const v: Vendor = { id: Number(r.id), name: r.name, stations: r.stations ?? [], kind: r.kind ?? 'outsource' }
+    if (r.phone) v.phone = r.phone
+    if (r.address) v.address = r.address
+    if (r.map_url) v.mapUrl = r.map_url
+    if (r.specialty) v.specialty = r.specialty
+    if (r.contact) v.contact = r.contact
+    return v
+  }).sort((a, b) => a.name.localeCompare(b.name, 'th'))
 }
 /** ผูกรอบส่งออกที่ยังเปิดเข้ากับงาน (1 งาน = 1 รอบเปิด) */
 export function attachOutRuns(jobs: Job[], runs: OutRunRow[], vendors: Vendor[]): Job[] {
-  const name = new Map(vendors.map(v => [v.id, v.name]))
+  const byId = new Map(vendors.map(v => [v.id, v]))
   const byJob = new Map(runs.map(r => [r.job_id, r]))
   return jobs.map(j => {
     const r = byJob.get(j.id)
     if (!r) return j
     const out: OutRun = {
-      id: Number(r.id), vendorId: Number(r.vendor_id), vendor: name.get(Number(r.vendor_id)) ?? 'บริษัทภายนอก', stations: r.stations, qty: r.qty, rework: r.is_rework,
+      id: Number(r.id), vendorId: Number(r.vendor_id), vendor: byId.get(Number(r.vendor_id))?.name ?? 'บริษัทภายนอก', stations: r.stations, qty: r.qty, rework: r.is_rework,
       sentAt: new Date(r.sent_at), arriveAt: new Date(r.arrive_at), leadDays: Number(r.lead_days), backAt: new Date(r.back_at),
     }
     if (r.note) out.note = r.note
+    const v = byId.get(Number(r.vendor_id))
+    if (v?.phone) out.phone = v.phone
+    if (v?.mapUrl) out.mapUrl = v.mapUrl
     return { ...j, out }
   })
 }
