@@ -4,6 +4,7 @@
 // ฟอร์มเปลี่ยนตัวเลือกเมื่อไร รันใหม่ · ชนิดจักรคัดจากตาราง machine_types (18 พ.ย. 2569)
 import { readFileSync, writeFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
+import { DRAFT } from './draft.mjs'
 
 const root = new URL('../../', import.meta.url)
 const form = readFileSync(new URL('production-confirmation.html', root), 'utf8')
@@ -92,9 +93,13 @@ const groups = [
 ]
 
 const machineHead = MACHINES.map(([, n]) => `<th class="m">${esc(n)}</th>`).join('')
-const boxes = MACHINES.map(() => '<td class="m"><span class="box"></span></td>').join('')
-const row = (group, text, cls = '') =>
-  `<tr class="${cls}"><td class="g">${group}</td><td class="opt">${text}</td>${boxes}<td class="num"></td><td class="num"></td><td class="note"></td></tr>`
+// ค่าร่าง (draft.mjs) พิมพ์เป็นเครื่องหมายสีเทาในกล่อง ให้หัวหน้าเย็บติ๊กทับหรือขีดฆ่า
+// เครื่องหมายถูกวาดเป็น SVG เพราะฟอนต์ Sarabun ไม่มีอักขระ ✓ (ถ้าใช้ตัวอักษร PDF จะดึงฟอนต์อื่นมาปน)
+const TICK = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.2 5.3 4.2 7.3 7.9 2.9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+const boxes = (draft = []) => MACHINES.map(([code]) =>
+  `<td class="m"><span class="box${draft.includes(code) ? ' draft' : ''}">${draft.includes(code) ? TICK : ''}</span></td>`).join('')
+const row = (group, text, cls = '', draft = []) =>
+  `<tr class="${cls}"><td class="g">${group}</td><td class="opt">${text}</td>${boxes(draft)}<td class="num"></td><td class="num"></td><td class="note"></td></tr>`
 // หัวตารางพิมพ์ซ้ำทุกหน้า กระดาษแยกกันก็ยังอ่านคอลัมน์ได้
 // table-layout: fixed อ่านความกว้างจากแถวแรก ซึ่งเป็นแถวชื่อตารางแบบรวมช่อง จึงต้องกำหนดด้วย colgroup
 const colgroup = `<colgroup><col style="width:30mm"><col style="width:52mm">${MACHINES.map(() => '<col style="width:12.5mm">').join('')}<col style="width:18.5mm"><col style="width:18.5mm"><col></colgroup>`
@@ -105,7 +110,7 @@ const tableHead = `${colgroup}<thead><tr class="pname"><th colspan="${MACHINES.l
 const specPages = `
 <section class="page">
   <table class="grid">${tableHead}<tbody>
-    ${groups.map(g => g.opts.map((o, i) => row(i ? '' : esc(g.title), esc(o), [i ? '' : 'first', g.base ? 'base' : ''].join(' '))).join('')).join('')}
+    ${groups.map(g => g.opts.map((o, i) => row(i ? '' : esc(g.title), esc(o), [i ? '' : 'first', g.base ? 'base' : ''].join(' '), DRAFT[o])).join('')).join('')}
     ${row('อื่นๆ', '', 'first')}
   </tbody></table>
 </section>`
@@ -157,6 +162,8 @@ const html = `<!doctype html>
   .grid tr.base td { background: #fff8e6; }
   .grid td.opt { border-left: 0; }
   .box { display: inline-block; width: 4.4mm; height: 4.4mm; vertical-align: middle; border: 1.4px solid #333; border-radius: 1mm; }
+  .box.draft { display: inline-grid; place-items: center; border-color: #9aa5a1; color: #8f9a96; }
+  .box.draft svg { width: 3.6mm; height: 3.6mm; }
   .choice { display: block; margin: 1.2mm 0 0 1mm; }
   .choice .box { margin-right: 2mm; }
   .simple td { height: 9mm; line-height: 1.45; }
@@ -178,6 +185,7 @@ const html = `<!doctype html>
       <li><b>จำนวนกระบวนการ</b> = สเปกนั้นมีกี่ขั้นตอนเย็บ (ตั้งจักร 5 นาทีต่อกระบวนการ)</li>
       <li><b>ได้กี่ตัวต่อชั่วโมง</b> = ช่าง 1 คน กับจักร 1 ตัว ทำขั้นนี้ได้ประมาณกี่ตัว · ตอบเป็นช่วงได้ เช่น 40–60 · ไม่แน่ใจ เว้นไว้</li>
       <li>สเปกที่ไม่ได้ทำจริง ขีดฆ่าแถว · สเปกที่ขาด เขียนเพิ่มในแถว อื่นๆ ท้ายตาราง</li>
+      <li><span class="box draft">${TICK}</span> <b>เครื่องหมายสีเทา = ค่าร่าง</b> (จากความรู้ทั่วไปของงานเย็บ ไม่ใช่ของโรงงานนี้) · ถูก = <b>ติ๊กทับด้วยปากกา</b> · ผิด = <b>ขีดฆ่า</b> · ขาด = ติ๊กเพิ่ม</li>
     </ol>
     <div class="ex"><b>ตัวอย่าง</b> สเปก กระดุม "3 เม็ด" ให้ติ๊ก <b>ติดกระดุม</b> และ <b>เจาะรังดุม</b> · 2 กระบวนการ · 60 ตัวต่อชั่วโมง</div>
 
@@ -213,6 +221,13 @@ const html = `<!doctype html>
 </section>
 ${specPages}
 </body></html>`
+
+// ค่าร่างที่ไม่ตรงกับสเปกใดเลย = พิมพ์ชื่อผิด ต้องแก้ draft.mjs ก่อนพิมพ์ใบ
+const allSpecs = new Set(groups.flatMap(g => g.opts))
+const stray = Object.keys(DRAFT).filter(k => !allSpecs.has(k))
+if (stray.length) throw new Error(`ค่าร่างไม่ตรงกับสเปกในฟอร์ม: ${stray.join(' · ')}`)
+const noDraft = [...allSpecs].filter(k => !DRAFT[k])
+if (noDraft.length) console.log(`ไม่มีค่าร่าง ${noDraft.length} สเปก: ${noDraft.join(' · ')}`)
 
 const out = new URL('docs/ใบเก็บข้อมูล-จักรต่อตัวเลือก.html', root)
 writeFileSync(out, html)
