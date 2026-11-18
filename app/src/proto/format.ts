@@ -48,3 +48,10 @@ export function stageSteps(j: Job) {
     : j.phase === 'production' ? pre.length + Math.max(0, ROUTES[j.route].stations.indexOf(j.station ?? ROUTES[j.route].stations[0])) : steps.length
   return { steps, current }
 }
+
+// เวลามาตรฐาน: 1 วันทำงานในฐานข้อมูล = 24 ชม. (private.work_days นับจันทร์–เสาร์)
+// ไม่ถึงครึ่งวันแสดงเป็นชั่วโมง เดิมปัดทศนิยม 1 ตำแหน่งจนขึ้น "ใช้ไป 0.0" (QA รอบ 5 G7 ข้อ 2)
+export function slaAmount(days: number): string {
+  if (days < 0.5) return `${(Math.round(days * 24 * 10) / 10).toLocaleString('th-TH')} ชม.`
+  return `${(Math.round(days * 10) / 10).toLocaleString('th-TH')} วัน`
+}

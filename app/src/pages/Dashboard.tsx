@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
-  COLUMNS, DEPT_NAME, ROUTES, byQueue, isOutLate, STATION_NAME, STATUS_NAME,
+  COLUMNS, DEPT_NAME, ROUTES, SLA_LABEL, byQueue, isOutLate, STATION_NAME, STATUS_NAME,
   columnOf, filmLabel, groupColumns, savedStation, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
   type ColumnKey, type Job, type RouteCode, type StationCode,
 } from '../proto/model'
@@ -452,8 +452,8 @@ function PageHeader({ title, today, updated }: { title: string; today: string; u
 
 function stripe(j: Job, now: Date): Tone {
   if (j.phase === 'done') return 'ok'
-  if (j.status === 'hold' || isOverdue(j, now) || isOutLate(j, now)) return 'danger'
-  if (isFilmLate(j, now) || j.phase === 'materials') return 'warn'
+  if (j.status === 'hold' || isOverdue(j, now) || isOutLate(j, now) || j.sla === 'over' || j.sla === 'report') return 'danger'
+  if (isFilmLate(j, now) || j.phase === 'materials' || j.sla === 'warn') return 'warn'
   if (j.status === 'doing') return 'info'
   return 'neutral'
 }
@@ -461,6 +461,7 @@ function stripe(j: Job, now: Date): Tone {
 function JobCard({ job: j, now, onOpen }: { job: Job; now: Date; onOpen: () => void }) {
   const label = j.status === 'out' && j.out ? `ข้างนอก · ${j.out.vendor}`
     : j.status === 'hold' ? 'พักงาน'
+    : j.sla ? SLA_LABEL[j.sla].text
     : isWaitingFilm(j) ? 'รอฟิล์ม'
     : j.phase === 'done' ? 'เสร็จ'
     : j.phase === 'sample' && j.station ? STATION_NAME[j.station]

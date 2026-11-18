@@ -118,6 +118,8 @@ export function sewQueue(jobs: Job[], machines: Machine[], includeComing = false
   const out: { job: Job; source: QueueSource }[] = []
   for (const j of jobs) {
     if (j.phase !== 'sample' && j.phase !== 'production') continue
+    // เย็บที่บริษัทภายนอก ไม่ใช้จักรโรงงาน (เดิมขึ้นในรอบเย็บว่า "จักรไม่ว่าง" · QA รอบ 5 G7 ข้อ 3)
+    if (j.status === 'out' && j.out?.stations.includes('sew')) continue
     if (j.station === 'sew' && !hasMachine.has(j.id)) out.push({ job: j, source: 'waiting' })
     else if (includeComing && nextStation(j) === 'sew') out.push({ job: j, source: 'coming' })
   }

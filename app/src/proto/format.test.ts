@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { dayDiff, duration, relDay, spaced, stageSteps, stageText } from './format'
+import { dayDiff, duration, relDay, slaAmount, spaced, stageSteps, stageText } from './format'
 import type { Job, Phase, RouteCode } from './model'
 
 const date = new Date('2026-11-17T00:00:00+07:00')
@@ -83,4 +83,11 @@ it('เว้นวรรครอบชื่ออังกฤษในปร�
   expect(`เริ่ม${spaced('รีดฟิล์ม')}แล้ว`).toBe('เริ่มรีดฟิล์มแล้ว')
   expect(`${spaced('QC + Packing').trimStart()}เสร็จ`).toBe('QC + Packing เสร็จ')
   expect(`กำลังทำ${spaced('รีด DTF').trimEnd()}`).toBe('กำลังทำรีด DTF')
+})
+
+it('เวลามาตรฐานไม่ถึงครึ่งวันแสดงเป็นชั่วโมง ไม่ปัดเป็น 0.0 (QA รอบ 5 G7)', () => {
+  expect(slaAmount(0.021)).toBe('0.5 ชม.')
+  expect(slaAmount(0.25)).toBe('6 ชม.')
+  expect(slaAmount(1)).toBe('1 วัน')
+  expect(slaAmount(1.26)).toBe('1.3 วัน')
 })

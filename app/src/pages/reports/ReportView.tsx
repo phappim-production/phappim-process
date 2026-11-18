@@ -3,6 +3,7 @@ import { IconAlert, IconChart, IconCheck, IconClipboard, IconClock, IconLayers }
 import { TONE, type Tone } from '../../components/tone'
 import type { Ranked, ReportMetrics } from './metrics'
 import { formatReportDate } from './format'
+import { slaAmount } from '../../proto/format'
 
 const integer = new Intl.NumberFormat('th-TH')
 const decimal = new Intl.NumberFormat('th-TH', { maximumFractionDigits: 2 })
@@ -134,7 +135,7 @@ function StationTimes({ data }: { data: ReportMetrics['stations'] }) {
                 <p className="mt-1 text-sm text-muted">{integer.format(item.count)} รอบ</p>
                 {item.slaDays !== null && (
                   <p className={`mt-1 text-sm ${TONE[item.workDays > item.slaDays ? 'danger' : 'ok'].text}`}>
-                    เฉลี่ย {decimal.format(item.workDays)} / มาตรฐาน {decimal.format(item.slaDays)} วันทำงาน
+                    เฉลี่ย {slaAmount(item.workDays)} / มาตรฐาน {slaAmount(item.slaDays)}
                   </p>
                 )}
               </div>

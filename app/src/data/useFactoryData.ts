@@ -3,8 +3,8 @@ import { supabase } from '../lib/supabase'
 import type { Job, Vendor } from '../proto/model'
 import type { Booking, Machine, MachineType, Need } from '../proto/sewing'
 import {
-  attachOutRuns, sharedTypes, thaiError, toBookings, toJobs, toMachines, toNeeds, toVendors, type MachineTypeRow, type OutRunRow, type VendorRow,
-  type AssignmentRow, type BookingRow, type JobRow, type MachineRow, type NeedRow, type ProductRow, type ReworkRow, type SewEventRow,
+  attachOutRuns, attachSla, sharedTypes, thaiError, toBookings, toJobs, toMachines, toNeeds, toVendors, type MachineTypeRow, type OutRunRow, type VendorRow,
+  type AssignmentRow, type BookingRow, type JobRow, type MachineRow, type NeedRow, type ProductRow, type ReworkRow, type SewEventRow, type SlaFlagRow,
 } from './live'
 
 export type FactoryData = { vendors: Vendor[]; jobs: Job[]; machines: Machine[]; bookings: Booking[]; needs: Record<string, Need[]>; products: ProductRow[]; shared: MachineType[] }
@@ -54,6 +54,7 @@ export async function fetchBoardJob(id: string, signal: AbortSignal): Promise<Jo
 async function load(): Promise<FactoryData> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
   const recent = new Date(Date.now() - 14 * DAY).toISOString()
+  const slaCall = supabase.rpc('job_sla_flags')
   const [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types, vendorRows, outRuns] = await Promise.all([
     // งานเสร็จเก่ากว่า 14 วันไม่ต้องแสดงบนบอร์ด
     supabase.from('job_live').select(JOB_COLUMNS).neq('phase', 'cancelled').or(`phase.neq.done,finished_at.gte.${recent}`),
@@ -68,12 +69,15 @@ async function load(): Promise<FactoryData> {
     supabase.from('vendors').select('id, name, stations, kind, phone, address, map_url, specialty, contact').eq('active', true),
     supabase.from('outsource_runs').select('id, job_id, vendor_id, stations, qty, is_rework, sent_at, arrive_at, lead_days, back_at, note').is('closed_at', null),
   ])
+  // สีการ์ดตามเวลามาตรฐาน · อ่านไม่ได้ (ฐานข้อมูลยังไม่มีฟังก์ชัน / เน็ตสะดุด) ให้การ์ดสีปกติ ไม่ทำให้ทั้งหน้าโหลดไม่ขึ้น
+  const sla = await slaCall
   const failed = [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types, vendorRows, outRuns].find(r => r.error)
   if (failed?.error) throw new Error(failed.error.message)
   const vendors = toVendors(vendorRows.data as VendorRow[])
   return {
     vendors,
-    jobs: attachOutRuns(toJobs(jobs.data as JobRow[], products.data as ProductRow[], reworks.data as ReworkRow[], sewEvents.data as SewEventRow[]), outRuns.data as OutRunRow[], vendors),
+    jobs: attachSla(attachOutRuns(toJobs(jobs.data as JobRow[], products.data as ProductRow[], reworks.data as ReworkRow[], sewEvents.data as SewEventRow[]), outRuns.data as OutRunRow[], vendors),
+      sla.error ? [] : (sla.data ?? []) as SlaFlagRow[]),
     machines: toMachines(machines.data as MachineRow[], assignments.data as AssignmentRow[]),
     bookings: toBookings(bookings.data as BookingRow[]),
     needs: toNeeds(needs.data as NeedRow[], new Set(sharedTypes(types.data as MachineTypeRow[]))),
@@ -124,11 +128,14 @@ export function useFactoryData() {
     const online = () => soon()
     const offline = () => setFetchOk(false)
     const visible = () => { if (document.visibilityState === 'visible') soon() }
+    // เวลามาตรฐานเดินเองโดยไม่มีใครกด · โหลดใหม่ทุก 5 นาทีให้การ์ดเปลี่ยนเป็นส้ม/แดงทันเวลา
+    const tick = setInterval(() => { if (document.visibilityState === 'visible') soon() }, 5 * 60 * 1000)
     window.addEventListener('online', online)
     window.addEventListener('offline', offline)
     document.addEventListener('visibilitychange', visible)
     return () => {
       clearTimeout(timer)
+      clearInterval(tick)
       window.removeEventListener('online', online)
       window.removeEventListener('offline', offline)
       document.removeEventListener('visibilitychange', visible)

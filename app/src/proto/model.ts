@@ -62,6 +62,15 @@ export type Job = {
   doneAt?: Date
   queue?: number             // ลำดับคิว (jobs.queue_seq) · ตามลำดับรับงานเข้า แทรกงานด่วนได้
   out?: OutRun               // อยู่ที่บริษัทภายนอก (station_status = out)
+  sla?: SlaLevel             // เวลามาตรฐานของสถานีที่ทำอยู่ (job_sla_flags) · ไม่มี = ยังไม่ใกล้ครบ / ไม่จับเวลา
+}
+
+// ส้ม = ใกล้ครบ · แดง = เกินแล้ว (report = ยังไม่ส่งรายงานปัญหา กดเสร็จไม่ได้ · over = รายงานแล้ว)
+export type SlaLevel = 'warn' | 'over' | 'report'
+export const SLA_LABEL: Record<SlaLevel, { tone: 'warn' | 'danger'; text: string }> = {
+  warn: { tone: 'warn', text: 'ใกล้ครบเวลามาตรฐาน' },
+  over: { tone: 'danger', text: 'เกินเวลามาตรฐาน' },
+  report: { tone: 'danger', text: 'เกินเวลา · ต้องรายงาน' },
 }
 
 // รอบส่งออกที่ยังเปิดอยู่ (outsource_runs) · บริษัททำ stations แล้วของถึงที่ต่อไปตาม backAt
