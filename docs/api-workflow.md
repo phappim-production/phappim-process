@@ -29,6 +29,14 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 
 ฟอร์ม `/confirmation` (ไฟล์ `production-confirmation.html` · build คัดลอกขึ้นเว็บ) ไม่มี key: กด "บันทึกเข้าระบบ" → `localStorage['pp142.confirmation.outbox']` → เปิด `#/board?confirmation=save` → `ConfirmationOutbox` เรียก `save_confirmation_draft` · หน้ารับงานกด "แก้ใบนี้ในฟอร์ม" → `localStorage['pp142.confirmation.inbox']` → ฟอร์มโหลดใบ (`app/src/data/confirmationDrafts.ts`)
 
+## คิวงาน (`20261120000000` · `20261120010000`)
+คิว = `jobs.queue_seq` จำนวนเต็มห่างกัน 1024 ตามลำดับรับเข้า (ห้ามซ้ำ · unique) · หน้าเว็บเรียงทุกรายการตามนี้ ไม่เรียงตามกำหนดส่ง
+| ฟังก์ชัน | อาร์กิวเมนต์ | ใครเรียก | ทำอะไร / ปฏิเสธเมื่อ |
+|---|---|---|---|
+| `move_job_ahead` | `p_job, p_before, p_reason` | production · manager · owner | แทรกงานด่วนก่อน `p_before` · ทีละคำขอ (advisory lock) · ช่องว่างหมด = จัดเลขใหม่ทั้งคิว (`private.queue_renumber`) · event `queue_insert` · ปฏิเสธ: ไม่มีเหตุผล, งานเดียวกัน, อยู่ก่อนแล้ว, เสร็จ/ยกเลิก |
+| `start_in_queue` | `p_job, p_reason` → `text[]` | production · qc (เฉพาะ QC+Packing) · owner | **ปุ่มเริ่มในหน้าคิวสถานีใช้ตัวนี้** · ไม่ใช่คิวแรกต้องมีเหตุผล (event `queue_skip`) · แล้วเรียก `start_station` / `start_sewing` ในธุรกรรมเดียว (เริ่มไม่ได้ = ไม่บันทึกอะไร) · เย็บคืนรหัสจักร |
+| `note_queue_skip` | `p_job, p_reason` → `boolean` | production · qc (เฉพาะ QC+Packing) · owner | ตรวจ/บันทึกข้ามคิวอย่างเดียว (หน้าเว็บไม่ใช้แล้ว) |
+
 ## สถานีทั่วไป
 | ฟังก์ชัน | อาร์กิวเมนต์ | ใครเรียก | ทำอะไร / ปฏิเสธเมื่อ |
 |---|---|---|---|

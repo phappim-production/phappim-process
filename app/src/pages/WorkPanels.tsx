@@ -9,7 +9,7 @@ import {
   type Booking, type Machine, type MachineState, type MachineStatus,
 } from '../proto/sewing'
 
-// ต้องทำตอนนี้: 1 แถว = 1 งาน = 1 สิ่งที่ต้องทำ เรียงด่วนสุดก่อน
+// ต้องทำตอนนี้: 1 แถว = 1 งาน = 1 สิ่งที่ต้องทำ เรียงตามคิว (ด่วนบอกด้วยสี)
 export function TodoPanel({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpen: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false)
   const list = todoList(jobs, now)
@@ -17,7 +17,7 @@ export function TodoPanel({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpe
   return (
     <Card>
       <CardHeader icon={IconClipboard} title="ต้องทำตอนนี้" tone={urgent ? 'danger' : 'brand'}
-        sub={list.length ? `${list.length} งาน${urgent ? ` · ด่วน ${urgent} งาน` : ''} · เรียงด่วนสุดก่อน` : undefined} />
+        sub={list.length ? `${list.length} งาน${urgent ? ` · ด่วน ${urgent} งาน` : ''} · เรียงตามคิว` : undefined} />
       {list.length === 0 ? (
         <p className="px-5 pb-5 text-muted">ไม่มีงานค้างในส่วนของคุณ</p>
       ) : (

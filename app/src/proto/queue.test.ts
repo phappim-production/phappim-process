@@ -135,7 +135,7 @@ describe('สถานีตอนนี้ (หน้าภาพรวม)', (
 describe('หน้าคิวและรายการต้องทำ', () => {
   const now = new Date('2026-11-18T09:00:00+07:00')
 
-  it('BUG: ลิงก์สถานีตอนเปิดหน้าครั้งแรกต้องแสดงคิวสถานีของฝ่ายผลิต', () => {
+  it('ลิงก์สถานีตอนเปิดหน้าครั้งแรกแสดงคิวสถานีของฝ่ายผลิต', () => {
     vi.mocked(useFactoryData).mockReturnValue({
       state: {
         status: 'ready', loadedAt: now,
@@ -155,7 +155,7 @@ describe('หน้าคิวและรายการต้องทำ', (
     }
   })
 
-  it('BUG: ข้อความรายการต้องทำต้องระบุว่าเรียงตามคิว', () => {
+  it('ข้อความรายการต้องทำระบุว่าเรียงตามคิว', () => {
     const jobs = [job('first', { queue: 1 }), job('urgent', { queue: 2, status: 'hold' })]
     const html = renderToStaticMarkup(createElement(TodoPanel, { jobs, now, onOpen: () => {} }))
     expect(html.indexOf('SC-first')).toBeLessThan(html.indexOf('SC-urgent'))

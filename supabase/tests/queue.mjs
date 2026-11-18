@@ -53,10 +53,10 @@ export async function queueTests({ db, ok, as }) {
   await reject('งานที่เริ่มแล้วไม่ต้องตรวจคิว', U.prod, `public.note_queue_skip('${c}', 'x')`, /สถานะงานเปลี่ยนไปแล้ว/)
   await db.exec(`update public.jobs set phase = 'cancelled', station_status = null where id = '${b}'`)
   await reject('งานยกเลิกแล้วแทรกคิวไม่ได้', U.prod, `public.move_job_ahead('${b}', '${c}', 'x')`, /เสร็จหรือยกเลิกแล้ว/)
-  await queueRound4({ db, ok, as, U, call, reject, receive })
+  await queueRound4({ db, ok, as, U, call, reject, pass })
 }
 
-async function queueRound4({ db, ok, as, U, call, reject }) {
+async function queueRound4({ db, ok, as, U, call, reject, pass }) {
   const receive = async (no, route = 'plain', sample = false) => (await call(U.admin,
     `public.receive_job('${no}', 'ลูกค้าคิว', 'งานคิว', 'tshirt', 10, 'ตัว', '2026-12-31', '${route}', null, p_needs_sample => ${sample})`
   )).rows[0].r
@@ -87,12 +87,12 @@ async function queueRound4({ db, ok, as, U, call, reject }) {
   )
   const firstDuplicate = values => values.findIndex((value, i) => values.indexOf(value) !== i)
   const unique = new Set(queueValues).size
-  ok('BUG: แทรก 60 ครั้งในช่วงเดิมต้องได้ลำดับถูกและเลขไม่ซ้ำ',
+  ok('แทรก 60 ครั้งในช่วงเดิมได้ลำดับถูกและเลขไม่ซ้ำ (จัดเลขใหม่เมื่อช่องว่างหมด)',
     unique === 62 && dense.every((r, i) => r.id === [left, ...inserted, right][i]),
     `เลขคิวต่างกัน ${unique}/62, แทรกซ้ำครั้งแรกที่ ${unique === 62 ? 'ไม่มี' : firstDuplicate(queueValues) - 1}`)
   const webValues = queueValues.map(Number)
   const webUnique = new Set(webValues).size
-  ok('BUG: เลขคิว 62 งานต้องยังแยกกันได้เมื่อส่งเข้า byQueue', webUnique === 62,
+  ok('เลขคิว 62 งานยังแยกกันได้เมื่อแปลงเป็น Number ในหน้าเว็บ', webUnique === 62,
     `Number ต่างกัน ${webUnique}/62, แทรกซ้ำครั้งแรกที่ ${webUnique === 62 ? 'ไม่มี' : firstDuplicate(webValues) - 1}`)
 
   await retire()
@@ -103,13 +103,14 @@ async function queueRound4({ db, ok, as, U, call, reject }) {
   const ordered = (await db.query('select id from public.jobs where id = any($1::uuid[]) order by queue_seq', [[anchor, ...targets]])).rows
   ok('แทรกก่อนงานเดียวกันสองคำขอแบบอนุกรม ได้คิวตามลำดับคำขอ',
     ordered.map(r => r.id).join() === [...targets, anchor].join())
-  // สร้างเลขคิวเสมอกันในฐานจำลอง เพื่อทดสอบสัญญาเทียบกับตัวตัดสินคิวในหน้าเว็บ
-  await db.query("update public.jobs set queue_seq = (select queue_seq from public.jobs where id = $1) where id = $2",
-    [targets[0], targets[1]])
-  await db.query("update public.jobs set stage_entered_at = '2026-11-18 09:00+07' where id = $1", [targets[0]])
-  await db.query("update public.jobs set stage_entered_at = '2026-11-18 10:00+07' where id = $1", [targets[1]])
-  await reject('BUG: เลขคิวเท่ากัน งานที่หน้าเว็บจัดเป็นอันดับสองต้องใส่เหตุผล', U.prod,
-    skip(targets[1]), /ไม่ใช่คิวแรก.*R4-URGENT1/)
+  // เลขเสมอทำให้หน้าเว็บกับฐานข้อมูลเห็นคิวแรกต่างกัน (C8 บั๊ก 3) → ฐานข้อมูลไม่ยอมให้เลขซ้ำเลย
+  try {
+    await db.query("update public.jobs set queue_seq = (select queue_seq from public.jobs where id = $1) where id = $2", [targets[0], targets[1]])
+    ok('เลขคิวซ้ำกันไม่ได้ (unique)', false, 'ควรถูกปฏิเสธแต่ผ่าน')
+  } catch (e) { ok('เลขคิวซ้ำกันไม่ได้ (unique)', /duplicate|unique/.test(e.message), e.message.split(String.fromCharCode(10))[0]) }
+  await reject('งานคิวที่สองต้องใส่เหตุผล', U.prod, skip(targets[1]), /ไม่ใช่คิวแรก.*R4-URGENT1/)
+  const seqs = (await db.query('select queue_seq::text as q from public.jobs')).rows.map(r => r.q)
+  ok('เลขคิวเป็นจำนวนเต็มทุกงาน', seqs.every(q => /^-?\d+$/.test(q)), seqs.find(q => !/^-?\d+$/.test(q)))
 
   const roles = [
     ['owner', '00000000-0000-0000-0000-000000000001', true, true],
@@ -210,12 +211,31 @@ async function queueRound4({ db, ok, as, U, call, reject }) {
   const owner = roles[0][1]
   for (const { code } of machines) await call(owner, `public.set_machine_status('${code}', 'off')`)
   for (let attempt = 1; attempt <= 2; attempt++) {
-    await call(U.prod, skip(second, "'ลูกค้าเร่ง'"))
-    await reject(`เริ่มเย็บถูกปฏิเสธเมื่อจักรไม่พร้อม (ครั้งที่ ${attempt})`, U.prod,
-      `public.start_sewing('${second}')`, /จักร/)
+    await reject(`เริ่มเย็บก่อนคิวถูกปฏิเสธเมื่อจักรไม่พร้อม (ครั้งที่ ${attempt})`, U.prod,
+      `public.start_in_queue('${second}', 'ลูกค้าเร่ง')`, /จักร/)
   }
+  await reject('ไม่ใช่คิวแรกและไม่ใส่เหตุผล เริ่มไม่ได้', U.prod, `public.start_in_queue('${second}', null)`, /ไม่ใช่คิวแรกแล้ว.*R4-SEW-FIRST/)
   const skips = await eventCount(second, 'queue_skip')
   const after = await row(second)
-  ok('BUG: บันทึกและเริ่ม เมื่อเริ่มไม่ผ่าน ต้องไม่มี queue_skip ค้าง',
+  ok('บันทึกและเริ่ม เมื่อเริ่มไม่ผ่าน ไม่มี queue_skip ค้าง',
     after.station_status === 'queued' && skips === 0, `สถานะ ${after.station_status}, queue_skip ${skips}`)
+
+  // เริ่มจากหน้าคิว (start_in_queue) · คิวแรกไม่ต้องมีเหตุผล · ข้ามคิวบันทึกเหตุผลเมื่อเริ่มสำเร็จ
+  for (const { code } of machines) await call(owner, `public.set_machine_status('${code}', 'ready')`)
+  await retire()
+  const q1 = await receive('R4-SQ-1')
+  const q2 = await receive('R4-SQ-2')
+  const q3 = await receive('R4-SQ-3')
+  await pass('คิวแรกเริ่มได้โดยไม่ต้องมีเหตุผล', U.prod, `public.start_in_queue('${q1}', null)`)
+  ok('คิวแรกเริ่มแล้วไม่มีบันทึกข้ามคิว', (await row(q1)).station_status === 'doing' && await eventCount(q1, 'queue_skip') === 0)
+  await pass('คิวหลังเริ่มได้เมื่อใส่เหตุผล', U.prod, `public.start_in_queue('${q3}', 'ผ้างานคิวก่อนยังไม่มา')`)
+  ok('เริ่มก่อนคิวสำเร็จ บันทึกเหตุผล 1 ครั้งและงานที่ข้าม', (await row(q3)).station_status === 'doing' && await eventCount(q3, 'queue_skip') === 1)
+  await reject('แอดมินเริ่มงานจากหน้าคิวไม่ได้', U.admin, `public.start_in_queue('${q2}', null)`, /ทำขั้นนี้ไม่ได้/)
+  await reject('QC เริ่มสถานีอื่นจากหน้าคิวไม่ได้', U.qc, `public.start_in_queue('${q2}', null)`, /เฉพาะสถานี QC/)
+  await reject('QC บันทึกข้ามคิวสถานีอื่นไม่ได้', U.qc, skip(q2, "'x'"), /เฉพาะสถานี QC/)
+
+  // จัดเลขใหม่แล้วงานรับใหม่ยังต่อท้าย
+  const tail = await receive('R4-TAIL')
+  const { rows: [lastRow] } = await db.query('select bool_and(queue_seq < (select queue_seq from public.jobs where id = $1)) as ok from public.jobs where id <> $1', [tail])
+  ok('หลังจัดเลขคิวใหม่ งานรับใหม่ยังอยู่ท้ายสุด', lastRow.ok)
 }
