@@ -58,8 +58,8 @@ export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLi
     case 'material_unchecked': return { title: `ยกเลิกติ๊กวัตถุดิบ: ${str(p.name)}`, tone: 'warn' }
     case 'released':
       return e.phase === 'production'
-        ? { title: 'วัตถุดิบครบ · เข้าผลิตจริง', detail: 'งานนี้ไม่ขึ้นตัวอย่าง', tone: 'ok' }
-        : { title: `วัตถุดิบครบ · ไปขึ้นตัวอย่าง${round}`, tone: 'ok' }
+        ? { title: 'เข้าผลิตจริงที่สถานีแรก', detail: 'งานนี้ไม่ขึ้นตัวอย่าง', tone: 'ok' }
+        : { title: `ไปขึ้นตัวอย่าง${round}`, tone: 'ok' }
     case 'film_ordered': return { title: 'บันทึกสั่งฟิล์ม', detail: `คาดว่าได้รับ ${thaiDate(p.eta)}`, tone: 'neutral' }
     case 'film_received': return { title: 'ได้รับฟิล์มแล้ว', tone: 'ok' }
     case 'station_start':
@@ -89,6 +89,8 @@ export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLi
     case 'machines_booked':
       return { title: 'จองจักร', detail: [list(p.machines), str(p.starts_at) && `${thaiDate(p.starts_at)} – ${thaiDate(p.ends_at)}`].filter(Boolean).join(' · ') || undefined, tone: 'neutral' }
     case 'booking_cancelled': return { title: 'ยกเลิกการจองจักร', tone: 'neutral' }
+    case 'queue_insert': return { title: `แทรกคิวงานด่วน (ก่อน ${str(p.before)})`, detail: str(p.reason) || undefined, tone: 'warn' }
+    case 'queue_skip': return { title: `เริ่มก่อนคิว${st ? ` ที่${st}` : ''}`, detail: [str(p.reason), list(p.ahead) && `ข้ามคิว ${list(p.ahead)}`].filter(Boolean).join(' · ') || undefined, tone: 'warn' }
     case 'correction': return { title: 'แจ้งว่ารายการก่อนหน้ากดผิด', detail: str(p.reason) || undefined, tone: 'warn' }
     case 'confirmation_pdf': return { title: p.replaced ? 'เปลี่ยน PDF ใบยืนยัน' : 'แนบ PDF ใบยืนยันที่ลูกค้าเซ็น', tone: 'ok' }
     case 'done': return { title: 'งานเสร็จ · พร้อมส่ง', tone: 'ok' }

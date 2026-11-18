@@ -3,7 +3,7 @@ import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } 
 import {
   COLUMNS, DEPT_NAME, ROUTES, byQueue, STATION_NAME, STATUS_NAME,
   columnOf, filmLabel, groupColumns, savedStation, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
-  type ColumnKey, type Job, type RouteCode,
+  type ColumnKey, type Job, type RouteCode, type StationCode,
 } from '../proto/model'
 import { lateDays, sewFloorOf, simulate, workdayToDate } from '../proto/capacity'
 import { duration, relDay, shortDate } from '../proto/format'
@@ -20,6 +20,7 @@ import { BookingPanel } from './BookingPanel'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { SewingNow, type SewActions } from './SewingNow'
 import { JobActions } from './JobActions'
+import { StationQueue } from './StationQueue'
 import { ReceiveJob } from './ReceiveJob'
 import { ConfirmationOutbox } from './ConfirmationOutbox'
 import { JobHistory } from './JobHistory'
@@ -142,6 +143,9 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     setStationState(key)
     try { localStorage.setItem(STATION_KEY, key) } catch { /* โหมดส่วนตัว / ปิดการเก็บข้อมูล: ไม่จำก็ใช้ได้ */ }
   }
+  // สถานีจริง (ไม่ใช่ตัวอย่าง/รอผล/เสร็จ) → แสดงคิวของสถานีพร้อมปุ่มบนการ์ด
+  const focusStation = activeTab === 'board' && station !== 'all' && station in STATION_NAME ? station as StationCode : null
+  const [pickStation, setPickStation] = useState(false)
   const [route, setRoute] = useState<RouteCode | 'all'>('all')
   const [query, setQuery] = useState('')
   const [lookup, setLookup] = useState<{ id: string; job: Job | null; error?: string } | null>(null)
@@ -267,13 +271,13 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
       <PageHeader title={myScope.title} today={today} updated={loadedAt} />
       {linkNotice}
       {receiveBar}
-      <RoleSummary scope={myScope} jobs={allJobs} machines={machines} now={now}
+      {!focusStation && <RoleSummary scope={myScope} jobs={allJobs} machines={machines} now={now}
         onPick={(t, v) => {
           if (!myScope.tabs.includes(t)) return
           setTab(t)
           // เปิดแท็บย่อยของจักรเย็บใหม่ทุกครั้งที่กด แม้อยู่แท็บนั้นแล้ว
           if (v) setSewFocus(f => ({ view: v, n: f.n + 1 }))
-        }} />
+        }} />}
       {scope.tabs.length > 1 && (
         <div className="sticky top-0 z-20 -mx-4 bg-paper px-4 py-2 sm:-mx-6 sm:px-6">
         <div role="tablist" aria-label="มุมมอง" className={`${pillGroup} flex-nowrap sm:inline-flex`}>
@@ -301,7 +305,21 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
         </div>
       ) : (
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-4">
-          <StationStrip columns={columns} byColumn={byColumn} now={now} station={station} onPick={setStation} />
+          {focusStation && !pickStation ? (
+            // เลือกสถานีแล้ว: ซ่อนแผงเลือกสถานี เหลือแถบเดียว · คนหน้างานเห็นแค่คิวของตัวเอง
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-card px-4 py-3 shadow-card">
+              <span className="text-muted">สถานี</span>
+              <b className="text-xl">{STATION_NAME[focusStation]}</b>
+              <button type="button" onClick={() => setPickStation(true)} className="ml-auto min-h-12 rounded-xl border border-line px-4 font-semibold text-brand hover:border-brand/50">เปลี่ยนสถานี</button>
+            </div>
+          ) : (
+            <StationStrip columns={columns} byColumn={byColumn} now={now} station={station} onPick={key => { setStation(key); setPickStation(false) }} />
+          )}
+          {focusStation ? (
+            <ErrorBoundary key={`q-${focusStation}`}>
+              <StationQueue station={focusStation} jobs={allJobs} role={role} now={now} call={call} onOpen={setOpenId} />
+            </ErrorBoundary>
+          ) : (<>
           <Card className="grid gap-2 p-3 sm:p-4">
             <label className="relative min-w-0">
               <span className="sr-only">ค้นหางาน</span>
@@ -369,6 +387,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
               ))}
             </div>
           )}
+          </>)}
         </div>
       )}
 
@@ -603,10 +622,12 @@ function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Jo
             <ol>{steps.map((s, i) => <Step key={i} label={s.label} state={s.state} last={i === steps.length - 1} />)}</ol>
           </div>
 
+          {/* ไม่มีขั้นวัตถุดิบแล้ว (17 พ.ย.) · แสดงเฉพาะงานเก่าที่ยังค้างขั้นนี้ และสถานะฟิล์ม */}
+          {(j.phase === 'materials' || j.film) && (
           <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
-            <h3 className="mb-2 font-semibold">วัตถุดิบ</h3>
+            <h3 className="mb-2 font-semibold">{j.phase === 'materials' ? 'วัตถุดิบ' : filmLabel(j.route)}</h3>
             <ul className="grid gap-2">
-              {(['admin', 'qc', 'production'] as const).map(d => (
+              {j.phase === 'materials' && (['admin', 'qc', 'production'] as const).map(d => (
                 <li key={d} className="flex items-center gap-2">
                   {j.materials[d] ? <IconCheck className="size-4 text-ok" /> : <IconClock className="size-4 text-warn" />}
                   <span className="flex-1">{DEPT_NAME[d]}</span>
@@ -622,6 +643,7 @@ function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Jo
               )}
             </ul>
           </div>
+          )}
 
           {history}
         </div>
