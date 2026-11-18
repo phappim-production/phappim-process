@@ -1,6 +1,6 @@
 // สิ่งที่ยังขาดก่อนกดเสร็จ · กฎเดียวกับ private.missing_substeps ในฐานข้อมูล (20261119180000)
 // หน้าเว็บใช้บอกเหตุผลก่อนกด (ปุ่มที่กดไม่ได้ต้องบอกว่าทำไม) · ฐานข้อมูลตรวจซ้ำเสมอ
-import type { Phase, StationCode } from '../proto/model.ts'
+import { thaiWorkEnd, type Phase, type StationCode } from '../proto/model.ts'
 
 export type SubstepKind = 'req' | 'num' | 'appr' | 'lock' | 'opt'
 export type Substep = { key: string; name: string; kind: SubstepKind }
@@ -38,11 +38,11 @@ export function missingSteps(steps: Substep[], c: StepContext): Substep[] {
   return steps.filter(s => isRequired(s, c) && !isStepDone(s, c))
 }
 
-// วันที่คาดว่าเสร็จใหม่: หน้างานลงแค่วันที่ (PP-SOP-01) → ใช้เวลาเลิกงาน 17:00 ของวันนั้น
-// ถ้าเป็นวันนี้และเลย 17:00 แล้ว ใช้สิ้นวันแทน เพื่อให้ยังเป็นเวลาข้างหน้าตามที่ฐานข้อมูลบังคับ
+// วันที่คาดว่าเสร็จใหม่: หน้างานลงแค่วันที่ (PP-SOP-01) → ใช้เวลาเลิกงาน (18:00) ของวันนั้น
+// ถ้าเป็นวันนี้และเลยเวลาเลิกงานแล้ว ใช้สิ้นวันแทน เพื่อให้ยังเป็นเวลาข้างหน้าตามที่ฐานข้อมูลบังคับ
 export function etaFromDay(day: string, now: Date): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null
-  const eod = new Date(`${day}T17:00:00+07:00`)
+  const eod = thaiWorkEnd(day)
   if (eod > now) return eod
   const end = new Date(`${day}T23:59:00+07:00`)
   return end > now ? end : null

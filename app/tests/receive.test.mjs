@@ -192,9 +192,9 @@ test('ฟิล์ม DTF ล็อกจนได้รับ · ผล QC ผ�
   assert.equal(missingSteps(qc, ctx({ station: 'qc_pack', qcPassed: 10 })).length, 0)
 })
 
-test('วันคาดว่าเสร็จใหม่: ใช้ 17:00 ไทย · เลยเวลาเลิกงานวันนี้ใช้สิ้นวัน · วันที่ผ่านไปแล้วใช้ไม่ได้', () => {
+test('วันคาดว่าเสร็จใหม่: ใช้ 18:00 ไทย (เลิกงาน) · เลยเวลาเลิกงานวันนี้ใช้สิ้นวัน · วันที่ผ่านไปแล้วใช้ไม่ได้', () => {
   const morning = new Date('2026-11-17T09:00:00+07:00')
-  assert.equal(etaFromDay('2026-11-17', morning).toISOString(), '2026-11-17T10:00:00.000Z')
+  assert.equal(etaFromDay('2026-11-17', morning).toISOString(), '2026-11-17T11:00:00.000Z')
   const evening = new Date('2026-11-17T18:00:00+07:00')
   assert.equal(etaFromDay('2026-11-17', evening).toISOString(), '2026-11-17T16:59:00.000Z')
   assert.equal(etaFromDay('2026-11-16', evening), null)

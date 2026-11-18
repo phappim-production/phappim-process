@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { DEFAULT_SEW_PRODUCT, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, hasSewMinutes, lateDays, lineRate, linesFor, machineSets, simulate, verdict, workdayToDate, type Forecast, type SewFloor } from '../proto/capacity'
 import { MACHINE_TYPE_NAME } from '../proto/sewing'
-import { ROUTES, STATION_NAME, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
+import { ROUTES, STATION_NAME, WORK_END, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
 import { duration, shortDate, stageSteps, stageText } from '../proto/format'
 import { Card, CardHeader, DueLabel, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
 import { TONE, type Tone } from '../components/tone'
@@ -133,7 +133,7 @@ function NewJobCheck({ jobs, now, floor, products }: { jobs: Job[]; now: Date; f
   // ตารางเทียบวันเสร็จตามจำนวน (เส้นทางเดียวกัน) ไว้ตอบลูกค้าได้ทันที
   const quotes = useMemo(() => [100, 500, 1000, 2000].map(q => ({ q, d: workdayToDate(simulate(jobs, now, { route, qty: q, productCode: product }, floor).extraFinishDay ?? 0, now) })), [jobs, now, route, product, floor])
   const finish = workdayToDate(r.extraFinishDay ?? 0, now)
-  const dueDate = due ? new Date(`${due}T17:00`) : null
+  const dueDate = due ? new Date(`${due}T${WORK_END}`) : null
   const late = dueDate ? lateDays(finish, dueDate) : null
   const input = 'w-full min-w-0 rounded-xl border border-line bg-card px-3 py-2.5 outline-none focus:border-brand focus:ring-2 focus:ring-brand/15'
 

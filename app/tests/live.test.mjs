@@ -13,7 +13,7 @@ const row = over => ({
 const products = [{ code: 'polo', name: 'เสื้อโปโล' }]
 
 test('กำหนดส่งเป็นวันที่ไทย ไม่เพี้ยนตามเขตเวลาเครื่อง', () => {
-  assert.equal(dueDate('2026-11-20').toISOString(), '2026-11-20T10:00:00.000Z')
+  assert.equal(dueDate('2026-11-20').toISOString(), '2026-11-20T11:00:00.000Z')
 })
 
 test('งานจากฐานข้อมูล: ชื่อสินค้า · สถานี · สถานะ', () => {
