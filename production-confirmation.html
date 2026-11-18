@@ -51,7 +51,8 @@ body.preview main.layout{grid-template-columns:minmax(0,1fr)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
 .card h2{font-size:16px;margin:0 0 12px;display:flex;gap:8px;align-items:center}
 .card h2 .n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+/* minmax(0,1fr): ช่อง 1fr เดิมยืดตามตารางกว้าง (กระเป๋า 560px) ทั้งหัวข้อล้นจอมือถือ · ตารางเลื่อนใน .tbl-wrap เอง (QA รอบ 6 G8) */
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
 .field.wide{grid-column:1/-1}
 .lab{font-weight:600;font-size:14px;margin-bottom:4px}
 .lab small{font-weight:400;color:var(--muted)}
@@ -164,7 +165,7 @@ table.dt tfoot td{font-weight:700;background:#f7f8f6}
 @media (max-width:700px){
   .bar{position:static}
   .bar .btn{padding:6px 10px;font-size:14px}
-  .grid{grid-template-columns:1fr}
+  .grid{grid-template-columns:minmax(0,1fr)}
   .pl-row,.pl-head{grid-template-columns:1fr}
   .pl-head{display:none}
   .doc{width:auto;min-height:0;padding:16px;margin:0 0 16px}
