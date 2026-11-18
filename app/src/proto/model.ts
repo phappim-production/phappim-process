@@ -59,6 +59,7 @@ export type Job = {
   rework?: { qty: number; reason: string }
   holdReason?: string
   doneAt?: Date
+  queue?: number             // ลำดับคิว (jobs.queue_seq) · ตามลำดับรับงานเข้า แทรกงานด่วนได้
 }
 
 // คอลัมน์ของบอร์ด (DEVELOPMENT.md หัวข้อ 8)
@@ -116,6 +117,23 @@ export const thaiDay = (d: Date) => thaiDayFormat.format(d)
 /** a อยู่หลัง b กี่วันตามปฏิทินไทย (ติดลบ = ก่อน) */
 export function thaiDayDiff(a: Date, b: Date) {
   return Math.round((Date.parse(thaiDay(a)) - Date.parse(thaiDay(b))) / DAY)
+}
+
+// คิวงาน: เรียงตามลำดับรับเข้าเสมอ ไม่เรียงตามกำหนดส่งเอง (เจ้าของสั่ง 18 พ.ย. "อย่ามั่วคิว") · งานด่วน = แทรกคิวในฐานข้อมูล
+// ไม่มีเลขคิว (ข้อมูลจำลอง) → ตามเวลาเข้าขั้น
+export function byQueue(a: Job, b: Job) {
+  return (a.queue ?? Infinity) - (b.queue ?? Infinity) || a.since.getTime() - b.since.getTime() || a.id.localeCompare(b.id)
+}
+const inStation = (j: Job) => (j.phase === 'sample' || j.phase === 'production') && !!j.station
+/** งานที่รอเริ่มที่สถานีนี้ เรียงตามคิว · ตรงกับที่ฐานข้อมูลใช้ตรวจเริ่มข้ามคิว (note_queue_skip) */
+export function waitingAt(jobs: Job[], station: StationCode): Job[] {
+  return jobs.filter(j => inStation(j) && j.station === station && j.status === 'queued').sort(byQueue)
+}
+/** งานนี้เป็นคิวที่เท่าไรของสถานี (1 = คิวแรก) · ไม่ได้รอเริ่ม = undefined */
+export function queueNo(job: Job, jobs: Job[]): number | undefined {
+  if (!job.station || job.status !== 'queued' || !inStation(job)) return undefined
+  const i = waitingAt(jobs, job.station).findIndex(j => j.id === job.id)
+  return i < 0 ? undefined : i + 1
 }
 
 // เวลางานโรงงาน 09:00–18:00 (จันทร์–เสาร์) · ที่เดียวที่กำหนด หน้าจอที่แปลง "วันที่" เป็นเวลาใช้ค่านี้ทั้งหมด

@@ -1,4 +1,4 @@
-import { ROUTES, startOfDay, type Job, type RouteCode, type StationCode } from './model'
+import { ROUTES, byQueue, startOfDay, type Job, type RouteCode, type StationCode } from './model'
 import type { Machine, MachineType, Need } from './sewing'
 
 // ชิ้นต่อวันของสถานีที่ช่างแต่ละคนทำชิ้นงานจนจบเอง (ไม่ใช่ไลน์แบ่งขั้น) · ปัดลง เพราะชิ้นที่ทำไม่จบไม่นับ
@@ -111,7 +111,7 @@ export type NewJob = { route: RouteCode; qty: number; productCode?: string; lead
 
 /**
  * ประมาณการแบบง่าย: แต่ละสถานีทำได้ทีละงาน (ยกเว้นเย็บ) ใช้เวลา = จำนวนชิ้นที่เหลือ ÷ กำลังผลิตต่อวัน
- * งานไหนพร้อมเข้าสถานีก่อนได้ทำก่อน (พร้อมเท่ากัน → กำหนดส่งใกล้กว่าก่อน) · รีด DTF เริ่มไม่ได้จนกว่าฟิล์มถึง
+ * งานไหนพร้อมเข้าสถานีก่อนได้ทำก่อน (พร้อมเท่ากัน → คิวก่อนได้ก่อน ไม่ใช่กำหนดส่ง) · รีด DTF เริ่มไม่ได้จนกว่าฟิล์มถึง
  * งานใหม่ (extra) เข้าคิวเหมือนงานอื่น หลังเผื่อเวลาวัตถุดิบ + ตัวอย่าง
  * เย็บ: 1 งาน = 1 ไลน์ (ไลน์ละ SEW_LINE_RATE ชิ้น/วัน) · หลายงานเย็บพร้อมกันได้ถ้าช่างและจักรครบชุดพอ (floor) · ไม่ส่ง floor = จำกัดแค่จำนวนไลน์
  */
@@ -120,9 +120,9 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
   const load = blank<StationLoad>(() => ({ days: 0, qty: 0, jobs: 0, rate: 0 }))
   const finishDay = new Map<string, number>()
 
-  type Run = { id: string; stations: StationCode[]; i: number; ready: number; due: number; filmDay: number; firstQty: number; qty: number; needs: Need[]; lineRate: number; isExtra: boolean }
+  type Run = { id: string; stations: StationCode[]; i: number; ready: number; order: number; filmDay: number; firstQty: number; qty: number; needs: Need[]; lineRate: number; isExtra: boolean }
   let lines: SewLine[] = []
-  const runs: Run[] = jobs.filter(j => j.phase !== 'done').map(j => {
+  const runs: Run[] = jobs.filter(j => j.phase !== 'done').sort(byQueue).map((j, order) => {
     const stations = ROUTES[j.route].stations
     const inLine = j.phase === 'production'
     return {
@@ -130,7 +130,7 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
       i: inLine ? Math.max(0, stations.indexOf(j.station ?? stations[0])) : 0,
       ready: inLine ? (j.status === 'hold' ? LEAD.hold : 0)
         : j.phase === 'materials' ? LEAD.materials : j.phase === 'sample' ? LEAD.sample : LEAD.sampleReview,
-      due: j.due.getTime(),
+      order,
       filmDay: j.film && !j.film.received ? workdaysUntil(j.film.eta, now) : 0,
       firstQty: inLine ? remainingAt(j) : j.qty,
       qty: j.qty,
@@ -138,7 +138,7 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
       lineRate: lineRate(j.productCode),
     }
   })
-  if (extra) runs.push({ id: '__new', stations: ROUTES[extra.route].stations, i: 0, ready: extra.lead ?? LEAD.newJob, due: Infinity, filmDay: 0, firstQty: extra.qty, qty: extra.qty, needs: floor.needsOf(extra.productCode), lineRate: lineRate(extra.productCode), isExtra: true })
+  if (extra) runs.push({ id: '__new', stations: ROUTES[extra.route].stations, i: 0, ready: extra.lead ?? LEAD.newJob, order: Infinity, filmDay: 0, firstQty: extra.qty, qty: extra.qty, needs: floor.needsOf(extra.productCode), lineRate: lineRate(extra.productCode), isExtra: true })
 
   // ภาระงานของสถานี = ชิ้นที่ยังต้องผ่าน ÷ กำลังผลิตต่อวัน (ไม่รวมเวลารอสถานีก่อนหน้า จึงชี้คอขวดได้ตรง)
   for (const r of runs) {
@@ -163,13 +163,13 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
   // เวลาที่เลือกเริ่มแต่ละรอบไม่ลดลง (เลือกงานที่เริ่มเร็วสุดเสมอ) → ไลน์ที่จบก่อนเวลานี้ไม่มีผลกับงานที่เหลือ ตัดทิ้งได้
   let clock = 0
   while (pending.length) {
-    // หางานที่เริ่มได้เร็วที่สุด (เท่ากัน → กำหนดส่งใกล้กว่า) · คำนวณวันเริ่มครั้งเดียวต่องานต่อรอบ
+    // หางานที่เริ่มได้เร็วที่สุด (เท่ากัน → คิวก่อน) · คำนวณวันเริ่มครั้งเดียวต่องานต่อรอบ
     // เดิมเรียง (sort) ซึ่งเรียก startOf ซ้ำทุกการเทียบ งานมากแล้วหน้าภาพรวมหน่วงบนแท็บเล็ต
     let r = pending[0]
     let start = startOf(r)
     for (let k = 1; k < pending.length; k++) {
       const t = startOf(pending[k])
-      if (t < start || (t === start && pending[k].due < r.due)) { r = pending[k]; start = t }
+      if (t < start || (t === start && pending[k].order < r.order)) { r = pending[k]; start = t }
     }
     const s = r.stations[r.i]
     if (r.isExtra && start - r.ready > longestWait) { longestWait = start - r.ready; extraWaitAt = s }

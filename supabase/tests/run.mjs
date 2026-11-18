@@ -80,7 +80,7 @@ const cutName = (await db.query(`select name from stations where code='cut'`)).r
 ok('ชื่อสถานีตัดไม่ถูกเปลี่ยนโดยผู้ควบคุมงาน', cutName === 'ตัดงาน', cutName)
 await as(U.sup, () => expectError('ผู้ควบคุมงานสร้างงานตรงไม่ได้ (ต้องผ่าน RPC)',
   `insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, confirmation_pdf_path)
-   values ('SC-X','a','b','tshirt',1,'ตัว','2026-12-31','normal','x.pdf')`, /row-level security/))
+   values ('SC-X','a','b','tshirt',1,'ตัว','2026-12-31','normal','x.pdf')`, /row-level security|permission denied for sequence job_queue_seq/))
 await as(U.owner, async () => {
   await db.exec(`update public.stations set name='ตัดงาน (แก้)' where code='cut'`)
 })
@@ -168,6 +168,8 @@ const { historyTests } = await import('./history.mjs')
 await historyTests({ db, ok, as })
 const { confirmationTests } = await import('./confirmations.mjs')
 await confirmationTests({ db, ok, as })
+const { queueTests } = await import('./queue.mjs')
+await queueTests({ db, ok, as })
 
 console.log(`\nผ่าน ${pass} · ไม่ผ่าน ${fail}`)
 process.exit(fail ? 1 : 0)

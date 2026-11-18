@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
-  COLUMNS, DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME,
+  COLUMNS, DEPT_NAME, ROUTES, byQueue, STATION_NAME, STATUS_NAME,
   columnOf, filmLabel, groupColumns, savedStation, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
   type ColumnKey, type Job, type RouteCode,
 } from '../proto/model'
@@ -188,9 +188,9 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   const byColumn = useMemo(() => {
     const map = new Map<ColumnKey, Job[]>(COLUMNS.map(c => [c.key, []]))
     for (const j of visible) map.get(columnOf(j))?.push(j)
-    for (const list of map.values()) list.sort((a, b) => priority(a, now) - priority(b, now) || a.due.getTime() - b.due.getTime())
+    for (const list of map.values()) list.sort(byQueue)  // ตามคิวเสมอ · ด่วนดูจากสี
     return map
-  }, [visible, now])
+  }, [visible])
 
   const fromLink = open?.source === 'link' ? decideBoardJob(open.id, allJobs) : null
   const fetchId = fromLink?.status === 'fetch' ? fromLink.id : undefined
@@ -411,13 +411,6 @@ function PageHeader({ title, today, updated }: { title: string; today: string; u
       </div>
     </header>
   )
-}
-
-function priority(j: Job, now: Date) {
-  if (j.status === 'hold') return 0
-  if (isOverdue(j, now)) return 1
-  if (isFilmLate(j, now)) return 2
-  return 3
 }
 
 function stripe(j: Job, now: Date): Tone {

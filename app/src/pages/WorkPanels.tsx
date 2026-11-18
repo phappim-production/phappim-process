@@ -2,7 +2,7 @@ import { useId, useState, type ReactNode } from 'react'
 import { Card, CardHeader, DueLabel, Pill, RouteBadge, ViewSwitch } from '../components/ui'
 import { TONE } from '../components/tone'
 import { IconClipboard, IconClock, IconSewing } from '../components/icons'
-import { WORK_END, WORK_START, type Job } from '../proto/model'
+import { WORK_END, WORK_START, byQueue, type Job } from '../proto/model'
 import { todoList } from '../proto/actions'
 import {
   bookedByOther, checkStartSewing, floorSummary, repairEtaProblem, repairStatus, MACHINE_PREFIX, MACHINE_STATE_NAME, MACHINE_TYPE_NAME, MACHINE_TYPES, machineState, sewQueue, type Need,
@@ -74,7 +74,7 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const queue = sewQueue(jobs, machines)
     .map(q => ({ job: q.job, check: checkStartSewing(q.job, machines, needs, bookings, now) }))
-    .sort((a, b) => Number(b.check.ok) - Number(a.check.ok) || a.job.due.getTime() - b.job.due.getTime())
+    .sort((a, b) => byQueue(a.job, b.job))  // ตามคิว · งานที่ยังเริ่มไม่ได้บอกเหตุผลบนการ์ด
   const startable = queue.filter(q => q.check.ok).length
   const byJob = new Map(jobs.map(j => [j.id, j]))
 

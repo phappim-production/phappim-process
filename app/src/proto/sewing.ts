@@ -1,7 +1,7 @@
 // จักรเย็บ (S14 · docs/แผน-1-สัปดาห์.md) · งานรอเย็บกดเริ่มได้เมื่อจักรครบทุกชนิดที่สินค้าต้องใช้ว่างจริง
 // กฎเดียวกับฐานข้อมูล (public.start_sewing) · หน้าเว็บใช้คำนวณล่วงหน้าเพื่อบอกเหตุผลก่อนกด
 // ชนิดจักรและจักรที่สินค้าต้องใช้ ตรงกับ supabase/migrations/20261118000002_sewing_machines.sql (ร่างจาก PP-SOP-01 ST-05)
-import { isOverdue, ROUTES, startOfDay, type Job } from './model.ts'
+import { byQueue, ROUTES, type Job } from './model.ts'
 
 export type MachineType =
   | 'single' | 'double' | 'ovl3' | 'ovl4' | 'ovl5' | 'cover' | 'flat'
@@ -124,18 +124,15 @@ export function sewQueue(jobs: Job[], machines: Machine[], includeComing = false
   return out
 }
 
-// ลำดับขึ้นเย็บ: รอเย็บแล้วก่อนกำลังมา · เลยกำหนดก่อน · กำหนดส่งใกล้ก่อน · ตัวอย่างก่อน (ชิ้นน้อย รีบให้ลูกค้าดู)
-function rank(a: { job: Job; source: QueueSource }, b: { job: Job; source: QueueSource }, now: Date) {
-  return (a.source === 'waiting' ? 0 : 1) - (b.source === 'waiting' ? 0 : 1)
-    || Number(isOverdue(b.job, now)) - Number(isOverdue(a.job, now))
-    || startOfDay(a.job.due).getTime() - startOfDay(b.job.due).getTime()
-    || (a.job.phase === 'sample' ? 0 : 1) - (b.job.phase === 'sample' ? 0 : 1)
+// ลำดับขึ้นเย็บ: รอเย็บแล้วก่อนกำลังมา · แล้วตามคิว (ไม่เรียงตามกำหนดส่งเอง · งานด่วนแทรกคิวในฐานข้อมูล)
+function rank(a: { job: Job; source: QueueSource }, b: { job: Job; source: QueueSource }) {
+  return (a.source === 'waiting' ? 0 : 1) - (b.source === 'waiting' ? 0 : 1) || byQueue(a.job, b.job)
 }
 
 // จ่ายจักรว่างให้คิวตามลำดับ (แบบโลภ): งานที่ขึ้นได้จะจองจักรไว้ งานที่ขาดจักรไม่จอง จึงไม่กันงานถัดไปที่ใช้จักรคนละชนิด
-export function planSewing(jobs: Job[], machines: Machine[], needsMap: Record<string, Need[]>, now: Date, includeComing = false) {
+export function planSewing(jobs: Job[], machines: Machine[], needsMap: Record<string, Need[]>, _now: Date, includeComing = false) {
   const left = { ...floorSummary(machines).free }
-  const queue = sewQueue(jobs, machines, includeComing).sort((a, b) => rank(a, b, now))
+  const queue = sewQueue(jobs, machines, includeComing).sort(rank)
   const rows: QueueRow[] = queue.map(({ job, source }) => {
     const needs = (job.productCode && needsMap[job.productCode]) || []
     if (needs.length === 0) return { job, source, verdict: 'unknown', needs, missing: [] }
