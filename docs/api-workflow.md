@@ -84,8 +84,8 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 ## QC
 | ฟังก์ชัน | อาร์กิวเมนต์ | ใครเรียก | ทำอะไร / ปฏิเสธเมื่อ |
 |---|---|---|---|
-| `record_qc` | `p_job, p_passed` | qc · production · owner | เพิ่มยอดผ่าน (สะสม) |
-| `send_rework` | `p_job, p_qty, p_reason, p_source_station` | qc · production · owner | ส่งกลับแก้ (จำนวน + สาเหตุ + สถานีต้นเหตุก่อน QC) · งานแก้ที่เย็บต้องได้จักรใหม่ผ่าน `start_sewing` |
+| `record_qc` | `p_job, p_passed` | qc · production · owner | เพิ่มยอดผ่าน (สะสม) · ยอดสะสมเกินจำนวนงานไม่ได้ (บอกว่ายังบันทึกได้อีกกี่ชิ้น) |
+| `send_rework` | `p_job, p_qty, p_reason, p_source_station` | qc · production · owner | ส่งกลับแก้ (จำนวน + สาเหตุ + สถานีต้นเหตุก่อน QC) · จำนวนไม่เกินชิ้นที่ยังไม่ผ่าน (จำนวนงาน − ยอดผ่านสะสม) · งานแก้ที่เย็บต้องได้จักรใหม่ผ่าน `start_sewing` |
 
 ## เวลามาตรฐาน (กฎข้อ 10)
 - วันทำงานจันทร์–เสาร์ (เวลาไทย) · หักเวลาพักงาน · งานแก้ไม่จับเวลา · นับเฉพาะผลิตจริง

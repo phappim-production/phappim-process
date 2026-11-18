@@ -124,24 +124,37 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
   let lines: SewLine[] = []
   const runs: Run[] = jobs.filter(j => j.phase !== 'done').sort(byQueue).map((j, order) => {
     const stations = ROUTES[j.route].stations
+    // ฟิล์มยังไม่ถึง → รีด DTF เริ่มไม่ได้ก่อน ETA (ใช้ทั้งงานในโรงงานและงานที่ออกไปข้างนอกแล้วกลับมารีด · QA รอบ 5)
+    const filmDay = j.film && !j.film.received ? workdaysUntil(j.film.eta, now) : 0
+    // งานแก้ทำแค่ชิ้นที่ส่งกลับ (finish_station ส่งจากสถานีต้นเหตุตรงไป QC ไม่ผ่านสถานีระหว่างทาง)
+    const reworkQty = j.rework?.qty
     // อยู่ที่บริษัทภายนอก: ข้ามสถานีที่บริษัททำ · พร้อมเข้าสถานีถัดไปเมื่อของถึงตามกำหนด (งานแก้กลับ QC)
     if (j.status === 'out' && j.out) {
       const last = j.out.stations[j.out.stations.length - 1]
       const i = j.out.rework ? stations.length - 1 : stations.indexOf(last) + 1
       return {
         id: j.id, stations, isExtra: false, i: Math.min(Math.max(i, 0), stations.length), order,
-        ready: workdaysUntil(j.out.backAt, now), filmDay: 0,
-        firstQty: j.out.qty, qty: j.qty, needs: floor.needsOf(j.productCode), lineRate: lineRate(j.productCode),
+        ready: workdaysUntil(j.out.backAt, now), filmDay,
+        firstQty: j.out.qty, qty: reworkQty ?? j.qty, needs: floor.needsOf(j.productCode), lineRate: lineRate(j.productCode),
       }
     }
     const inLine = j.phase === 'production'
+    if (inLine && reworkQty && j.station) {
+      const fix: StationCode[] = j.station === 'qc_pack' ? ['qc_pack'] : [j.station, 'qc_pack']
+      return {
+        id: j.id, stations: fix, isExtra: false, i: 0, order,
+        ready: j.status === 'hold' ? LEAD.hold : 0, filmDay,
+        firstQty: j.status === 'doing' ? reworkQty / 2 : reworkQty, qty: reworkQty,
+        needs: floor.needsOf(j.productCode), lineRate: lineRate(j.productCode),
+      }
+    }
     return {
       id: j.id, stations, isExtra: false,
       i: inLine ? Math.max(0, stations.indexOf(j.station ?? stations[0])) : 0,
       ready: inLine ? (j.status === 'hold' ? LEAD.hold : 0)
         : j.phase === 'materials' ? LEAD.materials : j.phase === 'sample' ? LEAD.sample : LEAD.sampleReview,
       order,
-      filmDay: j.film && !j.film.received ? workdaysUntil(j.film.eta, now) : 0,
+      filmDay,
       firstQty: inLine ? remainingAt(j) : j.qty,
       qty: j.qty,
       needs: floor.needsOf(j.productCode),
