@@ -160,7 +160,7 @@ function PlanForm({ job: j, vendors, from, busy, now, refresh, title, saveLabel,
             <select value={vendor} onChange={e => setVendor(e.target.value ? Number(e.target.value) : '')} className={fieldClass}>
               <option value="">— เลือกบริษัท —</option>
               {matching.length > 0 && (
-                <optgroup label={`รับงาน${STATION_NAME[from]}`}>
+                <optgroup label={`บริษัทที่รับ: ${STATION_NAME[from]}`}>
                   {matching.map(v => <option key={v.id} value={v.id}>{v.name}{v.specialty ? ` · ${v.specialty}` : ''}</option>)}
                 </optgroup>
               )}
