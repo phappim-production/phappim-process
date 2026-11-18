@@ -327,7 +327,11 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
               <button type="button" onClick={() => setPickStation(true)} className="ml-auto min-h-12 rounded-xl border border-line px-4 font-semibold text-brand hover:border-brand/50">เปลี่ยนสถานี</button>
             </div>
           ) : (
-            <StationStrip columns={columns} byColumn={byColumn} now={now} station={station} onPick={key => { setStation(key); setPickStation(false) }} />
+            <StationStrip columns={columns} byColumn={byColumn} now={now} station={station} onPick={key => {
+              setStation(key); setPickStation(false)
+              // ปุ่มสถานีอยู่ล่างจอ → กลับบนสุดให้เห็นแถบสถานีและคิวแรก (QA รอบ 4)
+              requestAnimationFrame(() => document.querySelector('[data-scroll="dashboard"]')?.scrollTo(0, 0))
+            }} />
           )}
           {focusStation ? (
             <ErrorBoundary key={`q-${focusStation}`}>
@@ -494,7 +498,9 @@ function StationStrip({ columns, byColumn, now, station, onPick }: {
   station: ColumnKey | 'all'; onPick: (key: ColumnKey | 'all') => void
 }) {
   const total = columns.reduce((n, c) => n + (byColumn.get(c.key)?.length ?? 0), 0)
-  const item = (key: ColumnKey | 'all', name: string, count: number, urgent: number) => {
+  // งานตัวอย่างอยู่คอลัมน์ "ขึ้นตัวอย่าง" แต่ก็รออยู่ที่สถานีจริงด้วย → บอกบนปุ่มสถานี ให้ตรงกับหน้าคิวและหน้าภาพรวม (QA รอบ 4)
+  const samplesAt = (key: ColumnKey) => (byColumn.get('sample') ?? []).filter(j => j.station === key).length
+  const item = (key: ColumnKey | 'all', name: string, count: number, urgent: number, sample = 0) => {
     const on = station === key
     return (
       <li key={key} className="min-w-0">
@@ -505,6 +511,7 @@ function StationStrip({ columns, byColumn, now, station, onPick }: {
             <span className="text-2xl font-bold tabular-nums">{count}</span>
             <span className={`text-sm ${on ? 'text-white' : 'text-muted'}`}>งาน</span>
             {urgent > 0 && <span className={`text-sm font-bold whitespace-nowrap ${on ? 'text-white' : 'text-danger'}`}>ด่วน {urgent}</span>}
+            {sample > 0 && <span className={`text-sm whitespace-nowrap ${on ? 'text-white' : 'text-info'}`}>+ ตัวอย่าง {sample}</span>}
           </span>
         </button>
       </li>
@@ -519,7 +526,7 @@ function StationStrip({ columns, byColumn, now, station, onPick }: {
           <ol className="grid grid-cols-3 gap-2 md:grid-cols-5">
             {g.columns.map(c => {
               const list = byColumn.get(c.key) ?? []
-              return item(c.key, c.name, list.length, list.filter(j => stripe(j, now) === 'danger').length)
+              return item(c.key, c.name, list.length, list.filter(j => stripe(j, now) === 'danger').length, samplesAt(c.key))
             })}
           </ol>
         </section>

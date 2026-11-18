@@ -13,9 +13,10 @@ type Props = { jobs: Job[]; now: Date; forecast: Forecast; floor: SewFloor; prod
 type Row = { job: Job; finish: Date; late: number }
 
 const OVERVIEW_VIEWS = [
-  ['follow', 'งานที่ต้องตาม'],
+  // ป้ายสั้นให้ครบ 3 แท็บบนจอ 375 px (QA รอบ 4)
+  ['follow', 'ต้องตาม'],
   ['find', 'ค้นหางาน'],
-  ['plan', 'วางแผนรับงาน'],
+  ['plan', 'วางแผนรับ'],
 ] as const
 
 // เฟส 1: ภาพรวมสำหรับแอดมิน — งานแต่ละงานอยู่ขั้นไหน และรับงานใหม่เพิ่มได้หรือยัง

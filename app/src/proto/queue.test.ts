@@ -5,6 +5,7 @@ import { boardScope } from '../auth/scope'
 import { useFactoryData } from '../data/useFactoryData'
 import Dashboard from '../pages/Dashboard'
 import { TodoPanel } from '../pages/WorkPanels'
+import { StationQueue } from '../pages/StationQueue'
 import { byQueue, queueNo, stationCounts, waitingAt, type Job } from './model'
 import { simulate, workdayToDate } from './capacity'
 import { planSewing } from './sewing'
@@ -160,5 +161,30 @@ describe('หน้าคิวและรายการต้องทำ', (
     const html = renderToStaticMarkup(createElement(TodoPanel, { jobs, now, onOpen: () => {} }))
     expect(html.indexOf('SC-first')).toBeLessThan(html.indexOf('SC-urgent'))
     expect(html.includes('เรียงด่วนสุดก่อน'), 'หัวรายการต้องไม่ขัดกับเลขคิวที่แสดง').toBe(false)
+  })
+})
+
+// ข้อเสนอ QA รอบ 4 (Antigravity): พักงานบนการ์ดได้ · ชื่อสถานีอังกฤษเว้นวรรคก่อนคำไทย · ปุ่มเริ่มใช้ start_in_queue
+describe('การ์ดคิวสถานี', () => {
+  const now = new Date('2026-11-18T09:00:00+07:00')
+  const render = (station: Job['station'], jobs: Job[], role: 'production' | 'admin' = 'production') =>
+    renderToStaticMarkup(createElement(StationQueue, { station: station!, jobs, role, now, call: async () => ({ ok: true as const }), onOpen: () => {} }))
+
+  it('งานกำลังทำมีปุ่ม เสร็จ และ พักงาน บนการ์ด', () => {
+    const html = render('cut', [job('d', { status: 'doing', queue: 1 })])
+    expect(html).toContain('ตัดงานเสร็จ')
+    expect(html).toContain('>พักงาน<')
+  })
+
+  it('QC + Packing เว้นวรรคก่อนคำไทย (งานตัวอย่าง · คิวว่าง)', () => {
+    const html = render('qc_pack', [job('s', { station: 'qc_pack', status: 'doing', phase: 'sample', queue: 1 })])
+    expect(html).toContain('QC + Packing เสร็จ')
+    expect(html).toContain('ไม่มีงานรอที่ QC + Packing')
+    expect(html).not.toMatch(/Packingเสร็จ|ที่QC/)
+  })
+
+  it('แอดมินดูอย่างเดียว ไม่มีปุ่มพักงาน', () => {
+    const html = render('cut', [job('d', { status: 'doing', queue: 1 })], 'admin')
+    expect(html).not.toContain('>พักงาน<')
   })
 })
