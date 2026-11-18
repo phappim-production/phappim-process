@@ -1,6 +1,6 @@
 // แปลงแถวจากฐานข้อมูลจริง (view job_live และตารางจักร) เป็นรูปแบบที่หน้าจอใช้ (proto/model · proto/sewing)
 // แยกเป็น pure function เพื่อทดสอบได้โดยไม่ต้องต่อ Supabase · ตัวดึงข้อมูลอยู่ที่ useFactoryData.ts
-import { thaiWorkEnd, usesFilm, type OutRun, type Vendor, type Dept, type Job, type Phase, type RouteCode, type StationCode, type StationStatus } from '../proto/model.ts'
+import { thaiWorkEnd, usesFilm, type OutRun, type Vendor, type Dept, type Job, type Phase, type RouteCode, type SlaLevel, type StationCode, type StationStatus } from '../proto/model.ts'
 import type { Booking, Machine, MachineStatus, MachineType, Need } from '../proto/sewing.ts'
 
 export type JobRow = {
@@ -55,6 +55,18 @@ export function toVendors(rows: VendorRow[]): Vendor[] {
   }).sort((a, b) => a.name.localeCompare(b.name, 'th'))
 }
 /** ผูกรอบส่งออกที่ยังเปิดเข้ากับงาน (1 งาน = 1 รอบเปิด) */
+export type SlaFlagRow = { job_id: string; warn: boolean; over: boolean; need_report: boolean }
+
+/** ติดสถานะเวลามาตรฐานให้การ์ด (QA รอบ 5 G7 ข้อ 4) · งานที่ไม่ส่งมา = ปกติ */
+export function attachSla(jobs: Job[], rows: SlaFlagRow[]): Job[] {
+  const byJob = new Map(rows.map(r => [r.job_id, r]))
+  return jobs.map(j => {
+    const r = byJob.get(j.id)
+    const sla: SlaLevel | undefined = !r ? undefined : r.need_report ? 'report' : r.over ? 'over' : r.warn ? 'warn' : undefined
+    return sla ? { ...j, sla } : j
+  })
+}
+
 export function attachOutRuns(jobs: Job[], runs: OutRunRow[], vendors: Vendor[]): Job[] {
   const byId = new Map(vendors.map(v => [v.id, v]))
   const byJob = new Map(runs.map(r => [r.job_id, r]))

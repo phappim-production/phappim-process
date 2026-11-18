@@ -32,6 +32,10 @@ export function nextAction(j: Job, now: Date): NextAction | null {
   if (j.station === 'dtf_press' && isWaitingFilm(j)) return make(`รอ${filmLabel(j.route)}ก่อนเริ่มรีด`, 'warn', 2)
   const prefix = j.phase === 'sample' ? 'ตัวอย่าง · ' : ''
   if (j.status === 'queued') return make(`${prefix}เริ่ม${spaced(at).trimEnd()}`, 'neutral', 5)
+  // เวลามาตรฐาน: ให้เห็นจากรายการเลย ไม่ต้องเปิดทีละงาน (QA รอบ 5 G7 ข้อ 4)
+  if (j.sla === 'report') return make(`${at} เกินเวลามาตรฐาน · ส่งรายงานปัญหาก่อนกดเสร็จ`, 'danger', 1)
+  if (j.sla === 'over') return make(`${prefix}กำลังทำ${spaced(at).trimEnd()} · เกินเวลามาตรฐาน (รายงานแล้ว)`, 'danger', 2)
+  if (j.sla === 'warn') return make(`${prefix}กำลังทำ${spaced(at).trimEnd()} · ใกล้ครบเวลามาตรฐาน`, 'warn', 3)
   return make(`${prefix}กำลังทำ${spaced(at).trimEnd()}`, 'info', 6)
 }
 

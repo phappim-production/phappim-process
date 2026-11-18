@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { rpc } from '../data/useFactoryData'
-import { SAVE_HASH, takeOutbox } from '../data/confirmationDrafts'
+import { SAVE_HASH, recentlyTaken, takeOutbox } from '../data/confirmationDrafts'
 
-type Result = { ok: true; no: string; id: string } | { ok: false; text: string }
+type Result = { ok: true; no: string; id: string } | { ok: false; text: string } | { ok: 'elsewhere'; no: string }
 
 /**
  * รับใบยืนยันที่ฟอร์มกด "บันทึกเข้าระบบ" (#/board?confirmation=save) แล้วบันทึกเข้าฐานข้อมูลด้วยบัญชีที่ล็อกอินอยู่
@@ -19,6 +19,8 @@ export function ConfirmationOutbox({ onReceive }: { onReceive: (draftId: string)
       window.history.replaceState(null, '', window.location.hash.split('?')[0])
       const item = takeOutbox(window.localStorage)
       if (!item) {
+        const other = recentlyTaken(window.localStorage)
+        if (alive && other) { setResult({ ok: 'elsewhere', no: other }); return }
         if (alive) setResult({ ok: false, text: 'ไม่พบใบยืนยันที่ส่งมาจากฟอร์ม ให้กด "บันทึกเข้าระบบ" ในฟอร์มอีกครั้ง' })
         return
       }
@@ -35,6 +37,9 @@ export function ConfirmationOutbox({ onReceive }: { onReceive: (draftId: string)
   }, [])
 
   if (!result) return null
+  if (result.ok === 'elsewhere') {
+    return <p role="status" className="rounded-xl bg-info-soft px-3 py-2 font-medium text-info">ใบ {result.no} ส่งไปบันทึกในอีกแท็บแล้ว · ดูผลที่แท็บนั้น แท็บนี้ปิดได้</p>
+  }
   if (!result.ok) return <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 font-medium text-danger">{result.text}</p>
   return (
     <div role="status" className="flex flex-wrap items-center gap-2 rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">

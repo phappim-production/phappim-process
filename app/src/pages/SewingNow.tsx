@@ -62,7 +62,7 @@ export function SewingNow({ jobs, machines, now, onOpen, actions }: {
             const held = job.status === 'hold'
             const report = job.sewingReports?.at(-1)
             return (
-              <li key={job.id} className="grid gap-3 px-5 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              <li key={job.id} className="grid grid-cols-[minmax(0,1fr)] gap-3 px-5 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                 <button type="button" onClick={() => onOpen(job.id)} className="min-h-12 min-w-0 text-left">
                   <span className="flex flex-wrap items-center gap-2">
                     <b>{job.no}</b>

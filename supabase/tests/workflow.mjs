@@ -199,7 +199,15 @@ export async function workflowTests({ db, ok, as }) {
   ok('สถานะเวลา: สถานีตัดเกินมาตรฐาน 1 วัน', b.sla.station_over === true && b.sla.station_sla_days == 1, JSON.stringify(b.sla))
   ok('งาน DTF ไม่อยู่ในช่วงพิมพ์+รีด+ตัด', b.sla.segment_code === undefined)
   await reject('กฎ 10: สถานีเกินเวลา ยังไม่รายงาน กดเสร็จไม่ได้', U.sup, `public.finish_station('${B}')`, /เกินเวลามาตรฐานของสถานีนี้/)
+  // การ์ดบนบอร์ดใช้ job_sla_flags (QA รอบ 5 G7 ข้อ 4) · ค่าต้องตรงกับที่ใช้บล็อกปุ่มเสร็จ
+  const flagOf = async (uid, id) => (await q(uid, `select * from public.job_sla_flags() where job_id = '${id}'`))[0]
+  let flag = await flagOf(U.qc, B)
+  ok('การ์ด: เกินเวลา ยังไม่รายงาน = แดงต้องรายงาน', flag?.over === true && flag?.need_report === true, JSON.stringify(flag))
+  ok('การ์ด: ไม่ส่งงานที่ยังไม่เริ่ม', (await q(U.qc, `select count(*)::int n from public.job_sla_flags() f join public.jobs j on j.id = f.job_id where j.station_status = 'queued'`))[0].n === 0)
+  await reject('การ์ด: ไม่ล็อกอินอ่านสถานะเวลาไม่ได้', U.nobody, `public.job_sla_flags()`, /ต้องเข้าสู่ระบบ/)
   await call(U.sup, `public.submit_delay_report('${B}', array['W1'], 'ผ้ามาช้า', now() + interval '2 hours')`)
+  flag = await flagOf(U.prod, B)
+  ok('การ์ด: รายงานแล้ว ยังเกินแต่ไม่ต้องรายงานซ้ำ', flag?.over === true && flag?.need_report === false, JSON.stringify(flag))
   await pass('กฎ 10: รายงานแล้วกดเสร็จได้', U.sup, `public.finish_station('${B}')`)
   ok('รายงานของสถานีก่อนไม่ติดไปสถานีถัดไป', (await job(B)).sla.station_reported === undefined)
 

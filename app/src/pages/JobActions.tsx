@@ -6,7 +6,8 @@ import { confirmationPath, pdfProblem } from '../data/confirmation'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
 import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job, type Vendor } from '../proto/model'
 import { OutsourcePanel } from './OutsourcePanel'
-import { spaced } from '../proto/format'
+import { FilePick } from '../components/FilePick'
+import { slaAmount, spaced } from '../proto/format'
 import { bookingDay } from '../proto/sewing'
 import { canCloseIssue, type EmployeeRole } from '../auth/access'
 import { Pill } from '../components/ui'
@@ -146,8 +147,8 @@ function AttachPdf({ job, refresh }: { job: Job; refresh: () => Promise<void> })
   return (
     <div className="grid gap-2 rounded-xl border border-warn/30 bg-warn-soft p-3">
       <p className="font-medium text-warn">ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น</p>
-      <input type="file" accept="application/pdf,.pdf" aria-label="เลือก PDF ใบยืนยันที่ลูกค้าเซ็น" className={fieldClass}
-        onChange={e => { setFile(e.target.files?.[0] ?? null); setError('') }} />
+      <FilePick accept="application/pdf,.pdf" label="เลือก PDF ใบยืนยันที่ลูกค้าเซ็น" chosen={file?.name ?? ''}
+        onPick={f => { setFile(f ?? null); setError('') }} />
       {file && problem && <p role="alert" className="text-danger">{problem}</p>}
       <button type="button" className={primaryBtn} disabled={!file || !!problem || busy} onClick={() => void attach()}>
         {busy ? 'กำลังแนบ PDF…' : file ? 'แนบ PDF ใบยืนยัน' : 'แนบ PDF ใบยืนยัน (เลือกไฟล์ก่อน)'}
@@ -402,8 +403,8 @@ function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act 
 function SlaBanner({ sla: s }: { sla: Sla }) {
   const over = s.station_over || s.segment_over
   const lines = [
-    s.segment_name && s.segment_sla_days ? `ช่วง${s.segment_name}: ใช้ไป ${Number(s.segment_days ?? 0).toFixed(1)} จาก ${s.segment_sla_days} วันทำงาน` : '',
-    s.station_sla_days ? `สถานีนี้: ใช้ไป ${Number(s.station_days ?? 0).toFixed(1)} จาก ${s.station_sla_days} วันทำงาน` : '',
+    s.segment_name && s.segment_sla_days ? `ช่วง${s.segment_name}: ใช้ไป ${slaAmount(Number(s.segment_days ?? 0))} จาก ${slaAmount(Number(s.segment_sla_days))}` : '',
+    s.station_sla_days ? `สถานีนี้: ใช้ไป ${slaAmount(Number(s.station_days ?? 0))} จาก ${slaAmount(Number(s.station_sla_days))}` : '',
   ].filter(Boolean)
   return (
     <p role={over ? 'alert' : 'status'} className={`flex items-start gap-2 rounded-xl px-3 py-2 font-medium ${over ? 'bg-danger-soft text-danger' : 'bg-warn-soft text-warn'}`}>

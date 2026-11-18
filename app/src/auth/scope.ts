@@ -74,7 +74,8 @@ export function boardScope(role: EmployeeRole, section: Section | null): BoardSc
         materialsDept: 'qc',
         summary: 'qc',
         showFilm: false,
-        tabs: ['todo', 'board'],
+        // คนหน้างานเปิดมาเจอบอร์ด → หน้าคิวสถานีที่เครื่องจำไว้ (QA รอบ 5 G7 · เดิมต้องกดสลับจาก ต้องทำตอนนี้ ทุกครั้ง)
+        tabs: ['board', 'todo'],
         allowFactory: true,
         canSew: false,
         canReportMachines: false,
@@ -89,7 +90,7 @@ export function boardScope(role: EmployeeRole, section: Section | null): BoardSc
         ...FACTORY_SCOPE,
         title: 'งานฝ่ายผลิต · พิมพ์ถึง QC',
         sub: 'ฝ่ายผลิตคุมทุกสถานี ตั้งแต่รับงาน พิมพ์ รีด ตัด เย็บ จนถึง QC + Packing',
-        tabs: ['todo', 'board', 'sewing'],
+        tabs: ['board', 'todo', 'sewing'],
         summary: 'production',
         // ฝ่ายผลิตแทนผู้ควบคุมงานทั้ง 2 เฟส (ตัดสินใจ 16 พ.ย. บ่าย · migration 20261118000004)
         // จึงเริ่มเย็บ / รายงานปัญหา / เย็บเสร็จ ได้เอง และยังจองจักร แจ้งเสีย กำหนดเวลาซ่อมได้เหมือนเดิม

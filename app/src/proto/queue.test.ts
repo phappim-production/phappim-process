@@ -80,6 +80,18 @@ describe('คิวงาน', () => {
     expect(todoList([last, first], now).map(r => r.job.id)).toEqual(['first', 'last'])
     expect(planSewing([last, first], [], {}, now).rows.map(r => r.job.id)).toEqual(['first', 'last'])
   })
+
+  it('งานที่ส่งไปเย็บข้างนอก ไม่ขึ้นในรอบเย็บของโรงงาน (QA รอบ 5 G7 ข้อ 3)', () => {
+    const now = new Date('2026-11-18T09:00:00+07:00')
+    const run = (stations: Job['station'][]) => ({
+      id: 1, vendor: 'บริษัท', vendorId: 1, stations: stations as NonNullable<Job['station']>[], qty: 10, rework: false,
+      sentAt: now, arriveAt: now, leadDays: 1, backAt: now,
+    })
+    const outSew = job('outSew', { station: 'sew', status: 'out', out: run(['sew']) })
+    const outCut = job('outCut', { station: 'cut', status: 'out', out: run(['cut', 'sew']) })
+    const home = job('home', { station: 'sew' })
+    expect(planSewing([outSew, outCut, home], [], {}, now, true).rows.map(r => r.job.id)).toEqual(['home'])
+  })
 })
 
 describe('คาดการณ์ตามคิวของสถานี', () => {

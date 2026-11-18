@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { STATION_NAME, byQueue, filmLabel, isOutLate, isOverdue, waitingAt, type Job, type StationCode } from '../proto/model'
+import { SLA_LABEL, STATION_NAME, byQueue, filmLabel, isOutLate, isOverdue, waitingAt, type Job, type StationCode } from '../proto/model'
 import { spaced } from '../proto/format'
 import { DueLabel, Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
@@ -48,9 +48,10 @@ export function StationQueue({ station, jobs, role, now, call, onOpen }: {
 
   return (
     <div className="grid w-full max-w-3xl gap-4">
-      {/* มือถือ: ลอยเหนือเมนูล่าง ใกล้ปุ่มที่เพิ่งกด (เลื่อนจออยู่ล่างก็เห็น · QA รอบ 4) · จอใหญ่: อยู่บนสุดตามปกติ */}
+      {/* มือถือ: ลอยเหนือเมนูล่าง ใกล้ปุ่มที่เพิ่งกด (เลื่อนจออยู่ล่างก็เห็น · QA รอบ 4) · จอใหญ่: อยู่บนสุดตามปกติ
+          ข้อความสำเร็จไม่มีปุ่ม จึงให้กดทะลุถึงการ์ดข้างใต้ได้ ไม่บังปุ่มงานถัดไป (QA รอบ 5 G7) */}
       {notice && (
-        <div role={notice.ok ? 'status' : 'alert'} className={`fixed inset-x-4 bottom-24 z-30 grid gap-2 rounded-xl px-4 py-3 font-medium shadow-lift lg:static lg:shadow-none ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>
+        <div role={notice.ok ? 'status' : 'alert'} className={`fixed inset-x-4 bottom-24 z-30 grid gap-2 rounded-xl px-4 py-3 font-medium shadow-lift lg:static lg:shadow-none ${notice.ok ? 'pointer-events-none bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>
           <p>{notice.text}</p>
           <div className="flex flex-wrap gap-2">
             {!notice.ok && notice.jobId && (
@@ -65,7 +66,8 @@ export function StationQueue({ station, jobs, role, now, call, onOpen }: {
         <h2 id="q-working" className="text-lg font-bold">กำลังทำ <span className="font-medium text-muted">{working.length} งาน</span></h2>
         {working.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">ยังไม่มีงานที่กำลังทำ · กดเริ่มงานคิวแรกด้านล่าง</p>}
         {working.map(j => (
-          <QueueCard key={j.id} job={j} now={now} onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger" dot>พักงาน</Pill> : <Pill tone="info" dot>กำลังทำ</Pill>}>
+          <QueueCard key={j.id} job={j} now={now} onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger" dot>พักงาน</Pill>
+            : j.sla ? <Pill tone={SLA_LABEL[j.sla].tone} dot>{SLA_LABEL[j.sla].text}</Pill> : <Pill tone="info" dot>กำลังทำ</Pill>}>
             {j.status === 'hold'
               ? <HoldActions job={j} station={station} canResume={canCloseIssue(role, station)} busy={busy === j.id} run={run} />
               : canPress && <WorkingActions job={j} station={station} busy={busy === j.id} run={run} onOpen={() => onOpen(j.id)} />}
@@ -109,7 +111,8 @@ function QueueCard({ job: j, now, badge, first, onOpen, children }: {
 }) {
   const late = isOverdue(j, now)
   return (
-    <article className={`grid gap-3 rounded-2xl border-2 bg-card p-4 shadow-card ${first ? 'border-brand' : late || j.status === 'hold' ? 'border-danger/40' : 'border-line'}`}>
+    <article className={`grid gap-3 rounded-2xl border-2 bg-card p-4 shadow-card ${first ? 'border-brand'
+      : late || j.status === 'hold' || j.sla === 'over' || j.sla === 'report' ? 'border-danger/40' : j.sla === 'warn' ? 'border-warn/50' : 'border-line'}`}>
       <button type="button" onClick={onOpen} className="grid gap-1 text-left" aria-label={`ดูรายละเอียดงาน ${j.no}`}>
         <span className="flex flex-wrap items-center gap-2">
           {badge}

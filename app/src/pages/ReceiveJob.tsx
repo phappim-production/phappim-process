@@ -8,23 +8,12 @@ import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
 import { receiveForecast, type SewFloor } from '../proto/capacity'
 import { Dialog, fieldClass, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconInbox } from '../components/icons'
+import { FilePick } from '../components/FilePick'
 
 type Product = { code: string; name: string; unit: string }
 // ฟอร์มใบยืนยันอยู่บนเว็บเดียวกัน (vite.config.ts คัดลอก production-confirmation.html ขึ้นไป) · Cloudflare เสิร์ฟไม่มี .html
 const CONFIRMATION_FORM = '/confirmation'
 
-// ปุ่มเลือกไฟล์ของเบราว์เซอร์แสดงภาษาของเครื่อง (มักเป็นอังกฤษ) จึงซ่อนแล้วใช้ปุ่มภาษาไทยแทน
-function FilePick({ accept, chosen, onPick }: { accept: string; chosen: string; onPick: (f: File | undefined) => void }) {
-  return (
-    <span className="flex min-w-0 flex-wrap items-center gap-2">
-      <span className={`${secondaryBtn} relative cursor-pointer focus-within:outline-2 focus-within:outline-brand`}>
-        {chosen ? 'เปลี่ยนไฟล์' : 'เลือกไฟล์'}
-        <input type="file" accept={accept} className="absolute inset-0 cursor-pointer opacity-0" onChange={e => onPick(e.target.files?.[0])} />
-      </span>
-      <span className={`min-w-0 break-all text-sm ${chosen ? 'text-ink' : 'text-muted'}`}>{chosen || 'ยังไม่ได้เลือกไฟล์'}</span>
-    </span>
-  )
-}
 const EMPTY: ReceiveDraft = { no: '', rev: 0, customer: '', jobName: '', product: '', qty: 0, spare: 0, due: '', route: 'normal', needsSample: null, spec: {} }
 
 /**
