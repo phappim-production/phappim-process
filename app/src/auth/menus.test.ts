@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { canOpenPage, ROLE_LABELS, type EmployeeRole } from './access'
-import { ROUTES, roleMenu, routeOf } from './menus'
+import { bottomBar, ROUTES, roleMenu, routeOf } from './menus'
 
 const ROLES = Object.keys(ROLE_LABELS) as EmployeeRole[]
 const names = (role: EmployeeRole) => roleMenu(role).flatMap(g => g.items.map(i => i.name))
@@ -14,11 +14,15 @@ it('ทุกเมนูของทุกบทบาทมีหน้าจ�
   }
 })
 
-it('แถบเมนูล่างบนมือถือไม่เกิน 5 ปุ่ม (กล่องจดหมายอยู่ที่กระดิ่ง)', () => {
+it('แถบเมนูล่างบนมือถือไม่เกิน 5 ช่อง · เกินแล้วรวมไว้ใน "เพิ่มเติม" · เมนูที่เปิดอยู่ต้องเห็นบนแถบ', () => {
   for (const role of ROLES) {
-    const bottom = roleMenu(role).flatMap(g => g.items).filter(i => i.hash !== '#/inbox')
-    expect(bottom.length, role).toBeLessThanOrEqual(5)
-    expect(new Set(bottom.map(i => i.hash)).size, role).toBe(bottom.length)
+    const all = roleMenu(role).flatMap(g => g.items).filter(i => i.hash !== '#/inbox')
+    for (const { hash } of all) {
+      const { shown, more } = bottomBar(roleMenu(role), hash)
+      expect(shown.length + (more.length ? 1 : 0), role).toBeLessThanOrEqual(5)
+      expect([...shown, ...more].length, role).toBe(all.length)
+      expect(shown.some(i => i.hash === hash), `${role} ${hash}`).toBe(true)
+    }
   }
 })
 
@@ -28,6 +32,7 @@ it('เมนูตามบทบาท', () => {
   expect(names('production')).toContain('Station ที่ดูแล')
   expect(names('supervisor')).toEqual(names('production'))
   expect(names('qc')).toEqual(['งานของฉัน', 'คิวงาน Station', 'กล่องจดหมาย'])
+  expect(names('staff')).toEqual(names('qc'))
   expect(names('owner')).toEqual(expect.arrayContaining(['ผู้ใช้งาน', 'ตั้งค่าระบบ', 'ภาพรวมการผลิต']))
 })
 
@@ -38,6 +43,6 @@ it('ลิงก์ที่ไม่รู้จักไปภาพรวม 
   expect(routeOf('#/users').settingsTab).toBe('users')
 })
 
-it('รายงานเปิดได้ทุกบทบาทยกเว้น QC', () => {
-  for (const role of ROLES) expect(canOpenPage(role, 'reports'), role).toBe(role !== 'qc')
+it('รายงานเปิดได้ทุกบทบาทยกเว้น QC และพนักงานสถานี', () => {
+  for (const role of ROLES) expect(canOpenPage(role, 'reports'), role).toBe(role !== 'qc' && role !== 'staff')
 })

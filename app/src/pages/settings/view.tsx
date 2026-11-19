@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Card, ViewSwitch } from '../../components/ui'
 import { Dialog, primaryBtn, secondaryBtn } from '../../components/Dialog'
-import { InboxTab, ReasonsTab, UsersTab } from './accounts'
+import { AssignTab, InboxTab, ReasonsTab, UsersTab } from './accounts'
 import { MachinesTab, MaterialsTab } from './inventory'
 import { SegmentsTab, StationsTab } from './stations'
 import { loaders, loadOwnUserId, tabOptions, type Tab } from './data'
@@ -37,7 +37,8 @@ export default function SettingsContent({ initialTab = 'users' }: { initialTab?:
 }
 
 export function SettingsView({ userId, initialTab = 'users' }: { userId: string; initialTab?: Tab }) {
-  const options = initialTab === 'users' ? tabOptions.filter(([key]) => key === 'users') : tabOptions.filter(([key]) => key !== 'users')
+  const single = initialTab === 'users' || initialTab === 'assign'
+  const options = single ? tabOptions.filter(([key]) => key === initialTab) : tabOptions.filter(([key]) => key !== 'users' && key !== 'assign')
   const [tab, setTab] = useState<Tab>(initialTab)
   const [editor, setEditor] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -78,6 +79,8 @@ export function SettingsView({ userId, initialTab = 'users' }: { userId: string;
       {busy && <p role="status" className="sr-only">กำลังบันทึกและโหลดข้อมูลล่าสุด</p>}
       {tab === 'users' && <Section load={loaders.users} controls={controls}>{(data, actions) =>
         <UsersTab data={data} controls={actions} userId={userId} />}</Section>}
+      {tab === 'assign' && <Section load={loaders.assign} controls={controls}>{(data, actions) =>
+        <AssignTab data={data} controls={actions} />}</Section>}
       {tab === 'stations' && <Section load={loaders.stations} controls={controls}>{(data, actions) =>
         <StationsTab data={data} controls={actions} />}</Section>}
       {tab === 'segments' && <Section load={loaders.segments} controls={controls}>{(data, actions) =>

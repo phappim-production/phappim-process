@@ -261,7 +261,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
   const openFinish = openJob && openJob.phase !== 'done' ? workdayToDate(forecast.finishDay.get(openJob.id) ?? 0, now) : undefined
   const drawer = openJob && (
     <JobDrawer job={openJob} now={now} finish={openFinish} onClose={() => setOpenId(null)}
-      actions={<JobActions job={openJob} role={role} version={loadedAt.getTime()} now={now} refresh={refresh} vendors={data.vendors} />}
+      actions={<JobActions job={openJob} role={role} myStations={myScope.pressStations} version={loadedAt.getTime()} now={now} refresh={refresh} vendors={data.vendors} />}
       history={<JobHistory key={openJob.id} jobId={openJob.id} role={role} version={loadedAt.getTime()} now={now} onChanged={refresh} />} />
   )
   const receive = receiving && (
@@ -354,7 +354,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
           )}
           {focusStation ? (
             <ErrorBoundary key={`q-${focusStation}`}>
-              <StationQueue station={focusStation} jobs={allJobs} role={role} now={now} call={call} onOpen={setOpenId} />
+              <StationQueue station={focusStation} jobs={allJobs} role={role} myStations={myScope.pressStations} now={now} call={call} onOpen={setOpenId} />
             </ErrorBoundary>
           ) : (<>
           <Card className="grid gap-2 p-3 sm:p-4">

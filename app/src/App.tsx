@@ -4,7 +4,8 @@ import EmployeeLogin, { AccountScreen, SignOutButton, primaryButton } from './au
 import { useEmployeeAccount } from './auth/useEmployeeAccount'
 import { canOpenPage, roleLabel as labelFor, type EmployeeRole, type Section } from './auth/access'
 import { boardScope, homePage } from './auth/scope'
-import { roleMenu, routeOf, type MenuIcon, type Route } from './auth/menus'
+import type { StationCode } from './proto/model'
+import { bottomBar, roleMenu, routeOf, type MenuIcon, type Route } from './auth/menus'
 import ReportsPage from './pages/reports'
 import SettingsPage from './pages/settings'
 import InboxPage from './pages/inbox'
@@ -79,7 +80,7 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
   path: string
   route: Route
   labelId: string
-  profile: { name: string; role: EmployeeRole; section: Section | null }
+  profile: { name: string; role: EmployeeRole; section: Section | null; stations: StationCode[] }
   email?: string
 }) {
   const [today] = useState(() => new Date().toLocaleDateString('th-TH', {
@@ -90,9 +91,10 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
   const route: Route = redirected ? { page: homePage(profile.role) } : requested
   const page = route.page
   const path = redirected ? '#/board' : requestedPath
-  const scope = useMemo(() => boardScope(profile.role, profile.section), [profile.role, profile.section])
+  const scope = useMemo(() => boardScope(profile.role, profile.section, profile.stations), [profile.role, profile.section, profile.stations])
   const menu = roleMenu(profile.role)
-  const menuItems = menu.flatMap(g => g.items)
+  const bar = bottomBar(menu, path)
+  const [moreOpen, setMoreOpen] = useState(false)
   const roleLabel = labelFor(profile.role, profile.section)
   const { unreadCount } = useInbox()
   const inboxBadge = unreadBadge(unreadCount)
@@ -181,18 +183,38 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
           </ErrorBoundary>
         </div>
 
+        {moreOpen && bar.more.length > 0 && (
+          <div id="more-menu" className="grid gap-1 border-t border-line bg-card p-2 lg:hidden">
+            {bar.more.map(({ name, hash, icon }) => {
+              const Icon = MENU_ICON[icon]
+              return (
+                <a key={hash} href={hash} onClick={() => setMoreOpen(false)} aria-current={hash === path ? 'page' : undefined}
+                  className={`flex min-h-12 items-center gap-3 rounded-xl px-4 text-base font-semibold ${hash === path ? 'bg-brand text-white' : 'hover:bg-brand-soft'}`}>
+                  <Icon className="size-5 shrink-0" />{name}
+                </a>
+              )
+            })}
+          </div>
+        )}
         <nav aria-label="เมนูหลัก" className="flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
-          {menuItems.filter(({ hash }) => hash !== '#/inbox').map(({ short, hash, icon }) => {
+          {bar.shown.map(({ short, hash, icon }) => {
             const Icon = MENU_ICON[icon]
             const active = hash === path
             return (
-              <a key={hash} href={hash} aria-current={active ? 'page' : undefined}
+              <a key={hash} href={hash} aria-current={active ? 'page' : undefined} onClick={() => setMoreOpen(false)}
                 className={`flex min-h-14 min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 text-sm ${active ? 'font-bold text-brand' : 'text-muted'}`}>
                 <span className={`grid h-8 w-12 place-items-center rounded-full ${active ? 'bg-brand text-white' : ''}`}><Icon className="size-5" /></span>
                 <span className="max-w-full truncate px-0.5">{short}</span>
               </a>
             )
           })}
+          {bar.more.length > 0 && (
+            <button type="button" aria-expanded={moreOpen} aria-controls="more-menu" onClick={() => setMoreOpen(open => !open)}
+              className={`flex min-h-14 min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 text-sm ${moreOpen ? 'font-bold text-brand' : 'text-muted'}`}>
+              <span className={`grid h-8 w-12 place-items-center rounded-full ${moreOpen ? 'bg-brand text-white' : ''}`}><IconList className="size-5" /></span>
+              เพิ่มเติม
+            </button>
+          )}
         </nav>
       </div>
     </div>

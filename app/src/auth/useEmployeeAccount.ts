@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { isEmployeeRole, toSection, type EmployeeRole, type Section } from './access'
+import { isStationCode, type StationCode } from '../proto/model'
 
-type EmployeeProfile = { name: string; role: EmployeeRole; section: Section | null }
+type EmployeeProfile = { name: string; role: EmployeeRole; section: Section | null; stations: StationCode[] }
 
 type ProfileResult =
   | { status: 'ready'; profile: EmployeeProfile }
@@ -47,7 +48,13 @@ export function useEmployeeAccount() {
       if (error) result = { status: 'error' }
       else if (!data || !isEmployeeRole(data.role)) result = { status: 'unassigned' }
       else if (!data.active) result = { status: 'inactive' }
-      else result = { status: 'ready', profile: { name: data.name, role: data.role, section: toSection(data.section) } }
+      else {
+        const stations = data.role === 'staff' ? await loadStaffStations(db, userId, currentRequest.signal) : []
+        if (currentRequest.signal.aborted) return
+        result = stations
+          ? { status: 'ready', profile: { name: data.name, role: data.role, section: toSection(data.section), stations } }
+          : { status: 'error' }
+      }
       setLookup({ userId, result })
     }
 
@@ -67,4 +74,10 @@ export function useEmployeeAccount() {
       setRevision(current => current + 1)
     },
   }
+}
+
+async function loadStaffStations(db: NonNullable<typeof supabase>, userId: string, signal: AbortSignal): Promise<StationCode[] | null> {
+  const { data, error } = await db.from('staff_stations').select('station_code').eq('user_id', userId).abortSignal(signal)
+  if (error) return null
+  return (data ?? []).map(row => row.station_code).filter(isStationCode)
 }

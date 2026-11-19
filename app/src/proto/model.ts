@@ -16,6 +16,10 @@ export const STATION_NAME: Record<StationCode, string> = {
   qc_pack: 'QC + Packing',
 }
 
+export function isStationCode(value: unknown): value is StationCode {
+  return typeof value === 'string' && Object.hasOwn(STATION_NAME, value)
+}
+
 export const ROUTES: Record<RouteCode, { name: string; short: string; stations: StationCode[] }> = {
   normal: { name: 'ปกติ (ซับลิเมชั่น / ดิจิทัล)', short: 'ปกติ', stations: ['print', 'press', 'cut', 'sew', 'qc_pack'] },
   dtf: { name: 'DTF', short: 'DTF', stations: ['cut', 'dtf_press', 'sew', 'qc_pack'] },

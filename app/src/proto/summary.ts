@@ -2,7 +2,7 @@
 import { columnOf, isDoneToday, isOverdue, isWaitingFilm, type Job } from './model.ts'
 import { floorSummary, sewQueue, type Machine } from './sewing.ts'
 
-export type SummaryKind = 'factory' | 'phase1' | 'phase2' | 'allPhases' | 'qc' | 'production'
+export type SummaryKind = 'factory' | 'phase1' | 'phase2' | 'allPhases' | 'qc' | 'production' | 'staff'
 export type SummaryTone = 'brand' | 'danger' | 'warn' | 'info' | 'ok'
 export type SummaryIcon = 'factory' | 'alert' | 'clock' | 'film' | 'sewing' | 'check' | 'package' | 'clipboard'
 export type SummaryTab = 'todo' | 'board' | 'sewing'
@@ -78,6 +78,13 @@ export function roleSummary(kind: SummaryKind, jobs: Job[], allJobs: Job[], mach
         { key: 'done', label: 'เสร็จวันนี้', value: allJobs.filter(j => isDoneToday(j, now)).length, tone: 'ok', icon: 'check', tab: 'board' },
       ]
     }
+    case 'staff':
+      return [
+        { key: 'inScope', label: 'งานที่สถานีของฉัน', value: active(jobs).length, tone: 'brand', icon: 'factory', tab: 'board' },
+        { key: 'doing', label: 'กำลังทำ', value: doing(jobs).length, tone: 'info', icon: 'clock', tab: 'board' },
+        urgentTile(jobs, now),
+        { key: 'done', label: 'เสร็จวันนี้', value: allJobs.filter(j => isDoneToday(j, now)).length, tone: 'ok', icon: 'check', tab: 'board' },
+      ]
     case 'production':
       return [
         { key: 'inScope', label: 'งานในโรงงาน', value: active(jobs).length, tone: 'brand', icon: 'factory', tab: 'board' },

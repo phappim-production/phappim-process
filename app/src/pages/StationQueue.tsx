@@ -10,11 +10,11 @@ import { TONE } from '../components/tone'
 export type QueueCall = (name: string, args: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; reason: string }>
 
 // เริ่มคิวหลังได้แต่ต้องใส่เหตุผล · start_in_queue ตรวจคิว + บันทึกเหตุผล + เริ่ม ในธุรกรรมเดียว
-export function StationQueue({ station, jobs, role, now, call, onOpen }: {
-  station: StationCode; jobs: Job[]; role: EmployeeRole; now: Date; call: QueueCall; onOpen: (id: string) => void
+export function StationQueue({ station, jobs, role, myStations = [], now, call, onOpen }: {
+  station: StationCode; jobs: Job[]; role: EmployeeRole; myStations?: StationCode[]; now: Date; call: QueueCall; onOpen: (id: string) => void
 }) {
   const floor = role === 'production' || role === 'supervisor' || role === 'owner'
-  const canPress = floor || (role === 'qc' && station === 'qc_pack')
+  const canPress = floor || (role === 'qc' && station === 'qc_pack') || (role === 'staff' && myStations.includes(station))
   const canInsert = floor || role === 'manager'
   const working = jobs.filter(j => (j.phase === 'sample' || j.phase === 'production') && j.station === station && (j.status === 'doing' || j.status === 'hold')).sort(byQueue)
   const queue = waitingAt(jobs, station)

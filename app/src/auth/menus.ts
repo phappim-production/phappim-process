@@ -2,7 +2,7 @@ import type { EmployeeRole, PageKey } from './access.ts'
 import type { DashTab } from './scope.ts'
 
 export type OverviewView = 'follow' | 'find' | 'plan'
-export type SettingsTab = 'users' | 'stations'
+export type SettingsTab = 'users' | 'assign' | 'stations'
 
 export type Route = {
   page: PageKey
@@ -20,6 +20,7 @@ export const ROUTES: Record<string, Route> = {
   '#/inbox': { page: 'inbox' },
   '#/reports': { page: 'reports' },
   '#/users': { page: 'settings', settingsTab: 'users' },
+  '#/assign': { page: 'settings', settingsTab: 'assign' },
   '#/settings': { page: 'settings', settingsTab: 'stations' },
   '#/system': { page: 'system' },
   '#/label': { page: 'label' },
@@ -51,6 +52,7 @@ export function roleMenu(role: EmployeeRole): MenuGroup[] {
       return [
         { title: 'WORKSPACE', items: [
           item('#/users', 'ผู้ใช้งาน', 'users', 'ผู้ใช้'),
+          item('#/assign', 'Station Assignment', 'pin', 'จับคู่'),
           item('#/settings', 'ตั้งค่าระบบ', 'sliders', 'ตั้งค่า'),
         ] },
         { title: 'งานผลิต', items: [
@@ -77,10 +79,20 @@ export function roleMenu(role: EmployeeRole): MenuGroup[] {
         INBOX,
       ] }]
     case 'qc':
+    case 'staff':
       return [{ title: 'WORKSPACE', items: [
         item('#/mine', 'งานของฉัน', 'gauge'),
         item('#/board', 'คิวงาน Station', 'queue', 'คิวงาน'),
         INBOX,
       ] }]
   }
+}
+
+export function bottomBar(groups: MenuGroup[], path: string): { shown: MenuItem[]; more: MenuItem[] } {
+  const items = groups.flatMap(g => g.items).filter(i => i.hash !== '#/inbox')
+  if (items.length <= 5) return { shown: items, more: [] }
+  const active = items.findIndex(i => i.hash === path)
+  const shown = items.slice(0, 4)
+  if (active >= 4) shown[3] = items[active]
+  return { shown, more: items.filter(i => !shown.includes(i)) }
 }

@@ -4,7 +4,7 @@ import type { Dept } from '../../proto/model'
 import type { MachineStatus } from '../../proto/sewing'
 import type { InboxKind } from '../inbox/format'
 
-export const ROLE_OPTIONS = ['owner', 'admin', 'qc', 'production', 'manager'] as const
+export const ROLE_OPTIONS = ['owner', 'admin', 'qc', 'production', 'manager', 'staff'] as const
 export const EDITABLE_KINDS = ['req', 'num', 'appr', 'opt'] as const
 
 export type NamedCode = { code: string; name: string }
