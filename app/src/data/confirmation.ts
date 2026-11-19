@@ -1,5 +1,4 @@
-// อ่านไฟล์ .json ที่ฟอร์มใบยืนยันการผลิต (production-confirmation.html) บันทึกไว้ → เติมช่องหน้ารับงานให้
-// ไม่ต้องพิมพ์เลขที่ใบ ลูกค้า จำนวน กำหนดส่ง ซ้ำ (พิมพ์ซ้ำ = โอกาสพิมพ์ผิด)
+// เติมช่องหน้ารับงานจากไฟล์ของฟอร์มใบยืนยัน เพราะพิมพ์ซ้ำ = โอกาสพิมพ์ผิด
 import { ROUTES, type RouteCode } from '../proto/model.ts'
 
 export type ReceiveDraft = {
@@ -85,7 +84,7 @@ export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
     qty: sumQty > 0 ? sumQty : totalQty(ans),
     spare: num(ans.spare),
     due: /^\d{4}-\d{2}-\d{2}$/.test(text(d.h.due_date)) ? text(d.h.due_date) : '',
-    route: null,   // เจ้าของตัดสิน 19 พ.ย.: เส้นทางไม่ตายตัวตามเทคนิค แอดมินเลือกเองตอนรับงาน
+    route: null,
     needsSample: sampleChoice(d.h),
     spec,
   }
@@ -106,8 +105,7 @@ export function pdfProblem(file: { name: string; size: number; type: string } | 
   return null
 }
 
-// สินค้าที่ยังไม่มีสูตรจักร + เส้นทางผ่านเย็บ = ฝ่ายผลิตกดเริ่มเย็บไม่ได้ (ฐานข้อมูลปฏิเสธ) งานค้างที่เย็บ
-// เตือนแอดมินก่อนส่งงานเข้า (ตรวจก่อนทดลองจริง 19 พ.ย.: หมวก หมอน เหรียญ โล่ กระจูด พรีเมียม งานบริการ ยังไม่มีสูตร)
+// สินค้าที่ยังไม่มีสูตรจักร + เส้นทางผ่านเย็บ = ฐานข้อมูลไม่ให้เริ่มเย็บ งานจะค้าง จึงเตือนแอดมินก่อนส่งเข้า
 export function sewRecipeProblem(route: RouteCode | null, recipe: readonly unknown[]): string | null {
   if (!route || !ROUTES[route].stations.includes('sew') || recipe.length > 0) return null
   return 'สินค้านี้ยังไม่มีข้อมูลจักรเย็บ ถ้าเลือกเส้นทางที่ผ่านเย็บ ฝ่ายผลิตจะกดเริ่มเย็บไม่ได้ · ถ้าไม่ต้องเย็บให้เลือก "ตัดงานลูกค้า" · ถ้าต้องเย็บให้เจ้าของระบบใส่จักรของสินค้านี้ที่ ตั้งค่า ก่อน'

@@ -14,13 +14,12 @@ type Props = { jobs: Job[]; now: Date; forecast: Forecast; floor: SewFloor; prod
 type Row = { job: Job; finish: Date; late: number }
 
 const OVERVIEW_VIEWS = [
-  // ป้ายสั้นให้ครบ 3 แท็บบนจอ 375 px (QA รอบ 4)
+  // ป้ายสั้นให้ครบ 3 แท็บบนจอ 375 px
   ['follow', 'ต้องตาม'],
   ['find', 'ค้นหางาน'],
   ['plan', 'วางแผนรับ'],
 ] as const
 
-// เฟส 1: ภาพรวมสำหรับแอดมิน — งานแต่ละงานอยู่ขั้นไหน และรับงานใหม่เพิ่มได้หรือยัง
 export default function Overview({ jobs, now, forecast, floor, products, onOpen }: Props) {
   const [view, setView] = useState<(typeof OVERVIEW_VIEWS)[number][0]>('follow')
   const rows: Row[] = useMemo(() => jobs.filter(j => j.phase !== 'done').map(j => {
@@ -34,7 +33,6 @@ export default function Overview({ jobs, now, forecast, floor, products, onOpen 
     <div className="grid min-w-0 grid-cols-1 gap-4">
       <KpiRow jobs={jobs} now={now} atRisk={atRisk.length} />
       <ViewSwitch variant="sub" label="มุมมองภาพรวม" value={view} onChange={setView} options={OVERVIEW_VIEWS} />
-      {/* มุมมองแรกมีอย่างเดียว: งานที่ต้องตาม · ข้อมูลวางแผน (กราฟ) อยู่ในมุมมองวางแผน ไม่ปนกัน */}
       <section hidden={view !== 'follow'} className="grid gap-4">
         <StationNow jobs={jobs} now={now} />
         <OutsideCard jobs={jobs} now={now} onOpen={onOpen} />
@@ -67,7 +65,6 @@ export default function Overview({ jobs, now, forecast, floor, products, onOpen 
   )
 }
 
-/** ตัวเลขสรุปบนสุด อ่านจบในครั้งเดียวว่าโรงงานเป็นอย่างไร */
 function KpiRow({ jobs, now, atRisk }: { jobs: Job[]; now: Date; atRisk: number }) {
   const active = jobs.filter(j => j.phase !== 'done')
   const overdue = active.filter(j => isOverdue(j, now)).length
@@ -96,7 +93,6 @@ function VerdictHero({ forecast, atRisk }: { forecast: Forecast; atRisk: number 
 
   return (
     <section className={`rounded-2xl border border-line border-l-8 bg-card p-4 shadow-card sm:p-5 ${theme.bg}`}>
-      {/* จอใหญ่: คำตอบซ้าย ตัวเลขประกอบขวา ในแถวเดียว */}
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] xl:items-center">
         <div className="flex items-start gap-4">
           <span className={`grid size-12 shrink-0 place-items-center rounded-full ${TONE[theme.tone].soft}`}><Icon className="size-6" /></span>
@@ -207,7 +203,6 @@ function NewJobCheck({ jobs, now, floor, products }: { jobs: Job[]; now: Date; f
   )
 }
 
-// สินค้านี้ใช้จักรอะไร เปิดไลน์เย็บพร้อมกันได้กี่ไลน์ · บอกเมื่อจักรไม่ครบชุดหรือยังไม่มีเวลาเย็บจริง
 function SewLineNote({ product, floor }: { product: string; floor: SewFloor }) {
   const needs = floor.needsOf(product)
   const sets = machineSets(needs, floor.ready)
@@ -257,7 +252,6 @@ function StationLoadCard({ forecast }: { forecast: Forecast }) {
   )
 }
 
-/** แถบสัดส่วนงานแต่ละช่วง + คำอธิบายสี (อยู่หัวตารางทุกงาน) */
 function Pipeline({ jobs, now }: { jobs: Job[]; now: Date }) {
   const stages: { name: string; n: number; color: string }[] = [
     { name: 'ขึ้นตัวอย่าง', n: jobs.filter(j => j.phase === 'sample').length, color: 'bg-info' },
@@ -284,7 +278,6 @@ function Pipeline({ jobs, now }: { jobs: Job[]; now: Date }) {
   )
 }
 
-// สถานีตอนนี้: ผู้บริหาร/แอดมินเห็นทั้งโรงงานในจอเดียว · กดแล้วไปคิวของสถานีนั้นบนหน้างาน (#/board?station=…)
 function StationNow({ jobs, now }: { jobs: Job[]; now: Date }) {
   const rows = stationCounts(jobs, now)
   return (
@@ -319,7 +312,6 @@ function StationNow({ jobs, now }: { jobs: Job[]; now: Date }) {
   )
 }
 
-// งานที่อยู่บริษัทภายนอก: แอดมินตามของ · เรียงตามวันที่ของจะถึง · เลยกำหนดเป็นแดง
 function OutsideCard({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpen: (id: string) => void }) {
   const list = jobs.filter(j => j.status === 'out' && j.out).sort((a, b) => a.out!.backAt.getTime() - b.out!.backAt.getTime())
   if (!list.length) return null
@@ -361,9 +353,9 @@ function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Date; atRi
   for (const j of jobs) {
     if (j.phase === 'done') continue
     if (isOutLate(j, now)) items.push({ id: j.id + 'o', tone: 'danger', tag: 'ของข้างนอกเลยกำหนด', text: `${j.out!.vendor} · คาดว่าถึง ${shortDate(j.out!.backAt)}`, job: j })
-    // แอดมินไม่ได้แก้ปัญหาของสถานี (เจ้าของ 18 พ.ย.) · เห็นไว้แจ้งลูกค้า · ผู้บริหารหรือฝ่ายผลิตเป็นคนกดแก้แล้ว
+    // แอดมินไม่ได้แก้ปัญหาของสถานี แค่เห็นไว้แจ้งลูกค้า · ผู้บริหารหรือฝ่ายผลิตเป็นคนกดแก้
     else if (j.status === 'hold') items.push({ id: j.id + 'h', tone: 'danger', tag: 'ติดปัญหา · รอผู้บริหารแก้', text: j.holdReason ?? '', job: j })
-    // เกินเวลามาตรฐาน: ผู้บริหารต้องเห็นจากภาพรวม ไม่ต้องรอสถานีแจ้ง (ตรวจหลัง QA รอบ 5)
+    // ผู้บริหารต้องเห็นงานเกินเวลามาตรฐานจากภาพรวม ไม่ต้องรอสถานีแจ้ง
     else if (j.sla === 'report' || j.sla === 'over') items.push({ id: j.id + 't', tone: 'danger', tag: 'เกินเวลามาตรฐาน',
       text: `${j.station ? STATION_NAME[j.station] : ''} · ${j.sla === 'report' ? 'ยังไม่ส่งรายงานปัญหา' : 'รายงานปัญหาแล้ว'}`, job: j })
     else if (isOverdue(j, now)) items.push({ id: j.id + 'd', tone: 'danger', tag: 'เลยกำหนดส่ง', text: `กำหนดส่ง ${shortDate(j.due)}`, job: j })

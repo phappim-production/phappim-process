@@ -11,18 +11,15 @@ import { IconInbox } from '../components/icons'
 import { FilePick } from '../components/FilePick'
 
 type Product = { code: string; name: string; unit: string }
-// ฟอร์มใบยืนยันอยู่บนเว็บเดียวกัน (vite.config.ts คัดลอก production-confirmation.html ขึ้นไป) · Cloudflare เสิร์ฟไม่มี .html
+// vite.config.ts คัดลอกฟอร์มขึ้นเว็บนี้ · Cloudflare เสิร์ฟโดยไม่มี .html
 const CONFIRMATION_FORM = '/confirmation'
 
 const EMPTY: ReceiveDraft = { no: '', rev: 0, customer: '', jobName: '', product: '', qty: 0, spare: 0, due: '', route: null, needsSample: null, spec: {} }
 
-/**
- * รับงานเข้าโรงงาน (S2): เลือกใบยืนยันที่บันทึกจากฟอร์มเข้าระบบ (หรือไฟล์ .json / กรอกเอง)
- * PDF ที่ลูกค้าเซ็นไม่บังคับ (17 พ.ย.) · แนบทีหลังได้ที่รายละเอียดงาน
- */
+// PDF ที่ลูกค้าเซ็นไม่บังคับ แนบทีหลังได้ที่รายละเอียดงาน
 export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
   onClose: () => void; onDone: (no: string) => void
-  jobs: Job[]; now: Date; floor: SewFloor   // งานทั้งโรงงาน + จักรจริง ใช้คาดวันเสร็จก่อนส่งงานเข้า
+  jobs: Job[]; now: Date; floor: SewFloor
   draftId?: string                          // เปิดมาจาก "ส่งงานเข้าโรงงานเลย" หลังบันทึกใบจากฟอร์ม
 }) {
   const [products, setProducts] = useState<Product[] | null>(null)
@@ -45,7 +42,6 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
     return () => { alive = false }
   }, [])
 
-  // ใบยืนยันที่บันทึกจากฟอร์มเข้าระบบแล้ว ยังไม่ได้ส่งงานเข้า (ล่าสุดก่อน)
   useEffect(() => {
     let alive = true
     void supabase?.from('confirmation_drafts').select('id, confirmation_no, customer_name, data, updated_at')
@@ -81,7 +77,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
 
   const set = <K extends keyof ReceiveDraft>(k: K, v: ReceiveDraft[K]) => { setDraft(d => ({ ...d, [k]: v })); setError('') }
   const product = products?.find(p => p.code === draft.product)
-  // คาดวันเสร็จจากคิวงานและจักรจริง · เตือนอย่างเดียว ไม่บล็อกการส่งงานเข้า
+  // เตือนอย่างเดียว ไม่บล็อกการส่งงานเข้า
   const forecast = useMemo(() => product && draft.route && draft.qty > 0 && draft.needsSample !== null
     ? receiveForecast(jobs, now, floor, { route: draft.route, qty: draft.qty, productCode: product.code, needsSample: draft.needsSample, due: draft.due })
     : null, [jobs, now, floor, product, draft.route, draft.qty, draft.needsSample, draft.due])
@@ -107,7 +103,6 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
   async function submit() {
     if (missing.length || !product || !supabase || !draft.route || draft.needsSample === null) return
     setError('')
-    // PDF ไม่บังคับ: มีไฟล์ = อัปโหลดก่อน · ไม่มี = ส่งงานเข้าเลย แนบทีหลังได้
     let path: string | null = null
     if (pdf) {
       setSaving('กำลังอัปโหลด PDF…')
@@ -194,7 +189,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
           : 'แอดมินเลือกเส้นทางเองทุกงาน (ระบบไม่เลือกให้ตามเทคนิคพิมพ์) · เลือกแล้วจะเห็นลำดับสถานี'}</p>
         {recipeIssue && <p role="alert" className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">{recipeIssue}</p>}
 
-        {/* ขึ้นตัวอย่างเฉพาะงานที่ลูกค้าจ่ายค่าตัวอย่าง (ตกลงกันแล้วในใบยืนยัน) · ไม่มีค่าตั้งต้น ต้องเลือกเอง */}
+        {/* ขึ้นตัวอย่างเฉพาะงานที่ลูกค้าจ่ายค่าตัวอย่าง · ไม่มีค่าตั้งต้น ต้องเลือกเอง */}
         <fieldset className="grid gap-2">
           <legend className="mb-1 font-medium">ขึ้นตัวอย่าง (ตามที่ตกลงกับลูกค้าในใบยืนยัน)</legend>
           <div className="grid gap-2 sm:grid-cols-2">

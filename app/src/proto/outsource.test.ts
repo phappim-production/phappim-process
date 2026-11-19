@@ -18,7 +18,7 @@ const run = (over: Partial<OutRun> = {}): OutRun => ({
   sentAt: now, arriveAt: now, leadDays: 3, backAt: new Date('2026-11-22T10:00:00+07:00'), ...over,
 })
 
-// เจ้าของสั่ง 18 พ.ย.: ส่ง พิมพ์-รีด-ตัด ที่ บ.A → เย็บที่ บ.B → กลับมา QC + Packing ที่โรงงาน
+// ส่ง พิมพ์-รีด-ตัด ที่ บ.A → เย็บที่ บ.B → กลับมา QC + Packing ที่โรงงาน
 describe('ส่งงานออกบริษัทภายนอก', () => {
   it('ส่งได้หลายสถานีติดกัน หยุดที่สถานีที่ต้องทำในโรงงาน', () => {
     expect(outSpan(base, 'print')).toEqual(['print', 'press', 'cut', 'sew'])

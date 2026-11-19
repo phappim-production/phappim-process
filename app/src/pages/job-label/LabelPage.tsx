@@ -53,7 +53,7 @@ async function loadLabel(jobId: string, signal: AbortSignal): Promise<Label | nu
     if (result.error) throw new Error(result.error.message)
     for (const row of result.data) names.set(row.code, row.name)
   }
-  // รูปม็อคอัพบนใบปะงาน: คนหน้างานเทียบรูปกับกองงานได้ทันที · ขอลิงก์ไม่ได้ = พิมพ์ใบได้โดยไม่มีรูป
+  // ขอลิงก์รูปไม่ได้ = พิมพ์ใบได้โดยไม่มีรูป
   const mockupUrl = job.mockup_path ? (await signMockups([job.mockup_path])).get(job.mockup_path) : undefined
   const matrix = qrMatrix('https://pp142.pages.dev/#/board?job=' + encodeURIComponent(job.id))
   return {

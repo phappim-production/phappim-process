@@ -44,7 +44,6 @@ const KIND_LABELS: Record<InboxKind, string> = {
   sewing_issue: 'ปัญหาเย็บ',
 }
 
-/** สีตามความหมายของเหตุการณ์ (แดง = ติดปัญหา/เลยกำหนด · ส้ม = ใกล้ครบ/รอ) */
 export function kindTone(kind: InboxKind): Tone {
   return DANGER_KINDS.has(kind) ? 'danger' : 'warn'
 }
@@ -53,7 +52,7 @@ export function kindLabel(kind: InboxKind): string {
   return KIND_LABELS[kind] ?? kind
 }
 
-/** วันที่ไทย YYYY-MM-DD เพื่อเทียบวันนี้/เมื่อวานไม่เพี้ยนตามเขตเวลาเครื่อง */
+// เทียบวันนี้/เมื่อวานตามวันไทย ไม่เพี้ยนตามเขตเวลาเครื่อง
 function thaiDayKey(d: Date): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Bangkok',
@@ -72,7 +71,6 @@ function thaiTime(d: Date): string {
   })
 }
 
-/** ข้อความเวลาสัมพัทธ์ภาษาไทย เช่น "5 นาทีก่อน" */
 export function relativeTime(at: Date, now: Date): string {
   const diffMs = Math.max(0, now.getTime() - at.getTime())
   const mins = Math.floor(diffMs / 60_000)
@@ -103,13 +101,11 @@ export type InboxGroup = {
   items: InboxItem[]
 }
 
-/** เรียงใหม่สุดก่อน และกรองตามสถานะการอ่าน */
 export function filterInbox(items: InboxItem[], filter: 'unread' | 'all'): InboxItem[] {
   const sorted = [...items].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id)
   return filter === 'unread' ? sorted.filter(item => !item.read) : sorted
 }
 
-/** จัดกลุ่มรายการเป็น วันนี้ / เมื่อวาน / ก่อนหน้า ตามเวลาไทย */
 export function groupByDay(items: InboxItem[], now: Date): InboxGroup[] {
   const today = thaiDayKey(now)
   const yesterday = thaiDayKey(new Date(now.getTime() - 86_400_000))
@@ -131,7 +127,6 @@ export function groupByDay(items: InboxItem[], now: Date): InboxGroup[] {
   return order.filter(label => buckets[label].length > 0).map(label => ({ label, items: buckets[label] }))
 }
 
-/** ตัวเลขบนปุ่มกระดิ่ง (ซ่อนเมื่อ 0 · เกิน 99 แสดง 99+) */
 export function unreadBadge(count: number): string | null {
   if (count <= 0) return null
   return count > 99 ? '99+' : String(count)

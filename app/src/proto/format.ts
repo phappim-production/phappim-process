@@ -1,7 +1,6 @@
 import { DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME, missingDepts, thaiDayDiff, type Job } from './model.ts'
 
-/** ใส่ช่องว่างรอบชื่อที่ขึ้นต้น/ลงท้ายด้วยอักษรอังกฤษหรือตัวเลข เมื่อวางในประโยคไทย
- *  ("เริ่ม" + "QC + Packing" + "แล้ว" → "เริ่ม QC + Packing แล้ว") ชื่อไทยล้วนไม่เปลี่ยน */
+// ใส่ช่องว่างรอบชื่อที่ขึ้นต้น/ลงท้ายด้วยอังกฤษหรือตัวเลข เมื่อวางในประโยคไทย
 export function spaced(name: string): string {
   return `${/^[A-Za-z0-9]/.test(name) ? ' ' : ''}${name}${/[A-Za-z0-9)]$/.test(name) ? ' ' : ''}`
 }
@@ -28,7 +27,6 @@ export function duration(ms: number) {
   return `${Math.floor(h / 24)} วัน ${h % 24 ? `${h % 24} ชม.` : ''}`.trim()
 }
 
-/** ขั้นตอนปัจจุบันเป็นประโยคสั้นๆ */
 export function stageText(j: Job) {
   switch (j.phase) {
     case 'materials': return `รอวัตถุดิบ (รอ ${missingDepts(j).map(d => DEPT_NAME[d]).join(', ')})`
@@ -39,8 +37,7 @@ export function stageText(j: Job) {
   }
 }
 
-/** ขั้นทั้งหมดของงาน (วัตถุดิบ → ตัวอย่าง → ลูกค้ายืนยัน → สถานีตามเส้นทาง) และตำแหน่งปัจจุบัน
- *  งานที่ไม่ขึ้นตัวอย่างไม่มี 2 ขั้นกลาง (วัตถุดิบครบแล้วเข้าผลิตจริงเลย) */
+// งานที่ไม่ขึ้นตัวอย่างไม่มี 2 ขั้นกลาง
 export function stageSteps(j: Job) {
   const pre = j.needsSample === false ? ['วัตถุดิบ'] : ['วัตถุดิบ', 'ขึ้นตัวอย่าง', 'ลูกค้ายืนยัน']
   const steps = [...pre, ...ROUTES[j.route].stations.map(s => STATION_NAME[s])]
@@ -49,8 +46,7 @@ export function stageSteps(j: Job) {
   return { steps, current }
 }
 
-// เวลามาตรฐาน: 1 วันทำงานในฐานข้อมูล = 24 ชม. (private.work_days นับจันทร์–เสาร์)
-// ไม่ถึงครึ่งวันแสดงเป็นชั่วโมง เดิมปัดทศนิยม 1 ตำแหน่งจนขึ้น "ใช้ไป 0.0" (QA รอบ 5 G7 ข้อ 2)
+// 1 วันทำงานในฐานข้อมูล = 24 ชม. (private.work_days นับจันทร์–เสาร์) · ไม่ถึงครึ่งวันแสดงเป็นชั่วโมง
 export function slaAmount(days: number): string {
   if (days < 0.5) return `${(Math.round(days * 24 * 10) / 10).toLocaleString('th-TH')} ชม.`
   return `${(Math.round(days * 10) / 10).toLocaleString('th-TH')} วัน`

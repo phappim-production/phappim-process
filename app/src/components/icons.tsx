@@ -34,7 +34,6 @@ export const IconLogOut = icon(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h
 export const IconUser = icon(<><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>)
 export const IconTrendingUp = icon(<><path d="m22 7-8.5 8.5-5-5L2 17" /><path d="M16 7h6v6" /></>)
 
-// จักรเย็บผ้า: แขนจักร · หัวเข็ม · หลอดด้ายด้านบน · ฐาน · ตะเข็บใต้เข็ม
 export const IconSewing = icon(<>
   <path d="M5 11V7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v11" />
   <path d="M5 11h10a1 1 0 0 1 1 1v6" />

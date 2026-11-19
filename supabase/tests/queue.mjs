@@ -1,4 +1,3 @@
-// คิวงาน (20261120000000): เรียงตามลำดับรับเข้า · แทรกงานด่วนต้องมีเหตุผล · เริ่มข้ามคิวต้องบันทึกเหตุผล
 // รันท้ายสุด: ยกเลิกงานของชุดอื่นก่อน เพื่อให้คิวของสถานีมีแค่งานในชุดนี้
 
 export async function queueTests({ db, ok, as }) {
@@ -25,7 +24,6 @@ export async function queueTests({ db, ok, as }) {
   const seq = async () => (await db.query(`select confirmation_no from public.job_live where confirmation_no like 'SC-Q-%' order by queue_seq`)).rows.map(r => r.confirmation_no).join(',')
   ok('งานใหม่ต่อท้ายคิวตามลำดับรับเข้า', await seq() === 'SC-Q-1,SC-Q-2,SC-Q-3', await seq())
 
-  // แทรกงานด่วน
   await reject('แทรกงานไม่มีเหตุผลไม่ได้', U.prod, `public.move_job_ahead('${c}', '${a}', ' ')`, /ใส่เหตุผล/)
   await reject('แอดมินแทรกงานไม่ได้ (หัวหน้าฝ่ายผลิต/ผู้บริหาร/เจ้าของ)', U.admin, `public.move_job_ahead('${c}', '${a}', 'ลูกค้าเร่ง')`, /ทำขั้นนี้ไม่ได้/)
   await reject('QC แทรกงานไม่ได้', U.qc, `public.move_job_ahead('${c}', '${a}', 'ลูกค้าเร่ง')`, /ทำขั้นนี้ไม่ได้/)
@@ -42,7 +40,6 @@ export async function queueTests({ db, ok, as }) {
     ok('แก้ลำดับคิวตรงไม่ได้ (ต้องผ่านฟังก์ชัน)', Number((await db.query(`select queue_seq from public.jobs where id = '${a}'`)).rows[0].queue_seq) !== 0)
   } catch (e) { ok('แก้ลำดับคิวตรงไม่ได้ (ต้องผ่านฟังก์ชัน)', /permission denied|row-level/.test(e.message), firstLine(e)) }
 
-  // เริ่มข้ามคิว
   ok('คิวแรกไม่ต้องใส่เหตุผล', await pass('ตรวจคิวแรก', U.prod, `public.note_queue_skip('${c}', null)`) === false)
   await reject('เริ่มงานที่ไม่ใช่คิวแรกต้องใส่เหตุผล', U.prod, `public.note_queue_skip('${a}', '')`, /ไม่ใช่คิวแรก \(คิวก่อนหน้า: SC-Q-3, SC-Q-2\)/)
   ok('ใส่เหตุผลแล้วบันทึกได้', await pass('เริ่มข้ามคิวพร้อมเหตุผล', U.prod, `public.note_queue_skip('${a}', 'ผ้างานก่อนหน้ายังไม่มา')`) === true)
@@ -103,7 +100,7 @@ async function queueRound4({ db, ok, as, U, call, reject, pass }) {
   const ordered = (await db.query('select id from public.jobs where id = any($1::uuid[]) order by queue_seq', [[anchor, ...targets]])).rows
   ok('แทรกก่อนงานเดียวกันสองคำขอแบบอนุกรม ได้คิวตามลำดับคำขอ',
     ordered.map(r => r.id).join() === [...targets, anchor].join())
-  // เลขเสมอทำให้หน้าเว็บกับฐานข้อมูลเห็นคิวแรกต่างกัน (C8 บั๊ก 3) → ฐานข้อมูลไม่ยอมให้เลขซ้ำเลย
+  // เลขเสมอทำให้หน้าเว็บกับฐานข้อมูลเห็นคิวแรกต่างกัน → ฐานข้อมูลไม่ยอมให้เลขซ้ำ
   try {
     await db.query("update public.jobs set queue_seq = (select queue_seq from public.jobs where id = $1) where id = $2", [targets[0], targets[1]])
     ok('เลขคิวซ้ำกันไม่ได้ (unique)', false, 'ควรถูกปฏิเสธแต่ผ่าน')
@@ -234,7 +231,6 @@ async function queueRound4({ db, ok, as, U, call, reject, pass }) {
   await reject('QC เริ่มสถานีอื่นจากหน้าคิวไม่ได้', U.qc, `public.start_in_queue('${q2}', null)`, /เฉพาะสถานี QC/)
   await reject('QC บันทึกข้ามคิวสถานีอื่นไม่ได้', U.qc, skip(q2, "'x'"), /เฉพาะสถานี QC/)
 
-  // จัดเลขใหม่แล้วงานรับใหม่ยังต่อท้าย
   const tail = await receive('R4-TAIL')
   const { rows: [lastRow] } = await db.query('select bool_and(queue_seq < (select queue_seq from public.jobs where id = $1)) as ok from public.jobs where id <> $1', [tail])
   ok('หลังจัดเลขคิวใหม่ งานรับใหม่ยังอยู่ท้ายสุด', lastRow.ok)

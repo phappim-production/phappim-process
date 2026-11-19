@@ -1,4 +1,3 @@
-// รูปม็อคอัพบนการ์ดงาน (20261120110000) · ใบร่างเก็บ path รูป → ส่งงานเข้าแล้วงานได้รูป · แอดมินเปลี่ยนรูปทีหลังได้
 // PGlite ไม่มี Storage จึงจำลอง storage.buckets / storage.objects แบบย่อ แล้วลบทิ้งหลังทดสอบ
 
 export async function mockupTests({ db, ok, as }) {
@@ -28,7 +27,6 @@ export async function mockupTests({ db, ok, as }) {
     insert into storage.buckets values ('mockups'), ('confirmations');
     insert into storage.objects values ('mockups', 'SC-MK-1/1.jpg'), ('mockups', 'SC-MK-3/2.png'), ('mockups', 'SC-MK-3/3.jpg'), ('confirmations', 'SC-MK-3/9.jpg');`)
 
-  // ส่งงานเข้าจากใบร่างที่มีรูป
   await pass('บันทึกใบยืนยันพร้อม path รูปม็อคอัพ', U.admin, `public.save_confirmation_draft(${form('SC-MK-1', 'SC-MK-1/1.jpg')})`)
   await pass('ส่งงานเข้าจากใบที่มีรูป', U.admin, receive('SC-MK-1'))
   const j1 = await job('SC-MK-1')
@@ -40,12 +38,10 @@ export async function mockupTests({ db, ok, as }) {
   await pass('ส่งงานเข้าได้แม้รูปหาย', U.admin, receive('SC-MK-2'))
   ok('รูปที่ไม่มีไฟล์จริงไม่ถูกผูกกับงาน', (await job('SC-MK-2'))?.mockup_path === null)
 
-  // ใบที่ไม่มีรูปเลย
   await pass('ส่งงานเข้าโดยไม่มีใบร่าง', U.admin, receive('SC-MK-3'))
   const j3 = await job('SC-MK-3')
   ok('งานไม่มีใบร่าง = ยังไม่มีรูป', j3?.mockup_path === null)
 
-  // เพิ่ม / เปลี่ยนรูปทีหลัง
   const set = path => `public.set_job_mockup('${j3.id}', '${path}')`
   await reject('ฝ่ายผลิตเปลี่ยนรูปม็อคอัพไม่ได้', U.prod, set('SC-MK-3/2.png'), /ทำขั้นนี้ไม่ได้/)
   await reject('ผู้บริหารเปลี่ยนรูปม็อคอัพไม่ได้', U.mgr, set('SC-MK-3/2.png'), /ทำขั้นนี้ไม่ได้/)
@@ -64,7 +60,6 @@ export async function mockupTests({ db, ok, as }) {
     (await db.query(`select private.mockup_folder(' SC-MK ไทย ') a, private.mockup_folder('  ') b`)).rows[0]?.a === 'SC-MK____' &&
     (await db.query(`select private.mockup_folder('  ') b`)).rows[0]?.b === 'job')
 
-  // เขียนตรงไม่ได้ ต้องผ่านฟังก์ชัน
   try {
     await as(U.admin, () => db.query(`update public.jobs set mockup_path = 'x.jpg' where id = '${j3.id}'`))
   } catch { /* RLS / สิทธิ์ปฏิเสธก็ถือว่าผ่าน */ }

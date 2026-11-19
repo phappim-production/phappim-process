@@ -1,6 +1,4 @@
-// เดินงานครบทุกเส้นทาง × ขึ้น/ไม่ขึ้นตัวอย่าง ด้วยค่าตั้งค่าเดียวกับระบบจริง (ตรวจก่อนทดลองจริง 21 พ.ย.)
-// ค่าตั้งค่าหลัง migrations ตรงกับฐานจริง 19 พ.ย. (stations · สูตรจักร · วัตถุดิบ · เส้นทาง · ชนิดจักร · สินค้า · SLA)
-// ชุดทดสอบก่อนหน้าแก้สูตรจักรสมมติไว้ → ในธุรกรรมนี้คืนเป็นค่าจริงก่อน แล้ว rollback ตอนจบ
+// ชุดก่อนหน้าแก้สูตรจักรสมมติไว้ → คืนเป็นค่าจริงในธุรกรรมนี้ แล้ว rollback ตอนจบ
 import { requiredSteps, substepSql } from './steps.mjs'
 
 const U = {
@@ -30,7 +28,7 @@ export async function flowRouteTests({ db, ok }) {
 
   await db.exec('begin')
   try {
-    // ---- ค่าจริง: จักรใช้ร่วม 4 ชนิด · ลบสูตรสมมติที่ชุดทดสอบจักรเพิ่มไว้ · จักรว่างทุกตัว ----
+    // ค่าจริง: ลบสูตรสมมติที่ชุดทดสอบจักรเพิ่มไว้ · จักรว่างทุกตัว
     await db.exec(`
       update public.machine_types set shared = code in ('cover', 'button', 'buttonhole', 'ovl4');
       delete from public.product_machine_needs where (product_type_code, type_code) in (('tshirt', 'flat'), ('apron', 'binding'));
@@ -105,7 +103,6 @@ export async function flowRouteTests({ db, ok }) {
       }
     }
 
-    // ---- 1. ทุกเส้นทาง × ขึ้น/ไม่ขึ้นตัวอย่าง (เสื้อยืด) ----
     for (const route of ROUTES) {
       for (const sample of [false, true]) {
         const r = await walk(route, sample)
@@ -113,7 +110,6 @@ export async function flowRouteTests({ db, ok }) {
       }
     }
 
-    // ---- 2. ทุกสินค้าที่มีสูตรจักร เดินเส้นทาง "ไม่มีงานพิมพ์" (ตัด → เย็บ → QC) ได้ ----
     const sewn = (await db.query(`select distinct product_type_code c from public.product_machine_needs order by 1`)).rows.map(r => r.c)
     const stuck = []
     for (const p of sewn) {
@@ -122,7 +118,6 @@ export async function flowRouteTests({ db, ok }) {
     }
     ok(`สินค้าที่มีสูตรจักร ${sewn.length} ชนิด เดินถึงเสร็จได้ทุกชนิด`, stuck.length === 0, stuck.join(' · '))
 
-    // ---- 3. สินค้าที่ไม่มีสูตรจักร ต้องไม่ติดค้างที่เย็บ ----
     const noRecipe = (await db.query(`select code from public.product_types p where active
       and not exists (select 1 from public.product_machine_needs n where n.product_type_code = p.code) order by code`)).rows.map(r => r.code)
     for (const p of noRecipe) {

@@ -287,7 +287,7 @@ export async function flowR6Tests({ db, ok, as }) {
     await denied(id, /ไม่ได้อยู่ในการผลิต/, () => report(id))
   })
 
-  // แก้แล้ว (20261120070000): หน้าจอส่งสถานีที่เห็นไปด้วย · คำขอเก่าจากหน้าพิมพ์ต้องไม่จบสถานีรีด
+  // หน้าจอส่งสถานีที่เห็นไปด้วย · คำขอเก่าจากหน้าพิมพ์ต้องไม่จบสถานีรีด
   await isolated('R6 คำสั่งเสร็จจากสถานีเดิมไม่จบสถานีถัดไปที่เริ่มแล้ว', async () => {
     const id = await job('finish-stale-visit', 'normal')
     const staleFinish = () => rpc('production', 'finish_station', id, 'print')
@@ -319,7 +319,7 @@ export async function flowR6Tests({ db, ok, as }) {
     assert.deepEqual([(await live(id)).rework_qty, (await live(id)).qc_passed], [8, 2])
   })
 
-  // แก้แล้ว (20261120070000): ยอด QC ที่ส่งซ้ำด้วยรหัสคำขอเดิมไม่นับซ้ำ · รหัสใหม่ (ตรวจเพิ่มจริง) ยังนับได้
+  // ยอด QC ที่ส่งซ้ำด้วยรหัสคำขอเดิมไม่นับซ้ำ · รหัสใหม่ยังนับได้
   await isolated('R6 ส่งยอด QC เดิมซ้ำไม่นับซ้ำ งานไม่เสร็จก่อนตรวจครบ', async () => {
     const id = await qcJob('qc-retry')
     const pass = () => rpc('qc', 'record_qc', id, 5, '00000000-0000-4000-8000-0000000000a1')
@@ -360,7 +360,7 @@ export async function flowR6Tests({ db, ok, as }) {
     assert.deepEqual(await live(parent), parentBefore)
   })
 
-    // แก้แล้ว (20261120070000): แบ่งงานซ้ำด้วยรหัสคำขอเดิม คืนใบลูกเดิม ไม่สร้างใบใหม่
+    // แบ่งงานซ้ำด้วยรหัสคำขอเดิม คืนใบลูกเดิม ไม่สร้างใบใหม่
     await isolated('R6 ส่งคำสั่งแบ่งงานเดิมซ้ำได้ใบลูกใบเดียว', async () => {
     const parent = await job('split-retry')
     const split = () => rpc('admin', 'split_job', parent, 3, '00000000-0000-4000-8000-0000000000b1')
@@ -416,7 +416,7 @@ await isolated('R6 ส่งออกและรับกลับหลัง�
     assert.ok(skip.payload.ahead.includes((await live(urgent.at(-1))).confirmation_no))
   })
 
-  // แก้แล้ว (20261120070000): รายงานที่ส่งซ้ำด้วยรหัสคำขอเดิม ไม่เกิดรายงานที่สอง
+  // รายงานที่ส่งซ้ำด้วยรหัสคำขอเดิม ไม่เกิดรายงานที่สอง
   await isolated('R6 ส่งรายงานเดิมซ้ำในรอบเดียวได้รายงานเดียว', async () => {
     const id = await job('report-retry')
     await start(id)

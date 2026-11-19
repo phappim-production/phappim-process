@@ -9,11 +9,7 @@ import { TONE } from '../components/tone'
 
 export type QueueCall = (name: string, args: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; reason: string }>
 
-/**
- * คิวของสถานีเดียว สำหรับคนหน้างานบนมือถือ: เห็นเฉพาะงานของสถานีตัวเอง เรียงตามคิว · กดเริ่ม/เสร็จบนการ์ดได้เลย
- * คิวแรกได้ปุ่มใหญ่ · เริ่มคิวหลังได้แต่ต้องใส่เหตุผล (เจ้าของเลือก "แค่เรียง + เตือน") · หัวหน้า/ผู้บริหารแทรกงานด่วนเป็นคิวแรกได้
- * กฎทุกข้อตรวจซ้ำที่ฐานข้อมูล · เริ่มงานใช้ start_in_queue (ตรวจคิวล่าสุด + บันทึกเหตุผล + เริ่ม ในธุรกรรมเดียว · เย็บจ่ายจักรให้)
- */
+// เริ่มคิวหลังได้แต่ต้องใส่เหตุผล · start_in_queue ตรวจคิว + บันทึกเหตุผล + เริ่ม ในธุรกรรมเดียว
 export function StationQueue({ station, jobs, role, now, call, onOpen }: {
   station: StationCode; jobs: Job[]; role: EmployeeRole; now: Date; call: QueueCall; onOpen: (id: string) => void
 }) {
@@ -48,8 +44,7 @@ export function StationQueue({ station, jobs, role, now, call, onOpen }: {
 
   return (
     <div className="grid w-full max-w-3xl gap-4">
-      {/* มือถือ: ลอยเหนือเมนูล่าง ใกล้ปุ่มที่เพิ่งกด (เลื่อนจออยู่ล่างก็เห็น · QA รอบ 4) · จอใหญ่: อยู่บนสุดตามปกติ
-          ข้อความสำเร็จไม่มีปุ่ม จึงให้กดทะลุถึงการ์ดข้างใต้ได้ ไม่บังปุ่มงานถัดไป (QA รอบ 5 G7) */}
+      {/* มือถือ: ลอยเหนือเมนูล่างใกล้ปุ่มที่เพิ่งกด · ข้อความสำเร็จกดทะลุได้ ไม่บังปุ่มงานถัดไป */}
       {notice && (
         <div role={notice.ok ? 'status' : 'alert'} className={`fixed inset-x-4 bottom-24 z-30 grid gap-2 rounded-xl px-4 py-3 font-medium shadow-lift lg:static lg:shadow-none ${notice.ok ? 'pointer-events-none bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>
           <p>{notice.text}</p>
@@ -138,7 +133,7 @@ function QueueCard({ job: j, now, badge, first, onOpen, children }: {
 
 type Run = (job: Job, steps: [string, Record<string, unknown>][], ok: string) => Promise<boolean>
 
-// งานพัก: ปิดปัญหาได้เฉพาะฝ่ายผลิต / ผู้บริหาร · บทบาทอื่นเห็นว่าต้องรอใคร (ปุ่มที่กดไม่ได้ต้องบอกเหตุผล)
+// ปิดปัญหาได้เฉพาะฝ่ายผลิต / ผู้บริหาร · บทบาทอื่นเห็นว่าต้องรอใคร
 function HoldActions({ job: j, station, canResume, busy, run }: { job: Job; station: StationCode; canResume: boolean; busy: boolean; run: Run }) {
   if (!canResume) {
     return <p className={`rounded-xl px-3 py-2 font-medium ${TONE.warn.soft}`}>

@@ -13,7 +13,6 @@ const now = new Date('2026-11-18T10:00:00+07:00')
 const row = (over: Partial<{ warn: boolean; over: boolean; need_report: boolean }>) =>
   ({ job_id: 'a', warn: false, over: false, need_report: false, ...over })
 
-// QA รอบ 5 G7 ข้อสังเกต 4: การ์ดต้องเปลี่ยนสีเองเมื่อใกล้ครบ / เกินเวลามาตรฐาน
 describe('สถานะเวลามาตรฐานบนการ์ด', () => {
   it('แปลงผลจากฐานข้อมูลเป็นระดับ · ต้องรายงานสำคัญกว่าเกินเวลา', () => {
     expect(attachSla([base], [])[0].sla).toBeUndefined()

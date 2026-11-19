@@ -1,4 +1,3 @@
-// ส่งงานออกบริษัทภายนอก + แบ่งงาน (20261120020000) · ทั้งกรณีผ่านและกรณีถูกปฏิเสธ
 
 export async function outsourcingTests({ db, ok, as }) {
   const U = {
@@ -22,7 +21,6 @@ export async function outsourcingTests({ db, ok, as }) {
     `public.receive_job('${no}', 'ลูกค้าส่งออก', 'งาน', 'tshirt', ${qty}, 'ตัว', '2026-12-31', '${route}', null, p_needs_sample => false)`)).rows[0].r
   const plan = (arrive = "now() + interval '1 hour'", days = 3, back = "now() + interval '4 days'") => `${arrive}, ${days}, ${back}`
 
-  // ---------- บริษัทภายนอก ----------
   const A = await pass('แอดมินเพิ่มบริษัทภายนอก (พิมพ์-รีด-ตัด)', U.admin, `public.add_vendor('บ.A พิมพ์ตัด', array['print','press','cut'], '081-000-0000')`)
   const B = await pass('แอดมินเพิ่มบริษัทเย็บ', U.admin, `public.add_vendor('บ.B เย็บ', array['sew'])`)
   await reject('ฝ่ายผลิตเพิ่มบริษัทไม่ได้ (แอดมินบันทึก)', U.prod, `public.add_vendor('บ.X')`, /ทำขั้นนี้ไม่ได้/)
@@ -30,7 +28,6 @@ export async function outsourcingTests({ db, ok, as }) {
   await reject('บริษัทรับ QC ไม่ได้', U.admin, `public.add_vendor('บ.Q', array['qc_pack'])`, /พิมพ์ · รีด · ตัด · เย็บ · ปัก/)
   ok('ทุกคนอ่านรายชื่อบริษัทได้', (await as(U.prod, () => db.query('select count(*)::int n from public.vendors'))).rows[0].n >= 2)
 
-  // ---------- ส่งออก พิมพ์-รีด-ตัด ที่ บ.A ----------
   const j1 = await receive('SC-OUT-1', 'normal')
   ok('งานเริ่มที่สถานีพิมพ์', (await job(j1)).st === 'print')
   await reject('ฝ่ายผลิตส่งออกไม่ได้', U.prod, `public.send_out('${j1}', ${A}, 'cut', ${plan()})`, /ทำขั้นนี้ไม่ได้/)
@@ -54,12 +51,10 @@ export async function outsourcingTests({ db, ok, as }) {
     ok('ยกเลิก/เปลี่ยนงานที่อยู่ข้างนอกตรงๆ ไม่ได้ (ต้องรับของกลับก่อน)', false)
   } catch (e) { ok('ยกเลิก/เปลี่ยนงานที่อยู่ข้างนอกตรงๆ ไม่ได้ (ต้องรับของกลับก่อน)', /รับของกลับ/.test(e.message), firstLine(e)) }
 
-  // ---------- แก้กำหนด ----------
   await pass('แอดมินเลื่อนกำหนดได้', U.admin, `public.update_out_plan(${r1}, now(), 5, now() + interval '6 days')`)
   ok('กำหนดใหม่บันทึกแล้ว', Number((await run(r1)).lead_days) === 5 && (await events(j1, 'outsource_plan')).length === 1)
   await reject('แก้กำหนดให้กลับก่อนถึงไม่ได้', U.admin, `public.update_out_plan(${r1}, now() + interval '3 days', 1, now())`, /ต้องไม่ก่อน/)
 
-  // ---------- ส่งต่อ บ.A → บ.B (เย็บ) ไม่ผ่านโรงงาน ----------
   await reject('ส่งต่อบริษัทเดิมไม่ได้', U.admin, `public.forward_out(${r1}, ${A}, 'sew', ${plan()})`, /บริษัทเดิม/)
   await reject('ส่งต่อรวม QC ไม่ได้', U.admin, `public.forward_out(${r1}, ${B}, 'qc_pack', ${plan()})`, /ทำที่โรงงานเท่านั้น/)
   const r2 = await pass('แอดมินส่งต่อจาก บ.A ไป บ.B เย็บ', U.admin, `public.forward_out(${r1}, ${B}, 'sew', ${plan()})`)
@@ -69,7 +64,6 @@ export async function outsourcingTests({ db, ok, as }) {
   ok('รอบ บ.A ปิดแบบส่งต่อ และชี้ไปรอบ บ.B', closed1.closed_how === 'forwarded' && Number(closed1.next_run_id) === Number(r2))
   await reject('ส่งต่อรอบที่ปิดแล้วไม่ได้', U.admin, `public.forward_out(${r1}, ${B}, 'sew', ${plan()})`, /ปิดไปแล้ว/)
 
-  // ---------- รับของกลับ → QC ที่โรงงาน ----------
   await reject('ฝ่ายผลิตรับของกลับไม่ได้ (แอดมินบันทึก)', U.prod, `public.receive_back(${r2})`, /ทำขั้นนี้ไม่ได้/)
   await pass('แอดมินรับของกลับเข้าโรงงาน', U.admin, `public.receive_back(${r2}, 'ครบ 500 ตัว')`)
   const s3 = await job(j1)
@@ -77,7 +71,6 @@ export async function outsourcingTests({ db, ok, as }) {
   ok('รอบ บ.B ปิดแบบรับกลับ', (await run(r2)).closed_how === 'received')
   await reject('รับของกลับซ้ำไม่ได้', U.admin, `public.receive_back(${r2})`, /ปิดไปแล้ว/)
 
-  // ---------- QC ไม่ผ่าน → ส่งไปแก้ที่ บ.B → กลับ QC ----------
   await pass('QC เริ่มตรวจ', U.qc, `public.start_station('${j1}')`)
   await pass('QC ส่งกลับแก้ 20 ตัวที่เย็บ', U.qc, `public.send_rework('${j1}', 20, 'ตะเข็บหลุด', 'sew')`)
   const s4 = await job(j1)
@@ -88,7 +81,6 @@ export async function outsourcingTests({ db, ok, as }) {
   await pass('รับงานแก้กลับ', U.admin, `public.receive_back(${r3})`)
   ok('งานแก้กลับเข้า QC + Packing', (await job(j1)).st === 'qc_pack')
 
-  // ---------- แบ่งงาน 500 → 200 ทำเอง + 300 ส่งเย็บข้างนอก ----------
   const j2 = await receive('SC-OUT-2', 'plain')
   const after = await receive('SC-OUT-3', 'plain', 10)
   await reject('ฝ่ายผลิตแบ่งงานไม่ได้', U.prod, `public.split_job('${j2}', 300)`, /ทำขั้นนี้ไม่ได้/)

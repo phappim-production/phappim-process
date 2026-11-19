@@ -90,7 +90,7 @@ describe('คาดการณ์คิวโรงงาน', () => {
 
   it('กำลังเย็บ: ไลน์ละช่าง 3 คน · 20.17 นาทีต่อตัว · 480 นาทีต่อวัน · ช่าง 15 คน = 5 ไลน์', () => {
     expect(piecesPerDay(3, 20.17, 480)).toBe(71)
-    expect(piecesPerDay(3, 20, 480)).toBe(72)       // ป้ายผ้า 60x60
+    expect(piecesPerDay(3, 20, 480)).toBe(72)
     expect(SEW_LINE_RATE).toBe(71)
     expect(SEW_MAX_LINES).toBe(5)
     expect(CAPACITY.sew).toBe(355)
@@ -130,7 +130,6 @@ describe('คาดการณ์คิวโรงงาน', () => {
   })
 })
 
-// จักรจริงในโรงงาน 17 พ.ย.: เข็มเดี่ยว 14 · โพ้ง 4 เส้น 4 · จักรลา 1 · ติดกระดุม 1 · เจาะรังดุม 1
 describe('ไลน์เย็บตามจักรที่มี', () => {
   const ready = { single: 14, ovl4: 4, cover: 1, button: 1, buttonhole: 1 }
   const tee = [{ type: 'ovl4' as const, qty: 2 }, { type: 'cover' as const, qty: 1 }, { type: 'single' as const, qty: 1 }]

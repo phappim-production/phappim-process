@@ -54,7 +54,6 @@ async function loadInbox(): Promise<InboxItem[]> {
   }))
 }
 
-/** ข้อมูลกล่องจดหมายแจ้งเตือน + อัปเดตสด (Realtime) + สแกนตามรอบทุก 5 นาที */
 export function useInbox() {
   const [state, setState] = useState<InboxState>({ status: 'loading' })
   const [busy, setBusy] = useState(false)

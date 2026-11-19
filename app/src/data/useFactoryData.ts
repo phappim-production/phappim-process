@@ -72,7 +72,7 @@ async function load(): Promise<FactoryData> {
     supabase.from('vendors').select('id, name, stations, kind, phone, address, map_url, specialty, contact').eq('active', true),
     supabase.from('outsource_runs').select('id, job_id, vendor_id, stations, qty, is_rework, sent_at, arrive_at, lead_days, back_at, note').is('closed_at', null),
   ])
-  // สีการ์ดตามเวลามาตรฐาน · อ่านไม่ได้ (ฐานข้อมูลยังไม่มีฟังก์ชัน / เน็ตสะดุด) ให้การ์ดสีปกติ ไม่ทำให้ทั้งหน้าโหลดไม่ขึ้น
+  // อ่านเวลามาตรฐานไม่ได้ (เน็ตสะดุด) ให้การ์ดสีปกติ ไม่ทำให้ทั้งหน้าโหลดไม่ขึ้น
   const sla = await slaCall
   const failed = [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types, vendorRows, outRuns].find(r => r.error)
   if (failed?.error) throw new Error(failed.error.message)
@@ -89,7 +89,6 @@ async function load(): Promise<FactoryData> {
   }
 }
 
-/** ข้อมูลหน้างานจริง + อัปเดตสดเมื่อมีคนกดที่เครื่องอื่น (Realtime) */
 export function useFactoryData() {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   // ขาดการเชื่อมต่อ = โหลดล่าสุดไม่สำเร็จ หรือ Realtime หลุด · แยกกันเพื่อให้แถบเตือนหายเองเมื่อกลับมาครบทั้งคู่
@@ -134,7 +133,7 @@ export function useFactoryData() {
     const online = () => soon()
     const offline = () => setFetchOk(false)
     const visible = () => { if (document.visibilityState === 'visible') soon() }
-    // เวลามาตรฐานเดินเองโดยไม่มีใครกด · ทุก 5 นาทีโหลดเฉพาะสถานะเวลา (ไม่ต้องโหลดทุกตาราง) ให้การ์ดเปลี่ยนสีทันเวลา
+    // เวลามาตรฐานเดินเองโดยไม่มีใครกด → โหลดเฉพาะสถานะเวลาทุก 5 นาที
     const tick = setInterval(() => {
       if (document.visibilityState !== 'visible') return
       void client.rpc('job_sla_flags').then(({ data, error }) => {
@@ -160,7 +159,6 @@ export function useFactoryData() {
 
 export type RpcResult<T> = { ok: true; data: T } | { ok: false; reason: string }
 
-/** เรียกฟังก์ชันในฐานข้อมูล (กฎทั้งหมดตรวจที่นั่น) · ข้อความผิดพลาดเป็นภาษาไทยเสมอ */
 export async function rpc<T = unknown>(name: string, args: Record<string, unknown>): Promise<RpcResult<T>> {
   if (!supabase) return { ok: false, reason: 'ยังไม่ได้ตั้งค่า Supabase' }
   if (typeof navigator !== 'undefined' && !navigator.onLine) return { ok: false, reason: 'ไม่มีอินเทอร์เน็ต ต่อเน็ตแล้วกดอีกครั้ง' }

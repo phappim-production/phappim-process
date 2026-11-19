@@ -4,8 +4,7 @@ import { qrMatrix, qrSvgPath } from './qr'
 
 const url = 'https://pp142.pages.dev/#/board?job=10000000-0000-4000-8000-000000000001'
 
-// Nayuki QR Code generator 1.8.0 · byte mode, level M, automatic mask, no ECC boost.
-// Row-major modules, most significant bit first; the last byte is padded with zeros.
+// เทียบกับ Nayuki QR Code generator 1.8.0 (byte mode, level M, mask อัตโนมัติ) · เรียงทีละแถว บิตสูงก่อน เติม 0 ท้าย
 const samples = [
   ['hello', 21, '/mP8FhBulrt0ZdusrsEFB/qv4AcAqlCRYRDUuj+QBCayqAB6n/jc8Eewurcd0hmuuisEhS/usYA='],
   [url, 37, '/iPHo/wQHkSQbrVBrLt1BoHl269X2K7BVaIJB/qqqq/gF76iAL4okVvnY+lcIa2MfLyHY7Z9Zp+4Py/7uDUO5oI6FLLPKAJjpXFWwzhLqUyuPSKU7QIs1/F5CWeeea6mKla5KpIqLU0QTziGLYBx7rWAWq5D2V0iK9LstpcBqj18ma9fLPoAYw6Ea/i0kiqwXKKDGbr5IF+t1aw/lm6qCzkXBJlNNZ/pLq8rgA=='],
