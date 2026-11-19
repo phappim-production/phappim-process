@@ -1,0 +1,95 @@
+-- ล้างข้อมูลทดสอบก่อนเปิดใช้จริง (อา. 22 พ.ย. 2569) · รันครั้งเดียว ไม่ใช่ migration
+-- วิธีใช้: เจ้าของวางทั้งไฟล์ใน Supabase → SQL Editor แล้วกด Run · ผลสรุปขึ้นเป็นตารางท้ายสุด
+-- ทดสอบใน supabase/tests/golive-cleanup.mjs (สร้างงาน TEST + งานจริงจำลอง แล้วตรวจว่าลบเฉพาะ TEST)
+--
+-- ทำอะไร
+-- 1. ลบงานที่เลขใบยืนยันขึ้นต้น "TEST-" ทั้งงานพร้อมประวัติ (รวมงานแบ่ง TEST-…-2)
+--    ตารางลูกทุกตาราง (events, issues, qc_results, outsource_runs, inbox_messages, …) ลบตามเองด้วย ON DELETE CASCADE
+--    events ปกติห้ามลบ → ปิด trigger กันลบเฉพาะในธุรกรรมนี้ แล้วเปิดคืนก่อนจบ (ถ้ามี error ทุกอย่างย้อนกลับ trigger ยังเปิดอยู่)
+-- 2. ลบใบร่างใบยืนยันของงานทดสอบ · ล้างบันทึกกันคำขอซ้ำ (private.rpc_requests ไม่มีข้อมูลงาน เก็บไว้ไม่มีประโยชน์)
+-- 3. จัดเลขคิวงานที่เหลือใหม่ (ลำดับเดิม)
+-- 4. ปิดบัญชีทดสอบ @pp142.test (ไม่ลบ เพราะงานจริงอาจอ้างผู้ใช้เหล่านี้)
+-- ไม่แตะ: งานจริง (รวมงานวันทดลอง ส. 21 ที่ใช้เลขใบจริง) · บริษัทภายนอก · จักร · ตั้งค่า
+-- ไฟล์ PDF ใน Storage ลบด้วย SQL ไม่ได้ → ตารางผลบอกชื่อไฟล์ที่ไม่มีงานใดใช้แล้ว ให้ลบเองที่ Storage → confirmations
+
+begin;
+
+create temp table golive_summary (step int, item text, value text) on commit drop;
+
+do $$
+declare
+  n_test int;
+  n_real_before int;
+  n_real_events_before int;
+  n_drafts int;
+  n_rpc int;
+  n_users int;
+begin
+  select count(*) into n_test from public.jobs where confirmation_no like 'TEST-%';
+  select count(*) into n_real_before from public.jobs where confirmation_no not like 'TEST-%';
+  select count(*) into n_real_events_before from public.events e
+    where not exists (select 1 from public.jobs j where j.id = e.job_id and j.confirmation_no like 'TEST-%');
+
+  -- 2. ใบร่างของงานทดสอบ (ลบก่อนลบงาน เพราะลบงานแล้ว job_id กลายเป็น null)
+  delete from public.confirmation_drafts d
+    where d.confirmation_no like 'TEST-%'
+       or exists (select 1 from public.jobs j where j.id = d.job_id and j.confirmation_no like 'TEST-%');
+  get diagnostics n_drafts = row_count;
+
+  -- 1. งานทดสอบ
+  alter table public.events disable trigger events_append_only;
+  delete from public.jobs where confirmation_no like 'TEST-%';
+  alter table public.events enable trigger events_append_only;
+
+  -- ตรวจซ้ำ: ต้องไม่เหลืองาน TEST และงานจริง/ประวัติงานจริงต้องครบเท่าเดิม ไม่งั้นย้อนกลับทั้งหมด
+  if exists (select 1 from public.jobs where confirmation_no like 'TEST-%') then
+    raise exception 'ยังเหลืองาน TEST- · ยกเลิกการล้างทั้งหมด';
+  end if;
+  if (select count(*) from public.jobs) <> n_real_before then
+    raise exception 'จำนวนงานจริงเปลี่ยน · ยกเลิกการล้างทั้งหมด';
+  end if;
+  if (select count(*) from public.events) <> n_real_events_before then
+    raise exception 'ประวัติงานจริงเปลี่ยน · ยกเลิกการล้างทั้งหมด';
+  end if;
+
+  -- 2. บันทึกกันคำขอซ้ำ
+  delete from private.rpc_requests;
+  get diagnostics n_rpc = row_count;
+
+  -- 3. คิว
+  perform private.queue_renumber();
+
+  -- 4. บัญชีทดสอบ
+  update public.profiles p set active = false
+    from auth.users u
+    where u.id = p.user_id and u.email like '%@pp142.test' and p.active;
+  get diagnostics n_users = row_count;
+
+  insert into golive_summary values
+    (1, 'ลบงานทดสอบ TEST- (งาน)', n_test::text),
+    (1, 'งานจริงที่เหลือ (งาน)', n_real_before::text),
+    (2, 'ลบใบร่างใบยืนยันทดสอบ (ใบ)', n_drafts::text),
+    (2, 'ล้างบันทึกกันคำขอซ้ำ (แถว)', n_rpc::text),
+    (4, 'ปิดบัญชี @pp142.test (บัญชี)', n_users::text),
+    (5, 'trigger กันลบประวัติ (events)',
+       case when exists (select 1 from pg_trigger
+                         where tgname = 'events_append_only' and tgrelid = 'public.events'::regclass
+                           and tgenabled = 'O')
+            then 'เปิดอยู่ (ถูกต้อง)' else 'ปิดอยู่ · ต้องแจ้ง Claude' end);
+
+  -- ไฟล์ PDF ที่ไม่มีงานใดอ้างแล้ว (มีเฉพาะระบบจริง · ฐานทดสอบไม่มี storage)
+  if to_regclass('storage.objects') is not null then
+    execute $q$
+      insert into golive_summary
+      select 6, 'ลบเองที่ Storage → confirmations', o.name
+      from storage.objects o
+      where o.bucket_id = 'confirmations'
+        and not exists (select 1 from public.jobs j where j.confirmation_pdf_path = o.name)
+      order by o.name
+    $q$;
+  end if;
+end $$;
+
+select step as ขั้น, item as รายการ, value as ผล from golive_summary order by step, item, value;
+
+commit;
