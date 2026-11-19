@@ -181,6 +181,8 @@ await flowR6Tests({ db, ok, as })
 // ---- เดินงานครบทุกเส้นทางด้วยค่าตั้งค่าเดียวกับระบบจริง (ธุรกรรมเดียว · rollback ตอนจบ) ----
 const { flowR8Tests } = await import('./flow-r8.mjs')
 await flowR8Tests({ db, ok })
+const { flowR9Tests } = await import('./flow-r9.mjs')
+await flowR9Tests({ db, ok })
 const { flowRouteTests } = await import('./flow-routes.mjs')
 await flowRouteTests({ db, ok })
 
