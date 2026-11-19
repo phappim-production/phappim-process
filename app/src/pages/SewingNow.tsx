@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from 'react'
-import { Card, CardHeader, DueLabel, Pill } from '../components/ui'
+import { Card, CardHeader, DueLabel, MockupThumb, Pill } from '../components/ui'
 import { requiredThai } from '../components/forms'
 import { IconCheck, IconSewing } from '../components/icons'
 import { type Job } from '../proto/model'
@@ -65,7 +65,9 @@ export function SewingNow({ jobs, machines, now, onOpen, actions, needs = {}, sh
             const report = job.sewingReports?.at(-1)
             return (
               <li key={job.id} className="grid grid-cols-[minmax(0,1fr)] gap-3 px-5 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                <button type="button" onClick={() => onOpen(job.id)} className="min-h-12 min-w-0 text-left">
+                <button type="button" onClick={() => onOpen(job.id)} className="flex min-h-12 min-w-0 items-start gap-3 text-left">
+                  <MockupThumb job={job} />
+                  <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-2">
                     <b>{job.no}</b>
                     <Pill tone={held ? 'danger' : 'info'} dot>{held ? 'พักงาน' : 'กำลังเย็บ'}</Pill>
@@ -78,6 +80,7 @@ export function SewingNow({ jobs, machines, now, onOpen, actions, needs = {}, sh
                   {held && job.holdReason
                     ? <span className="block break-words font-medium text-danger">{job.holdReason}</span>
                     : report && <span className="block break-words text-sm text-muted">รายงานล่าสุด: {report.reason}</span>}
+                  </span>
                 </button>
                 {actions && (
                   <div className="flex flex-wrap gap-2">

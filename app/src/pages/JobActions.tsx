@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { confirmationPath, pdfProblem } from '../data/confirmation'
+import { mockupProblem, shrinkImage, uploadMockup } from '../data/mockups'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
 import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job, type Vendor } from '../proto/model'
 import { OutsourcePanel } from './OutsourcePanel'
@@ -100,6 +101,7 @@ export function JobActions({ job: j, role, version, now, refresh, vendors = [] }
       {d.pdfPath ? <OpenPdf path={d.pdfPath} />
         : admin ? <AttachPdf job={j} refresh={refresh} />
         : <p className="text-muted">ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น (แอดมินแนบทีหลัง)</p>}
+      {admin && <SetMockup job={j} refresh={refresh} />}
       {notice && (
         <p role={notice.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>{notice.text}</p>
       )}
@@ -155,6 +157,42 @@ function AttachPdf({ job, refresh }: { job: Job; refresh: () => Promise<void> })
         {busy ? 'กำลังแนบ PDF…' : file ? 'แนบ PDF ใบยืนยัน' : 'แนบ PDF ใบยืนยัน (เลือกไฟล์ก่อน)'}
       </button>
       {error && <p role="alert" className="text-danger">{error}</p>}
+    </div>
+  )
+}
+
+/** เพิ่ม / เปลี่ยนรูปม็อคอัพของงาน (20261120110000) · แอดมิน / เจ้าของระบบ · ฐานข้อมูลตรวจสิทธิ์ซ้ำ */
+function SetMockup({ job, refresh }: { job: Job; refresh: () => Promise<void> }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const problem = file ? mockupProblem({ size: 0, type: file.type }) : null
+  const has = !!job.mockup
+  async function save() {
+    if (!file || problem) return
+    setBusy(true)
+    setMsg(null)
+    const up = await uploadMockup(job.no, await shrinkImage(file))
+    if (!up.ok) { setBusy(false); setMsg({ ok: false, text: up.reason }); return }
+    const r = await rpc('set_job_mockup', { p_job: job.id, p_path: up.path })
+    setBusy(false)
+    if (!r.ok) { setMsg({ ok: false, text: r.reason }); return }
+    setFile(null)
+    setMsg({ ok: true, text: has ? 'เปลี่ยนรูปม็อคอัพแล้ว' : 'เพิ่มรูปม็อคอัพแล้ว' })
+    await refresh()
+  }
+  return (
+    <div className={`grid gap-2 rounded-xl border p-3 ${has ? 'border-line' : 'border-warn/30 bg-warn-soft'}`}>
+      {!has && <p className="font-medium text-warn">งานนี้ยังไม่มีรูปม็อคอัพ · คนหน้างานจำงานจากรูป ให้เพิ่มรูป</p>}
+      <FilePick accept="image/jpeg,image/png,image/webp" label={has ? 'เลือกรูปม็อคอัพใหม่' : 'เลือกรูปม็อคอัพ'} chosen={file?.name ?? ''}
+        onPick={f => { setFile(f ?? null); setMsg(null) }} />
+      {problem && <p role="alert" className="text-danger">{problem}</p>}
+      {file && !problem && (
+        <button type="button" className={has ? secondaryBtn : primaryBtn} disabled={busy} onClick={() => void save()}>
+          {busy ? 'กำลังบันทึกรูป…' : has ? 'เปลี่ยนเป็นรูปนี้' : 'บันทึกรูปม็อคอัพ'}
+        </button>
+      )}
+      {msg && <p role={msg.ok ? 'status' : 'alert'} className={msg.ok ? 'font-medium text-ok' : 'text-danger'}>{msg.text}</p>}
     </div>
   )
 }

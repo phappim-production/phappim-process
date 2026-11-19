@@ -29,6 +29,17 @@
   font-weight: 700;
 }
 
+.job-label-heading.has-mockup {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.job-label-mockup {
+  width: clamp(5.5rem, 26vw, 9rem);
+  aspect-ratio: 1;
+  object-fit: contain;
+  background: white;
+}
+
 .job-label-qr {
   width: clamp(5.5rem, 26vw, 9rem);
   height: auto;
@@ -115,7 +126,8 @@
     font-size: 9pt;
   }
 
-  .job-label-print .job-label-qr {
+  .job-label-print .job-label-qr,
+  .job-label-print .job-label-mockup {
     width: 42mm;
   }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { SLA_LABEL, STATION_NAME, byQueue, filmLabel, isOutLate, isOverdue, waitingAt, type Job, type StationCode } from '../proto/model'
 import { spaced } from '../proto/format'
-import { DueLabel, Pill } from '../components/ui'
+import { DueLabel, MockupThumb, Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconAlert, IconCheck, IconChevronRight } from '../components/icons'
 import { canCloseIssue, type EmployeeRole } from '../auth/access'
@@ -113,7 +113,9 @@ function QueueCard({ job: j, now, badge, first, onOpen, children }: {
   return (
     <article className={`grid gap-3 rounded-2xl border-2 bg-card p-4 shadow-card ${first ? 'border-brand'
       : late || j.status === 'hold' || j.sla === 'over' || j.sla === 'report' ? 'border-danger/40' : j.sla === 'warn' ? 'border-warn/50' : 'border-line'}`}>
-      <button type="button" onClick={onOpen} className="grid gap-1 text-left" aria-label={`ดูรายละเอียดงาน ${j.no}`}>
+      <button type="button" onClick={onOpen} className="flex min-w-0 items-start gap-3 text-left" aria-label={`ดูรายละเอียดงาน ${j.no}`}>
+        <MockupThumb job={j} size="md" />
+        <span className="grid min-w-0 flex-1 gap-1">
         <span className="flex flex-wrap items-center gap-2">
           {badge}
           <b className="text-xl">{j.no}</b>
@@ -127,6 +129,7 @@ function QueueCard({ job: j, now, badge, first, onOpen, children }: {
           <span className="ml-auto"><DueLabel job={j} now={now} /></span>
         </span>
         {j.holdReason && <span className="text-base font-medium text-danger">สาเหตุ: {j.holdReason}</span>}
+        </span>
       </button>
       {children}
     </article>

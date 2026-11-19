@@ -57,6 +57,8 @@ export type Job = {
   film?: { eta: Date; received: boolean }  // เฉพาะเส้นทางที่สั่งฟิล์ม (DTF / DTG / สกรีน)
   sewCount?: number
   sewingReports?: { reason: string; at: Date; paused: boolean }[]
+  mockup?: string            // path รูปม็อคอัพใน Storage (mockups)
+  mockupUrl?: string         // ลิงก์ชั่วคราวสำหรับแสดงรูป · ไม่มี = แสดงกรอบว่าง
   rework?: { qty: number; reason: string }
   holdReason?: string
   doneAt?: Date
