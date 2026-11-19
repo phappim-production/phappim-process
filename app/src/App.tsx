@@ -14,6 +14,7 @@ import JobLabel from './pages/job-label'
 import AccountPage from './pages/AccountPage'
 import { Card, CardHeader } from './components/ui'
 import { AppUpdate } from './components/AppUpdate'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { IconChart, IconColumns, IconGauge, IconInbox, IconSliders, IconUser } from './components/icons'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -149,6 +150,8 @@ function Workspace({ page: requested, labelId, profile, email }: {
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col">
+          {/* หน้าใดพัง (รวมโหลดไฟล์หน้าไม่ขึ้นหลัง deploy) ต้องไม่ทำให้จอขาวทั้งแอป · เมนูยังกดได้ · เปลี่ยนหน้าแล้วเริ่มใหม่ (key) */}
+          <ErrorBoundary key={page}>
           {!canOpenPage(profile.role, page) ? (
             <main className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto p-4 sm:p-6">
               <Card>
@@ -171,6 +174,7 @@ function Workspace({ page: requested, labelId, profile, email }: {
               {page === 'label' && <JobLabel jobId={labelId} />}
             </main>
           )}
+          </ErrorBoundary>
         </div>
 
         <nav aria-label="เมนูหลัก" className="flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
