@@ -12,7 +12,7 @@ import { thaiError } from '../data/live'
 import type { Tone } from '../components/tone'
 import { IconAlert, IconCheck, IconClipboard, IconClock, IconFactory, IconFilm, IconPackage, IconSearch, IconSewing, IconX } from '../components/icons'
 import { roleSummary, type SewingView, type SummaryIcon } from '../proto/summary'
-import Overview from './Overview'
+import Overview, { StationNow } from './Overview'
 import { DASH_TAB_NAME, FACTORY_SCOPE, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
 import { SewingFloor, TodoPanel } from './WorkPanels'
 import { MACHINE_TYPE_NAME, pausesJob, type MachineStatus, type MachineType } from '../proto/sewing'
@@ -24,12 +24,15 @@ import { StationQueue } from './StationQueue'
 import { ReceiveJob } from './ReceiveJob'
 import { ConfirmationOutbox } from './ConfirmationOutbox'
 import { JobHistory } from './JobHistory'
-import type { EmployeeRole } from '../auth/access'
+import { isStationCode } from '../proto/model'
+import type { EmployeeRole, FactoryView } from '../auth/access'
+import { IssuesView, MyHistoryView, QueueAllView, ReportIssueView } from './RolePages'
+import { myStationsOf } from '../proto/rolePages'
 import type { OverviewView } from '../auth/menus'
 import { IconInbox } from '../components/icons'
 
 type Filter = 'all' | 'overdue' | 'hold' | 'film' | 'doneToday'
-type View = 'overview' | 'board'
+type View = FactoryView
 const STATUS_FILTERS: [Filter, string][] = [
   ['all', 'ทุกสถานะ'], ['overdue', 'เลยกำหนดส่ง'], ['hold', 'ติดปัญหา / พักงาน'],
   ['film', 'รอฟิล์ม'], ['doneToday', 'เสร็จวันนี้'],
@@ -281,6 +284,33 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
       <ConfirmationOutbox onReceive={id => { setReceived(null); setDraftId(id); setReceiving(true) }} />
     </div>
   )
+
+  const VIEW_TITLE: Partial<Record<View, string>> = {
+    issues: 'ปัญหา / งานแก้', report: 'แจ้งปัญหา', history: 'ประวัติการทำงาน', queueAll: 'คิวการผลิต', dept: 'ภาพรวมแผนก',
+  }
+  const title = VIEW_TITLE[view]
+  if (title) {
+    const deptStations = myScope.columns ? myScope.columns.filter(isStationCode) : null
+    return (
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-4 p-4 sm:p-6">
+          <PageHeader title={title} today={today} updated={loadedAt} />
+          {linkNotice}
+          {view === 'issues' && <IssuesView jobs={allJobs} now={now} role={role} stations={deptStations} call={call} onOpen={setOpenId} />}
+          {view === 'report' && <ReportIssueView jobs={allJobs} now={now} stations={myStationsOf(role, myScope.pressStations)} call={call} onOpen={setOpenId} />}
+          {view === 'history' && <MyHistoryView jobs={allJobs} onOpen={setOpenId} />}
+          {view === 'queueAll' && <QueueAllView jobs={allJobs} now={now} onOpen={setOpenId} />}
+          {view === 'dept' && <>
+            <RoleSummary scope={myScope} jobs={allJobs} machines={machines} now={now}
+              onPick={t => { window.location.hash = t === 'todo' ? '#/queue' : '#/board' }} />
+            <StationNow jobs={allJobs} now={now} stations={deptStations ?? undefined} />
+            <a href="#/issues" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-line bg-card px-5 font-semibold text-brand hover:bg-brand-soft">ดูปัญหา / งานแก้ทั้งหมด</a>
+          </>}
+        </div>
+        {drawer}
+      </div>
+    )
+  }
 
   if (view === 'overview') {
     return (

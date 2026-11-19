@@ -10,6 +10,10 @@ export const ROLE_LABELS = {
 
 export type EmployeeRole = keyof typeof ROLE_LABELS
 export type PageKey = 'overview' | 'board' | 'reports' | 'settings' | 'system' | 'inbox' | 'label'
+  | 'issues' | 'report' | 'history' | 'queueAll' | 'dept'
+
+export type FactoryView = 'overview' | 'board' | 'issues' | 'report' | 'history' | 'queueAll' | 'dept'
+export const FACTORY_VIEWS: readonly PageKey[] = ['overview', 'board', 'issues', 'report', 'history', 'queueAll', 'dept']
 
 // ฐานข้อมูลบังคับเอง หน้าเว็บใช้แสดงและกรองงาน
 export const SECTION_LABELS = {
@@ -43,6 +47,10 @@ export function canOpenPage(role: EmployeeRole, page: PageKey): boolean {
   switch (page) {
     case 'settings':
       return role === 'owner'
+    case 'issues':
+      return role === 'production' || role === 'supervisor' || role === 'owner' || role === 'manager'
+    case 'dept':
+      return role === 'production' || role === 'supervisor' || role === 'owner'
     case 'reports':
       return role !== 'qc' && role !== 'staff'
     // ภาพรวม (รับงานเพิ่มได้ไหม · งานเสี่ยงทั้งโรงงาน) เป็นข้อมูลสำหรับคนตัดสินใจ · คนหน้างานใช้บอร์ดของตัวเอง

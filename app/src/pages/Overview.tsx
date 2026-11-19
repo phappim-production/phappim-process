@@ -279,8 +279,8 @@ function Pipeline({ jobs, now }: { jobs: Job[]; now: Date }) {
   )
 }
 
-function StationNow({ jobs, now }: { jobs: Job[]; now: Date }) {
-  const rows = stationCounts(jobs, now)
+export function StationNow({ jobs, now, stations }: { jobs: Job[]; now: Date; stations?: readonly string[] }) {
+  const rows = stationCounts(jobs, now).filter(r => !stations || stations.includes(r.key))
   return (
     <Card>
       <CardHeader icon={IconFactory} title="สถานีตอนนี้" sub="กดสถานีเพื่อดูคิวงาน · แดง = มีงานติดปัญหาหรือเลยกำหนด" />

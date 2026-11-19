@@ -17,6 +17,11 @@ export const ROUTES: Record<string, Route> = {
   '#/board': { page: 'board' },
   '#/queue': { page: 'board', tab: 'todo' },
   '#/mine': { page: 'board', tab: 'todo' },
+  '#/dept': { page: 'dept' },
+  '#/issues': { page: 'issues' },
+  '#/report': { page: 'report' },
+  '#/history': { page: 'history' },
+  '#/production-queue': { page: 'queueAll' },
   '#/inbox': { page: 'inbox' },
   '#/reports': { page: 'reports' },
   '#/users': { page: 'settings', settingsTab: 'users' },
@@ -66,6 +71,7 @@ export function roleMenu(role: EmployeeRole): MenuGroup[] {
       return [{ title: 'WORKSPACE', items: [
         item('#/', 'ภาพรวมใบงาน', 'gauge', 'ภาพรวม'),
         item('#/jobs', 'จัดการใบงาน', 'list', 'ใบงาน'),
+        item('#/production-queue', 'คิวการผลิต', 'queue', 'คิว'),
         item('#/board', 'ติดตาม Station', 'columns', 'Station'),
         item('#/reports', 'รายงาน', 'chart'),
         INBOX,
@@ -73,8 +79,10 @@ export function roleMenu(role: EmployeeRole): MenuGroup[] {
     case 'production':
     case 'supervisor':
       return [{ title: 'WORKSPACE', items: [
+        item('#/dept', 'ภาพรวมแผนก', 'gauge', 'ภาพรวม'),
         item('#/queue', 'คิวงาน', 'queue'),
         item('#/board', 'Station ที่ดูแล', 'columns', 'Station'),
+        item('#/issues', 'ปัญหา / งานแก้', 'flag', 'ปัญหา'),
         item('#/reports', 'รายงานแผนก', 'chart', 'รายงาน'),
         INBOX,
       ] }]
@@ -83,6 +91,8 @@ export function roleMenu(role: EmployeeRole): MenuGroup[] {
       return [{ title: 'WORKSPACE', items: [
         item('#/mine', 'งานของฉัน', 'gauge'),
         item('#/board', 'คิวงาน Station', 'queue', 'คิวงาน'),
+        item('#/history', 'ประวัติการทำงาน', 'clock', 'ประวัติ'),
+        item('#/report', 'แจ้งปัญหา', 'flag'),
         INBOX,
       ] }]
   }

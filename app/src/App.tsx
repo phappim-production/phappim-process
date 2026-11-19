@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState, type ComponentType } from
 import { isConfigured } from './lib/supabase'
 import EmployeeLogin, { AccountScreen, SignOutButton, primaryButton } from './auth/EmployeeLogin'
 import { useEmployeeAccount } from './auth/useEmployeeAccount'
-import { canOpenPage, roleLabel as labelFor, type EmployeeRole, type Section } from './auth/access'
+import { canOpenPage, FACTORY_VIEWS, roleLabel as labelFor, type FactoryView, type PageKey, type EmployeeRole, type Section } from './auth/access'
 import { boardScope, homePage } from './auth/scope'
 import type { StationCode } from './proto/model'
 import { bottomBar, roleMenu, routeOf, type MenuIcon, type Route } from './auth/menus'
@@ -167,7 +167,7 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
                 </div>
               </Card>
             </main>
-          ) : page === 'overview' || page === 'board' ? (
+          ) : isFactoryView(page) ? (
             <Suspense fallback={<main className="p-5"><p role="status">กำลังโหลดหน้าติดตามการผลิต…</p></main>}>
               <Dashboard view={page} routeKey={path} tab={route.tab} overviewView={route.overviewView} today={today} role={profile.role} scope={scope} />
             </Suspense>
@@ -219,6 +219,10 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
       </div>
     </div>
   )
+}
+
+function isFactoryView(page: PageKey): page is FactoryView {
+  return FACTORY_VIEWS.includes(page)
 }
 
 function useHash() {

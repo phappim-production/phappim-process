@@ -28,10 +28,10 @@ it('แถบเมนูล่างบนมือถือไม่เกิ�
 
 it('เมนูตามบทบาท', () => {
   expect(names('manager')).toEqual(['ภาพรวมการผลิต', 'ใบงานทั้งหมด', 'ทุก Station', 'รายงาน', 'กล่องจดหมาย'])
-  expect(names('admin')).toEqual(['ภาพรวมใบงาน', 'จัดการใบงาน', 'ติดตาม Station', 'รายงาน', 'กล่องจดหมาย'])
-  expect(names('production')).toContain('Station ที่ดูแล')
+  expect(names('admin')).toEqual(['ภาพรวมใบงาน', 'จัดการใบงาน', 'คิวการผลิต', 'ติดตาม Station', 'รายงาน', 'กล่องจดหมาย'])
+  expect(names('production')).toEqual(['ภาพรวมแผนก', 'คิวงาน', 'Station ที่ดูแล', 'ปัญหา / งานแก้', 'รายงานแผนก', 'กล่องจดหมาย'])
   expect(names('supervisor')).toEqual(names('production'))
-  expect(names('qc')).toEqual(['งานของฉัน', 'คิวงาน Station', 'กล่องจดหมาย'])
+  expect(names('qc')).toEqual(['งานของฉัน', 'คิวงาน Station', 'ประวัติการทำงาน', 'แจ้งปัญหา', 'กล่องจดหมาย'])
   expect(names('staff')).toEqual(names('qc'))
   expect(names('owner')).toEqual(expect.arrayContaining(['ผู้ใช้งาน', 'ตั้งค่าระบบ', 'ภาพรวมการผลิต']))
 })
@@ -45,4 +45,9 @@ it('ลิงก์ที่ไม่รู้จักไปภาพรวม 
 
 it('รายงานเปิดได้ทุกบทบาทยกเว้น QC และพนักงานสถานี', () => {
   for (const role of ROLES) expect(canOpenPage(role, 'reports'), role).toBe(role !== 'qc' && role !== 'staff')
+})
+
+it('หน้าปัญหา/งานแก้ เปิดได้เฉพาะคนที่กดแก้หรือคุมงาน · ภาพรวมแผนกเฉพาะฝ่ายผลิต', () => {
+  expect(ROLES.filter(r => canOpenPage(r, 'issues')).sort()).toEqual(['manager', 'owner', 'production', 'supervisor'])
+  expect(ROLES.filter(r => canOpenPage(r, 'dept')).sort()).toEqual(['owner', 'production', 'supervisor'])
 })
