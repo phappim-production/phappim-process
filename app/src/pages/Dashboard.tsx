@@ -7,7 +7,7 @@ import {
 } from '../proto/model'
 import { lateDays, sewFloorOf, simulate, workdayToDate } from '../proto/capacity'
 import { duration, relDay, shortDate } from '../proto/format'
-import { Card, DueLabel, MockupThumb, Pill, ProcessBar, StatTile, ViewSwitch, pillGroup, pillItem, pillOff, pillOn } from '../components/ui'
+import { Card, DueLabel, MockupThumb, Pill, StatTile, ViewSwitch, pillGroup, pillItem, pillOff, pillOn } from '../components/ui'
 import { thaiError } from '../data/live'
 import type { Tone } from '../components/tone'
 import { IconAlert, IconCheck, IconClipboard, IconClock, IconFactory, IconFilm, IconPackage, IconSearch, IconSewing, IconX } from '../components/icons'
@@ -532,7 +532,6 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: Date; onOpen: () => v
           {j.rework && <Pill tone="danger">งานแก้</Pill>}
         </span>
       )}
-      <span className="mt-1 block"><ProcessBar job={j} /></span>
       </span>
     </button>
   )
@@ -607,7 +606,6 @@ function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Jo
             </div>
             <button onClick={onClose} className="ml-auto grid size-12 place-items-center rounded-full bg-paper transition hover:bg-line" aria-label="ปิด"><IconX className="size-4" /></button>
           </div>
-          <div className="mt-3"><ProcessBar job={j} /></div>
           <a href={'#/label?id=' + encodeURIComponent(j.id)}
             className="mt-2 inline-flex min-h-12 items-center gap-2 rounded-xl border border-line px-3 font-semibold text-brand hover:bg-brand-soft">
             <IconClipboard className="size-5" /> พิมพ์ใบปะงาน

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { SLA_LABEL, STATION_NAME, byQueue, filmLabel, isOutLate, isOverdue, waitingAt, type Job, type StationCode } from '../proto/model'
 import { spaced } from '../proto/format'
-import { DueLabel, MockupThumb, Pill, ProcessBar } from '../components/ui'
+import { DueLabel, MockupThumb, Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconAlert, IconCheck, IconChevronRight } from '../components/icons'
 import { canCloseIssue, type EmployeeRole } from '../auth/access'
@@ -128,7 +128,6 @@ function QueueCard({ job: j, now, badge, first, onOpen, children }: {
         {j.holdReason && <span className="text-base font-medium text-danger">สาเหตุ: {j.holdReason}</span>}
         </span>
       </button>
-      <ProcessBar job={j} />
       {children}
     </article>
   )

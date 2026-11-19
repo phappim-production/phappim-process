@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { canCloseIssue, type EmployeeRole } from '../auth/access'
-import { Card, CardHeader, DueLabel, MockupThumb, Pill, ProcessBar } from '../components/ui'
+import { Card, CardHeader, DueLabel, MockupThumb, Pill } from '../components/ui'
 import { dangerBtn, fieldClass, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconAlert, IconChevronRight, IconClock, IconFlag, IconLayers } from '../components/icons'
 import { eventLine, type EventRow } from '../data/history'
@@ -35,7 +35,6 @@ function JobRow({ job: j, now, onOpen, children }: { job: Job; now: Date; onOpen
           {j.rework && <span className="font-medium text-danger">ต้องแก้: {j.rework.reason}</span>}
         </span>
       </button>
-      <ProcessBar job={j} />
       {children}
     </li>
   )
