@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { Job, Vendor } from '../proto/model'
 import type { Booking, Machine, MachineType, Need } from '../proto/sewing'
 import {
+  RPC_TIMEOUT_MS, SLOW_REPLY, withTimeout,
   attachOutRuns, attachSla, sharedTypes, thaiError, toBookings, toJobs, toMachines, toNeeds, toVendors, type MachineTypeRow, type OutRunRow, type VendorRow,
   type AssignmentRow, type BookingRow, type JobRow, type MachineRow, type NeedRow, type ProductRow, type ReworkRow, type SewEventRow, type SlaFlagRow,
 } from './live'
@@ -97,7 +98,10 @@ export function useFactoryData() {
   const refresh = useCallback(async () => {
     const mine = ++seq.current
     try {
-      const data = await load()
+      // ปุ่มรอโหลดใหม่หลังบันทึก → โหลดค้างต้องไม่ทำให้ปุ่มหมุนตลอดไป
+      const reply = await withTimeout(() => load(), RPC_TIMEOUT_MS)
+      if (reply.timedOut) throw new Error('timeout')
+      const data = reply.value
       // คำขอที่ส่งทีหลังชนะเสมอ กันข้อมูลเก่ามาทับข้อมูลใหม่
       if (mine === seq.current) {
         setState({ status: 'ready', data, loadedAt: new Date() })
@@ -158,8 +162,11 @@ export type RpcResult<T> = { ok: true; data: T } | { ok: false; reason: string }
 export async function rpc<T = unknown>(name: string, args: Record<string, unknown>): Promise<RpcResult<T>> {
   if (!supabase) return { ok: false, reason: 'ยังไม่ได้ตั้งค่า Supabase' }
   if (typeof navigator !== 'undefined' && !navigator.onLine) return { ok: false, reason: 'ไม่มีอินเทอร์เน็ต ต่อเน็ตแล้วกดอีกครั้ง' }
+  const client = supabase
   try {
-    const { data, error } = await supabase.rpc(name, args)
+    const reply = await withTimeout(signal => client.rpc(name, args).abortSignal(signal), RPC_TIMEOUT_MS)
+    if (reply.timedOut) return { ok: false, reason: SLOW_REPLY }
+    const { data, error } = reply.value
     if (error) return { ok: false, reason: thaiError(error.message) }
     return { ok: true, data: data as T }
   } catch (e) {

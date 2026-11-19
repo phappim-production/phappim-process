@@ -186,3 +186,26 @@ export function thaiError(message: string | undefined): string {
   if (message && /permission denied|row-level security|jwt/i.test(message)) return 'บัญชีนี้ทำรายการนี้ไม่ได้ ถ้าเพิ่งเปลี่ยนบทบาทให้ออกจากระบบแล้วเข้าใหม่'
   return 'ทำรายการไม่สำเร็จ กรุณาลองใหม่ ถ้ายังไม่ได้ให้แจ้งเจ้าของระบบ'
 }
+
+// เน็ตมือถือสะดุดแล้วคำขอค้าง = ปุ่มหมุนตลอดไป คนหน้างานคิดว่าระบบล่ม → ตัดที่ 30 วินาทีแล้วบอกให้ดูสถานะก่อน
+// ฐานข้อมูลอาจทำเสร็จไปแล้ว (ตัดแค่ฝั่งเครื่อง) จึงห้ามบอกว่า "ไม่สำเร็จ" ให้กดซ้ำทันที
+export const RPC_TIMEOUT_MS = 30_000
+export const SLOW_REPLY = 'ระบบตอบช้าเกินไป ยังไม่แน่ใจว่าบันทึกแล้วหรือยัง · ดูสถานะงานบนจอก่อน ถ้ายังไม่เปลี่ยนค่อยกดอีกครั้ง'
+
+export async function withTimeout<R>(call: (signal: AbortSignal) => PromiseLike<R>, ms: number):
+  Promise<{ timedOut: true } | { timedOut: false; value: R }> {
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  // แข่งกับตัวจับเวลา: แม้คำขอไม่สนใจการยกเลิก ปุ่มก็ต้องกลับมากดได้
+  const late = new Promise<{ timedOut: true }>(resolve => {
+    timer = setTimeout(() => { controller.abort(); resolve({ timedOut: true }) }, ms)
+  })
+  try {
+    return await Promise.race([
+      Promise.resolve(call(controller.signal)).then(value => ({ timedOut: false as const, value })),
+      late,
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
