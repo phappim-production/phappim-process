@@ -143,7 +143,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
   // ลิงก์ #/board?station=… ตอนเปิดหน้าครั้งแรก → เปิดแท็บบอร์ด ไม่ใช่แท็บแรกของบทบาท
   const [tab, setTab] = useState<DashTab>(() => stationFromHash() && myScope.tabs.includes('board') ? 'board'
     : startTab && myScope.tabs.includes(startTab) ? startTab : myScope.tabs[0])
-  const [sewFocus, setSewFocus] = useState<{ view?: SewingView; n: number }>({ n: 0 })
+  const [sewFocus, setSewFocus] = useState<{ view?: SewingView; pick?: string; noted?: boolean; n: number }>({ n: 0 })
   const activeTab = myScope.tabs.includes(tab) ? tab : myScope.tabs[0]
   const scoped = myScope.columns !== null
   const showFactoryBoard = activeTab === 'board' && scoped && myScope.allowFactory && wholeFactory
@@ -347,7 +347,8 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
       )}
       {activeTab === 'sewing' ? (
         <ErrorBoundary key="sewing">
-          <SewingFloor key={sewFocus.n} initialView={sewFocus.view} jobs={allJobs} machines={machines} bookings={bookings} needs={needs} shared={shared} now={now} onOpen={setOpenId}
+          <SewingFloor key={sewFocus.n} initialView={sewFocus.view} initialPick={sewFocus.pick} initialPickNoted={sewFocus.noted}
+            onSkip={myScope.canSew ? (jobId, reason) => rpc('note_queue_skip', { p_job: jobId, p_reason: reason }) : undefined} jobs={allJobs} machines={machines} bookings={bookings} needs={needs} shared={shared} now={now} onOpen={setOpenId}
             onStart={myScope.canSew ? startSewing : undefined} onStatus={myScope.canReportMachines ? setMachineStatus : undefined}
             onEta={myScope.canSetRepairEta ? setRepairEta : undefined}
             sewing={<SewingNow jobs={allJobs} machines={machines} now={now} onOpen={setOpenId} actions={myScope.canSew ? sewActions : undefined}
@@ -375,7 +376,8 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
           )}
           {focusStation ? (
             <ErrorBoundary key={`q-${focusStation}`}>
-              <StationQueue station={focusStation} jobs={allJobs} role={role} machines={machineUse(allJobs, data.stationMachines, focusStation)} myStations={myScope.pressStations} now={now} call={call} onOpen={setOpenId} />
+              <StationQueue station={focusStation} jobs={allJobs} role={role}
+                onSewStart={myScope.canSew && myScope.tabs.includes('sewing') ? (id, noted) => { setTab('sewing'); setSewFocus(f => ({ view: 'work', pick: id, noted, n: f.n + 1 })) } : undefined} machines={machineUse(allJobs, data.stationMachines, focusStation)} myStations={myScope.pressStations} now={now} call={call} onOpen={setOpenId} />
             </ErrorBoundary>
           ) : (<>
           <Card className="grid gap-2 p-3 sm:p-4">

@@ -185,6 +185,17 @@ describe('การ์ดคิวสถานี', () => {
   const render = (station: Job['station'], jobs: Job[], role: 'production' | 'admin' = 'production') =>
     renderToStaticMarkup(createElement(StationQueue, { station: station!, jobs, role, now, call: async () => ({ ok: true as const }), onOpen: () => {} }))
 
+  it('คิวเย็บ: คิวแรกต้องไปเลือกจักรก่อนเริ่ม ไม่ให้ระบบเลือกจักรเอง · ไม่มีสิทธิ์เย็บไม่เห็นปุ่มเริ่ม', () => {
+    const sew = [job('s1', { station: 'sew', queue: 1 })]
+    const withPicker = renderToStaticMarkup(createElement(StationQueue, {
+      station: 'sew', jobs: sew, role: 'production', now, call: async () => ({ ok: true as const }), onOpen: () => {}, onSewStart: () => {},
+    }))
+    expect(withPicker).toContain('เลือกจักรแล้วเริ่มเย็บ')
+    expect(withPicker).not.toContain('เริ่มเย็บงาน<')
+    expect(render('sew', sew)).not.toContain('เลือกจักรแล้วเริ่มเย็บ')
+    expect(render('sew', sew)).not.toContain('เริ่มเย็บงาน<')
+  })
+
   it('งานกำลังทำมีปุ่ม เสร็จ และ พักงาน บนการ์ด', () => {
     const html = render('cut', [job('d', { status: 'doing', queue: 1 })])
     expect(html).toContain('ตัดงานเสร็จ')

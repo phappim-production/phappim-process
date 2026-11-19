@@ -11,8 +11,8 @@ import { TONE } from '../components/tone'
 export type QueueCall = (name: string, args: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; reason: string }>
 
 // เริ่มคิวหลังได้แต่ต้องใส่เหตุผล · start_in_queue ตรวจคิว + บันทึกเหตุผล + เริ่ม ในธุรกรรมเดียว
-export function StationQueue({ station, jobs, role, myStations = [], machines, now, call, onOpen }: {
-  station: StationCode; jobs: Job[]; role: EmployeeRole; myStations?: StationCode[]; machines?: { used: Job[]; total: number; full: boolean } | null; now: Date; call: QueueCall; onOpen: (id: string) => void
+export function StationQueue({ station, jobs, role, myStations = [], machines, onSewStart, now, call, onOpen }: {
+  station: StationCode; jobs: Job[]; role: EmployeeRole; myStations?: StationCode[]; onSewStart?: (jobId: string, noted?: boolean) => void; machines?: { used: Job[]; total: number; full: boolean } | null; now: Date; call: QueueCall; onOpen: (id: string) => void
 }) {
   const floor = role === 'production' || role === 'supervisor' || role === 'owner'
   const canPress = floor || (role === 'qc' && station === 'qc_pack') || (role === 'staff' && myStations.includes(station))
@@ -79,6 +79,7 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, n
             <QueueCard key={j.id} job={j} now={now} onOpen={() => onOpen(j.id)} first={i === 0}
               badge={<span className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${i === 0 ? 'bg-brand text-white' : 'bg-paper text-ink'}`}>คิว {i + 1}</span>}>
               <WaitingActions job={j} first={queue[0]} station={station} canPress={canPress}
+              onSewStart={onSewStart}
               full={machines?.full ? `เครื่องเต็ม ${machines.used.length}/${machines.total} (${machines.used.map(u => u.no).join(', ')}) · รอให้งานเสร็จ หรือพักงานที่ติดปัญหาก่อน` : undefined} canInsert={canInsert && i > 0}
                 busy={busy === j.id} run={run} />
             </QueueCard>
@@ -203,8 +204,9 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
   )
 }
 
-function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run, full }: {
+function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run, full, onSewStart }: {
   job: Job; first: Job; station: StationCode; canPress: boolean; canInsert: boolean; busy: boolean; run: Run; full?: string
+  onSewStart?: (jobId: string, noted?: boolean) => void
 }) {
   const [mode, setMode] = useState<'skip' | 'insert' | null>(null)
   const [reason, setReason] = useState('')
@@ -212,6 +214,8 @@ function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run
   const name = spaced(STATION_NAME[station]).trimEnd()
   const noFilm = station === 'dtf_press' && !j.film?.received
   const startLabel = j.phase === 'sample' ? `เริ่ม${name} (ตัวอย่าง)` : `เริ่ม${name}`
+  const sew = station === 'sew'
+  const canStart = canPress && (!sew || !!onSewStart)
 
   if (mode) {
     const skip = mode === 'skip'
@@ -226,12 +230,14 @@ function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run
         <div className="grid grid-cols-2 gap-2">
           <button type="button" disabled={busy || !reason.trim()} className={skip ? dangerBtn : primaryBtn}
             onClick={async () => {
-              const ok = skip
+              const ok = skip && sew
+                ? await run(j, [['note_queue_skip', { p_reason: reason.trim() }]], `บันทึกเหตุผลเริ่ม ${j.no} ก่อนคิวแล้ว · เลือกจักรต่อ`)
+                : skip
                 ? await run(j, [['start_in_queue', { p_reason: reason.trim() }]], `เริ่ม ${j.no} ก่อนคิวแล้ว · บันทึกเหตุผลในประวัติงาน`)
                 : await run(j, [['move_job_ahead', { p_before: first.id, p_reason: reason.trim() }]], `แทรก ${j.no} เป็นคิวแรกแล้ว`)
-              if (ok) { setMode(null); setReason('') }
+              if (ok) { setMode(null); setReason(''); if (skip && sew) onSewStart?.(j.id, true) }
             }}>
-            {!reason.trim() ? 'ใส่เหตุผลก่อน' : skip ? 'บันทึกและเริ่ม' : 'แทรกเป็นคิวแรก'}
+            {!reason.trim() ? 'ใส่เหตุผลก่อน' : skip ? (sew ? 'บันทึกแล้วเลือกจักร' : 'บันทึกและเริ่ม') : 'แทรกเป็นคิวแรก'}
           </button>
           <button type="button" disabled={busy} className={secondaryBtn} onClick={() => { setMode(null); setReason('') }}>ยกเลิก</button>
         </div>
@@ -241,12 +247,14 @@ function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run
 
   return (
     <div className="grid gap-2 sm:grid-cols-2">
-      {canPress && (full
+      {canStart && (full
         ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2">เริ่มไม่ได้ · {full}</p>
         : noFilm
         ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2">เริ่มไม่ได้ · ยังไม่ได้รับ{filmLabel(j.route)} (แอดมินบันทึกเมื่อได้รับ)</p>
         : isFirst
-          ? <button type="button" disabled={busy} className={`${primaryBtn} min-h-14 text-lg sm:col-span-2`}
+          ? sew
+            ? <button type="button" disabled={busy} className={`${primaryBtn} min-h-14 text-lg sm:col-span-2`} onClick={() => onSewStart?.(j.id)}>เลือกจักรแล้วเริ่มเย็บ</button>
+            : <button type="button" disabled={busy} className={`${primaryBtn} min-h-14 text-lg sm:col-span-2`}
               onClick={() => void run(j, [['start_in_queue', { p_reason: null }]], `เริ่ม ${j.no} แล้ว`)}>{busy ? 'กำลังเริ่ม…' : startLabel}</button>
           : <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('skip')}>เริ่มก่อนคิว</button>
       )}

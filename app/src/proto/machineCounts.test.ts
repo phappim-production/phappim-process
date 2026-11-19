@@ -86,6 +86,18 @@ describe('ปุ่มบนหน้าจอ', () => {
     jobs: [job('a', { status })], machines, now, onOpen: () => {}, actions: a,
   }))
 
+  it('เริ่มเย็บงานที่ไม่ใช่คิวแรกต้องใส่เหตุผลก่อน (เหมือนสถานีอื่น) · คิวแรกหรือบันทึกเหตุผลมาแล้วไม่ต้อง', () => {
+    const queue = [job('q1', { status: 'queued', queue: 1 }), job('q2', { status: 'queued', queue: 2 })]
+    const floor = (pick: string, noted = false) => renderToStaticMarkup(createElement(SewingFloor, {
+      jobs: queue, machines, needs: { tshirt: needs }, shared, now, onOpen: () => {},
+      onStart: async () => ({ ok: true as const, picked: [] }), initialPick: pick, initialPickNoted: noted,
+    }))
+    expect(floor('q2')).toContain('ยังไม่ถึงคิว (คิวแรกคือ TEST-M-q1)')
+    expect(floor('q2')).toContain('ใส่เหตุผลที่เริ่มก่อนคิว')
+    expect(floor('q1')).not.toContain('ยังไม่ถึงคิว')
+    expect(floor('q2', true)).not.toContain('ยังไม่ถึงคิว')
+  })
+
   it('เย็บเกินเวลามาตรฐานยังไม่รายงาน: ปุ่มเย็บเสร็จเปลี่ยนเป็นส่งรายงานปัญหา', () => {
     const html = renderToStaticMarkup(createElement(SewingNow, {
       jobs: [job('a', { status: 'doing', sla: 'report' })], machines, now, onOpen: () => {}, actions,
