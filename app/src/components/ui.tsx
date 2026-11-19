@@ -132,3 +132,4 @@ export function MockupThumb({ job, size = 'sm' }: { job: Pick<Job, 'no' | 'mocku
   }
   return <img src={job.mockupUrl} alt={`รูปม็อคอัพงาน ${job.no}`} loading="lazy" decoding="async" className={`${box} object-contain`} />
 }
+

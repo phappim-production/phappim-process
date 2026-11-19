@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
   COLUMNS, DEPT_NAME, ROUTES, SLA_LABEL, byQueue, isOutLate, STATION_NAME, STATUS_NAME,
-  columnOf, filmLabel, groupColumns, savedStation, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
+  columnOf, filmLabel, savedStation, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
   type ColumnKey, type Job, type RouteCode, type StationCode,
 } from '../proto/model'
 import { lateDays, sewFloorOf, simulate, workdayToDate } from '../proto/capacity'
@@ -18,6 +18,7 @@ import { SewingFloor, TodoPanel } from './WorkPanels'
 import { MACHINE_TYPE_NAME, pausesJob, type MachineStatus, type MachineType } from '../proto/sewing'
 import { BookingPanel } from './BookingPanel'
 import { ErrorBoundary } from '../components/ErrorBoundary'
+import { StationHeader, StationRail } from '../components/StationNav'
 import { SewingNow, type SewActions } from './SewingNow'
 import { JobActions } from './JobActions'
 import { StationQueue } from './StationQueue'
@@ -176,7 +177,6 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
     try { localStorage.setItem(STATION_KEY, key) } catch { /* โหมดส่วนตัว / ปิดการเก็บข้อมูล: ไม่จำก็ใช้ได้ */ }
   }
   const focusStation = activeTab === 'board' && station !== 'all' && station in STATION_NAME ? station as StationCode : null
-  const [pickStation, setPickStation] = useState(false)
   const [route, setRoute] = useState<RouteCode | 'all'>('all')
   const [query, setQuery] = useState('')
   const [lookup, setLookup] = useState<{ id: string; job: Job | null; error?: string } | null>(null)
@@ -189,7 +189,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
     const on = () => {
       const st = stationFromHash()
       if (st) {
-        clearStationLink(); setStation(savedStation(st, COLUMNS)); setTab('board'); setPickStation(false)
+        clearStationLink(); setStation(savedStation(st, COLUMNS)); setTab('board')
         // กล่องเลื่อนเดียวกับหน้าภาพรวม → กลับไปบนสุด ไม่ค้างตำแหน่งเดิม
         requestAnimationFrame(() => document.querySelector('[data-scroll="dashboard"]')?.scrollTo(0, 0))
       }
@@ -370,18 +370,16 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
         </div>
       ) : (
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-4">
-          {focusStation && !pickStation ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-card px-4 py-3 shadow-card">
-              <span className="text-muted">สถานี</span>
-              <b className="text-xl">{STATION_NAME[focusStation]}</b>
-              <button type="button" onClick={() => setPickStation(true)} className="ml-auto min-h-12 rounded-xl border border-line px-4 font-semibold text-brand hover:border-brand/50">เปลี่ยนสถานี</button>
-            </div>
-          ) : (
-            <StationStrip columns={columns} byColumn={byColumn} now={now} station={station} onPick={key => {
-              setStation(key); setPickStation(false)
-              // ปุ่มสถานีอยู่ล่างจอ → กลับบนสุดให้เห็นแถบสถานีและคิวแรก
+          <StationRail columns={columns} station={station}
+            counts={key => key === 'all' ? columns.reduce((n, c) => n + (byColumn.get(c.key)?.length ?? 0), 0) : (byColumn.get(key)?.length ?? 0)}
+            urgent={key => (byColumn.get(key) ?? []).filter(j => stripe(j, now) === 'danger').length}
+            onPick={key => {
+              setStation(key)
               requestAnimationFrame(() => document.querySelector('[data-scroll="dashboard"]')?.scrollTo(0, 0))
             }} />
+          {focusStation && (
+            <StationHeader station={focusStation} jobs={allJobs} stations={columns.map(c => c.key).filter(isStationCode)}
+              onPick={key => setStation(key)} />
           )}
           {focusStation ? (
             <ErrorBoundary key={`q-${focusStation}`}>
@@ -546,48 +544,6 @@ const STRIPE: Record<Tone, string> = {
 }
 
 const STATION_KEY = 'pp142.station'
-
-function StationStrip({ columns, byColumn, now, station, onPick }: {
-  columns: { key: ColumnKey; name: string }[]; byColumn: Map<ColumnKey, Job[]>; now: Date
-  station: ColumnKey | 'all'; onPick: (key: ColumnKey | 'all') => void
-}) {
-  const total = columns.reduce((n, c) => n + (byColumn.get(c.key)?.length ?? 0), 0)
-  // งานตัวอย่างรออยู่ที่สถานีจริงด้วย → นับบนปุ่มสถานีให้ตรงกับหน้าคิวและหน้าภาพรวม
-  const samplesAt = (key: ColumnKey) => (byColumn.get('sample') ?? []).filter(j => j.station === key).length
-  const item = (key: ColumnKey | 'all', name: string, count: number, urgent: number, sample = 0) => {
-    const on = station === key
-    return (
-      <li key={key} className="min-w-0">
-        <button type="button" onClick={() => onPick(on && key !== 'all' ? 'all' : key)} aria-pressed={on}
-          className={`flex h-full min-h-16 w-full flex-col items-start justify-between gap-1 rounded-xl border-2 px-3 py-2 text-left ${on ? 'border-brand bg-brand text-white' : count ? 'border-line bg-card hover:border-brand' : 'border-line bg-card/60 text-muted'}`}>
-          <span className="text-base font-semibold">{name}</span>
-          <span className="flex flex-wrap items-baseline gap-x-1.5">
-            <span className="text-2xl font-bold tabular-nums">{count}</span>
-            <span className={`text-sm ${on ? 'text-white' : 'text-muted'}`}>งาน</span>
-            {urgent > 0 && <span className={`text-sm font-bold whitespace-nowrap ${on ? 'text-white' : 'text-danger'}`}>ด่วน {urgent}</span>}
-            {sample > 0 && <span className={`text-sm whitespace-nowrap ${on ? 'text-white' : 'text-info'}`}>+ ตัวอย่าง {sample}</span>}
-          </span>
-        </button>
-      </li>
-    )
-  }
-  return (
-    <nav aria-label="เลือกสถานี" className="grid gap-3">
-      <ol className="grid grid-cols-3 gap-2 md:grid-cols-5">{item('all', 'ทุกสถานี', total, 0)}</ol>
-      {groupColumns(columns).map(g => (
-        <section key={g.name} aria-label={g.name} className="grid gap-1.5">
-          <h3 className="text-sm font-semibold text-muted">{g.name}</h3>
-          <ol className="grid grid-cols-3 gap-2 md:grid-cols-5">
-            {g.columns.map(c => {
-              const list = byColumn.get(c.key) ?? []
-              return item(c.key, c.name, list.length, list.filter(j => stripe(j, now) === 'danger').length, samplesAt(c.key))
-            })}
-          </ol>
-        </section>
-      ))}
-    </nav>
-  )
-}
 
 function CardStatus({ job: j, now }: { job: Job; now: Date }) {
   const rows: ReactNode[] = []
