@@ -1,6 +1,7 @@
 export const UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000
 export const AUTO_UPDATE_DELAY_MS = 2 * 60 * 1000
 export const AUTO_UPDATE_POLL_MS = 15 * 1000
+export const UPDATE_STALL_MS = 8 * 1000
 
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT'])
 

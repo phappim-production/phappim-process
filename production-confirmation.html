@@ -941,8 +941,9 @@ function compress(file){ return new Promise(res=>{ const fr=new FileReader();
       c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); const g=c.getContext('2d');
       g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0,c.width,c.height);
       res({ name:file.name, src:c.toDataURL('image/jpeg',0.85) }); };
-    img.onerror=()=>res({ name:file.name, src:fr.result }); img.src=fr.result; };
-  fr.readAsDataURL(file); }); }
+    img.onerror=()=>res(null); img.src=fr.result; };
+  fr.onerror=()=>res(null); fr.readAsDataURL(file); }); }
+let readingImgs=0;
 function rerender(){ const y=scrollY; renderForm(); scrollTo(0,y); save(); refreshThumb(); }
 // ภาพแรก = รูปม็อคอัพบนการ์ดงานในระบบ · ย่อด้านยาว 800px (~100 KB) เพราะส่งผ่าน localStorage ที่พื้นที่น้อย
 let thumb=null;
@@ -955,6 +956,7 @@ function refreshThumb(){
     c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); const g=c.getContext('2d');
     g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0,c.width,c.height);
     if(state.imgs[0]&&state.imgs[0].src===src) thumb={ src, data:c.toDataURL('image/jpeg',0.8) }; };
+  img.onerror=()=>{ if(state.imgs[0]&&state.imgs[0].src===src) thumb={ src, data:null }; };
   img.src=src;
 }
 
@@ -978,7 +980,12 @@ form.addEventListener('change',e=>{
   if(t.type==='checkbox'&&d.k){ const v=scope(d.s); const arr=new Set(v[d.k]||[]); t.checked?arr.add(t.value):arr.delete(t.value); v[d.k]=[...arr]; return rerender(); }
   if(t.type==='checkbox'&&d.pl){ const v=scope('p'); v[d.pl]=v[d.pl]||{}; (v[d.pl][d.pos]=v[d.pl][d.pos]||{}).on=t.checked; return rerender(); }
   if(t.type==='file'&&d.img!==undefined){
-    Promise.all([...t.files].map(compress)).then(a=>{ state.imgs.push(...a); t.value=''; rerender(); });
+    const files=[...t.files]; readingImgs++;
+    Promise.all(files.map(compress)).then(a=>{
+      const bad=files.filter((f,i)=>!a[i]).map(f=>f.name);
+      state.imgs.push(...a.filter(Boolean)); t.value=''; readingImgs--; rerender();
+      if(bad.length) alert(`เปิดเป็นรูปไม่ได้: ${bad.join(', ')}\nเลือกไฟล์รูป JPG / PNG / WEBP ใหม่อีกครั้ง`);
+    });
   }
 });
 document.addEventListener('click',e=>{
@@ -1015,11 +1022,11 @@ const OUTBOX='pp142.confirmation.outbox', INBOX='pp142.confirmation.inbox';
 function saveToSystem(){
   if(location.protocol==='file:'){ alert('บันทึกเข้าระบบได้เมื่อเปิดฟอร์มจากเว็บระบบ (pp142.pages.dev/confirmation)\nตอนนี้เปิดจากไฟล์ในเครื่อง ให้ใช้ "บันทึกไฟล์" แทน'); return; }
   if(!String(state.h.doc_no||'').trim()){ alert('ใส่เลขที่ใบยืนยันก่อนบันทึกเข้าระบบ'); $('[data-k="doc_no"]')?.focus(); return; }
-  // รูปย่อยังไม่เสร็จ (เพิ่งใส่รูป) = ไม่ส่งไปทั้งที่ไม่มีรูป · ให้กดใหม่อีกครั้งใน 1–2 วินาที
+  // รูปที่เพิ่งเลือกยังอ่าน/ย่อไม่เสร็จ = ไม่ส่ง ไม่อย่างนั้นใบไปถึงระบบโดยไม่มีรูป
   const first=state.imgs[0]&&state.imgs[0].src;
-  if(first&&!(thumb&&thumb.src===first)){ refreshThumb(); alert('กำลังเตรียมรูปม็อคอัพ รอ 1–2 วินาที แล้วกด "บันทึกเข้าระบบ" อีกครั้ง'); return; }
+  if(readingImgs||(first&&!(thumb&&thumb.src===first))){ refreshThumb(); alert('กำลังเตรียมรูปม็อคอัพ รอ 1–2 วินาที แล้วกด "บันทึกเข้าระบบ" อีกครั้ง'); return; }
   const payload={ app:'phappim-confirm', v:1, ...state, imgs:[], summary:{ qty:totalQty() } };
-  if(first) payload.mockup=thumb.data;
+  if(first&&thumb.data) payload.mockup=thumb.data;
   // รูปเดิมจากระบบใช้ได้เฉพาะใบเลขเดิม (เปลี่ยนเลขใบเพื่อทำใบใหม่ = ไม่เอารูปใบเดิมไป)
   if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()) delete payload.mockup_path;
   delete payload.mockup_no;

@@ -13,8 +13,8 @@ const row: JobRow = {
 describe('รูปม็อคอัพ: ชื่อไฟล์และชนิดไฟล์', () => {
   it('ชื่อไฟล์ใช้อังกฤษ/ตัวเลข (ชื่อไทยอัปโหลดไม่ผ่าน) และมีเวลากันซ้ำ', () => {
     const at = new Date('2026-11-19T03:00:00Z')
-    expect(mockupPath('SC-6911/001', at)).toBe(`SC-6911_001/${at.getTime()}.jpg`)
-    expect(mockupPath('ใบไทย', at, 'png')).toMatch(/^_+\/\d+\.png$/)
+    expect(mockupPath('SC-6911/001', at)).toBe(`SC-6911_00002f001/${at.getTime()}.jpg`)
+    expect(mockupPath('ใบไทย', at, 'png')).toMatch(/^(_[0-9a-f]{6})+\/\d+\.png$/)
     expect(mockupPath('  ', at)).toBe(`job/${at.getTime()}.jpg`)
   })
   it('ชื่อไฟล์จากเนื้อรูป: รูปเดิมได้ชื่อเดิม (บันทึกซ้ำไม่สะสมไฟล์) · รูปต่างได้ชื่อต่าง', async () => {
@@ -23,7 +23,9 @@ describe('รูปม็อคอัพ: ชื่อไฟล์และช�
     expect(await contentKey(new Blob(['AAA'], { type: 'image/jpeg' }))).toBe(a)
     expect(await contentKey(new Blob(['AAB'], { type: 'image/jpeg' }))).not.toBe(a)
     expect(mockupPath('SC-1', a)).toBe(`SC-1/${a}.jpg`)
-    expect(mockupFolder(' ใบ 1 ')).toMatch(/^_+1$/)
+    expect(mockupFolder(' ใบ 1 ')).toBe('_000e43_000e1a_0000201')
+    expect(mockupFolder('SC/ก')).not.toBe(mockupFolder('SC/ข'))
+    expect(mockupFolder('   ')).toBe('job')
   })
   it('รับเฉพาะ JPG / PNG / WEBP', () => {
     expect(mockupExt('image/jpeg')).toBe('jpg')

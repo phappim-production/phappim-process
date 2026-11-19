@@ -286,7 +286,7 @@ export async function flowR8Tests({ db, ok }) {
       }
     }
 
-    await check('BUG: R8 ป้ายงานแก้ยังแสดงจำนวนเดิมหลัง QC ผ่านครบ', async () => {
+    await check('R8 QC ผ่านครบหลังงานแก้ · ป้ายยอดส่งแก้หายทันที', async () => {
       const id = await receive('TEST-R8-REWORK-LABEL')
       await walk(id, ['cut'], 'production')
       await jobCall(id, 'qc', 'start_in_queue', [null], ['station_start'])

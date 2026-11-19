@@ -10,9 +10,9 @@ const RENEW_BEFORE_MS = 60 * 60 * 1000
 // ขอลิงก์รูปช้า ต้องไม่ทำให้ข้อมูลงานทั้งหน้าโหลดไม่ขึ้น (หน้าโหลดตัดที่ 30 วิ) → ตัดที่ 8 วิ แสดงกรอบว่างไปก่อน
 const SIGN_TIMEOUT_MS = 8_000
 
-// ชื่อไฟล์ใน Storage ใช้อังกฤษ/ตัวเลขเท่านั้น (ชื่อไทยอัปโหลดไม่ผ่าน) · ชื่อ = ลายนิ้วมือเนื้อรูป บันทึกซ้ำจึงไม่สะสมไฟล์
+// Storage รับแค่อังกฤษ/ตัวเลข · ตัวอื่นเป็นรหัสอักษร 6 หลักให้เลขที่ใบไม่ชนโฟลเดอร์ (ตรงกับ private.mockup_folder) · ชื่อไฟล์ = ลายนิ้วมือเนื้อรูป
 export function mockupFolder(no: string): string {
-  return no.trim().replace(/[^A-Za-z0-9-]/g, '_') || 'job'
+  return no.trim().replace(/[^A-Za-z0-9-]/gu, c => `_${(c.codePointAt(0) ?? 0).toString(16).padStart(6, '0')}`) || 'job'
 }
 export function mockupPath(no: string, key: string | Date, ext: 'jpg' | 'png' | 'webp' = 'jpg'): string {
   return `${mockupFolder(no)}/${typeof key === 'string' ? key : key.getTime()}.${ext}`
