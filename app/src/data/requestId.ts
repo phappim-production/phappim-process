@@ -1,5 +1,4 @@
-// รหัสคำขอ 1 รหัสต่อการกรอก 1 ครั้ง (QA รอบ 6 · migration 20261120070000)
-// กดซ้ำ / เน็ตช้าแล้วกดใหม่ ส่งรหัสเดิม → ฐานข้อมูลไม่บันทึกซ้ำ · บันทึกสำเร็จแล้วค่อยขอรหัสใหม่
+// กดซ้ำ / เน็ตช้าแล้วกดใหม่ส่งรหัสเดิม → ฐานข้อมูลไม่บันทึกซ้ำ · บันทึกสำเร็จแล้วค่อยขอรหัสใหม่
 export function newRequestId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
   const b = crypto.getRandomValues(new Uint8Array(16))

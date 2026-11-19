@@ -1,5 +1,4 @@
-// ทดสอบสคริปต์ล้างข้อมูลก่อนเปิดใช้ (supabase/scripts/golive-cleanup.sql)
-// รันท้ายสุดของ run.mjs เพราะสคริปต์ commit จริงและลบงาน TEST- ทุกงานในฐานทดสอบ
+// รันท้ายสุดของ run.mjs เพราะสคริปต์ commit จริงและลบงาน TEST- ทุกงาน
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,7 +13,6 @@ export async function goliveCleanupTests({ db, ok }) {
     insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, confirmation_pdf_path)
     values ($1, 'ลูกค้า', 'งาน', 'tshirt', 10, 'ตัว', '2026-12-31', 'normal', $2) returning id`, [no, no + '.pdf'])
 
-  // ---- ข้อมูลจำลอง: งานทดสอบ (มีประวัติครบทุกแบบ) + งานจริงวันทดลอง (เลขใบจริง) ----
   await db.exec(`
     insert into auth.users values ('${TESTER}', 'qc@pp142.test');
     insert into public.profiles (user_id, name, role, active) values ('${TESTER}', 'QC ทดสอบ', 'qc', true);
@@ -45,7 +43,6 @@ export async function goliveCleanupTests({ db, ok }) {
   const realQueueOrder = (await db.query(`select id from public.jobs where confirmation_no not like 'TEST-%' order by queue_seq`)).rows.map(r => r.id)
   const vendorsBefore = await val(`select count(*)::int from public.vendors`)
 
-  // ---- รันสคริปต์ทั้งไฟล์แบบที่เจ้าของรันใน SQL Editor ----
   let results
   try { results = await db.exec(script); ok('สคริปต์ล้างข้อมูลรันจนจบ', true) }
   catch (e) { ok('สคริปต์ล้างข้อมูลรันจนจบ', false, e.message.split('\n')[0]); return }

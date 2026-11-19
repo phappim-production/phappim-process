@@ -50,15 +50,13 @@ async function loadDetail(job: Job): Promise<Detail> {
   }
 }
 
-/** ปุ่มทำงานของงานนี้ตามขั้นปัจจุบันและบทบาท · กฎทุกข้อตรวจซ้ำที่ฐานข้อมูล ปุ่มที่กดไม่ได้บอกเหตุผล */
 export function JobActions({ job: j, role, version, now, refresh, vendors = [] }: {
   job: Job; role: EmployeeRole; version: number; now: Date; refresh: () => Promise<void>; vendors?: Vendor[]
 }) {
   const [detail, setDetail] = useState<{ shape: string; data?: Detail; error?: string } | null>(null)
   const [notice, setNotice] = useState<Notice>(null)
   const [busy, setBusy] = useState(false)
-  // งานย้ายขั้น/สถานี/สถานะ = รายการขั้นย่อยเดิมใช้ไม่ได้แล้ว ต้องรอโหลดใหม่ (กดขั้นของสถานีเก่าจะส่งคีย์ผิด)
-  // แค่ข้อมูลอัปเดต (version) = แสดงของเดิมไปก่อนระหว่างโหลด ไม่กระพริบ
+  // ย้ายขั้น/สถานี/สถานะ = ขั้นย่อยเดิมใช้ไม่ได้ ต้องรอโหลดใหม่ · แค่ version เปลี่ยน = แสดงของเดิมไปก่อน ไม่กระพริบ
   const shape = `${j.id}/${j.phase}/${j.station ?? ''}/${j.status ?? ''}/${j.rework ? 'r' : ''}/${j.sampleRound}`
 
   useEffect(() => {
@@ -70,7 +68,6 @@ export function JobActions({ job: j, role, version, now, refresh, vendors = [] }
     return () => { alive = false }
   }, [shape, version, j])
 
-  // ทุกปุ่มเรียกฟังก์ชันในฐานข้อมูล · สำเร็จแล้วโหลดใหม่ทั้งหน้า (อีกเครื่องเห็นผ่าน Realtime)
   // ฟังก์ชันส่วนใหญ่รับ p_job · check_material รับ id ของรายการวัตถุดิบแทน
   async function act(name: string, args: Record<string, unknown>, ok: string, withJob = true) {
     setBusy(true)
@@ -92,11 +89,10 @@ export function JobActions({ job: j, role, version, now, refresh, vendors = [] }
   const admin = role === 'admin' || owner
   const st = j.station
   const canStation = !!st && (floor || (role === 'qc' && st === 'qc_pack'))
-  // อยู่ที่บริษัทภายนอก = ไม่มีปุ่มของสถานี (ดูแผงส่งออกแทน)
   const inStation = (j.phase === 'sample' || j.phase === 'production') && !!st && j.status !== 'out'
 
   return (
-    // ข้อความหลักบนแท็บเล็ตต้อง ≥ 16 px (แผงนี้อยู่ในรายละเอียดงานที่ตั้งตัวอักษรเล็กไว้)
+    // แผงนี้อยู่ในรายละเอียดงานที่ตั้งตัวอักษรเล็ก แต่ข้อความหลักต้อง ≥ 16 px
     <div className="grid gap-4 text-base">
       {d.pdfPath ? <OpenPdf path={d.pdfPath} />
         : admin ? <AttachPdf job={j} refresh={refresh} />
@@ -128,7 +124,7 @@ export function JobActions({ job: j, role, version, now, refresh, vendors = [] }
   )
 }
 
-/** แนบ PDF ใบยืนยันที่ลูกค้าเซ็นทีหลัง (ส่งงานเข้าได้ก่อนลูกค้าเซ็น · 20261119230000) · แอดมิน / เจ้าของระบบ */
+// ส่งงานเข้าได้ก่อนลูกค้าเซ็น แล้วแนบ PDF ทีหลัง
 function AttachPdf({ job, refresh }: { job: Job; refresh: () => Promise<void> }) {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
@@ -161,7 +157,6 @@ function AttachPdf({ job, refresh }: { job: Job; refresh: () => Promise<void> })
   )
 }
 
-/** เพิ่ม / เปลี่ยนรูปม็อคอัพของงาน (20261120110000) · แอดมิน / เจ้าของระบบ · ฐานข้อมูลตรวจสิทธิ์ซ้ำ */
 function SetMockup({ job, refresh }: { job: Job; refresh: () => Promise<void> }) {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
@@ -197,7 +192,7 @@ function SetMockup({ job, refresh }: { job: Job; refresh: () => Promise<void> })
   )
 }
 
-/** เปิด PDF ใบยืนยันที่เซ็นครบ (S8) · ลิงก์มีอายุ 5 นาที เพราะไฟล์ไม่เปิดสาธารณะ */
+// ลิงก์มีอายุ 5 นาที เพราะไฟล์ไม่เปิดสาธารณะ
 function OpenPdf({ path }: { path: string }) {
   const [error, setError] = useState('')
   const [link, setLink] = useState('')
@@ -213,8 +208,7 @@ function OpenPdf({ path }: { path: string }) {
       return
     }
     if (win) win.location.href = r.data.signedUrl
-    // บางเครื่อง (แอปที่ติดตั้งบนหน้าจอ / เบราว์เซอร์ในแอปอื่น) เปิดแท็บใหม่ไม่ขึ้นและไม่แจ้งอะไร
-    // จึงแสดงลิงก์ให้กดเองเสมอ การกดลิงก์ตรงไม่โดนบล็อก
+    // บางเครื่อง (แอปที่ติดตั้ง / เบราว์เซอร์ในแอปอื่น) เปิดแท็บใหม่ไม่ขึ้นเงียบๆ จึงแสดงลิงก์ให้กดเองเสมอ
     setLink(r.data.signedUrl)
   }
   return (
@@ -398,7 +392,7 @@ function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act 
 
         {j.status === 'doing' && (
           <div className="grid gap-3">
-            {/* ไม่มีเช็คลิสต์ขั้นย่อย: คนหน้างานรู้ขั้นตอนเอง · ทำเสร็จกดเสร็จ · มีปัญหากดรายงาน (เจ้าของโปรเจกต์ 17 พ.ย.) */}
+            {/* ไม่มีเช็คลิสต์ขั้นย่อย: คนหน้างานรู้ขั้นตอนเอง */}
             {j.rework && st !== 'qc_pack' && <p className="text-muted">งานแก้ · แก้เสร็จกดเสร็จ งานกลับไป QC</p>}
             {st === 'qc_pack' && !sample && canPress && <QcPanel job={j} passed={d.qcPassed} busy={busy} act={act} />}
             {canPress && (confirmFinish

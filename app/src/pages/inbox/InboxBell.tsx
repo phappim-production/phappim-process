@@ -1,7 +1,6 @@
 import { unreadBadge } from './format'
 import { useInbox } from './useInbox'
 
-/** ปุ่มกระดิ่งแจ้งเตือนพร้อมตัวเลขยังไม่อ่าน (ซ่อนเมื่อ 0 · เกิน 99 แสดง 99+) */
 export function InboxBell() {
   const { unreadCount } = useInbox()
   const badge = unreadBadge(unreadCount)

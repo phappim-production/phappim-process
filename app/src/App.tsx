@@ -101,7 +101,6 @@ function Workspace({ page: requested, labelId, profile, email }: {
 
   return (
     <div className="flex h-full">
-      {/* จอใหญ่: เมนูด้านซ้ายมีชื่อเต็ม · จอเล็ก/แท็บเล็ตใช้แถบล่าง */}
       <aside className="hidden w-64 shrink-0 flex-col bg-brand text-white lg:flex">
         <div className="flex items-center gap-3 px-5 pt-5 pb-6">
           <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-10 rounded-lg ring-1 ring-white/20" />

@@ -1,4 +1,3 @@
-// แปลง error ของ Supabase Auth เป็นข้อความภาษาไทยที่บอกว่าต้องทำอะไรต่อ
 // แยกเป็น pure function เพื่อทดสอบได้โดยไม่ต้องต่อ Supabase
 
 export type AuthFailure = { code?: string; status?: number; name?: string } | null | undefined
@@ -28,7 +27,6 @@ export function signInErrorMessage(error: AuthFailure): string | null {
   }
 }
 
-// ตรวจก่อนส่ง เพื่อบอกผู้ใช้ทันทีโดยไม่ต้องรอเซิร์ฟเวอร์
 export function newPasswordProblem(password: string, confirm: string): string | null {
   if (password.length < MIN_PASSWORD_LENGTH) return `รหัสผ่านใหม่ต้องยาวอย่างน้อย ${MIN_PASSWORD_LENGTH} ตัวอักษร`
   if (password.trim() !== password) return 'รหัสผ่านใหม่ต้องไม่ขึ้นต้นหรือลงท้ายด้วยช่องว่าง'

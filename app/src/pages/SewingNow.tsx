@@ -139,7 +139,7 @@ export function SewingNow({ jobs, machines, now, onOpen, actions, needs = {}, sh
   )
 }
 
-// จัดจักรแบบตั้งจำนวน: หน้างานคิดเป็น "งานนี้ใช้ 4 ตัว" ไม่เลือกรหัส · กด − / + บันทึกทันที ระบบหยิบ/คืนจักรให้เอง
+// หน้างานคิดเป็นจำนวนตัว ไม่เลือกรหัส · กด − / + บันทึกทันที ระบบหยิบ/คืนจักรให้เอง
 function MachinePanel({ job, machines, needs, shared, bookings, now, actions, onClose }: {
   job?: Job; machines: Machine[]; needs: Need[]; shared: readonly MachineType[]; bookings: Booking[]; now: Date
   actions: SewActions; onClose: () => void
@@ -197,7 +197,6 @@ function MachinePanel({ job, machines, needs, shared, bookings, now, actions, on
 
 const stepButton = 'grid size-12 shrink-0 place-items-center rounded-xl border border-line text-2xl font-bold text-brand hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-40'
 
-// 1 แถว = 1 ชนิดจักร · ตัวเลขใหญ่ตรงกลาง · ปุ่มที่กดไม่ได้บอกเหตุผลใต้แถว
 function CountRow({ row, busy, onChange }: { row: MachineCountRow; busy: boolean; onChange: (qty: number) => void }) {
   const name = MACHINE_TYPE_NAME[row.type]
   const hint = row.minusBlocked && row.have > 0 ? row.minusBlocked : row.plusBlocked

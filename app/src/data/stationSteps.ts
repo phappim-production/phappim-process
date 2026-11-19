@@ -1,5 +1,4 @@
-// สิ่งที่ยังขาดก่อนกดเสร็จ · กฎเดียวกับ private.missing_substeps ในฐานข้อมูล (20261119180000)
-// หน้าเว็บใช้บอกเหตุผลก่อนกด (ปุ่มที่กดไม่ได้ต้องบอกว่าทำไม) · ฐานข้อมูลตรวจซ้ำเสมอ
+// กฎเดียวกับ private.missing_substeps · หน้าเว็บใช้บอกเหตุผลก่อนกด ฐานข้อมูลตรวจซ้ำ
 import { thaiWorkEnd, type Phase, type StationCode } from '../proto/model.ts'
 
 export type SubstepKind = 'req' | 'num' | 'appr' | 'lock' | 'opt'
@@ -13,14 +12,13 @@ export type StepContext = {
   station: StationCode
   phase: Phase
   rework: boolean
-  done: Set<string>        // ขั้นที่ติ๊กแล้วในรอบนี้ (job_substeps ของ visit ปัจจุบัน)
+  done: Set<string>        // job_substeps ของ visit ปัจจุบัน
   filmReceived: boolean
   qcPassed: number
   qty: number
 }
 
-/** ขั้นนี้ต้องทำก่อนกดเสร็จไหม · ตั้งแต่ 17 พ.ย. สถานีเหลือ เริ่ม → เสร็จ (ไม่บังคับเช็คลิสต์)
- *  เหลือแค่ รอฟิล์ม (lock · แอดมินบันทึกรับ) และ QC ผลิตจริงต้องผ่านครบจำนวน (ส่วนไม่ผ่านส่งกลับแก้) */
+// สถานีไม่บังคับเช็คลิสต์แล้ว เหลือแค่รอฟิล์ม และ QC ผลิตจริงต้องผ่านครบจำนวน
 export function isRequired(s: Substep, c: Pick<StepContext, 'phase' | 'station'>): boolean {
   if (s.kind === 'lock') return true
   return c.station === 'qc_pack' && s.key === 'inspect' && c.phase === 'production'
@@ -38,8 +36,7 @@ export function missingSteps(steps: Substep[], c: StepContext): Substep[] {
   return steps.filter(s => isRequired(s, c) && !isStepDone(s, c))
 }
 
-// วันที่คาดว่าเสร็จใหม่: หน้างานลงแค่วันที่ (PP-SOP-01) → ใช้เวลาเลิกงาน (18:00) ของวันนั้น
-// ถ้าเป็นวันนี้และเลยเวลาเลิกงานแล้ว ใช้สิ้นวันแทน เพื่อให้ยังเป็นเวลาข้างหน้าตามที่ฐานข้อมูลบังคับ
+// หน้างานลงแค่วันที่ → ใช้เวลาเลิกงานของวันนั้น · วันนี้เลยเวลาเลิกงานแล้วใช้สิ้นวัน เพราะฐานข้อมูลบังคับเวลาข้างหน้า
 export function etaFromDay(day: string, now: Date): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null
   const eod = thaiWorkEnd(day)

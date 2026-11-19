@@ -1,4 +1,3 @@
-// ทดสอบกล่องจดหมายแจ้งเตือน (S10 · C3 · migration 20261118200000_inbox.sql)
 
 export async function inboxTests({ db, ok, as }) {
   const U = {
@@ -33,11 +32,9 @@ export async function inboxTests({ db, ok, as }) {
     catch (e) { ok(name, re ? re.test(e.message) : true, e.message.split('\n')[0]) }
   }
 
-  // ---- 1. พักงาน 1 ครั้ง -> 1 ข้อความ hold + กันซ้ำด้วย issue_id เดิม ----
   const jHold = (await as(U.admin, () => db.query(`
     select public.receive_job('SC-INB-HOLD', 'ลูกค้ากล่อง', 'งานพัก', 'tshirt', 100, 'ตัว', '2026-12-31', 'plain', 'inb-hold.pdf') as id
   `))).rows[0].id
-  // ปล่อยจาก materials -> sample -> start_station แล้วพักงาน
   await db.exec(`update public.job_materials set checked_at = now() where job_id = '${jHold}'`)
   await db.exec(`update public.jobs set phase = 'production', station_seq = 1, station_status = 'queued' where id = '${jHold}'`)
   const issueId = (await as(U.prod, () => db.query(`select public.open_issue('${jHold}', 'ด้ายหมด') as id`))).rows[0].id
@@ -53,7 +50,6 @@ export async function inboxTests({ db, ok, as }) {
   const holdCount2 = (await db.query(`select count(*)::int n from public.inbox_messages where kind = 'hold' and job_id = '${jHold}'`)).rows[0].n
   ok('inbox: trigger ซ้ำด้วย issue เดิม -> ยัง 1 (ไม่ซ้ำ)', holdCount2 === 1)
 
-  // ---- 2. rework, sample_failed, sewing_issue, delay_report ----
   // sample_result pass=true ไม่สร้างข้อความ, pass=false สร้าง sample_failed
   await db.exec(`
     insert into public.events (job_id, type, phase, payload) values
@@ -69,7 +65,6 @@ export async function inboxTests({ db, ok, as }) {
   ok('inbox: sewing_issue สร้างข้อความ',
     (await db.query(`select count(*)::int n from public.inbox_messages where kind = 'sewing_issue' and job_id = '${jHold}'`)).rows[0].n === 1)
 
-  // ---- 3. machine_broken: แจ้งเสียสร้าง 1 ข้อความ · เลื่อนเวลาซ่อม (set_repair_eta) ไม่นับ ----
   await db.exec(`
     insert into public.sewing_machines (code, type_code, sort) values ('SN-099', 'single', 999)
     on conflict (code) do nothing
@@ -86,7 +81,6 @@ export async function inboxTests({ db, ok, as }) {
   const mb2 = (await db.query(`select count(*)::int n from public.inbox_messages where kind = 'machine_broken'`)).rows[0].n
   ok('inbox: เลื่อนเวลาซ่อม (set_repair_eta) ไม่สร้างข้อความซ้ำ', mb2 === 1)
 
-  // ---- 4. ปิด kind ใน inbox_settings -> ไม่สร้าง ----
   await as(U.owner, () => db.exec(`update public.inbox_settings set enabled = false where kind = 'delay_report'`))
   await db.exec(`
     insert into public.events (job_id, type, phase, station_code, payload)
@@ -96,8 +90,6 @@ export async function inboxTests({ db, ok, as }) {
     (await db.query(`select count(*)::int n from public.inbox_messages where kind = 'delay_report'`)).rows[0].n === 0)
   await as(U.owner, () => db.exec(`update public.inbox_settings set enabled = true where kind = 'delay_report'`))
 
-  // ---- 5. inbox_scan(): งานเข้าเงื่อนไข vs ไม่เข้าเงื่อนไข + เรียก 2 ครั้งไม่ซ้ำ ----
-  // สร้างงานปกติที่ยังไม่เข้าเงื่อนไขใดๆ (กำหนดส่งไกล ไม่อยู่ DTF ไม่เกิน SLA)
   const jOk = (await as(U.admin, () => db.query(`
     select public.receive_job('SC-INB-OK', 'ลูกค้าปกติ', 'งานปกติ', 'tshirt', 10, 'ตัว', ((now() at time zone 'Asia/Bangkok')::date + 20), 'plain', 'inb-ok.pdf') as id
   `))).rows[0].id
@@ -120,7 +112,6 @@ export async function inboxTests({ db, ok, as }) {
   const scan2 = (await as(U.prod, () => db.query(`select public.inbox_scan() as n`))).rows[0].n
   ok('inbox: inbox_scan() ครั้งที่ 2 ติดกัน -> ไม่ซ้ำ (0 แถวใหม่)', scan2 === 0, `added=${scan2}`)
 
-  // ---- 6. RLS การมองเห็นตามบทบาท ----
   const qcKinds = (await as(U.qc, () => db.query(`select distinct kind from public.inbox_messages`))).rows.map(r => r.kind)
   ok('inbox RLS: QC เห็นข้อความ rework', qcKinds.includes('rework'))
   ok('inbox RLS: QC ไม่เห็นข้อความ machine_broken', !qcKinds.includes('machine_broken'))
@@ -132,7 +123,6 @@ export async function inboxTests({ db, ok, as }) {
   const ownerMsgs = (await as(U.owner, () => db.query(`select count(*)::int n from public.inbox_messages`))).rows[0].n
   ok('inbox RLS: owner เห็นทุกข้อความ', ownerMsgs === totalMsgs && totalMsgs > 0)
 
-  // ผู้ใช้ไม่มีบทบาท / anon เห็น 0 และเรียกฟังก์ชันไม่ได้
   ok('inbox RLS: ผู้ใช้ไม่มีบทบาทเห็น 0 ข้อความ',
     (await as(U.nobody, () => db.query(`select count(*)::int n from public.inbox_messages`))).rows[0].n === 0)
   await expectErr('inbox RPC: ผู้ใช้ไม่มีบทบาทเรียก inbox_scan ไม่ได้',
@@ -150,13 +140,11 @@ export async function inboxTests({ db, ok, as }) {
     await db.exec('reset role')
   }
 
-  // ---- 7. อ่านแล้วแยกตามคน + ป้องกัน mark ข้อความที่มองไม่เห็น ----
   const reworkMsgId = (await db.query(`select id from public.inbox_messages where kind = 'rework' limit 1`)).rows[0].id
   const machineMsgId = (await db.query(`select id from public.inbox_messages where kind = 'machine_broken' limit 1`)).rows[0].id
 
   const prodUnreadBefore = (await as(U.prod, () => db.query(`select public.inbox_unread_count() as n`))).rows[0].n
   await as(U.qc, () => db.query(`select public.inbox_mark_read(array[${reworkMsgId}::bigint])`))
-  // กดซ้ำไม่ error
   await as(U.qc, () => db.query(`select public.inbox_mark_read(array[${reworkMsgId}::bigint])`))
 
   const prodUnreadAfter = (await as(U.prod, () => db.query(`select public.inbox_unread_count() as n`))).rows[0].n
@@ -171,7 +159,6 @@ export async function inboxTests({ db, ok, as }) {
   ok('inbox: inbox_mark_all_read ทำให้ unread_count ของ QC เป็น 0',
     (await as(U.qc, () => db.query(`select public.inbox_unread_count() as n`))).rows[0].n === 0)
 
-  // ---- 8. ห้ามเขียนตาราง inbox ตรงทุกบทบาท (แม้ owner) ----
   const beforeCount = (await db.query(`select count(*)::int n from public.inbox_messages`)).rows[0].n
   for (const [label, uid] of [['production', U.prod], ['owner', U.owner]]) {
     await expectErr(`inbox: ${label} insert inbox_messages ตรงไม่ได้`,
@@ -188,7 +175,6 @@ export async function inboxTests({ db, ok, as }) {
   ok('inbox: ข้อมูล inbox_messages ยังอยู่ครบหลังพยายามแก้/ลบ',
     (await db.query(`select count(*)::int n from public.inbox_messages`)).rows[0].n === beforeCount)
 
-  // inbox_errors: owner อ่านได้ · คนอื่นอ่านไม่ได้
   await db.exec(`insert into public.inbox_errors (source, message) values ('test', 'err')`)
   ok('inbox RLS: owner อ่าน inbox_errors ได้',
     (await as(U.owner, () => db.query(`select count(*)::int n from public.inbox_errors`))).rows[0].n === 1)

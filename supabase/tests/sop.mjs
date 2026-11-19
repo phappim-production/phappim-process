@@ -1,10 +1,9 @@
-// ข้อมูลจริงจาก PP-SOP-01 (migration 20261118000005) · ตรวจตรงกับที่หน้างานกรอกกลับมา
+// ตรวจข้อมูลจริงจาก PP-SOP-01 ให้ตรงกับที่หน้างานกรอกกลับมา
 // เรียกจาก run.mjs ก่อนชุดทดสอบ workflow (ซึ่งใช้ข้อมูลสมมติของตัวเอง)
 
 export async function sopTests({ db, ok }) {
   const rows = async (sql, p) => (await db.query(sql, p)).rows
 
-  // ---------- จักรเย็บจริง ----------
   const fleet = await rows(`select type_code, count(*)::int n, count(*) filter (where status = 'ready')::int ready
     from public.sewing_machines group by 1 order by 1`)
   ok('SOP: จักรจริง เข็มเดี่ยว 14 · โพ้ง 4 เส้น 4 · จักรลา 1 · ติดกระดุม 1 · เจาะรังดุม 1 ใช้ได้ทุกตัว',
@@ -29,14 +28,12 @@ export async function sopTests({ db, ok }) {
   ok('SOP: ป้ายผ้า ไม่ใช้โพ้ง 3 เส้น', await recipe('banner') === 'single×1', await recipe('banner'))
   ok('SOP: ถุงผ้า ไม่ใช้สองเข็ม', await recipe('bag') === 'ovl4×1 single×1', await recipe('bag'))
 
-  // ---------- รหัสสาเหตุ ----------
   const rc = Object.fromEntries((await rows(`select code, name from public.reason_codes where active`)).map(r => [r.code, r.name]))
   ok('SOP: แยกผ้าไม่พอ / ผ้ายังไม่มา', rc.W1 === 'ผ้าไม่พอ' && rc.W5 === 'ผ้ายังไม่มา')
   ok('SOP: แยกกระดาษหมด / หมึกหมด', rc.W2 === 'กระดาษหมด' && rc.W6 === 'หมึกหมด')
   ok('SOP: แยกไฟล์ผิด / ไฟล์ยังไม่มา', rc.F1 === 'ไฟล์ผิด' && rc.F4 === 'ไฟล์ยังไม่มา')
   ok('SOP: รหัสสาเหตุ 21 รหัส', Object.keys(rc).length === 21, String(Object.keys(rc).length))
 
-  // ---------- ขั้นย่อย ----------
   const subs = async s => (await rows(`select substeps from public.stations where code = $1`, [s]))[0].substeps
   const kindOf = async (s, k) => (await subs(s)).find(x => x.key === k)?.kind
   ok('SOP: พิมพ์ 13 ขั้น · ตรวจงานพิมพ์บังคับ · พิมพ์ทดสอบต้องอนุมัติ',
@@ -52,7 +49,6 @@ export async function sopTests({ db, ok }) {
     && await kindOf('dtf_press', 'test_press') === 'opt' && await kindOf('dtf_press', 'film_received') === 'lock')
   ok('SOP: QC+แพ็ค 9 ขั้น · ลงลังบังคับ', (await subs('qc_pack')).length === 9 && await kindOf('qc_pack', 'boxed') === 'req')
 
-  // ---------- เวลามาตรฐานตามจำนวนงาน ----------
   const lim = async (d, bq, bd, q) => (await rows(`select private.sla_for_qty($1, $2, $3, $4) v`, [d, bq, bd, q]))[0].v
   ok('SOP: งาน 699 ตัวใช้ 3 วัน · 700 ตัวขึ้นไปใช้ 5 วัน', Number(await lim(3, 700, 5, 699)) === 3 && Number(await lim(3, 700, 5, 700)) === 5)
   ok('SOP: งานใหญ่เกินข้อมูลที่มี = ไม่จับเวลา', await lim(2, 101, null, 101) === null && Number(await lim(2, 101, null, 100)) === 2)

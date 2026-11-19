@@ -1,5 +1,4 @@
-// แปลงแถวจากฐานข้อมูลจริง (view job_live และตารางจักร) เป็นรูปแบบที่หน้าจอใช้ (proto/model · proto/sewing)
-// แยกเป็น pure function เพื่อทดสอบได้โดยไม่ต้องต่อ Supabase · ตัวดึงข้อมูลอยู่ที่ useFactoryData.ts
+// แยกเป็น pure function เพื่อทดสอบได้โดยไม่ต้องต่อ Supabase
 import { thaiWorkEnd, usesFilm, type OutRun, type Vendor, type Dept, type Job, type Phase, type RouteCode, type SlaLevel, type StationCode, type StationStatus } from '../proto/model.ts'
 import type { Booking, Machine, MachineStatus, MachineType, Need } from '../proto/sewing.ts'
 
@@ -55,10 +54,10 @@ export function toVendors(rows: VendorRow[]): Vendor[] {
     return v
   }).sort((a, b) => a.name.localeCompare(b.name, 'th'))
 }
-/** ผูกรอบส่งออกที่ยังเปิดเข้ากับงาน (1 งาน = 1 รอบเปิด) */
+// 1 งาน = 1 รอบเปิด
 export type SlaFlagRow = { job_id: string; warn: boolean; over: boolean; need_report: boolean }
 
-/** ติดสถานะเวลามาตรฐานให้การ์ด (QA รอบ 5 G7 ข้อ 4) · งานที่ไม่ส่งมา = ปกติ */
+// งานที่ไม่ส่งมา = ปกติ
 export function attachSla(jobs: Job[], rows: SlaFlagRow[]): Job[] {
   const byJob = new Map(rows.map(r => [r.job_id, r]))
   return jobs.map(j => {
@@ -99,7 +98,6 @@ const DEPTS: Dept[] = ['admin', 'qc', 'production']
 
 export function toJobs(rows: JobRow[], products: ProductRow[], reworks: ReworkRow[], sewEvents: SewEventRow[]): Job[] {
   const productName = new Map(products.map(p => [p.code, p.name]))
-  // สาเหตุงานแก้ล่าสุดของแต่ละงาน
   const reworkReason = new Map<string, string>()
   for (const r of [...reworks].sort((a, b) => a.at.localeCompare(b.at))) {
     if (r.failed > 0) reworkReason.set(r.job_id, r.reasons?.[0] ?? '')
@@ -162,8 +160,7 @@ export function toBookings(rows: BookingRow[]): Booking[] {
   return rows.map(r => ({ id: String(r.id), machineId: String(r.machine_id), jobId: r.job_id, starts: new Date(r.starts_at), ends: new Date(r.ends_at) }))
 }
 
-// จักรใช้ร่วม (machine_types.shared · เช่น จักรลา) ไม่ผูกกับงาน จึงไม่นับเป็นจักรที่ไลน์ต้องได้ครบ
-// ตรงกับ start_sewing / book_machines / machines_short ในฐานข้อมูล (20261119210000)
+// จักรใช้ร่วม (เช่น จักรลา) ไม่ผูกกับงาน จึงไม่นับเป็นจักรที่ไลน์ต้องได้ครบ (ตรงกับฐานข้อมูล)
 export type MachineTypeRow = { code: MachineType; shared: boolean | null }
 export function toNeeds(rows: NeedRow[], shared: ReadonlySet<MachineType> = new Set()): Record<string, Need[]> {
   const map: Record<string, Need[]> = {}
@@ -189,8 +186,7 @@ export function thaiError(message: string | undefined): string {
   return 'ทำรายการไม่สำเร็จ กรุณาลองใหม่ ถ้ายังไม่ได้ให้แจ้งเจ้าของระบบ'
 }
 
-// เน็ตมือถือสะดุดแล้วคำขอค้าง = ปุ่มหมุนตลอดไป คนหน้างานคิดว่าระบบล่ม → ตัดที่ 30 วินาทีแล้วบอกให้ดูสถานะก่อน
-// ฐานข้อมูลอาจทำเสร็จไปแล้ว (ตัดแค่ฝั่งเครื่อง) จึงห้ามบอกว่า "ไม่สำเร็จ" ให้กดซ้ำทันที
+// เน็ตมือถือสะดุดแล้วคำขอค้าง → ตัดที่ 30 วินาที · ฐานข้อมูลอาจทำเสร็จแล้ว จึงห้ามบอกว่าไม่สำเร็จให้กดซ้ำ
 export const RPC_TIMEOUT_MS = 30_000
 export const SLOW_REPLY = 'ระบบตอบช้าเกินไป ยังไม่แน่ใจว่าบันทึกแล้วหรือยัง · ดูสถานะงานบนจอก่อน ถ้ายังไม่เปลี่ยนค่อยกดอีกครั้ง'
 

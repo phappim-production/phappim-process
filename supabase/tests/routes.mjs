@@ -1,5 +1,4 @@
-// เส้นทางผลิตตามงานจริง (DTG · สกรีน · ปัก · พิมพ์+ปัก · ตัดงานลูกค้า) + ขึ้นตัวอย่างเฉพาะงานที่ลูกค้าจ่าย
-// ใช้บัญชีทีมจริงจาก e2e.mjs · ไม่เดินสถานีเย็บ (sewing.mjs ใส่จักรสมมติไว้แล้ว ไม่เกี่ยวกับเส้นทาง)
+// ไม่เดินสถานีเย็บ (sewing.mjs ใส่จักรสมมติไว้แล้ว)
 
 import { requiredSteps, substepSql as sub } from './steps.mjs'
 
@@ -40,7 +39,6 @@ export async function routeTests({ db, ok, as }) {
   const path = async code => (await db.query(
     `select string_agg(station_code, ' → ' order by seq) p from public.route_stations where route_code = $1`, [code])).rows[0].p
 
-  // ---------- 1. ลำดับสถานีของแต่ละเส้นทาง ----------
   ok('เส้นทาง: DTG = ตัด → รีดฟิล์ม → เย็บ → QC', await path('dtg') === 'cut → dtf_press → sew → qc_pack')
   ok('เส้นทาง: สกรีน = ตัด → รีดฟิล์ม → เย็บ → QC', await path('screen') === 'cut → dtf_press → sew → qc_pack')
   ok('เส้นทาง: ปัก = ตัด → ส่งปัก → เย็บ → QC', await path('emb') === 'cut → emb → sew → qc_pack')
@@ -51,7 +49,6 @@ export async function routeTests({ db, ok, as }) {
   ok('เส้นทาง: พิมพ์ + ปัก ใช้เวลามาตรฐาน พิมพ์ + รีด + ตัด เดียวกับปกติ',
     seg?.from_station === 'print' && seg?.to_station === 'cut' && Number(seg?.sla_days) === 3)
 
-  // ---------- 2. ขึ้นตัวอย่างเฉพาะงานที่ตกลงกับลูกค้า ----------
   const D = await receive('SC-RT-DEFAULT', 'plain')
   ok('ตัวอย่าง: ไม่ระบุ = ขึ้นตัวอย่าง (ค่าเดิม)', (await job(D)).needs_sample === true)
   await tickMaterials(D)
@@ -71,7 +68,6 @@ export async function routeTests({ db, ok, as }) {
     `public.receive_job('SC-RT-NULL', 'ลูกค้า', 'งาน', 'tshirt', 10, 'ตัว', '2026-12-31', 'plain', 'confirmations/SC-RT-NULL.pdf', p_needs_sample => null)`,
     /ต้องเลือกว่างานนี้ขึ้นตัวอย่างหรือไม่/)
 
-  // ---------- 3. ตัดงานลูกค้า: ตัด → QC + แพ็ค → เสร็จ ----------
   let walked = await doStation(C, 'cut', 'production')
   ok('ตัดงานลูกค้า: ตัดเสร็จ → QC + Packing (ไม่ผ่านเย็บ)', walked && (await live(C)).current_station === 'qc_pack')
   walked = await doStation(C, 'qc_pack', 'production')
@@ -80,19 +76,17 @@ export async function routeTests({ db, ok, as }) {
   const sampleEvents = (await db.query(`select count(*)::int n from public.events where job_id = $1 and phase in ('sample', 'sample_review')`, [C])).rows[0].n
   ok('ตัดงานลูกค้า: ไม่มีขั้นตัวอย่างเลยทั้งงาน', sampleEvents === 0, `${sampleEvents} แถว`)
 
-  // ---------- 4. ส่งปัก: นับชิ้นส่ง/รับกลับ + ตรวจ ก่อนไปเย็บ ----------
   const E = await receive('SC-RT-EMB', 'emb', false)
   await tickMaterials(E)
   await doStation(E, 'cut', 'production')
   ok('ปัก: ตัดเสร็จ → ส่งปัก', (await live(E)).current_station === 'emb')
   await step('ปัก: เริ่ม', U.prod, `public.start_station('${E}')`)
-  // ขั้นย่อย (ส่ง/รับกลับ/ตรวจ) ไม่บังคับแล้ว (20261119180000) · ถ้ากรอก จำนวนยังต้องเป็นตัวเลข
+  // ขั้นย่อยไม่บังคับแล้ว · ถ้ากรอก จำนวนยังต้องเป็นตัวเลข
   await reject('ปัก: จำนวนชิ้นที่รับกลับต้องเป็นตัวเลข', U.prod, sub(E, 'receive_back'), /ต้องกรอกตัวเลข/)
   ok('ปัก: เริ่ม → เสร็จ โดยไม่ติ๊กขั้นย่อย → เย็บ',
     await step('ปัก: เสร็จ', U.prod, `public.finish_station('${E}')`) && (await live(E)).current_station === 'sew')
   await reject('ปัก: แอดมินสั่งฟิล์มให้งานปักไม่ได้', U.admin, `public.order_film('${E}', '2026-12-01')`, /ไม่ต้องสั่งฟิล์ม/)
 
-  // ---------- 5. DTG / สกรีน: สั่งเข้า → รอรับ → รีดฟิล์ม ----------
   const G = await receive('SC-RT-DTG', 'dtg', false)
   ok('DTG: เข้าสถานีแรกทันที ไม่มีเช็คลิสต์วัตถุดิบ (สั่งงาน DTG บันทึกภายหลังได้)', (await live(G)).phase === 'production' &&
     (await db.query(`select count(*)::int n from public.job_materials where job_id = $1`, [G])).rows[0].n === 0)

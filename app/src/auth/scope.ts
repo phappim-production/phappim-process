@@ -1,12 +1,9 @@
-// ใครเห็นข้อมูลแค่ไหน (docs/แผน-1-สัปดาห์.md หัวข้อ 1.4)
-// เป้าหมายคือไม่ให้คนหน้างานงงกับงานที่ไม่เกี่ยวกับตัวเอง ไม่ใช่การปิดบังข้อมูล:
-// ทุกบทบาทยังกด "ดูทั้งโรงงาน" ได้ และสิทธิ์กดจริงบังคับที่ฐานข้อมูลอยู่แล้ว
+// ไม่ได้ปิดบังข้อมูล แค่ไม่ให้คนหน้างานงง · ทุกบทบาทกดดูทั้งโรงงานได้ และสิทธิ์จริงบังคับที่ฐานข้อมูล
 import { columnOf, type ColumnKey, type Dept, type Job, type StationCode } from '../proto/model.ts'
 import type { SummaryKind } from '../proto/summary.ts'
 import { SECTION_LABELS, type EmployeeRole, type PageKey, type Section } from './access.ts'
 
-// ตรงกับ stations.section ใน supabase/migrations/20261118000001_supervisor_sections.sql
-// A5 จะอ่านจากฐานข้อมูลแทน (เจ้าของระบบแก้เฟสของสถานีได้ที่หน้าตั้งค่า)
+// ตรงกับ stations.section ในฐานข้อมูล
 export const STATION_SECTION: Record<StationCode, Section> = {
   print: 1, press: 1, cut: 1, dtf_press: 1, emb: 1, sew: 2, qc_pack: 2,
 }
@@ -20,16 +17,15 @@ export type BoardScope = {
   sampleStations?: StationCode[] // คอลัมน์ "ขึ้นตัวอย่าง" แสดงเฉพาะงานที่อยู่สถานีเหล่านี้
   materialsDept?: Dept           // คอลัมน์ "รอวัตถุดิบ" แสดงเฉพาะงานที่ยังรอฝ่ายนี้
   showFilm: boolean              // ฟิล์ม DTF เกี่ยวกับแอดมินและคนที่ดูแลรีด DTF เท่านั้น
-  tabs: DashTab[]                // แท็บของแดชบอร์ด · แท็บแรก = เปิดมาเจอ
-  allowFactory: boolean          // มีปุ่ม "ทั้งโรงงาน" ไหม
-  canSew: boolean                // กดเริ่มเย็บได้ไหม (ฐานข้อมูลตรวจซ้ำ)
-  canReportMachines: boolean     // แจ้งจักรเสีย / ซ่อมเสร็จได้ไหม (ฐานข้อมูลตรวจซ้ำ)
-  canSetRepairEta?: boolean      // กำหนดกรอบเวลาซ่อม = ฝ่ายผลิต (ตัดสินใจ 16 พ.ย.) · owner ทำแทนได้
-  canBook?: boolean              // จอง / ยกเลิกจองจักร = ฝ่ายผลิตเท่านั้น (ตัดสินใจ 16 พ.ย.) · owner ทำแทนได้
-  summary: SummaryKind           // ตัวเลขสรุปบนสุดของแดชบอร์ดตามตำแหน่ง (proto/summary.ts)
+  tabs: DashTab[]                // แท็บแรก = เปิดมาเจอ
+  allowFactory: boolean
+  canSew: boolean
+  canReportMachines: boolean
+  canSetRepairEta?: boolean      // ฝ่ายผลิต · owner ทำแทนได้
+  canBook?: boolean              // ฝ่ายผลิตเท่านั้น · owner ทำแทนได้
+  summary: SummaryKind
 }
 
-// ต้องทำตอนนี้ (รายการงานเรียงด่วน) · บอร์ด (คอลัมน์ตามสถานี) · จักรเย็บ (S14)
 export type DashTab = 'todo' | 'board' | 'sewing'
 export const DASH_TAB_NAME: Record<DashTab, string> = { todo: 'ต้องทำตอนนี้', board: 'บอร์ด', sewing: 'จักรเย็บ' }
 
@@ -59,7 +55,7 @@ export function boardScope(role: EmployeeRole, section: Section | null): BoardSc
         showFilm: stations.includes('dtf_press'),
         // เฟส 2 เปิดมาเจอจักรเย็บก่อน เพราะงานหลักคือเลือกงานขึ้นจักร
         tabs: stations.includes('sew') ? ['sewing', 'todo', 'board'] : ['todo', 'board'],
-        // เฟส 2 ดูเฉพาะงานที่ส่งถึงเฟส 2 แล้ว ไม่ดูงานรวมของโรงงาน (ตัดสินใจ 16 พ.ย.)
+        // เฟส 2 ดูเฉพาะงานที่ส่งถึงเฟส 2 แล้ว ไม่ดูงานรวมของโรงงาน
         allowFactory: section !== 2,
         canSew: section !== 1,
         canReportMachines: section !== 1,
@@ -74,15 +70,14 @@ export function boardScope(role: EmployeeRole, section: Section | null): BoardSc
         materialsDept: 'qc',
         summary: 'qc',
         showFilm: false,
-        // คนหน้างานเปิดมาเจอบอร์ด → หน้าคิวสถานีที่เครื่องจำไว้ (QA รอบ 5 G7 · เดิมต้องกดสลับจาก ต้องทำตอนนี้ ทุกครั้ง)
+        // คนหน้างานเปิดมาเจอคิวสถานีที่เครื่องจำไว้
         tabs: ['board', 'todo'],
         allowFactory: true,
         canSew: false,
         canReportMachines: false,
       }
-    // ฝ่ายผลิตรับผิดชอบงานตั้งแต่รับใบสั่งงานจนส่งของ จึงต้องเห็นทุกขั้นของกระบวนการผลิต ไม่ตัดเหลือแค่วัตถุดิบ
-    // (การแบ่งเฟส 1 / เฟส 2 ใช้กับผู้ควบคุมงานที่กดสถานะเท่านั้น เพราะสถานีอยู่คนละเฟส)
-    // owner ทำแทนผู้ควบคุมงานเฟส 2 ได้ (วันที่ไม่มีคนคุม) · ฐานข้อมูลอนุญาต owner อยู่แล้ว
+    // ฝ่ายผลิตดูแลงานตั้งแต่รับใบสั่งจนส่งของ จึงเห็นทุกขั้น (แบ่งเฟสใช้กับผู้ควบคุมงานเท่านั้น)
+    // owner ทำแทนผู้ควบคุมงานเฟส 2 ได้ในวันที่ไม่มีคนคุม
     case 'owner':
       return { ...FACTORY_SCOPE, canSew: true, canReportMachines: true, canSetRepairEta: true, canBook: true }
     case 'production':
@@ -92,8 +87,7 @@ export function boardScope(role: EmployeeRole, section: Section | null): BoardSc
         sub: 'ฝ่ายผลิตคุมทุกสถานี ตั้งแต่รับงาน พิมพ์ รีด ตัด เย็บ จนถึง QC + Packing',
         tabs: ['board', 'todo', 'sewing'],
         summary: 'production',
-        // ฝ่ายผลิตแทนผู้ควบคุมงานทั้ง 2 เฟส (ตัดสินใจ 16 พ.ย. บ่าย · migration 20261118000004)
-        // จึงเริ่มเย็บ / รายงานปัญหา / เย็บเสร็จ ได้เอง และยังจองจักร แจ้งเสีย กำหนดเวลาซ่อมได้เหมือนเดิม
+        // ฝ่ายผลิตทำแทนผู้ควบคุมงานทั้ง 2 เฟสได้
         canSew: true,
         canReportMachines: true,
         canSetRepairEta: true,

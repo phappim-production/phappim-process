@@ -7,7 +7,7 @@ export type { Tone }
 
 export function ViewSwitch<T extends string>({ label, value, onChange, options, variant = 'main' }: {
   label: string; value: T; onChange: (value: T) => void; options: ReadonlyArray<readonly [T, string]>
-  /** sub = แท็บย่อยในแท็บหลัก ใช้เส้นใต้ ไม่ให้หน้าตาเหมือนแท็บหลักจนผู้ใช้สับสนว่าอยู่ชั้นไหน */
+  /** sub = แท็บย่อย ใช้เส้นใต้ ไม่ให้ผู้ใช้สับสนว่าอยู่ชั้นไหน */
   variant?: 'main' | 'sub'
 }) {
   if (variant === 'sub') {
@@ -34,7 +34,6 @@ export function ViewSwitch<T extends string>({ label, value, onChange, options, 
   )
 }
 
-/** แท็บหลัก: กล่องเดียวแบ่งช่องเท่ากัน ช่องที่เลือกเป็นเขียวทึบ เห็นชัดว่าอยู่หน้าไหน */
 export const pillGroup = 'flex gap-1 rounded-xl border border-line bg-card p-1'
 export const pillItem = 'min-h-12 flex-1 rounded-lg px-3 text-base font-semibold whitespace-nowrap sm:flex-none sm:px-6'
 export const pillOn = 'bg-brand text-white'
@@ -84,7 +83,6 @@ export function DueLabel({ job: j, now, long }: { job: Job; now: Date; long?: bo
   return <span className={`shrink-0 ${cls}`}>{long ? `${shortDate(j.due)} (${rel})` : days <= 1 ? `ส่ง${rel}` : `ส่ง ${shortDate(j.due)}`}</span>
 }
 
-/** แถบขั้นตอน: ผ่านแล้ว / ตอนนี้ / ยังไม่ถึง */
 export function StageDots({ steps, current, hold }: { steps: string[]; current: number; hold?: boolean }) {
   return (
     <span className="flex items-center gap-[3px]" aria-label={`ขั้นที่ ${Math.min(current + 1, steps.length)} จาก ${steps.length}`}>
@@ -122,7 +120,7 @@ export function StatTile({ icon: Icon, label, value, note, tone, active, onClick
 
 const THUMB_SIZE = { sm: 'size-14', md: 'size-20', lg: 'aspect-square w-full max-w-72' } as const
 
-/** รูปม็อคอัพของงาน (คนหน้างานจำงานจากรูปมากกว่ารหัส) · ไม่มีรูป = กรอบว่างขนาดเท่ากัน การ์ดจึงเรียงตรงกัน */
+// ไม่มีรูป = กรอบว่างขนาดเท่ากัน การ์ดจึงเรียงตรงกัน
 export function MockupThumb({ job, size = 'sm' }: { job: Pick<Job, 'no' | 'mockupUrl'>; size?: keyof typeof THUMB_SIZE }) {
   const box = `${THUMB_SIZE[size]} shrink-0 overflow-hidden rounded-xl border border-line bg-paper`
   if (!job.mockupUrl) {

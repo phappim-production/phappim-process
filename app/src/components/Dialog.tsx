@@ -1,7 +1,6 @@
 import { useEffect, useId, type ComponentType, type ReactNode } from 'react'
 import { IconX } from './icons'
 
-/** หน้าต่างถามยืนยัน / กรอกข้อมูล · จอเล็กเลื่อนขึ้นจากล่าง จอใหญ่อยู่กลางจอ · กด Esc หรือพื้นหลังเพื่อปิด */
 export function Dialog({ title, icon: Icon, onClose, children, wide }: {
   title: string; icon?: ComponentType<{ className?: string }>; onClose: () => void; children: ReactNode; wide?: boolean
 }) {

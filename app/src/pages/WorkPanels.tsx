@@ -57,7 +57,7 @@ const SEWING_VIEWS = [
   ['machines', 'สถานะจักร'],
 ] as const
 
-// จักรเย็บ (S14): งานที่ถึงเฟส 2 แล้ว = รอเย็บ · กดเริ่มเย็บได้เมื่อจักรครบทุกชนิดว่างจริง (ฐานข้อมูลบังคับกฎเดียวกัน)
+// กดเริ่มเย็บได้เมื่อจักรครบทุกชนิดว่างจริง (ฐานข้อมูลบังคับกฎเดียวกัน)
 export type SewingView = (typeof SEWING_VIEWS)[number][0]
 
 type StartResult = { ok: true; picked: string[]; warning?: string } | { ok: false; reason: string }
@@ -65,13 +65,13 @@ type Counts = Partial<Record<MachineType, number>>
 
 export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen, onStart, onStatus, onEta, booking, sewing, initialView, shared = [] }: {
   jobs: Job[]; machines: Machine[]; bookings?: Booking[]; needs: Record<string, Need[]>; now: Date; onOpen: (id: string) => void
-  booking?: ReactNode  // แผงจองจักร (วางระหว่างคิวรอเย็บกับผังจักร)
-  sewing?: ReactNode   // แผงกำลังเย็บ (ต่อจากคิวรอเย็บ: รอเย็บ → กำลังเย็บ → เย็บเสร็จ)
+  booking?: ReactNode
+  sewing?: ReactNode
   onStart?: (jobId: string, counts?: Counts) => Promise<StartResult>  // ไม่ส่ง = ดูอย่างเดียว
   shared?: readonly MachineType[]
   onStatus?: OnStatus
   onEta?: OnEta
-  initialView?: SewingView  // มาจากการกดตัวเลขสรุป เช่น จักรเสีย → สถานะจักร
+  initialView?: SewingView
 }) {
   const [view, setView] = useState<SewingView>(
     () => initialView ?? (onStart ? 'work' : onEta && booking ? 'booking' : 'machines'),
@@ -79,11 +79,11 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const queue = sewQueue(jobs, machines)
     .map(q => ({ job: q.job, check: checkStartSewing(q.job, machines, needs, bookings, now) }))
-    .sort((a, b) => byQueue(a.job, b.job))  // ตามคิว · งานที่ยังเริ่มไม่ได้บอกเหตุผลบนการ์ด
+    .sort((a, b) => byQueue(a.job, b.job))
   const startable = queue.filter(q => q.check.ok).length
 
   const [starting, setStarting] = useState<string | null>(null)
-  // จำนวนจักรที่เลือกก่อนกดเริ่ม (ต่องาน) · ไม่ปรับ = ตามที่สินค้าต้องใช้
+  // ไม่ปรับ = ตามที่สินค้าต้องใช้
   const [counts, setCounts] = useState<Record<string, Counts>>({})
   async function start(job: Job) {
     if (!onStart || starting) return
@@ -164,8 +164,7 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
   )
 }
 
-// เลือกจำนวนจักรก่อนกดเริ่ม: งานใหญ่ใส่ได้หลายตัวทีเดียว · ค่าเริ่มต้น = ที่สินค้าต้องใช้ (ไม่ปรับก็กดเริ่มได้เลย)
-// ตัวว่าง = row.free (ชุดแรกหยิบจากตัวว่างเหล่านี้) จึงเพิ่มได้สูงสุด free ตัว
+// ค่าเริ่มต้น = ที่สินค้าต้องใช้ · ชุดแรกหยิบจากตัวว่าง จึงเพิ่มได้สูงสุด free ตัว
 function StartCounts({ rows, value, disabled, onChange }: {
   rows: ReturnType<typeof machineCounts>; value: Counts; disabled: boolean; onChange: (type: MachineType, qty: number) => void
 }) {
@@ -201,16 +200,15 @@ const STATE_STYLE: Record<MachineState, { tile: string; badge: string; tone: 'ok
 }
 type StateFilter = 'all' | MachineState
 
-// ผังจักรรายเครื่อง: 1 ช่อง = จักร 1 ตัว · มองแวบเดียวเห็นว่าตัวไหนว่าง ตัวไหนใช้กับงานอะไร
 export type StatusResult = { ok: true; heldJob?: string } | { ok: false; reason: string }
 type OnStatus = (code: string, status: MachineStatus, note: string, repairEta?: Date) => Promise<StatusResult>
 type OnEta = (code: string, eta: Date) => Promise<StatusResult>
 
 function MachineBoard({ jobs, machines, bookings = [], needs = {}, now, onOpen, onStatus, onEta }: {
   jobs: Job[]; machines: Machine[]; bookings?: Booking[]; now: Date; onOpen: (id: string) => void
-  needs?: Record<string, Need[]>  // ใช้บอกก่อนกดแจ้งเสียว่างานจะถูกพักไหม
-  onStatus?: OnStatus  // ไม่ส่ง = ดูอย่างเดียว (บทบาทที่แจ้งเสียไม่ได้)
-  onEta?: OnEta        // ส่งเฉพาะฝ่ายผลิต / owner = กำหนดกรอบเวลาซ่อมได้
+  needs?: Record<string, Need[]>
+  onStatus?: OnStatus  // ไม่ส่ง = ดูอย่างเดียว
+  onEta?: OnEta        // ส่งเฉพาะฝ่ายผลิต / owner
 }) {
   const [filter, setFilter] = useState<StateFilter>('all')
   const [machineQuery, setMachineQuery] = useState('')
@@ -381,7 +379,6 @@ function Modal({ title, tone, onClose, children }: { title: string; tone: 'dange
   )
 }
 
-// เลือกเวลาซ่อมเสร็จ: ปุ่มลัดสำหรับแท็บเล็ต + เลือกวันเวลาเองได้
 function EtaPicker({ value, onChange, now }: { value?: Date; onChange: (d?: Date) => void; now: Date }) {
   const id = useId()
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -440,7 +437,6 @@ function EtaForm({ now, initial, submitLabel, onCancel, onSubmit }: {
   )
 }
 
-// อาการที่เจอบ่อย กดเลือกได้เลยบนแท็บเล็ต (พิมพ์เพิ่มเองได้)
 const COMMON_FAULTS = ['ด้ายพัน', 'เข็มหัก', 'ฝีเข็มกระโดด', 'มอเตอร์ไม่หมุน', 'น้ำมันรั่ว', 'ตีนผีเสีย']
 
 function ReportDialog({ machine: m, job, now, etaRequired, pauses, onCancel, onSubmit }: {

@@ -5,10 +5,7 @@ import { dataUrlBlob, mockupDataUrl, uploadMockup } from '../data/mockups'
 
 type Result = { ok: true; no: string; id: string; warning?: string | undefined } | { ok: false; text: string } | { ok: 'elsewhere'; no: string }
 
-/**
- * รับใบยืนยันที่ฟอร์มกด "บันทึกเข้าระบบ" (#/board?confirmation=save) แล้วบันทึกเข้าฐานข้อมูลด้วยบัญชีที่ล็อกอินอยู่
- * แสดงเฉพาะแอดมิน / เจ้าของระบบ (ฐานข้อมูลตรวจสิทธิ์ซ้ำ) · onReceive = เปิดหน้ารับงานพร้อมเลือกใบนี้
- */
+// บันทึกด้วยบัญชีที่ล็อกอินในหน้าระบบ เพราะฟอร์มไม่มีการล็อกอิน
 export function ConfirmationOutbox({ onReceive }: { onReceive: (draftId: string) => void }) {
   const [result, setResult] = useState<Result | null>(null)
 

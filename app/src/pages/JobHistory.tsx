@@ -52,7 +52,6 @@ async function load(jobId: string): Promise<History> {
   }
 }
 
-/** รายละเอียดงาน (S8): รอบตัวอย่าง · QC/งานแก้ · รายงานปัญหา · เวลาต่อสถานี · ไทม์ไลน์ทุกการกด */
 export function JobHistory({ jobId, role, version, now, onChanged }: {
   jobId: string; role: EmployeeRole; version: number; now: Date; onChanged: () => Promise<void>
 }) {

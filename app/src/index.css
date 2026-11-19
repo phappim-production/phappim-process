@@ -6,8 +6,7 @@
   --font-sans: "Sarabun", system-ui, sans-serif;
 
   /* ขนาดตัวอักษรขั้นต่ำ 14 px · ข้อความรอง 16 px · ตัวหลัก 17 px ให้อ่านได้บนแท็บเล็ตที่วางห่างตัว */
-  /* ระยะบรรทัด: Sarabun สูง 1.30 em แต่สระ+วรรณยุกต์ซ้อน (ขึ้น สื้อ) สูงถึง 1.29 em เหนือเส้นฐาน และ ญู ฐุ ลงต่ำ 0.36 em
-     → บรรทัดชิดกว่า ~1.5 เท่า หัววรรณยุกต์ชนบรรทัด/กล่องข้างบน (วัดด้วย canvas measureText 17 พ.ย.) */
+  /* สระ+วรรณยุกต์ไทยซ้อนสูง 1.29 em และ ญู ฐุ ลงต่ำ 0.36 em → บรรทัดที่ชิดกว่า ~1.5 เท่าหัววรรณยุกต์ชนบรรทัดบน */
   --text-xs: 0.875rem;
   --text-xs--line-height: 1.55;
   --text-sm: 1rem;
@@ -25,7 +24,6 @@
   --leading-tight: 1.4;
   --leading-snug: 1.5;
 
-  /* แบรนด์ (เขียวภาพพิมพ์ 142 + ทองจากโลโก้) */
   --color-brand: #0f4a42;
   --color-brand-700: #0b3a34;
   --color-brand-500: #1b6b5f;
@@ -33,7 +31,7 @@
   --color-gold: #c9a24c;
   --color-gold-soft: #f8f0dc;
 
-  /* พื้นและตัวอักษร · ตัวอักษรรองเข้มพอให้ผ่านเกณฑ์อ่านง่าย (คอนทราสต์ ≥ 7:1 บนพื้นขาว) */
+  /* ตัวอักษรรองต้องคอนทราสต์ ≥ 7:1 บนพื้นขาว */
   --color-paper: #f2f4f3;
   --color-card: #ffffff;
   --color-card-2: #f2f4f3;
@@ -62,8 +60,7 @@
   @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
 }
 
-/* truncate เดิมใช้ overflow: hidden ซึ่งตัดหัววรรณยุกต์ที่สูงเกินบรรทัดด้วย (เสื้อยืด → หัว ื้ หาย)
-   ตัดเฉพาะแนวนอนพอ ยังขึ้น … ท้ายข้อความเหมือนเดิม · ไม่อยู่ใน @layer จึงชนะ utility ของ Tailwind */
+/* overflow: hidden ตัดหัววรรณยุกต์ที่สูงเกินบรรทัด จึงตัดแค่แนวนอน · ไม่อยู่ใน @layer จึงชนะ utility ของ Tailwind */
 .truncate {
   overflow: visible;
   overflow-x: clip;
@@ -77,12 +74,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ชื่อเดิมจากธีมก่อน: การ์ดพื้นขาวเรียบ ไม่ใช้ไล่สี เพราะลดคอนทราสต์ของตัวอักษร */
+/* ชื่อจากธีมก่อน · พื้นขาวเรียบ ไม่ใช้ไล่สีเพราะลดคอนทราสต์ */
 @utility glass {
   background: var(--color-card);
 }
 
-/* ปุ่มหลัก: เขียวทึบ ตัวขาว */
 @utility glow-brand {
   background: var(--color-brand);
 }
@@ -90,5 +86,4 @@ body {
 /* กดด้วยคีย์บอร์ด/สแกนเนอร์ต้องเห็นชัดว่าอยู่ปุ่มไหน */
 :focus-visible { outline: 3px solid var(--color-gold); outline-offset: 2px; }
 
-/* แถบเลื่อนบาง ๆ ในบอร์ด */
 .scroll-thin { scrollbar-width: thin; scrollbar-color: #b9c4bf transparent; }

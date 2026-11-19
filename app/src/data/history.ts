@@ -1,5 +1,4 @@
-// ประวัติงาน (S8): แปลงแถวจาก events / station_visits เป็นข้อความไทยบนไทม์ไลน์
-// pure function ทั้งหมด หน้าจอส่งชื่อสถานี/ขั้นย่อยเข้ามา จึงทดสอบได้โดยไม่ต้องต่อฐานข้อมูล
+// pure function ทั้งหมด จึงทดสอบได้โดยไม่ต้องต่อฐานข้อมูล
 import type { Tone } from '../components/tone.ts'
 import { spaced } from '../proto/format.ts'
 
@@ -44,7 +43,7 @@ const thaiDate = (v: unknown) => {
 
 const stationNames = (v: unknown, n: Names) => (Array.isArray(v) ? v.map(x => n.station(str(x))).join(' → ') : '')
 
-/** ข้อความ 1 บรรทัดของการกด 1 ครั้ง · ชนิดที่ไม่รู้จักแสดงรหัสเดิม (ดีกว่าซ่อน) */
+// ชนิดที่ไม่รู้จักแสดงรหัสเดิม (ดีกว่าซ่อน)
 export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLine {
   const p = e.payload ?? {}
   const jobUnit = str(unit) || 'ชิ้น'
@@ -87,7 +86,7 @@ export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLi
       return { title: 'ส่งรายงานปัญหา (เกินเวลามาตรฐาน)', detail: [list(p.reasons), str(p.new_eta) && `คาดว่าเสร็จ ${thaiDate(p.new_eta)}`].filter(Boolean).join(' · ') || undefined, tone: 'warn' }
     case 'sewing_issue_reported': return { title: 'รายงานปัญหาที่สถานีเย็บ', detail: str(p.reason) || undefined, tone: 'warn' }
     case 'machines_assigned': return { title: 'จ่ายจักร', detail: list(p.machines) || undefined, tone: 'neutral' }
-    // คืนเพราะจักรเสีย/ปิดใช้งาน (set_machine_status) ต้องเห็นสาเหตุและอาการ ไม่ใช่แค่รหัส (QA รอบ 7 บั๊ก #1)
+    // คืนเพราะจักรเสีย/ปิดใช้งาน ต้องเห็นสาเหตุและอาการ ไม่ใช่แค่รหัส
     case 'machines_released': {
       const why = str(p.reason) && `${str(p.reason)}${str(p.note) ? ` (${str(p.note)})` : ''}`
       return { title: 'คืนจักร', detail: [list(p.machines), why].filter(Boolean).join(' · ') || undefined, tone: why ? 'warn' : 'neutral' }
@@ -111,7 +110,7 @@ export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLi
   }
 }
 
-/** รายการที่ถูกแจ้งว่ากดผิด → เหตุผล (แสดงกำกับบนรายการเดิม · ไม่ลบประวัติ) */
+// แสดงกำกับบนรายการเดิม ไม่ลบประวัติ
 export function corrections(events: EventRow[]): Map<number, string> {
   const map = new Map<number, string>()
   for (const e of events) {
@@ -122,7 +121,6 @@ export function corrections(events: EventRow[]): Map<number, string> {
   return map
 }
 
-/** ระยะเวลาเป็นข้อความไทยสั้น (นาที / ชั่วโมง / วัน) */
 export function spanText(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return '—'
   const min = Math.round(ms / 60_000)
@@ -135,7 +133,7 @@ export function spanText(ms: number): string {
 
 export type VisitLine = { station: string; label: string; start: Date; end: Date | null; span: string; paused: string | null }
 
-/** ช่วงพักงาน (พักงาน → ทำต่อ) ของงานนี้ · ยังไม่ทำต่อ = พักถึงตอนนี้ */
+// ยังไม่ทำต่อ = พักถึงตอนนี้
 export function pauseRanges(events: Pick<EventRow, 'type' | 'at'>[], now: Date): { from: number; to: number }[] {
   const out: { from: number; to: number }[] = []
   let from: number | null = null
@@ -147,10 +145,7 @@ export function pauseRanges(events: Pick<EventRow, 'type' | 'at'>[], now: Date):
   return out
 }
 
-/**
- * เวลาที่ใช้ในแต่ละสถานี (เริ่ม → เสร็จ) เรียงตามเวลาเริ่ม · ยังไม่เสร็จ = นับถึงตอนนี้
- * หักช่วงพักงานออก เพราะเวลามาตรฐานและหน้ารายงานไม่นับเวลาพัก · งานอยู่ได้ทีละสถานี จึงตัดช่วงพักตามเวลาของรอบนั้นพอ
- */
+// หักช่วงพักงานออก เพราะเวลามาตรฐานและหน้ารายงานไม่นับเวลาพัก
 export function visitLines(rows: VisitRow[], n: Pick<Names, 'station'>, now: Date, events: Pick<EventRow, 'type' | 'at'>[] = []): VisitLine[] {
   const pauses = pauseRanges(events, now)
   return rows
