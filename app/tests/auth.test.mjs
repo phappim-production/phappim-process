@@ -4,7 +4,7 @@ import { canOpenPage, isEmployeeRole, roleLabel, toSection } from '../src/auth/a
 import { boardScope, homePage, jobInScope } from '../src/auth/scope.ts'
 import { newPasswordProblem, passwordChangeErrorMessage, signInErrorMessage } from '../src/auth/messages.ts'
 
-const roles = ['owner', 'supervisor', 'admin', 'qc', 'production', 'manager']
+const roles = ['owner', 'supervisor', 'admin', 'qc', 'production', 'manager', 'staff']
 
 for (const role of roles) {
   test(`เมนูและสิทธิ์เปิดหน้าของ ${role}`, () => {
@@ -13,7 +13,7 @@ for (const role of roles) {
       assert.equal(canOpenPage(role, page), true)
     }
     assert.equal(canOpenPage(role, 'overview'), ['owner', 'admin', 'manager'].includes(role))
-    assert.equal(canOpenPage(role, 'reports'), role === 'owner' || role === 'manager')
+    assert.equal(canOpenPage(role, 'reports'), role !== 'qc' && role !== 'staff')
     assert.equal(canOpenPage(role, 'settings'), role === 'owner')
   })
 }
