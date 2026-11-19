@@ -17,3 +17,11 @@ describe('ไทม์ไลน์: คืนจักร', () => {
     expect(eventLine(ev({ machines: ['SN-013', 'SN-014'] }), names)).toEqual({ title: 'คืนจักร', detail: 'SN-013, SN-014', tone: 'neutral' })
   })
 })
+
+describe('ไทม์ไลน์: รูปม็อคอัพ', () => {
+  const pic = (replaced: boolean): EventRow => ({ id: 2, type: 'mockup', phase: 'production', station_code: null, payload: { path: 'a.jpg', replaced }, by: null, at: '2026-11-19T03:00:00Z' })
+  it('เพิ่ม / เปลี่ยนรูปเป็นข้อความไทย ไม่ใช่ชื่อชนิดภาษาอังกฤษ', () => {
+    expect(eventLine(pic(false), names)).toEqual({ title: 'เพิ่มรูปม็อคอัพ', tone: 'ok' })
+    expect(eventLine(pic(true), names).title).toBe('เปลี่ยนรูปม็อคอัพ')
+  })
+})

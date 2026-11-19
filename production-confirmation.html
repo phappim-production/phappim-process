@@ -1039,7 +1039,7 @@ document.addEventListener('click',e=>{
 function loadData(d, label){
   if(!d||!d.h||!d.p||!PRODUCTS[d.product]) return false;
   state={ h:d.h, product:d.product, pickOpen:false, p:d.p, imgs:Array.isArray(d.imgs)?d.imgs:[] }; missing=[];
-  if(typeof d.mockup_path==='string'&&d.mockup_path) state.mockup_path=d.mockup_path; $('#alert').innerHTML='';
+  if(typeof d.mockup_path==='string'&&d.mockup_path){ state.mockup_path=d.mockup_path; state.mockup_no=String(d.h.doc_no||'').trim(); } $('#alert').innerHTML='';
   if(document.body.classList.contains('preview')) togglePreview(false); rerender(); scrollTo(0,0); save(); toast(label);
   return true;
 }
@@ -1055,9 +1055,14 @@ const OUTBOX='pp142.confirmation.outbox', INBOX='pp142.confirmation.inbox';
 function saveToSystem(){
   if(location.protocol==='file:'){ alert('บันทึกเข้าระบบได้เมื่อเปิดฟอร์มจากเว็บระบบ (pp142.pages.dev/confirmation)\nตอนนี้เปิดจากไฟล์ในเครื่อง ให้ใช้ "บันทึกไฟล์" แทน'); return; }
   if(!String(state.h.doc_no||'').trim()){ alert('ใส่เลขที่ใบยืนยันก่อนบันทึกเข้าระบบ'); $('[data-k="doc_no"]')?.focus(); return; }
-  const payload={ app:'phappim-confirm', v:1, ...state, imgs:[], summary:{ qty:totalQty(), route:route().code } };
+  // รูปย่อยังไม่เสร็จ (เพิ่งใส่รูป) = ไม่ส่งไปทั้งที่ไม่มีรูป · ให้กดใหม่อีกครั้งใน 1–2 วินาที
   const first=state.imgs[0]&&state.imgs[0].src;
-  if(first&&thumb&&thumb.src===first) payload.mockup=thumb.data;
+  if(first&&!(thumb&&thumb.src===first)){ refreshThumb(); alert('กำลังเตรียมรูปม็อคอัพ รอ 1–2 วินาที แล้วกด "บันทึกเข้าระบบ" อีกครั้ง'); return; }
+  const payload={ app:'phappim-confirm', v:1, ...state, imgs:[], summary:{ qty:totalQty(), route:route().code } };
+  if(first) payload.mockup=thumb.data;
+  // รูปเดิมจากระบบใช้ได้เฉพาะใบเลขเดิม (เปลี่ยนเลขใบเพื่อทำใบใหม่ = ไม่เอารูปใบเดิมไป)
+  if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()) delete payload.mockup_path;
+  delete payload.mockup_no;
   try{ localStorage.setItem(OUTBOX, JSON.stringify(payload)); }catch(e){ alert('บันทึกไม่สำเร็จ (พื้นที่เบราว์เซอร์เต็ม) ให้ใช้ "บันทึกไฟล์" แทน'); return; }
   const url='/#/board?confirmation=save';
   const w=window.open(url,'pp142-system');
