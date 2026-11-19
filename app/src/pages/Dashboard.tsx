@@ -26,7 +26,7 @@ import { ConfirmationOutbox } from './ConfirmationOutbox'
 import { JobHistory } from './JobHistory'
 import { isStationCode } from '../proto/model'
 import type { EmployeeRole, FactoryView } from '../auth/access'
-import { IssuesView, MyHistoryView, QueueAllView, ReportIssueView } from './RolePages'
+import { IssuesView, MyHistoryView, QueueAllView, ReportIssueView, ReviewsView } from './RolePages'
 import { myStationsOf } from '../proto/rolePages'
 import type { OverviewView } from '../auth/menus'
 import { IconInbox } from '../components/icons'
@@ -286,7 +286,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
   )
 
   const VIEW_TITLE: Partial<Record<View, string>> = {
-    issues: 'ปัญหา / งานแก้', report: 'แจ้งปัญหา', history: 'ประวัติการทำงาน', queueAll: 'คิวการผลิต', dept: 'ภาพรวมแผนก',
+    issues: 'ปัญหา / งานแก้', reviews: 'รายการรออนุมัติ', report: 'แจ้งปัญหา', history: 'ประวัติการทำงาน', queueAll: 'คิวการผลิต', dept: 'ภาพรวมแผนก',
   }
   const title = VIEW_TITLE[view]
   if (title) {
@@ -298,6 +298,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
           {linkNotice}
           {view === 'issues' && <IssuesView jobs={allJobs} now={now} role={role} stations={deptStations} call={call} onOpen={setOpenId} />}
           {view === 'report' && <ReportIssueView jobs={allJobs} now={now} stations={myStationsOf(role, myScope.pressStations)} call={call} onOpen={setOpenId} />}
+          {view === 'reviews' && <ReviewsView jobs={allJobs} now={now} role={role} call={call} onOpen={setOpenId} />}
           {view === 'history' && <MyHistoryView jobs={allJobs} onOpen={setOpenId} />}
           {view === 'queueAll' && <QueueAllView jobs={allJobs} now={now} onOpen={setOpenId} />}
           {view === 'dept' && <>

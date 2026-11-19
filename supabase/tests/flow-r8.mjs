@@ -136,7 +136,7 @@ export async function flowR8Tests({ db, ok }) {
         set_machine_status: [machine.code, 'broken', reason], set_repair_eta: [machine.code, booking.finish, reason],
         add_vendor: ['บริษัทจำลองรอบ 8', ['cut']], owner_list_users: [], staff_names: [],
         inbox_mark_read: [[notice?.id ?? 0]], inbox_mark_all_read: [], inbox_scan: [],
-        inbox_unread_count: [], job_sla_flags: [], my_role: [], is_owner: [],
+        inbox_unread_count: [], job_sla_flags: [], my_role: [], is_owner: [], ack_review: ['queue_event', 0],
       }
       assert.deepEqual(functions.filter(name => !Object.hasOwn(args, name)), [])
       for (const name of functions) {

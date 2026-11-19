@@ -13,7 +13,12 @@ export type Route = {
 
 export const ROUTES: Record<string, Route> = {
   '#/': { page: 'overview' },
+  '#/production': { page: 'overview' },
   '#/jobs': { page: 'overview', overviewView: 'find' },
+  '#/reviews': { page: 'reviews' },
+  '#/admin': { page: 'sysOverview' },
+  '#/roles': { page: 'roles' },
+  '#/audit': { page: 'audit' },
   '#/board': { page: 'board' },
   '#/queue': { page: 'board', tab: 'todo' },
   '#/mine': { page: 'board', tab: 'todo' },
@@ -51,17 +56,21 @@ export function roleMenu(role: EmployeeRole): MenuGroup[] {
         item('#/jobs', 'ใบงานทั้งหมด', 'list', 'ใบงาน'),
         item('#/board', 'ทุก Station', 'columns', 'Station'),
         item('#/reports', 'รายงาน', 'chart'),
+        item('#/reviews', 'รายการรออนุมัติ', 'flag', 'รออนุมัติ'),
         INBOX,
       ] }]
     case 'owner':
       return [
         { title: 'WORKSPACE', items: [
+          item('#/admin', 'ภาพรวมระบบ', 'gauge', 'ภาพรวม'),
           item('#/users', 'ผู้ใช้งาน', 'users', 'ผู้ใช้'),
+          item('#/roles', 'Roles & Permissions', 'shield', 'สิทธิ์'),
           item('#/assign', 'Station Assignment', 'pin', 'จับคู่'),
+          item('#/audit', 'Audit Log', 'log'),
           item('#/settings', 'ตั้งค่าระบบ', 'sliders', 'ตั้งค่า'),
         ] },
         { title: 'งานผลิต', items: [
-          item('#/', 'ภาพรวมการผลิต', 'gauge', 'ภาพรวม'),
+          item('#/production', 'ภาพรวมการผลิต', 'chart', 'การผลิต'),
           item('#/board', 'ทุก Station', 'columns', 'Station'),
           item('#/reports', 'รายงาน', 'chart'),
           INBOX,

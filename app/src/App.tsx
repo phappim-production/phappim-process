@@ -14,6 +14,7 @@ import { unreadBadge } from './pages/inbox/format'
 import { useInbox } from './pages/inbox/useInbox'
 import JobLabel from './pages/job-label'
 import AccountPage from './pages/AccountPage'
+import { AuditPage, RolesPage, SystemOverviewPage } from './pages/admin'
 import { Card, CardHeader } from './components/ui'
 import { AppUpdate } from './components/AppUpdate'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -87,10 +88,11 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
     timeZone: 'Asia/Bangkok', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   }))
   // เปิดเว็บมาที่ #/ แล้วบทบาทนั้นไม่ใช้ภาพรวม → ไปหน้างานของตัวเองแทน ไม่ขึ้นหน้า "ไม่มีสิทธิ์"
+  const ownerHome = requestedPath === '#/' && profile.role === 'owner'
   const redirected = requested.page === 'overview' && !canOpenPage(profile.role, 'overview')
-  const route: Route = redirected ? { page: homePage(profile.role) } : requested
+  const route: Route = ownerHome ? { page: 'sysOverview' } : redirected ? { page: homePage(profile.role) } : requested
   const page = route.page
-  const path = redirected ? '#/board' : requestedPath
+  const path = ownerHome ? '#/admin' : redirected ? '#/board' : requestedPath
   const scope = useMemo(() => boardScope(profile.role, profile.section, profile.stations), [profile.role, profile.section, profile.stations])
   const menu = roleMenu(profile.role)
   const bar = bottomBar(menu, path)
@@ -161,7 +163,7 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
           {!canOpenPage(profile.role, page) ? (
             <main className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto p-4 sm:p-6">
               <Card>
-                <CardHeader title={page === 'settings' ? 'หน้านี้สำหรับเจ้าของระบบ' : 'หน้านี้สำหรับผู้บริหาร'} />
+                <CardHeader title={['settings', 'sysOverview', 'roles', 'audit'].includes(page) ? 'หน้านี้สำหรับเจ้าของระบบ' : 'บทบาทของคุณเปิดหน้านี้ไม่ได้'} />
                 <div className="px-5 pb-5">
                   <a href="#/board" className={`inline-flex items-center ${primaryButton}`}>ไปหน้างาน</a>
                 </div>
@@ -177,6 +179,9 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
               {page === 'reports' && <ReportsPage />}
               {page === 'settings' && <SettingsPage key={path} tab={route.settingsTab} />}
               {page === 'inbox' && <InboxPage />}
+              {page === 'sysOverview' && <SystemOverviewPage />}
+              {page === 'roles' && <RolesPage />}
+              {page === 'audit' && <AuditPage />}
               {page === 'label' && <JobLabel jobId={labelId} />}
             </main>
           )}

@@ -9,6 +9,8 @@ import { supabase } from '../lib/supabase'
 import { duration } from '../proto/format'
 import { SLA_LABEL, STATION_NAME, STATUS_NAME, type Job, type StationCode } from '../proto/model'
 import { problemLists, queueBoard, reportable } from '../proto/rolePages'
+import { pendingReviews } from '../proto/admin'
+import { loadReviews } from './admin/data'
 import type { QueueCall } from './StationQueue'
 
 type Notice = { ok: boolean; text: string } | null
@@ -54,8 +56,8 @@ function NoticeLine({ notice }: { notice: Notice }) {
   return <p role={notice.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>{notice.text}</p>
 }
 
-export function IssuesView({ jobs, now, role, stations, call, onOpen }: {
-  jobs: Job[]; now: Date; role: EmployeeRole; stations: StationCode[] | null; call: QueueCall; onOpen: (id: string) => void
+export function IssuesView({ jobs, now, role, stations, call, onOpen, heldOnly }: {
+  jobs: Job[]; now: Date; role: EmployeeRole; stations: StationCode[] | null; call: QueueCall; onOpen: (id: string) => void; heldOnly?: boolean
 }) {
   const { held, rework, overSla } = useMemo(() => problemLists(jobs, stations), [jobs, stations])
   const [busy, setBusy] = useState<string | null>(null)
@@ -85,12 +87,14 @@ export function IssuesView({ jobs, now, role, stations, call, onOpen }: {
           </JobRow>
         ))}
       </Section>
+      {!heldOnly && <>
       <Section icon={IconFlag} title="งานแก้" count={rework.length} empty="ไม่มีงานแก้ค้าง" sub="ชิ้นที่ QC ส่งกลับไปแก้ที่สถานีต้นเหตุ">
         {rework.map(j => <JobRow key={j.id} job={j} now={now} onOpen={onOpen} />)}
       </Section>
       <Section icon={IconClock} title="เกินเวลามาตรฐาน" count={overSla.length} empty="ไม่มีงานเกินเวลามาตรฐาน" sub="เปิดงานเพื่อดูรายงานปัญหาและวันเสร็จใหม่">
         {overSla.map(j => <JobRow key={j.id} job={j} now={now} onOpen={onOpen} />)}
       </Section>
+      </>}
     </>
   )
 }
@@ -250,6 +254,99 @@ export function MyHistoryView({ jobs, onOpen }: { jobs: Job[]; onOpen: (id: stri
           </ul>
         </Card>
       ))}
+    </>
+  )
+}
+
+type ReviewData = Awaited<ReturnType<typeof loadReviews>>
+
+export function ReviewsView({ jobs, now, role, call, onOpen }: {
+  jobs: Job[]; now: Date; role: EmployeeRole; call: QueueCall; onOpen: (id: string) => void
+}) {
+  const [state, setState] = useState<{ status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; data: ReviewData }>({ status: 'loading' })
+  const [attempt, setAttempt] = useState(0)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [notice, setNotice] = useState<Notice>(null)
+  useEffect(() => {
+    let alive = true
+    loadReviews().then(
+      data => { if (alive) setState({ status: 'ready', data }) },
+      (e: unknown) => { if (alive) setState({ status: 'error', message: e instanceof Error ? e.message : thaiError(undefined) }) },
+    )
+    return () => { alive = false }
+  }, [attempt])
+  const canAck = role === 'manager' || role === 'owner'
+  const noOf = (id: string) => jobs.find(j => j.id === id)?.no ?? 'งาน'
+  const ack = async (kind: 'delay_report' | 'queue_event', ref: number, label: string) => {
+    setBusy(`${kind}:${ref}`)
+    const r = await call('ack_review', { p_kind: kind, p_ref: ref })
+    setBusy(null)
+    setNotice(r.ok ? { ok: true, text: `รับทราบ ${label} แล้ว` } : { ok: false, text: r.reason })
+    if (r.ok) setAttempt(n => n + 1)
+  }
+  const ackButton = (kind: 'delay_report' | 'queue_event', ref: number, label: string) => canAck
+    ? <button type="button" disabled={busy !== null} className={secondaryBtn} onClick={() => void ack(kind, ref, label)}>
+        {busy === `${kind}:${ref}` ? 'กำลังบันทึก…' : 'รับทราบ'}
+      </button>
+    : null
+
+  return (
+    <>
+      <p className="text-muted">รายการที่ผู้บริหารควรรู้ · กดรับทราบแล้วรายการหายไป งานไม่หยุดรอ</p>
+      <NoticeLine notice={notice} />
+      <IssuesView jobs={jobs} now={now} role={role} stations={null} call={call} onOpen={onOpen} heldOnly />
+      {state.status === 'loading' && <Card className="p-5"><p role="status" className="text-muted">กำลังโหลดรายการ…</p></Card>}
+      {state.status === 'error' && (
+        <Card className="grid gap-3 p-5">
+          <p role="alert" className="text-danger">โหลดรายการไม่สำเร็จ · {state.message}</p>
+          <button type="button" className={secondaryBtn} onClick={() => { setState({ status: 'loading' }); setAttempt(n => n + 1) }}>ลองอีกครั้ง</button>
+        </Card>
+      )}
+      {state.status === 'ready' && (() => {
+        const { delayItems, queueItems, acks, names } = state.data
+        const who = (id: string | null) => (id ? names.get(id) ?? 'ไม่ทราบชื่อ' : 'ระบบ')
+        const delays = pendingReviews(delayItems, acks)
+        const queue = pendingReviews(queueItems, acks)
+        const at = (iso: string) => new Date(iso).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        return (
+          <>
+            <Section icon={IconClock} title="รายงานเกินเวลามาตรฐาน" count={delays.length} empty="ไม่มีรายงานรอรับทราบ" sub="14 วันล่าสุด · ที่ขอความช่วยเหลือขึ้นป้ายแดง">
+              {delays.map(d => (
+                <li key={d.ref} className="grid gap-2 rounded-xl border border-line bg-card p-3">
+                  <button type="button" onClick={() => onOpen(d.jobId)} className="grid gap-0.5 text-left">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <b className="text-lg">{noOf(d.jobId)}</b>
+                      {d.station && <Pill tone="neutral">{STATION_NAME[d.station as StationCode] ?? d.station}</Pill>}
+                      {d.needHelp && <Pill tone="danger">ขอความช่วยเหลือ</Pill>}
+                      <span className="ml-auto text-sm text-muted">{at(d.at)} · {who(d.by)}</span>
+                    </span>
+                    <span>{d.reasons.join(' · ')} · {d.detail}</span>
+                    <span className="text-sm text-muted">คาดว่าเสร็จใหม่ {at(d.newEta)}</span>
+                    {d.needHelp && <span className="font-medium text-danger">ต้องการ: {d.needHelp}</span>}
+                  </button>
+                  {ackButton('delay_report', d.ref, `รายงาน ${noOf(d.jobId)}`)}
+                </li>
+              ))}
+            </Section>
+            <Section icon={IconLayers} title="แทรกคิว / เริ่มข้ามคิว" count={queue.length} empty="ไม่มีการเปลี่ยนคิวรอรับทราบ" sub="14 วันล่าสุด พร้อมเหตุผลที่คนกดใส่ไว้">
+              {queue.map(q => (
+                <li key={q.ref} className="grid gap-2 rounded-xl border border-line bg-card p-3">
+                  <button type="button" onClick={() => onOpen(q.jobId)} className="grid gap-0.5 text-left">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <b className="text-lg">{noOf(q.jobId)}</b>
+                      <Pill tone={q.type === 'queue_insert' ? 'warn' : 'info'}>{q.type === 'queue_insert' ? 'แทรกคิวด่วน' : 'เริ่มข้ามคิว'}</Pill>
+                      {q.station && <Pill tone="neutral">{STATION_NAME[q.station as StationCode] ?? q.station}</Pill>}
+                      <span className="ml-auto text-sm text-muted">{at(q.at)} · {who(q.by)}</span>
+                    </span>
+                    {q.reason && <span>เหตุผล: {q.reason}</span>}
+                  </button>
+                  {ackButton('queue_event', q.ref, `${noOf(q.jobId)}`)}
+                </li>
+              ))}
+            </Section>
+          </>
+        )
+      })()}
     </>
   )
 }

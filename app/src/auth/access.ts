@@ -10,10 +10,10 @@ export const ROLE_LABELS = {
 
 export type EmployeeRole = keyof typeof ROLE_LABELS
 export type PageKey = 'overview' | 'board' | 'reports' | 'settings' | 'system' | 'inbox' | 'label'
-  | 'issues' | 'report' | 'history' | 'queueAll' | 'dept'
+  | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews' | 'sysOverview' | 'roles' | 'audit'
 
-export type FactoryView = 'overview' | 'board' | 'issues' | 'report' | 'history' | 'queueAll' | 'dept'
-export const FACTORY_VIEWS: readonly PageKey[] = ['overview', 'board', 'issues', 'report', 'history', 'queueAll', 'dept']
+export type FactoryView = 'overview' | 'board' | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews'
+export const FACTORY_VIEWS: readonly PageKey[] = ['overview', 'board', 'issues', 'report', 'history', 'queueAll', 'dept', 'reviews']
 
 // ฐานข้อมูลบังคับเอง หน้าเว็บใช้แสดงและกรองงาน
 export const SECTION_LABELS = {
@@ -46,7 +46,12 @@ export function canCloseIssue(role: EmployeeRole, station: string | null | undef
 export function canOpenPage(role: EmployeeRole, page: PageKey): boolean {
   switch (page) {
     case 'settings':
+    case 'sysOverview':
+    case 'roles':
+    case 'audit':
       return role === 'owner'
+    case 'reviews':
+      return role === 'manager' || role === 'owner'
     case 'issues':
       return role === 'production' || role === 'supervisor' || role === 'owner' || role === 'manager'
     case 'dept':
