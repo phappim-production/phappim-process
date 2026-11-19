@@ -41,7 +41,7 @@ const job = (id: string, fields: Partial<Job> = {}): Job => ({
   route: 'normal', phase: 'production', station: 'cut', status: 'doing', since: now,
   sampleRound: 1, materials: { admin: true, production: true, qc: true }, ...fields,
 })
-const factory: FactoryData = { jobs: [], products: [], needs: {}, shared: [], vendors: [], machines: [], bookings: [] }
+const factory: FactoryData = { jobs: [], products: [], needs: {}, shared: [], vendors: [], machines: [], bookings: [], stationMachines: [] }
 const flag = (id: string, patch: Partial<SlaFlagRow> = {}): SlaFlagRow =>
   ({ job_id: id, warn: false, over: false, need_report: false, ...patch })
 

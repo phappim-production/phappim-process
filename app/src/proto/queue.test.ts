@@ -156,7 +156,7 @@ describe('หน้าคิวและรายการต้องทำ', (
     vi.mocked(useFactoryData).mockReturnValue({
       state: {
         status: 'ready', loadedAt: now,
-        data: { vendors: [], jobs: [job('waiting', { queue: 1 })], machines: [], bookings: [], needs: {}, shared: [], products: [] },
+        data: { vendors: [], jobs: [job('waiting', { queue: 1 })], machines: [], bookings: [], needs: {}, shared: [], products: [], stationMachines: [] },
       },
       live: true, refresh: async () => {},
     })

@@ -115,6 +115,12 @@ ok('foreign key ทุกตัวมี index', fkNoIdx.rows.length === 0, fkNo
 
 const { sopTests } = await import('./sop.mjs')
 await sopTests({ db, ok })
+const machines = (await db.query(`select code, machines, machine_pool from public.stations where machines is not null order by code`)).rows
+ok('เครื่องจริงต่อสถานี: พิมพ์ 2 · รีด/รีดฟิล์มใช้เครื่องรีดร้อนร่วม 1 · ตัด 2 · QC 1',
+  JSON.stringify(machines.map(r => [r.code, r.machines, r.machine_pool])) === JSON.stringify([
+    ['cut', 2, 'cut'], ['dtf_press', 1, 'heat_press'], ['press', 1, 'heat_press'], ['print', 2, 'print'], ['qc_pack', 1, 'qc_pack']]), JSON.stringify(machines))
+// ชุดทดสอบอื่นทิ้งงาน "กำลังทำ" ไว้หลายงานในฐานเดียวกัน จึงปิดการจำกัดเครื่อง · station-machines.mjs ทดสอบการจำกัดเอง
+await db.exec('update public.stations set machines = null')
 // ชุด workflow เดินงานแบบยังไม่มีจักร และ sewing.mjs ตั้งจักรสมมติเอง จึงล้างจักรจริงออกหลังตรวจข้อมูลแล้ว
 await db.exec('delete from public.sewing_machines')
 
@@ -148,6 +154,8 @@ const { staffTests } = await import('./staff.mjs')
 await staffTests({ db, ok, as })
 const { staffRoleTests } = await import('./staff-role.mjs')
 await staffRoleTests({ db, ok, as })
+const { stationMachineTests } = await import('./station-machines.mjs')
+await stationMachineTests({ db, ok, as })
 const { auditReviewTests } = await import('./audit-reviews.mjs')
 await auditReviewTests({ db, ok, as })
 const { historyTests } = await import('./history.mjs')

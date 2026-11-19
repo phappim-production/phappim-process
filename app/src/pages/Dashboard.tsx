@@ -19,6 +19,7 @@ import { MACHINE_TYPE_NAME, pausesJob, type MachineStatus, type MachineType } fr
 import { BookingPanel } from './BookingPanel'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { StationHeader, StationRail } from '../components/StationNav'
+import { machineUse } from '../proto/machines'
 import { SewingNow, type SewActions } from './SewingNow'
 import { JobActions } from './JobActions'
 import { StationQueue } from './StationQueue'
@@ -379,11 +380,12 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
             }} />
           {focusStation && (
             <StationHeader station={focusStation} jobs={allJobs} stations={columns.map(c => c.key).filter(isStationCode)}
+              machines={machineUse(allJobs, data.stationMachines, focusStation)}
               onPick={key => setStation(key)} />
           )}
           {focusStation ? (
             <ErrorBoundary key={`q-${focusStation}`}>
-              <StationQueue station={focusStation} jobs={allJobs} role={role} myStations={myScope.pressStations} now={now} call={call} onOpen={setOpenId} />
+              <StationQueue station={focusStation} jobs={allJobs} role={role} machines={machineUse(allJobs, data.stationMachines, focusStation)} myStations={myScope.pressStations} now={now} call={call} onOpen={setOpenId} />
             </ErrorBoundary>
           ) : (<>
           <Card className="grid gap-2 p-3 sm:p-4">

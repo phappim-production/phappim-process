@@ -6,13 +6,13 @@ export async function sopTests({ db, ok }) {
 
   const fleet = await rows(`select type_code, count(*)::int n, count(*) filter (where status = 'ready')::int ready
     from public.sewing_machines group by 1 order by 1`)
-  ok('SOP: จักรจริง เข็มเดี่ยว 14 · โพ้ง 4 เส้น 4 · จักรลา 1 · ติดกระดุม 1 · เจาะรังดุม 1 ใช้ได้ทุกตัว',
+  ok('SOP: จักรจริง เข็มเดี่ยว 14 · โพ้ง 4 เส้น 4 · จักรลา 2 · ติดกระดุม 1 · เจาะรังดุม 1 ใช้ได้ทุกตัว',
     JSON.stringify(fleet) === JSON.stringify([
-      { type_code: 'button', n: 1, ready: 1 }, { type_code: 'buttonhole', n: 1, ready: 1 }, { type_code: 'cover', n: 1, ready: 1 },
+      { type_code: 'button', n: 1, ready: 1 }, { type_code: 'buttonhole', n: 1, ready: 1 }, { type_code: 'cover', n: 2, ready: 2 },
       { type_code: 'ovl4', n: 4, ready: 4 }, { type_code: 'single', n: 14, ready: 14 }]), JSON.stringify(fleet))
   const codes = (await rows(`select code from public.sewing_machines order by sort`)).map(r => r.code)
   ok('SOP: รหัสจักรตามประเภท SN-001…SN-014 · OL4-001…04 · CV-001 · BT-001 · BH-001',
-    codes.length === 21 && codes[0] === 'SN-001' && codes.includes('SN-014') && codes.includes('OL4-004')
+    codes.length === 22 && codes.includes('CV-002') && codes[0] === 'SN-001' && codes.includes('SN-014') && codes.includes('OL4-004')
     && ['CV-001', 'BT-001', 'BH-001'].every(c => codes.includes(c)), codes.join(','))
 
   // สูตรทุกสินค้าต้องใช้ได้กับจักรที่มีจริง ไม่อย่างนั้นกดเริ่มเย็บไม่ได้ตลอด

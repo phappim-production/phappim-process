@@ -56,6 +56,7 @@ export function StationsTab({ data, controls }: TabProps<'stations'>) {
               <span className="font-semibold">{station.name}</span>
               <Pill tone="neutral">เฟส {station.section}</Pill>
               <Pill tone="neutral">{station.substeps.length} ขั้นย่อย</Pill>
+              <Pill tone={station.machines ? 'brand' : 'neutral'}>{station.machines ? `${station.machines} เครื่อง` : 'ไม่จำกัดเครื่อง'}</Pill>
             </div>
             <SlaSummary sla={station} />
           </>
@@ -63,6 +64,7 @@ export function StationsTab({ data, controls }: TabProps<'stations'>) {
         draft={(station): StationDraft => ({
           ...slaDraft(station ?? { sla_days: null, warn_pct: 80, big_qty: null, big_sla_days: null }),
           name: station?.name ?? '', section: station?.section ?? 1, substeps: station?.substeps ?? [],
+          machines: station?.machines ? String(station.machines) : '', machine_pool: station?.machine_pool ?? '',
         })}
         fields={(draft, change) => (
           <>
@@ -71,6 +73,13 @@ export function StationsTab({ data, controls }: TabProps<'stations'>) {
               <SelectField label="เฟสของสถานี" options={[['1', SECTION_LABELS[1]], ['2', SECTION_LABELS[2]]]}
                 value={String(draft.section)} onChange={value => change({ ...draft, section: Number(value) as Section })} />
             </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <TextField label="จำนวนเครื่อง (ว่าง = ไม่จำกัด)" mode="numeric" value={draft.machines}
+                onChange={machines => change({ ...draft, machines })} />
+              <TextField label="กลุ่มเครื่อง (สถานีที่ใช้เครื่องร่วมกันใส่ชื่อเดียวกัน)" value={draft.machine_pool}
+                placeholder="เช่น heat_press" onChange={machine_pool => change({ ...draft, machine_pool })} />
+            </div>
+            <p className="text-sm text-muted">เครื่องเต็มแล้วหน้างานเริ่มงานใหม่ไม่ได้ · งานที่พักไม่นับว่าใช้เครื่อง</p>
             <SlaFields draft={draft} change={change} />
             <StepFields steps={draft.substeps} change={substeps => change({ ...draft, substeps })} />
           </>
