@@ -5,7 +5,7 @@ import { thaiError } from '../data/live'
 import { confirmationPath, pdfProblem } from '../data/confirmation'
 import { mockupProblem, shrinkImage, uploadMockup } from '../data/mockups'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
-import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job, type Vendor } from '../proto/model'
+import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job, type StationCode, type Vendor } from '../proto/model'
 import { OutsourcePanel } from './OutsourcePanel'
 import { FilePick } from '../components/FilePick'
 import { slaAmount, spaced } from '../proto/format'
@@ -50,8 +50,8 @@ async function loadDetail(job: Job): Promise<Detail> {
   }
 }
 
-export function JobActions({ job: j, role, version, now, refresh, vendors = [] }: {
-  job: Job; role: EmployeeRole; version: number; now: Date; refresh: () => Promise<void>; vendors?: Vendor[]
+export function JobActions({ job: j, role, myStations = [], version, now, refresh, vendors = [] }: {
+  job: Job; role: EmployeeRole; myStations?: StationCode[]; version: number; now: Date; refresh: () => Promise<void>; vendors?: Vendor[]
 }) {
   const [detail, setDetail] = useState<{ shape: string; data?: Detail; error?: string } | null>(null)
   const [notice, setNotice] = useState<Notice>(null)
@@ -88,7 +88,7 @@ export function JobActions({ job: j, role, version, now, refresh, vendors = [] }
   const floor = role === 'production' || role === 'supervisor' || owner
   const admin = role === 'admin' || owner
   const st = j.station
-  const canStation = !!st && (floor || (role === 'qc' && st === 'qc_pack'))
+  const canStation = !!st && (floor || (role === 'qc' && st === 'qc_pack') || (role === 'staff' && myStations.includes(st)))
   const inStation = (j.phase === 'sample' || j.phase === 'production') && !!st && j.status !== 'out'
 
   return (
@@ -371,7 +371,7 @@ function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act 
         <SlaBanner sla={s} />
       )}
       <Section title={`${sample ? 'ขึ้นตัวอย่าง · ' : ''}${name}${j.rework ? ' · งานแก้' : ''}`}>
-        {!canPress && !(canResume && j.status === 'hold') && <p className="mb-3 text-sm text-muted">{role === 'qc' ? 'ฝ่าย QC กดได้เฉพาะสถานี QC + Packing' : 'บทบาทนี้ดูได้อย่างเดียว'}</p>}
+        {!canPress && !(canResume && j.status === 'hold') && <p className="mb-3 text-sm text-muted">{role === 'qc' ? 'ฝ่าย QC กดได้เฉพาะสถานี QC + Packing' : role === 'staff' ? 'งานนี้ไม่ได้อยู่สถานีของคุณ กดได้เฉพาะสถานีที่จับคู่ไว้' : 'บทบาทนี้ดูได้อย่างเดียว'}</p>}
 
         {j.status === 'queued' && canPress && (
           <button type="button" disabled={busy || (st === 'dtf_press' && !j.film?.received)} className={`${primaryBtn} w-full`}

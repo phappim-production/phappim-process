@@ -44,3 +44,13 @@ it('การเปิดมุมมองเจ้าของไม่เพ�
   expect(manager).toMatchObject({ canSew: false, canReportMachines: false })
   expect(manager.canSetRepairEta).toBeFalsy()
 })
+
+it('พนักงานสถานีเห็นและกดได้เฉพาะสถานีที่จับคู่ · ยังไม่จับคู่ = ไม่มีคอลัมน์และบอกให้ไปจับคู่', () => {
+  const s = boardScope('staff', null, ['cut', 'print'])
+  expect(s.columns).toEqual(['print', 'cut'])
+  expect(s.pressStations).toEqual(['print', 'cut'])
+  expect(s.canSew).toBe(false)
+  const none = boardScope('staff', null, [])
+  expect(none.columns).toEqual([])
+  expect(none.sub).toMatch(/Station Assignment/)
+})

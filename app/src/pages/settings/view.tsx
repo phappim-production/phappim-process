@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Card, ViewSwitch } from '../../components/ui'
 import { Dialog, primaryBtn, secondaryBtn } from '../../components/Dialog'
-import { InboxTab, ReasonsTab, UsersTab } from './accounts'
+import { AssignTab, InboxTab, ReasonsTab, UsersTab } from './accounts'
 import { MachinesTab, MaterialsTab } from './inventory'
 import { SegmentsTab, StationsTab } from './stations'
 import { loaders, loadOwnUserId, tabOptions, type Tab } from './data'
@@ -9,7 +9,7 @@ import { SelectField, type Controls } from './editor'
 
 type LoadState<T> = { status: 'loading' } | { status: 'ready'; value: T } | { status: 'error'; message: string }
 
-export default function SettingsContent() {
+export default function SettingsContent({ initialTab = 'users' }: { initialTab?: Tab }) {
   const request = useRef<Promise<string> | null>(null)
   const [identity, setIdentity] = useState<LoadState<string>>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
@@ -26,7 +26,7 @@ export default function SettingsContent() {
   return (
     <>
       {identity.status === 'ready'
-        ? <SettingsView userId={identity.value} />
+        ? <SettingsView userId={identity.value} initialTab={initialTab} />
         : <LoadingCard state={identity} retry={() => {
           request.current = null
           setIdentity({ status: 'loading' })
@@ -36,8 +36,10 @@ export default function SettingsContent() {
   )
 }
 
-export function SettingsView({ userId }: { userId: string }) {
-  const [tab, setTab] = useState<Tab>('users')
+export function SettingsView({ userId, initialTab = 'users' }: { userId: string; initialTab?: Tab }) {
+  const single = initialTab === 'users' || initialTab === 'assign'
+  const options = single ? tabOptions.filter(([key]) => key === initialTab) : tabOptions.filter(([key]) => key !== 'users' && key !== 'assign')
+  const [tab, setTab] = useState<Tab>(initialTab)
   const [editor, setEditor] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -66,15 +68,19 @@ export function SettingsView({ userId }: { userId: string }) {
 
   return (
     <>
-      <div className="min-w-0 sm:hidden">
-        <SelectField label="หมวดตั้งค่า" value={tab} options={tabOptions} onChange={selectTab} disabled={busy} />
-      </div>
-      <div className={`hidden min-w-0 sm:block ${busy ? 'opacity-60' : ''}`} inert={busy}>
-        <ViewSwitch label="หมวดตั้งค่า" value={tab} options={tabOptions} onChange={selectTab} variant="sub" />
-      </div>
+      {options.length > 1 && <>
+        <div className="min-w-0 sm:hidden">
+          <SelectField label="หมวดตั้งค่า" value={tab} options={options} onChange={selectTab} disabled={busy} />
+        </div>
+        <div className={`hidden min-w-0 sm:block ${busy ? 'opacity-60' : ''}`} inert={busy}>
+          <ViewSwitch label="หมวดตั้งค่า" value={tab} options={options} onChange={selectTab} variant="sub" />
+        </div>
+      </>}
       {busy && <p role="status" className="sr-only">กำลังบันทึกและโหลดข้อมูลล่าสุด</p>}
       {tab === 'users' && <Section load={loaders.users} controls={controls}>{(data, actions) =>
         <UsersTab data={data} controls={actions} userId={userId} />}</Section>}
+      {tab === 'assign' && <Section load={loaders.assign} controls={controls}>{(data, actions) =>
+        <AssignTab data={data} controls={actions} />}</Section>}
       {tab === 'stations' && <Section load={loaders.stations} controls={controls}>{(data, actions) =>
         <StationsTab data={data} controls={actions} />}</Section>}
       {tab === 'segments' && <Section load={loaders.segments} controls={controls}>{(data, actions) =>

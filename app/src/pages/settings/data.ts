@@ -7,6 +7,7 @@ import type {
 
 export const tabOptions = [
   ['users', 'ผู้ใช้และบทบาท'],
+  ['assign', 'จับคู่พนักงานกับสถานี'],
   ['stations', 'สถานีและขั้นย่อย'],
   ['segments', 'เวลามาตรฐานของช่วง'],
   ['materials', 'แม่แบบวัตถุดิบ'],
@@ -125,12 +126,33 @@ async function loadMachines() {
   }
 }
 
+async function loadAssignments() {
+  const db = client()
+  const result = await rpc<Omit<UserRow, 'section'>[]>('owner_list_users', {})
+  if (!result.ok) throw new Error(result.reason)
+  const [stations, links] = await Promise.all([
+    rows<NamedCode>(db.from('stations').select('code,name').order('sort').order('code')),
+    rows<{ user_id: string; station_code: string }>(db.from('staff_stations').select('user_id,station_code')),
+  ])
+  const staff = (result.data ?? []).filter(user => user.role === 'staff')
+    .map(user => ({ ...user, stations: links.filter(l => l.user_id === user.user_id).map(l => l.station_code) }))
+  return { staff, stations }
+}
+
+export async function saveAssignment(userId: string, before: string[], after: string[]) {
+  const db = client()
+  const added = after.filter(code => !before.includes(code))
+  const removed = before.filter(code => !after.includes(code))
+  if (removed.length) await write(db.from('staff_stations').delete().eq('user_id', userId).in('station_code', removed))
+  if (added.length) await write(db.from('staff_stations').insert(added.map(station_code => ({ user_id: userId, station_code }))))
+}
+
 async function loadInbox() {
   return { settings: await rows<InboxSetting>(client().from('inbox_settings').select('kind,enabled').order('kind')) }
 }
 
 export const loaders = {
-  users: loadUsers, stations: loadStations, segments: loadSegments, materials: loadMaterials,
+  users: loadUsers, assign: loadAssignments, stations: loadStations, segments: loadSegments, materials: loadMaterials,
   reasons: loadReasons, machines: loadMachines, inbox: loadInbox,
 }
 

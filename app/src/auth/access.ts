@@ -5,10 +5,15 @@ export const ROLE_LABELS = {
   qc: 'ฝ่าย QC',
   production: 'ฝ่ายผลิต',
   manager: 'ผู้บริหาร',
+  staff: 'พนักงานสถานี',
 } as const
 
 export type EmployeeRole = keyof typeof ROLE_LABELS
 export type PageKey = 'overview' | 'board' | 'reports' | 'settings' | 'system' | 'inbox' | 'label'
+  | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews' | 'sysOverview' | 'roles' | 'audit'
+
+export type FactoryView = 'overview' | 'board' | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews'
+export const FACTORY_VIEWS: readonly PageKey[] = ['overview', 'board', 'issues', 'report', 'history', 'queueAll', 'dept', 'reviews']
 
 // ฐานข้อมูลบังคับเอง หน้าเว็บใช้แสดงและกรองงาน
 export const SECTION_LABELS = {
@@ -41,9 +46,18 @@ export function canCloseIssue(role: EmployeeRole, station: string | null | undef
 export function canOpenPage(role: EmployeeRole, page: PageKey): boolean {
   switch (page) {
     case 'settings':
+    case 'sysOverview':
+    case 'roles':
+    case 'audit':
       return role === 'owner'
+    case 'reviews':
+      return role === 'manager' || role === 'owner'
+    case 'issues':
+      return role === 'production' || role === 'supervisor' || role === 'owner' || role === 'manager'
+    case 'dept':
+      return role === 'production' || role === 'supervisor' || role === 'owner'
     case 'reports':
-      return role === 'owner' || role === 'manager'
+      return role !== 'qc' && role !== 'staff'
     // ภาพรวม (รับงานเพิ่มได้ไหม · งานเสี่ยงทั้งโรงงาน) เป็นข้อมูลสำหรับคนตัดสินใจ · คนหน้างานใช้บอร์ดของตัวเอง
     case 'overview':
       return role === 'owner' || role === 'admin' || role === 'manager'

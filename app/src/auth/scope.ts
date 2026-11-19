@@ -1,5 +1,5 @@
 // ไม่ได้ปิดบังข้อมูล แค่ไม่ให้คนหน้างานงง · ทุกบทบาทกดดูทั้งโรงงานได้ และสิทธิ์จริงบังคับที่ฐานข้อมูล
-import { columnOf, type ColumnKey, type Dept, type Job, type StationCode } from '../proto/model.ts'
+import { columnOf, STATION_NAME, type ColumnKey, type Dept, type Job, type StationCode } from '../proto/model.ts'
 import type { SummaryKind } from '../proto/summary.ts'
 import { SECTION_LABELS, type EmployeeRole, type PageKey, type Section } from './access.ts'
 
@@ -23,6 +23,7 @@ export type BoardScope = {
   canReportMachines: boolean
   canSetRepairEta?: boolean      // ฝ่ายผลิต · owner ทำแทนได้
   canBook?: boolean              // ฝ่ายผลิตเท่านั้น · owner ทำแทนได้
+  pressStations?: StationCode[]  // พนักงานสถานีกดได้เฉพาะสถานีที่จับคู่
   summary: SummaryKind
 }
 
@@ -42,8 +43,24 @@ export const FACTORY_SCOPE: BoardScope = {
   summary: 'factory',
 }
 
-export function boardScope(role: EmployeeRole, section: Section | null): BoardScope {
+export function boardScope(role: EmployeeRole, section: Section | null, stations: StationCode[] = []): BoardScope {
   switch (role) {
+    case 'staff': {
+      const mine = ALL_STATIONS.filter(s => stations.includes(s))
+      return {
+        title: mine.length ? `งานสถานี${mine.map(s => STATION_NAME[s]).join(' · ')}` : 'ยังไม่ได้จับคู่สถานี',
+        sub: mine.length ? 'งานที่อยู่สถานีของคุณ · กดการ์ดเพื่อดูรายละเอียด' : 'ให้เจ้าของระบบจับคู่สถานีให้ที่เมนู Station Assignment',
+        columns: mine,
+        sampleStations: mine,
+        showFilm: mine.includes('dtf_press'),
+        tabs: ['board', 'todo'],
+        allowFactory: true,
+        canSew: false,
+        canReportMachines: false,
+        pressStations: mine,
+        summary: 'staff',
+      }
+    }
     case 'supervisor': {
       const stations = section ? ALL_STATIONS.filter(s => STATION_SECTION[s] === section) : ALL_STATIONS
       return {

@@ -12,7 +12,7 @@ import { thaiError } from '../data/live'
 import type { Tone } from '../components/tone'
 import { IconAlert, IconCheck, IconClipboard, IconClock, IconFactory, IconFilm, IconPackage, IconSearch, IconSewing, IconX } from '../components/icons'
 import { roleSummary, type SewingView, type SummaryIcon } from '../proto/summary'
-import Overview from './Overview'
+import Overview, { StationNow } from './Overview'
 import { DASH_TAB_NAME, FACTORY_SCOPE, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
 import { SewingFloor, TodoPanel } from './WorkPanels'
 import { MACHINE_TYPE_NAME, pausesJob, type MachineStatus, type MachineType } from '../proto/sewing'
@@ -24,18 +24,24 @@ import { StationQueue } from './StationQueue'
 import { ReceiveJob } from './ReceiveJob'
 import { ConfirmationOutbox } from './ConfirmationOutbox'
 import { JobHistory } from './JobHistory'
-import type { EmployeeRole } from '../auth/access'
+import { isStationCode } from '../proto/model'
+import type { EmployeeRole, FactoryView } from '../auth/access'
+import { IssuesView, MyHistoryView, QueueAllView, ReportIssueView, ReviewsView } from './RolePages'
+import { myStationsOf } from '../proto/rolePages'
+import type { OverviewView } from '../auth/menus'
 import { IconInbox } from '../components/icons'
 
 type Filter = 'all' | 'overdue' | 'hold' | 'film' | 'doneToday'
-type View = 'overview' | 'board'
+type View = FactoryView
 const STATUS_FILTERS: [Filter, string][] = [
   ['all', 'ทุกสถานะ'], ['overdue', 'เลยกำหนดส่ง'], ['hold', 'ติดปัญหา / พักงาน'],
   ['film', 'รอฟิล์ม'], ['doneToday', 'เสร็จวันนี้'],
 ]
 const filterField = 'min-h-12 w-full min-w-0 rounded-xl border border-line bg-card px-3 focus-visible:outline-2 focus-visible:outline-brand'
 
-export default function Dashboard({ view, today, role, scope = FACTORY_SCOPE }: { view: View; today: string; role: EmployeeRole; scope?: BoardScope }) {
+export default function Dashboard({ view, routeKey, tab, overviewView, today, role, scope = FACTORY_SCOPE }: {
+  view: View; routeKey?: string; tab?: DashTab; overviewView?: OverviewView; today: string; role: EmployeeRole; scope?: BoardScope
+}) {
   const { state, live, refresh } = useFactoryData()
   if (state.status === 'loading') {
     return <main className="flex-1 p-5"><p role="status" className="text-muted">กำลังโหลดข้อมูลงาน…</p></main>
@@ -58,13 +64,13 @@ export default function Dashboard({ view, today, role, scope = FACTORY_SCOPE }: 
           ขาดการเชื่อมต่อ · ข้อมูลอาจไม่ใช่ล่าสุด (อัปเดตล่าสุด {state.loadedAt.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })} น.) · ระบบจะโหลดใหม่เองเมื่อเน็ตกลับมา
         </p>
       )}
-      <DashboardView view={view} today={today} role={role} myScope={scope} data={state.data} loadedAt={state.loadedAt} refresh={refresh} />
+      <DashboardView key={routeKey} view={view} startTab={tab} overviewView={overviewView} today={today} role={role} myScope={scope} data={state.data} loadedAt={state.loadedAt} refresh={refresh} />
     </>
   )
 }
 
-function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: {
-  view: View; today: string; role: EmployeeRole; myScope: BoardScope; data: FactoryData; loadedAt: Date; refresh: () => Promise<void>
+function DashboardView({ view, startTab, overviewView, today, role, myScope, data, loadedAt, refresh }: {
+  view: View; startTab?: DashTab; overviewView?: OverviewView; today: string; role: EmployeeRole; myScope: BoardScope; data: FactoryData; loadedAt: Date; refresh: () => Promise<void>
 }) {
   // แอดมินส่งงานเข้าโรงงาน · owner ทำแทนได้ · ฐานข้อมูลตรวจซ้ำ
   const canReceive = role === 'admin' || role === 'owner'
@@ -143,7 +149,8 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   // คนหน้างานเห็นเฉพาะงานของตัวเองก่อน · กดดูทั้งโรงงานได้เมื่ออยากรู้ว่างานกำลังจะมาถึง
   const [wholeFactory, setWholeFactory] = useState(false)
   // ลิงก์ #/board?station=… ตอนเปิดหน้าครั้งแรก → เปิดแท็บบอร์ด ไม่ใช่แท็บแรกของบทบาท
-  const [tab, setTab] = useState<DashTab>(() => stationFromHash() && myScope.tabs.includes('board') ? 'board' : myScope.tabs[0])
+  const [tab, setTab] = useState<DashTab>(() => stationFromHash() && myScope.tabs.includes('board') ? 'board'
+    : startTab && myScope.tabs.includes(startTab) ? startTab : myScope.tabs[0])
   const [sewFocus, setSewFocus] = useState<{ view?: SewingView; n: number }>({ n: 0 })
   const activeTab = myScope.tabs.includes(tab) ? tab : myScope.tabs[0]
   const scoped = myScope.columns !== null
@@ -257,7 +264,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   const openFinish = openJob && openJob.phase !== 'done' ? workdayToDate(forecast.finishDay.get(openJob.id) ?? 0, now) : undefined
   const drawer = openJob && (
     <JobDrawer job={openJob} now={now} finish={openFinish} onClose={() => setOpenId(null)}
-      actions={<JobActions job={openJob} role={role} version={loadedAt.getTime()} now={now} refresh={refresh} vendors={data.vendors} />}
+      actions={<JobActions job={openJob} role={role} myStations={myScope.pressStations} version={loadedAt.getTime()} now={now} refresh={refresh} vendors={data.vendors} />}
       history={<JobHistory key={openJob.id} jobId={openJob.id} role={role} version={loadedAt.getTime()} now={now} onChanged={refresh} />} />
   )
   const receive = receiving && (
@@ -278,6 +285,34 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     </div>
   )
 
+  const VIEW_TITLE: Partial<Record<View, string>> = {
+    issues: 'ปัญหา / งานแก้', reviews: 'รายการรออนุมัติ', report: 'แจ้งปัญหา', history: 'ประวัติการทำงาน', queueAll: 'คิวการผลิต', dept: 'ภาพรวมแผนก',
+  }
+  const title = VIEW_TITLE[view]
+  if (title) {
+    const deptStations = myScope.columns ? myScope.columns.filter(isStationCode) : null
+    return (
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-4 p-4 sm:p-6">
+          <PageHeader title={title} today={today} updated={loadedAt} />
+          {linkNotice}
+          {view === 'issues' && <IssuesView jobs={allJobs} now={now} role={role} stations={deptStations} call={call} onOpen={setOpenId} />}
+          {view === 'report' && <ReportIssueView jobs={allJobs} now={now} stations={myStationsOf(role, myScope.pressStations)} call={call} onOpen={setOpenId} />}
+          {view === 'reviews' && <ReviewsView jobs={allJobs} now={now} role={role} call={call} onOpen={setOpenId} />}
+          {view === 'history' && <MyHistoryView jobs={allJobs} onOpen={setOpenId} />}
+          {view === 'queueAll' && <QueueAllView jobs={allJobs} now={now} onOpen={setOpenId} />}
+          {view === 'dept' && <>
+            <RoleSummary scope={myScope} jobs={allJobs} machines={machines} now={now}
+              onPick={t => { window.location.hash = t === 'todo' ? '#/queue' : '#/board' }} />
+            <StationNow jobs={allJobs} now={now} stations={deptStations ?? undefined} />
+            <a href="#/issues" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-line bg-card px-5 font-semibold text-brand hover:bg-brand-soft">ดูปัญหา / งานแก้ทั้งหมด</a>
+          </>}
+        </div>
+        {drawer}
+      </div>
+    )
+  }
+
   if (view === 'overview') {
     return (
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -285,7 +320,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
           <PageHeader title="ภาพรวมการผลิต" today={today} updated={loadedAt} />
           {linkNotice}
           {receiveBar}
-          <Overview jobs={jobs} now={now} forecast={forecast} floor={floor} products={products} onOpen={setOpenId} />
+          <Overview initialView={overviewView} jobs={jobs} now={now} forecast={forecast} floor={floor} products={products} onOpen={setOpenId} />
         </div>
         {drawer}
         {receive}
@@ -350,7 +385,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
           )}
           {focusStation ? (
             <ErrorBoundary key={`q-${focusStation}`}>
-              <StationQueue station={focusStation} jobs={allJobs} role={role} now={now} call={call} onOpen={setOpenId} />
+              <StationQueue station={focusStation} jobs={allJobs} role={role} myStations={myScope.pressStations} now={now} call={call} onOpen={setOpenId} />
             </ErrorBoundary>
           ) : (<>
           <Card className="grid gap-2 p-3 sm:p-4">

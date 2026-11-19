@@ -1,11 +1,11 @@
 import { ROLE_LABELS, SECTION_LABELS, type EmployeeRole, type Section } from '../../auth/access'
 import { Pill } from '../../components/ui'
 import { kindLabel, type InboxKind } from '../inbox/format'
-import { saveInbox, saveProfile, saveReason, type Loaded } from './data'
+import { saveAssignment, saveInbox, saveProfile, saveReason, type Loaded } from './data'
 import { Collection, EnabledField, SelectField, TextField, type Controls } from './editor'
 import { integer, readProfile, requireText, ROLE_OPTIONS, type ProfileDraft, type ReasonDraft } from './model'
 
-type TabProps<T extends 'users' | 'reasons' | 'inbox'> = { data: Loaded<T>; controls: Controls }
+type TabProps<T extends 'users' | 'assign' | 'reasons' | 'inbox'> = { data: Loaded<T>; controls: Controls }
 
 export function UsersTab({ data, controls, userId }: TabProps<'users'> & { userId: string }) {
   const users = [...data.users].sort((a, b) => Number(a.role !== null) - Number(b.role !== null))
@@ -59,6 +59,38 @@ export function UsersTab({ data, controls, userId }: TabProps<'users'> & { userI
       save={async (user, draft) => {
         if (!user) throw new Error('ไม่พบบัญชีผู้ใช้')
         await saveProfile(user.user_id, readProfile(draft, user.user_id === userId, user.role))
+      }} />
+  )
+}
+
+export function AssignTab({ data, controls }: TabProps<'assign'>) {
+  const stationName = (code: string) => data.stations.find(s => s.code === code)?.name ?? code
+  return (
+    <Collection controls={controls} group="assign" title="จับคู่พนักงานกับสถานี"
+      subtitle="พนักงานสถานีกดเริ่ม / เสร็จ / พักงาน ได้เฉพาะสถานีที่ติ๊กไว้ · เพิ่มพนักงานโดยตั้งบทบาท พนักงานสถานี ที่เมนูผู้ใช้งาน"
+      list={data.staff} identify={user => user.user_id} editLabel={() => 'เลือกสถานี'}
+      row={user => (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="min-w-0 font-semibold [overflow-wrap:anywhere]">{user.name || user.email || 'บัญชีไม่มีอีเมล'}</span>
+            {!user.active && <Pill tone="neutral">ปิดใช้งาน</Pill>}
+            {user.stations.length === 0 && <Pill tone="warn">ยังไม่จับคู่สถานี</Pill>}
+          </div>
+          {user.stations.length > 0 && <p className="mt-1 text-muted">{user.stations.map(stationName).join(' · ')}</p>}
+        </>
+      )}
+      draft={user => user?.stations ?? []}
+      fields={(picked, change) => (
+        <div className="grid gap-1 sm:grid-cols-2">
+          {data.stations.map(s => (
+            <EnabledField key={s.code} label={s.name} checked={picked.includes(s.code)}
+              onChange={on => change(on ? [...picked, s.code] : picked.filter(c => c !== s.code))} />
+          ))}
+        </div>
+      )}
+      save={async (user, picked) => {
+        if (!user) throw new Error('ไม่พบบัญชีผู้ใช้')
+        await saveAssignment(user.user_id, user.stations, picked)
       }} />
   )
 }

@@ -2,8 +2,10 @@ import { lazy, Suspense, useEffect, useMemo, useState, type ComponentType } from
 import { isConfigured } from './lib/supabase'
 import EmployeeLogin, { AccountScreen, SignOutButton, primaryButton } from './auth/EmployeeLogin'
 import { useEmployeeAccount } from './auth/useEmployeeAccount'
-import { canOpenPage, roleLabel as labelFor, type EmployeeRole, type PageKey, type Section } from './auth/access'
+import { canOpenPage, FACTORY_VIEWS, roleLabel as labelFor, type FactoryView, type PageKey, type EmployeeRole, type Section } from './auth/access'
 import { boardScope, homePage } from './auth/scope'
+import type { StationCode } from './proto/model'
+import { bottomBar, roleMenu, routeOf, type MenuIcon, type Route } from './auth/menus'
 import ReportsPage from './pages/reports'
 import SettingsPage from './pages/settings'
 import InboxPage from './pages/inbox'
@@ -12,26 +14,21 @@ import { unreadBadge } from './pages/inbox/format'
 import { useInbox } from './pages/inbox/useInbox'
 import JobLabel from './pages/job-label'
 import AccountPage from './pages/AccountPage'
+import { AuditPage, RolesPage, SystemOverviewPage } from './pages/admin'
 import { Card, CardHeader } from './components/ui'
 import { AppUpdate } from './components/AppUpdate'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { IconChart, IconColumns, IconGauge, IconInbox, IconSliders, IconUser } from './components/icons'
+import {
+  IconChart, IconClipboard, IconClock, IconColumns, IconFactory, IconFlag, IconGauge, IconInbox, IconLayers, IconList, IconShield,
+  IconSliders, IconUser, IconUsers,
+} from './components/icons'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 
-type NavItem = { key: PageKey; hash: string; name: string; short: string; icon: ComponentType<{ className?: string }> }
-
-const NAV: NavItem[] = [
-  { key: 'overview', hash: '#/', name: 'ภาพรวมแอดมิน', short: 'ภาพรวม', icon: IconGauge },
-  { key: 'board', hash: '#/board', name: 'หน้างาน', short: 'หน้างาน', icon: IconColumns },
-  { key: 'inbox', hash: '#/inbox', name: 'กล่องจดหมาย', short: 'กล่องจดหมาย', icon: IconInbox },
-  { key: 'reports', hash: '#/reports', name: 'รายงาน', short: 'รายงาน', icon: IconChart },
-  { key: 'settings', hash: '#/settings', name: 'ตั้งค่า', short: 'ตั้งค่า', icon: IconSliders },
-  { key: 'system', hash: '#/system', name: 'บัญชี', short: 'บัญชี', icon: IconUser },
-]
-
-// ใบปะงานเปิดจากรายละเอียดงาน โดยไม่มีรายการในเมนู
-const HIDDEN: Partial<Record<string, PageKey>> = { '#/label': 'label' }
+const MENU_ICON: Record<MenuIcon, ComponentType<{ className?: string }>> = {
+  gauge: IconGauge, list: IconList, columns: IconColumns, chart: IconChart, queue: IconLayers, users: IconUsers,
+  sliders: IconSliders, inbox: IconInbox, flag: IconFlag, clock: IconClock, shield: IconShield, pin: IconFactory, log: IconClipboard,
+}
 
 export default function App() {
   return (
@@ -46,7 +43,7 @@ function AppContent() {
   const hash = useHash()
   const { session, result, retry } = useEmployeeAccount()
   const path = hash.split('?')[0]
-  const page = NAV.find(item => item.hash === path)?.key ?? HIDDEN[path] ?? 'overview'
+  const route = routeOf(path)
   const labelId = new URLSearchParams(hash.split('?')[1] ?? '').get('id') ?? ''
 
   if (!isConfigured) {
@@ -77,24 +74,29 @@ function AppContent() {
     )
   }
 
-  return <Workspace key={session.user.id} page={page} labelId={labelId} profile={result.profile} email={session.user.email} />
+  return <Workspace key={session.user.id} path={path} route={route} labelId={labelId} profile={result.profile} email={session.user.email} />
 }
 
-function Workspace({ page: requested, labelId, profile, email }: {
-  page: PageKey
+function Workspace({ path: requestedPath, route: requested, labelId, profile, email }: {
+  path: string
+  route: Route
   labelId: string
-  profile: { name: string; role: EmployeeRole; section: Section | null }
+  profile: { name: string; role: EmployeeRole; section: Section | null; stations: StationCode[] }
   email?: string
 }) {
   const [today] = useState(() => new Date().toLocaleDateString('th-TH', {
     timeZone: 'Asia/Bangkok', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   }))
   // เปิดเว็บมาที่ #/ แล้วบทบาทนั้นไม่ใช้ภาพรวม → ไปหน้างานของตัวเองแทน ไม่ขึ้นหน้า "ไม่มีสิทธิ์"
-  const page = requested === 'overview' && !canOpenPage(profile.role, 'overview') ? homePage(profile.role) : requested
-  const scope = useMemo(() => boardScope(profile.role, profile.section), [profile.role, profile.section])
-  const visibleNav = NAV
-    .filter(item => canOpenPage(profile.role, item.key))
-    .map(item => item.key === 'board' && scope.columns ? { ...item, name: 'งานของฉัน', short: 'งานของฉัน' } : item)
+  const ownerHome = requestedPath === '#/' && profile.role === 'owner'
+  const redirected = requested.page === 'overview' && !canOpenPage(profile.role, 'overview')
+  const route: Route = ownerHome ? { page: 'sysOverview' } : redirected ? { page: homePage(profile.role) } : requested
+  const page = route.page
+  const path = ownerHome ? '#/admin' : redirected ? '#/board' : requestedPath
+  const scope = useMemo(() => boardScope(profile.role, profile.section, profile.stations), [profile.role, profile.section, profile.stations])
+  const menu = roleMenu(profile.role)
+  const bar = bottomBar(menu, path)
+  const [moreOpen, setMoreOpen] = useState(false)
   const roleLabel = labelFor(profile.role, profile.section)
   const { unreadCount } = useInbox()
   const inboxBadge = unreadBadge(unreadCount)
@@ -106,23 +108,30 @@ function Workspace({ page: requested, labelId, profile, email }: {
           <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-10 rounded-lg ring-1 ring-white/20" />
           <span className="text-lg font-bold leading-tight">ติดตาม<br />การผลิต</span>
         </div>
-        <nav aria-label="เมนูหลัก" className="grid gap-1 px-3">
-          {visibleNav.map(({ key, name, hash, icon: Icon }) => {
-            const active = key === page
-            const badge = key === 'inbox' ? inboxBadge : null
-            return (
-              <a key={key} href={hash} aria-current={active ? 'page' : undefined}
-                aria-label={badge ? `${name} ยังไม่อ่าน ${unreadCount} รายการ` : undefined}
-                className={`flex min-h-12 items-center gap-3 rounded-xl px-4 text-base font-semibold ${active ? 'bg-white text-brand' : 'text-white/90 hover:bg-white/10'}`}>
-                <Icon className="size-5 shrink-0" />{name}
-                {badge && (
-                  <span aria-hidden className="ml-auto min-w-5 shrink-0 rounded-full bg-danger px-1.5 py-0.5 text-center text-xs leading-none font-bold text-white tabular-nums">
-                    {badge}
-                  </span>
-                )}
-              </a>
-            )
-          })}
+        <nav aria-label="เมนูหลัก" className="grid gap-4 px-3">
+          {menu.map(group => (
+            <div key={group.title} className="grid gap-1">
+              <p className="px-4 pb-1 text-xs font-semibold tracking-widest text-white/60">{group.title}</p>
+              {group.items.map(({ name, hash, icon }) => {
+                const Icon = MENU_ICON[icon]
+                const active = hash === path
+                const badge = hash === '#/inbox' ? inboxBadge : null
+                return (
+                  <a key={hash} href={hash} aria-current={active ? 'page' : undefined}
+                    aria-label={badge ? `${name} ยังไม่อ่าน ${unreadCount} รายการ` : undefined}
+                    className={`relative flex min-h-12 items-center gap-3 rounded-xl px-4 text-base font-semibold ${active ? 'bg-white text-brand' : 'text-white/90 hover:bg-white/10'}`}>
+                    {active && <span aria-hidden className="absolute top-2 bottom-2 -left-3 w-1 rounded-r-full bg-gold" />}
+                    <Icon className="size-5 shrink-0" />{name}
+                    {badge && (
+                      <span aria-hidden className="ml-auto min-w-5 shrink-0 rounded-full bg-danger px-1.5 py-0.5 text-center text-xs leading-none font-bold text-white tabular-nums">
+                        {badge}
+                      </span>
+                    )}
+                  </a>
+                )
+              })}
+            </div>
+          ))}
         </nav>
         <a href="#/system" className="m-3 mt-auto flex min-h-12 items-center gap-3 rounded-xl bg-white/10 p-3 hover:bg-white/15">
           <span className="grid size-10 shrink-0 place-items-center rounded-full bg-gold text-brand-700"><IconUser className="size-5" /></span>
@@ -154,43 +163,71 @@ function Workspace({ page: requested, labelId, profile, email }: {
           {!canOpenPage(profile.role, page) ? (
             <main className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto p-4 sm:p-6">
               <Card>
-                <CardHeader title={page === 'settings' ? 'หน้านี้สำหรับเจ้าของระบบ' : 'หน้านี้สำหรับผู้บริหาร'} />
+                <CardHeader title={['settings', 'sysOverview', 'roles', 'audit'].includes(page) ? 'หน้านี้สำหรับเจ้าของระบบ' : 'บทบาทของคุณเปิดหน้านี้ไม่ได้'} />
                 <div className="px-5 pb-5">
                   <a href="#/board" className={`inline-flex items-center ${primaryButton}`}>ไปหน้างาน</a>
                 </div>
               </Card>
             </main>
-          ) : page === 'overview' || page === 'board' ? (
+          ) : isFactoryView(page) ? (
             <Suspense fallback={<main className="p-5"><p role="status">กำลังโหลดหน้าติดตามการผลิต…</p></main>}>
-              <Dashboard view={page} today={today} role={profile.role} scope={scope} />
+              <Dashboard view={page} routeKey={path} tab={route.tab} overviewView={route.overviewView} today={today} role={profile.role} scope={scope} />
             </Suspense>
           ) : (
             <main className="flex-1 overflow-y-auto">
               {page === 'system' && <AccountPage name={profile.name} role={profile.role} roleLabel={roleLabel} email={email} />}
               {page === 'reports' && <ReportsPage />}
-              {page === 'settings' && <SettingsPage />}
+              {page === 'settings' && <SettingsPage key={path} tab={route.settingsTab} />}
               {page === 'inbox' && <InboxPage />}
+              {page === 'sysOverview' && <SystemOverviewPage />}
+              {page === 'roles' && <RolesPage />}
+              {page === 'audit' && <AuditPage />}
               {page === 'label' && <JobLabel jobId={labelId} />}
             </main>
           )}
           </ErrorBoundary>
         </div>
 
+        {moreOpen && bar.more.length > 0 && (
+          <div id="more-menu" className="grid gap-1 border-t border-line bg-card p-2 lg:hidden">
+            {bar.more.map(({ name, hash, icon }) => {
+              const Icon = MENU_ICON[icon]
+              return (
+                <a key={hash} href={hash} onClick={() => setMoreOpen(false)} aria-current={hash === path ? 'page' : undefined}
+                  className={`flex min-h-12 items-center gap-3 rounded-xl px-4 text-base font-semibold ${hash === path ? 'bg-brand text-white' : 'hover:bg-brand-soft'}`}>
+                  <Icon className="size-5 shrink-0" />{name}
+                </a>
+              )
+            })}
+          </div>
+        )}
         <nav aria-label="เมนูหลัก" className="flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
-          {visibleNav.filter(({ key }) => key !== 'inbox').map(({ key, short, hash, icon: Icon }) => {
-            const active = key === page
+          {bar.shown.map(({ short, hash, icon }) => {
+            const Icon = MENU_ICON[icon]
+            const active = hash === path
             return (
-              <a key={key} href={hash} aria-current={active ? 'page' : undefined}
+              <a key={hash} href={hash} aria-current={active ? 'page' : undefined} onClick={() => setMoreOpen(false)}
                 className={`flex min-h-14 min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 text-sm ${active ? 'font-bold text-brand' : 'text-muted'}`}>
-                <span className={`grid h-8 w-14 place-items-center rounded-full ${active ? 'bg-brand text-white' : ''}`}><Icon className="size-5" /></span>
-                {short}
+                <span className={`grid h-8 w-12 place-items-center rounded-full ${active ? 'bg-brand text-white' : ''}`}><Icon className="size-5" /></span>
+                <span className="max-w-full truncate px-0.5">{short}</span>
               </a>
             )
           })}
+          {bar.more.length > 0 && (
+            <button type="button" aria-expanded={moreOpen} aria-controls="more-menu" onClick={() => setMoreOpen(open => !open)}
+              className={`flex min-h-14 min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 text-sm ${moreOpen ? 'font-bold text-brand' : 'text-muted'}`}>
+              <span className={`grid h-8 w-12 place-items-center rounded-full ${moreOpen ? 'bg-brand text-white' : ''}`}><IconList className="size-5" /></span>
+              เพิ่มเติม
+            </button>
+          )}
         </nav>
       </div>
     </div>
   )
+}
+
+function isFactoryView(page: PageKey): page is FactoryView {
+  return FACTORY_VIEWS.includes(page)
 }
 
 function useHash() {
