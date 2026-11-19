@@ -81,7 +81,7 @@ describe('machineCounts (จัดจักรแบบตั้งจำนว�
 
 describe('ปุ่มบนหน้าจอ', () => {
   const ok = async () => ({ ok: true as const, text: '' })
-  const actions: SewActions = { report: ok, resume: ok, finish: ok, setCount: ok }
+  const actions: SewActions = { report: ok, resume: ok, finish: ok, assign: ok, release: ok }
   const sewing = (a?: SewActions, status: Job['status'] = 'doing') => renderToStaticMarkup(createElement(SewingNow, {
     jobs: [job('a', { status })], machines, now, onOpen: () => {}, actions: a,
   }))
@@ -92,14 +92,15 @@ describe('ปุ่มบนหน้าจอ', () => {
     expect(sewing(undefined)).not.toContain('จัดการจักร')
   })
 
-  it('งานรอเย็บมีปุ่ม − / + เลือกจำนวนก่อนเริ่ม ค่าเริ่มต้นตามสินค้า', () => {
+  it('งานรอเย็บมีปุ่มเริ่มเย็บ (กดแล้วเลือกจักรรายตัว) และผังจักรอยู่หน้าเดียวกัน ไม่มีปุ่ม − / +', () => {
     const html = renderToStaticMarkup(createElement(SewingFloor, {
       jobs: [job('q', { status: 'queued' })], machines, needs: { tshirt: needs }, shared, now, onOpen: () => {},
       onStart: async () => ({ ok: true as const, picked: [] }),
     }))
-    expect(html).toContain('aria-label="เพิ่มเข็มเดี่ยว"')
-    expect(html).toContain('ว่าง 2 ตัว')
     expect(html).toContain('เริ่มเย็บ')
+    expect(html).not.toContain('aria-label="เพิ่มเข็มเดี่ยว"')
+    expect(html).toContain('สถานะจักรเย็บ')
+    expect(html).toContain('SN-001')
   })
 })
 

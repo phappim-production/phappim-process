@@ -15,7 +15,7 @@ import { roleSummary, type SewingView, type SummaryIcon } from '../proto/summary
 import Overview, { StationNow } from './Overview'
 import { DASH_TAB_NAME, FACTORY_SCOPE, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
 import { SewingFloor, TodoPanel } from './WorkPanels'
-import { MACHINE_TYPE_NAME, pausesJob, type MachineStatus, type MachineType } from '../proto/sewing'
+import { pausesJob, type MachineStatus } from '../proto/sewing'
 import { BookingPanel } from './BookingPanel'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { StationHeader, StationRail } from '../components/StationNav'
@@ -89,20 +89,9 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
     return r
   }
   // เริ่มเย็บเป็น 2 คำสั่ง (ชุดตามสินค้า แล้วเพิ่มจำนวน) · เพิ่มไม่ได้ = งานเริ่มแล้ว ให้กด + ในจัดการจักร
-  const startSewing = async (jobId: string, counts: Partial<Record<MachineType, number>> = {}) => {
-    const r = await rpc<string[]>('start_sewing', { p_job: jobId })
-    if (!r.ok) return r
-    const picked = [...(r.data ?? [])]
-    const problems: string[] = []
-    for (const [type, qty] of Object.entries(counts) as [MachineType, number][]) {
-      const have = picked.filter(code => machines.find(m => m.code === code)?.type === type).length
-      if (qty <= have) continue
-      const more = await rpc<string[]>('set_job_machines', { p_job: jobId, p_type: type, p_qty: qty })
-      if (more.ok) picked.push(...(more.data ?? []))
-      else problems.push(`เพิ่ม${MACHINE_TYPE_NAME[type]}ไม่ได้: ${more.reason} · กด "จัดการจักร" เพื่อเพิ่มทีหลัง`)
-    }
-    await refresh()
-    return { ok: true as const, picked: picked.sort(), warning: problems.join(' · ') || undefined }
+  const startSewing = async (jobId: string, codes: string[]) => {
+    const r = await call<string[]>('start_sewing', { p_job: jobId, p_codes: codes })
+    return r.ok ? { ok: true as const, picked: [...(r.data ?? [])].sort() } : r
   }
   const book = async (jobId: string, starts: Date, ends: Date) => {
     const r = await call<string[]>('book_machines', { p_job: jobId, p_starts: starts.toISOString(), p_ends: ends.toISOString() })
@@ -140,12 +129,13 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
       if (!r.ok) return r
       return { ok: true, text: `${noOf(jobId)} เย็บเสร็จ ส่งต่อ QC + Packing แล้ว · คืนจักร ${released.length} ตัว${released.length ? `: ${released.join(', ')}` : ''}` }
     },
-    setCount: async (jobId, type, qty) => {
-      const before = machines.filter(m => m.jobId === jobId && m.type === type).length
-      const r = await call<string[]>('set_job_machines', { p_job: jobId, p_type: type, p_qty: qty })
-      if (!r.ok) return r
-      const codes = (r.data ?? []).join(', ')
-      return { ok: true, text: `${MACHINE_TYPE_NAME[type]} ${qty} ตัว · ${qty > before ? `เพิ่ม ${codes}` : `คืน ${codes} ให้งานอื่นใช้`}` }
+    assign: async (jobId, code) => {
+      const r = await call('assign_machines', { p_job: jobId, p_machine_codes: [code] })
+      return r.ok ? { ok: true, text: `เพิ่มจักร ${code} ให้ ${noOf(jobId)} แล้ว` } : r
+    },
+    release: async (jobId, code) => {
+      const r = await call('release_machines', { p_job: jobId, p_machine_codes: [code] })
+      return r.ok ? { ok: true, text: `คืนจักร ${code} แล้ว · งานอื่นใช้ได้` } : r
     },
   }
   // คนหน้างานเห็นเฉพาะงานของตัวเองก่อน · กดดูทั้งโรงงานได้เมื่ออยากรู้ว่างานกำลังจะมาถึง

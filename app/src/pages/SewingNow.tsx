@@ -3,14 +3,17 @@ import { Card, CardHeader, DueLabel, MockupThumb, Pill } from '../components/ui'
 import { requiredThai } from '../components/forms'
 import { IconCheck, IconSewing } from '../components/icons'
 import { type Job } from '../proto/model'
-import { MACHINE_TYPE_NAME, machineCounts, type Booking, type Machine, type MachineCountRow, type MachineType, type Need } from '../proto/sewing'
+import { type Booking, type Machine, type MachineType, type Need } from '../proto/sewing'
+import { pickGroups, type PickTile } from '../proto/machinePick'
+import { MachinePicker } from '../components/MachinePicker'
 
 type Result = { ok: true; text: string } | { ok: false; reason: string }
 export type SewActions = {
   report: (jobId: string, reason: string, pause: boolean) => Promise<Result>
   resume: (jobId: string) => Promise<Result>
   finish: (jobId: string) => Promise<Result>
-  setCount: (jobId: string, type: MachineType, qty: number) => Promise<Result>
+  assign: (jobId: string, code: string) => Promise<Result>
+  release: (jobId: string, code: string) => Promise<Result>
 }
 
 const secondaryButton = 'min-h-12 rounded-xl border border-line px-4 font-semibold text-brand hover:bg-brand-soft'
@@ -111,7 +114,7 @@ export function SewingNow({ jobs, machines, now, onOpen, actions, needs = {}, sh
       {dialog?.type === 'machines' && actions && (
         <Dialog title={`จัดการจักร ${dialog.job.no}`} onClose={() => setDialog(null)}>
           {/* ข้อมูลงานล่าสุด (อีกเครื่องอาจกดไปแล้ว) · งานออกจากเย็บแล้ว = ไม่มีอะไรให้จัด */}
-          <MachinePanel job={list.find(j => j.id === dialog.job.id)} machines={machines} now={now} bookings={bookings} shared={shared}
+          <MachinePanel job={list.find(j => j.id === dialog.job.id)} jobs={jobs} machines={machines} now={now} bookings={bookings} shared={shared}
             needs={needs[dialog.job.productCode ?? ''] ?? []} actions={actions} onClose={() => setDialog(null)} />
         </Dialog>
       )}
@@ -139,14 +142,12 @@ export function SewingNow({ jobs, machines, now, onOpen, actions, needs = {}, sh
   )
 }
 
-// หน้างานคิดเป็นจำนวนตัว ไม่เลือกรหัส · กด − / + บันทึกทันที ระบบหยิบ/คืนจักรให้เอง
-function MachinePanel({ job, machines, needs, shared, bookings, now, actions, onClose }: {
-  job?: Job; machines: Machine[]; needs: Need[]; shared: readonly MachineType[]; bookings: Booking[]; now: Date
+function MachinePanel({ job, jobs, machines, needs, shared, bookings, now, actions, onClose }: {
+  job?: Job; jobs: Job[]; machines: Machine[]; needs: Need[]; shared: readonly MachineType[]; bookings: Booking[]; now: Date
   actions: SewActions; onClose: () => void
 }) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
-  const [showOther, setShowOther] = useState(false)
   if (!job) {
     return (
       <div className="mt-3 grid gap-3">
@@ -156,65 +157,28 @@ function MachinePanel({ job, machines, needs, shared, bookings, now, actions, on
     )
   }
   const current = job
-  const rows = machineCounts(current, machines, needs, shared, bookings, now)
-  const main = rows.filter(r => r.base)
-  const other = rows.filter(r => !r.base)
+  const groups = pickGroups(current, machines, needs, shared, bookings, now)
 
-  async function change(type: MachineType, qty: number) {
+  async function toggle(code: string, tile: PickTile) {
     setBusy(true)
     setMsg(null)
-    const r = await actions.setCount(current.id, type, qty)
+    const r = tile.state === 'mine' ? await actions.release(current.id, code) : await actions.assign(current.id, code)
     setBusy(false)
     setMsg(r.ok ? { ok: true, text: r.text } : { ok: false, text: r.reason })
   }
 
   return (
     <div className="mt-3 grid gap-4">
+      <p className="text-muted">กดจักรที่ว่าง = เพิ่มให้งานนี้ · กดจักรของงานนี้ = คืนให้งานอื่นใช้</p>
       {msg && (
         <p role={msg.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${msg.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>
           {msg.text}
         </p>
       )}
-      <ul className="grid gap-3">
-        {main.map(row => <CountRow key={row.type} row={row} busy={busy} onChange={qty => void change(row.type, qty)} />)}
-      </ul>
-      {other.length > 0 && (
-        <div className="grid gap-3">
-          <button type="button" className={secondaryButton} aria-expanded={showOther} onClick={() => setShowOther(v => !v)}>
-            {showOther ? 'ซ่อนจักรชนิดอื่น' : 'เพิ่มจักรชนิดอื่น (ตามสเปกลูกค้า)'}
-          </button>
-          {showOther && (
-            <ul className="grid gap-3">
-              {other.map(row => <CountRow key={row.type} row={row} busy={busy} onChange={qty => void change(row.type, qty)} />)}
-            </ul>
-          )}
-        </div>
-      )}
+      <MachinePicker groups={groups} picked={[]} manage disabled={busy} shared={shared}
+        jobNo={id => jobs.find(j => j.id === id)?.no ?? 'งานอื่น'} onToggle={(code, tile) => void toggle(code, tile)} />
       <button type="button" className={secondaryButton} onClick={onClose}>เสร็จ</button>
     </div>
-  )
-}
-
-const stepButton = 'grid size-12 shrink-0 place-items-center rounded-xl border border-line text-2xl font-bold text-brand hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-40'
-
-function CountRow({ row, busy, onChange }: { row: MachineCountRow; busy: boolean; onChange: (qty: number) => void }) {
-  const name = MACHINE_TYPE_NAME[row.type]
-  const hint = row.minusBlocked && row.have > 0 ? row.minusBlocked : row.plusBlocked
-  return (
-    <li className="grid gap-1 rounded-xl border border-line p-3">
-      <div className="flex items-center gap-3">
-        <span className="min-w-0 flex-1 font-semibold">{name}</span>
-        <button type="button" className={stepButton} aria-label={`ลด${name} 1 ตัว`} disabled={busy || !!row.minusBlocked}
-          title={row.minusBlocked} onClick={() => onChange(row.have - 1)}>−</button>
-        <span className="w-10 text-center text-2xl font-bold tabular-nums" aria-live="polite">{row.have}</span>
-        <button type="button" className={stepButton} aria-label={`เพิ่ม${name} 1 ตัว`} disabled={busy || !!row.plusBlocked}
-          title={row.plusBlocked} onClick={() => onChange(row.have + 1)}>+</button>
-      </div>
-      <span className="text-sm text-muted">
-        {row.codes.length > 0 ? `ใช้อยู่: ${row.codes.join(' · ')}` : 'ยังไม่ได้ใช้'}{row.free > 0 ? ` · ว่างอีก ${row.free} ตัว` : ''}
-      </span>
-      {hint && <span className="text-sm text-muted">{hint}</span>}
-    </li>
   )
 }
 
