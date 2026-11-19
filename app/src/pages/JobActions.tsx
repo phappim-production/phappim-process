@@ -1,3 +1,4 @@
+import { DELAY_REPORT_ID } from './delayReport'
 import { useEffect, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
@@ -114,9 +115,11 @@ export function JobActions({ job: j, role, myStations = [], version, now, refres
           onSave={(pass, note, day) => act('record_sample_result', { p_pass: pass, p_note: note || null, p_customer_confirmed_at: day || null },
             pass ? 'ตัวอย่างผ่าน · งานไปผลิตจริงที่สถานีแรก' : `ตัวอย่างไม่ผ่าน · ขึ้นตัวอย่างรอบ ${j.sampleRound + 1}`)} />
       )}
-      {inStation && st === 'sew' && (
-        <Section title="เย็บงาน"><p className="text-muted">เริ่มเย็บ รายงานปัญหา และเย็บเสร็จ กดที่แท็บ <b>จักรเย็บ</b> (ระบบเลือกจักรว่างให้)</p></Section>
-      )}
+      {inStation && st === 'sew' && (<>
+        {(d.sla.station_over || d.sla.segment_over || d.sla.station_warn || d.sla.segment_warn) && <SlaBanner sla={d.sla} />}
+        <Section title="เย็บงาน"><p className="text-muted">เริ่มเย็บ จัดการจักร และเย็บเสร็จ กดที่แท็บ <b>จักรเย็บ</b> · เกินเวลามาตรฐานให้ส่งรายงานปัญหาด้านล่างก่อนกดเย็บเสร็จ</p></Section>
+        {j.phase === 'production' && canStation && <SlaReport sla={d.sla} reasons={d.reasons} busy={busy} now={now} act={act} />}
+      </>)}
       {inStation && st !== 'sew' && (
         <Station job={j} detail={d} canPress={canStation} canResume={canCloseIssue(role, st)} role={role} busy={busy} now={now} act={act} />
       )}
@@ -224,10 +227,10 @@ function OpenPdf({ path }: { path: string }) {
   )
 }
 
-function Section({ title, icon, children, tone }: { title: string; icon?: ReactNode; children: ReactNode; tone?: 'danger' | 'warn' }) {
+function Section({ title, icon, children, tone, id }: { title: string; icon?: ReactNode; children: ReactNode; tone?: 'danger' | 'warn'; id?: string }) {
   const border = tone === 'danger' ? 'border-danger/40' : tone === 'warn' ? 'border-warn/40' : 'border-line'
   return (
-    <section className={`rounded-2xl border bg-card p-4 shadow-card ${border}`}>
+    <section id={id} className={`scroll-mt-52 rounded-2xl border bg-card p-4 shadow-card ${border}`}>
       <h3 className="mb-3 flex items-center gap-2 font-semibold">{icon}{title}</h3>
       {children}
     </section>
@@ -349,7 +352,6 @@ function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act 
 }) {
   const st = j.station!
   const [confirmFinish, setConfirmFinish] = useState(false)
-  const [reportRequest, setReportRequest] = useState(newRequestId)
   const [holdText, setHoldText] = useState<string | null>(null)
   const ctx = {
     station: st, phase: j.phase, rework: !!j.rework, done: new Set(d.done.keys()),
@@ -424,17 +426,24 @@ function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act 
             )
         )}
       </Section>
-      {j.phase === 'production' && canPress && (needReport || s.station_warn || s.segment_warn) && (
-        <DelayReport reasons={d.reasons} busy={busy} now={now} required={!!needReport}
-          onSend={async (codes, detail, eta, help) => {
-            const ok = await act('submit_delay_report', {
-              p_reasons: codes, p_detail: detail, p_new_eta: eta.toISOString(), p_need_help: help || null, p_request: reportRequest,
-            }, 'ส่งรายงานปัญหาแล้ว')
-            if (ok) setReportRequest(newRequestId())
-            return ok
-          }} />
-      )}
+      {j.phase === 'production' && canPress && <SlaReport sla={s} reasons={d.reasons} busy={busy} now={now} act={act} />}
     </>
+  )
+}
+
+function SlaReport({ sla: s, reasons, busy, now, act }: { sla: Sla; reasons: Reason[]; busy: boolean; now: Date; act: Act }) {
+  const [reportRequest, setReportRequest] = useState(newRequestId)
+  const needReport = (s.station_over && !s.station_reported) || (s.segment_over && !s.segment_reported)
+  if (!needReport && !s.station_warn && !s.segment_warn) return null
+  return (
+    <DelayReport reasons={reasons} busy={busy} now={now} required={!!needReport}
+      onSend={async (codes, detail, eta, help) => {
+        const ok = await act('submit_delay_report', {
+          p_reasons: codes, p_detail: detail, p_new_eta: eta.toISOString(), p_need_help: help || null, p_request: reportRequest,
+        }, 'ส่งรายงานปัญหาแล้ว')
+        if (ok) setReportRequest(newRequestId())
+        return ok
+      }} />
   )
 }
 
@@ -506,7 +515,7 @@ function DelayReport({ reasons, busy, now, required, onSend }: {
   const block = !codes.length ? 'เลือกรหัสสาเหตุอย่างน้อย 1 ข้อ' : !detail.trim() ? 'อธิบายว่าเกิดอะไรขึ้น' : !eta ? 'เลือกวันที่คาดว่าเสร็จ (วันนี้หรือหลังจากนี้)' : null
   const groups = [...new Set(reasons.map(r => r.grp))]
   return (
-    <Section title={required ? 'ต้องส่งรายงานปัญหาก่อนกดเสร็จ' : 'รายงานปัญหาล่วงหน้า'} icon={<IconAlert className="size-5" />} tone={required ? 'danger' : 'warn'}>
+    <Section id={DELAY_REPORT_ID} title={required ? 'ต้องส่งรายงานปัญหาก่อนกดเสร็จ' : 'รายงานปัญหาล่วงหน้า'} icon={<IconAlert className="size-5" />} tone={required ? 'danger' : 'warn'}>
       <div className="grid gap-3">
         {groups.map(g => (
           <fieldset key={g}>
