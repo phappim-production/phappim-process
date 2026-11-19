@@ -7,9 +7,8 @@
 --    ตารางลูกทุกตาราง (events, issues, qc_results, outsource_runs, inbox_messages, …) ลบตามเองด้วย ON DELETE CASCADE
 --    events ปกติห้ามลบ → ปิด trigger กันลบเฉพาะในธุรกรรมนี้ แล้วเปิดคืนก่อนจบ (ถ้ามี error ทุกอย่างย้อนกลับ trigger ยังเปิดอยู่)
 -- 2. ลบใบร่างใบยืนยันของงานทดสอบ · ล้างบันทึกกันคำขอซ้ำ (private.rpc_requests ไม่มีข้อมูลงาน เก็บไว้ไม่มีประโยชน์)
--- 3. จัดเลขคิวงานที่เหลือใหม่ (ลำดับเดิม)
--- 4. ปิดบัญชีทดสอบ @pp142.test (ไม่ลบ เพราะงานจริงอาจอ้างผู้ใช้เหล่านี้)
--- ไม่แตะ: งานจริง (รวมงานวันทดลอง ส. 21 ที่ใช้เลขใบจริง) · บริษัทภายนอก · จักร · ตั้งค่า
+-- 3. ปิดบัญชีทดสอบ @pp142.test (ไม่ลบ เพราะงานจริงอาจอ้างผู้ใช้เหล่านี้)
+-- ไม่แตะ: งานจริง (รวมงานวันทดลอง ส. 21 ที่ใช้เลขใบจริง · เลขคิวเดิมทุกแถว) · บริษัทภายนอก · จักร · ตั้งค่า
 -- ไฟล์ PDF ใน Storage ลบด้วย SQL ไม่ได้ → ตารางผลบอกชื่อไฟล์ที่ไม่มีงานใดใช้แล้ว ให้ลบเองที่ Storage → confirmations
 
 begin;
@@ -56,10 +55,7 @@ begin
   delete from private.rpc_requests;
   get diagnostics n_rpc = row_count;
 
-  -- 3. คิว
-  perform private.queue_renumber();
-
-  -- 4. บัญชีทดสอบ
+  -- 3. บัญชีทดสอบ
   update public.profiles p set active = false
     from auth.users u
     where u.id = p.user_id and u.email like '%@pp142.test' and p.active;

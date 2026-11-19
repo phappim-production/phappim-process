@@ -40,7 +40,7 @@ export async function goliveCleanupTests({ db, ok }) {
 
   const realBefore = await val(`select count(*)::int from public.jobs where confirmation_no not like 'TEST-%'`)
   const realEvents = await val(`select count(*)::int from public.events where job_id = $1`, [real])
-  const realQueueOrder = (await db.query(`select id from public.jobs where confirmation_no not like 'TEST-%' order by queue_seq`)).rows.map(r => r.id)
+  const realQueue = (await db.query(`select id, queue_seq from public.jobs where confirmation_no not like 'TEST-%' order by id`)).rows.map(r => `${r.id}:${r.queue_seq}`).join()
   const vendorsBefore = await val(`select count(*)::int from public.vendors`)
 
   let results
@@ -68,9 +68,8 @@ export async function goliveCleanupTests({ db, ok }) {
   ok('บริษัทภายนอกไม่ถูกลบ', await val(`select count(*)::int from public.vendors`) === vendorsBefore)
   ok('ปิดบัญชี @pp142.test', await val(`select active from public.profiles where user_id = $1`, [TESTER]) === false)
   ok('บัญชีจริงยังเปิดอยู่', await val(`select active from public.profiles where user_id = '00000000-0000-0000-0000-000000000001'`) === true)
-  const order = (await db.query(`select id, queue_seq from public.jobs order by queue_seq`)).rows
-  ok('คิวงานจริงลำดับเดิม เลขใหม่ห่าง 1024',
-    order.map(r => r.id).join() === realQueueOrder.join() && order.every((r, i) => Number(r.queue_seq) === (i + 1) * 1024))
+  ok('งานจริงเลขคิวเดิมทุกแถว',
+    (await db.query(`select id, queue_seq from public.jobs order by id`)).rows.map(r => `${r.id}:${r.queue_seq}`).join() === realQueue)
   ok('ตารางผลสรุปบอกจำนวนงานที่ลบ', Number(get('ลบงานทดสอบ')) >= 3 && get('งานจริงที่เหลือ') === String(realBefore), JSON.stringify(summary))
   ok('ตารางผลสรุป: trigger กันลบประวัติเปิดคืนแล้ว', get('trigger') === 'เปิดอยู่ (ถูกต้อง)')
   try { await db.exec(`delete from public.events where job_id = '${real}'`); ok('หลังล้าง ลบ events ไม่ได้เหมือนเดิม', false) }

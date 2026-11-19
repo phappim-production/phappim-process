@@ -436,7 +436,7 @@ async function cleanupCheck(parent, ok) {
     const result = await db.exec(sql)
     const summary = result.flatMap(item => item.rows ?? [])
     const after = await row()
-    ok('BUG: R8 ล้างงานแล้วแถวงานจริงจำลองเปลี่ยนเลขคิว', before.queue_seq === after.queue_seq,
+    ok('R8 ล้างงานแล้วงานจริงจำลองเลขคิวเดิม', before.queue_seq === after.queue_seq,
       String(before.queue_seq) + ' → ' + String(after.queue_seq))
     ok('R8 ล้างงาน: เก็บเหตุการณ์จริงและรายงานรูปที่ไม่มีงานทดสอบอ้าง',
       JSON.stringify(await history()) === JSON.stringify(beforeEvents) &&
