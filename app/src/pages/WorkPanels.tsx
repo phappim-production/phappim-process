@@ -6,7 +6,7 @@ import { WORK_END, WORK_START, byQueue, type Job } from '../proto/model'
 import { todoList } from '../proto/actions'
 import {
   bookedByOther, checkStartSewing, floorSummary, repairEtaProblem, repairStatus, MACHINE_PREFIX, MACHINE_STATE_NAME, MACHINE_TYPE_NAME, MACHINE_TYPES, machineState, sewQueue, type Need,
-  machineCounts, type Booking, type Machine, type MachineState, type MachineStatus, type MachineType,
+  machineCounts, pausesJob, type Booking, type Machine, type MachineState, type MachineStatus, type MachineType,
 } from '../proto/sewing'
 
 // ต้องทำตอนนี้: 1 แถว = 1 งาน = 1 สิ่งที่ต้องทำ เรียงตามคิว (ด่วนบอกด้วยสี)
@@ -159,7 +159,7 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
       </section>
       <section hidden={view !== 'booking'}>{booking}</section>
       <section hidden={view !== 'machines'}>
-        <MachineBoard jobs={jobs} machines={machines} bookings={bookings} now={now} onOpen={onOpen} onStatus={onStatus} onEta={onEta} />
+        <MachineBoard jobs={jobs} machines={machines} bookings={bookings} needs={needs} now={now} onOpen={onOpen} onStatus={onStatus} onEta={onEta} />
       </section>
     </div>
   )
@@ -207,8 +207,9 @@ export type StatusResult = { ok: true; heldJob?: string } | { ok: false; reason:
 type OnStatus = (code: string, status: MachineStatus, note: string, repairEta?: Date) => Promise<StatusResult>
 type OnEta = (code: string, eta: Date) => Promise<StatusResult>
 
-function MachineBoard({ jobs, machines, bookings = [], now, onOpen, onStatus, onEta }: {
+function MachineBoard({ jobs, machines, bookings = [], needs = {}, now, onOpen, onStatus, onEta }: {
   jobs: Job[]; machines: Machine[]; bookings?: Booking[]; now: Date; onOpen: (id: string) => void
+  needs?: Record<string, Need[]>  // ใช้บอกก่อนกดแจ้งเสียว่างานจะถูกพักไหม
   onStatus?: OnStatus  // ไม่ส่ง = ดูอย่างเดียว (บทบาทที่แจ้งเสียไม่ได้)
   onEta?: OnEta        // ส่งเฉพาะฝ่ายผลิต / owner = กำหนดกรอบเวลาซ่อมได้
 }) {
@@ -289,6 +290,7 @@ function MachineBoard({ jobs, machines, bookings = [], now, onOpen, onStatus, on
 
       {reporting && (
         <ReportDialog machine={reporting} job={reporting.jobId ? byJob.get(reporting.jobId) : undefined} now={now} etaRequired={!!onEta}
+          pauses={pausesJob(reporting, machines, reporting.jobId ? byJob.get(reporting.jobId) : undefined, needs)}
           onCancel={() => setReporting(null)}
           onSubmit={async (status, note, eta) => { if (await change(reporting, status, note, eta)) setReporting(null) }} />
       )}
@@ -442,8 +444,8 @@ function EtaForm({ now, initial, submitLabel, onCancel, onSubmit }: {
 // อาการที่เจอบ่อย กดเลือกได้เลยบนแท็บเล็ต (พิมพ์เพิ่มเองได้)
 const COMMON_FAULTS = ['ด้ายพัน', 'เข็มหัก', 'ฝีเข็มกระโดด', 'มอเตอร์ไม่หมุน', 'น้ำมันรั่ว', 'ตีนผีเสีย']
 
-function ReportDialog({ machine: m, job, now, etaRequired, onCancel, onSubmit }: {
-  machine: Machine; job?: Job; now: Date; etaRequired: boolean; onCancel: () => void
+function ReportDialog({ machine: m, job, now, etaRequired, pauses, onCancel, onSubmit }: {
+  machine: Machine; job?: Job; now: Date; etaRequired: boolean; pauses: boolean; onCancel: () => void
   onSubmit: (status: MachineStatus, note: string, eta?: Date) => void
 }) {
   const [note, setNote] = useState('')
@@ -454,11 +456,15 @@ function ReportDialog({ machine: m, job, now, etaRequired, onCancel, onSubmit }:
   return (
     <Modal title={`แจ้งจักร ${m.code} เสีย`} tone="danger" onClose={onCancel}>
       <p className="mt-1 text-sm text-muted">{MACHINE_TYPE_NAME[m.type]}</p>
-      {job && (
+      {job && (pauses ? (
         <p className="mt-3 rounded-xl bg-warn-soft px-3 py-2 text-warn">
-          จักรนี้ใช้กับงาน <b>{job.no}</b> อยู่ · งานจะถูก<b>พักอัตโนมัติ</b> และเย็บต่อได้เมื่อมีจักรครบ
+          จักรนี้ใช้กับงาน <b>{job.no}</b> อยู่ · จักรที่เหลือไม่ครบชุด งานจะถูก<b>พักอัตโนมัติ</b> และเย็บต่อได้เมื่อมีจักรครบ
         </p>
-      )}
+      ) : (
+        <p className="mt-3 rounded-xl bg-info-soft px-3 py-2 text-info">
+          จักรนี้ใช้กับงาน <b>{job.no}</b> อยู่ · ระบบเอาตัวนี้ออกจากงาน · จักรที่เหลือยังครบ <b>งานเย็บต่อได้</b>
+        </p>
+      ))}
       <label htmlFor={`${id}-n`} className="mt-4 block font-medium">อาการ (ต้องกรอก)</label>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {COMMON_FAULTS.map(f => (

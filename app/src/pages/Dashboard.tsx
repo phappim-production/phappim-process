@@ -15,7 +15,7 @@ import { roleSummary, type SewingView, type SummaryIcon } from '../proto/summary
 import Overview from './Overview'
 import { DASH_TAB_NAME, FACTORY_SCOPE, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
 import { SewingFloor, TodoPanel } from './WorkPanels'
-import { MACHINE_TYPE_NAME, type MachineStatus, type MachineType } from '../proto/sewing'
+import { MACHINE_TYPE_NAME, pausesJob, type MachineStatus, type MachineType } from '../proto/sewing'
 import { BookingPanel } from './BookingPanel'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { SewingNow, type SewActions } from './SewingNow'
@@ -106,9 +106,10 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     return r.ok ? { ok: true as const } : r
   }
   const setMachineStatus = async (code: string, status: MachineStatus, note: string, repairEta?: Date) => {
-    // งานที่จะถูกพักอัตโนมัติ (จักรเสียระหว่างเย็บ) · รู้ก่อนกดจากข้อมูลบนจอ
+    // งานที่จะถูกพักอัตโนมัติ (จักรเสียแล้วเหลือไม่ครบชุด) · รู้ก่อนกดจากข้อมูลบนจอ
     const m = machines.find(x => x.code === code)
-    const held = status !== 'ready' && m?.jobId ? allJobs.find(j => j.id === m.jobId && j.status === 'doing')?.no : undefined
+    const job = m?.jobId ? allJobs.find(j => j.id === m.jobId) : undefined
+    const held = status !== 'ready' && m && pausesJob(m, machines, job, needs) ? job?.no : undefined
     const r = await call('set_machine_status', {
       p_machine_code: code, p_status: status, p_note: note.trim() || null, p_repair_eta: repairEta?.toISOString() ?? null,
     })

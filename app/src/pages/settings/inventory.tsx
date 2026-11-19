@@ -128,7 +128,7 @@ function MachineList({ data, controls }: TabProps<'machines'>) {
           return { label: 'ลบ', detail: `ลบจักร ${machine.code} ออกจากรายการหรือไม่`, run: removeMachine, done: 'ลบจักรแล้ว' }
         }
         return machine.status === 'off' ? undefined : {
-          label: 'ปิดใช้งาน', detail: `ปิดใช้งานจักร ${machine.code} หรือไม่ หากจักรกำลังเย็บ ระบบจะพักงานนั้น`,
+          label: 'ปิดใช้งาน', detail: `ปิดใช้งานจักร ${machine.code} หรือไม่ ระบบเอาจักรออกจากงานที่ใช้อยู่ · ถ้างานนั้นเหลือจักรไม่ครบชุด ระบบจะพักงาน`,
           run: retireMachine, done: 'ปิดใช้งานจักรแล้ว',
         }
       }} />

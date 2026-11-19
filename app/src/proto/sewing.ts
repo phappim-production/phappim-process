@@ -473,3 +473,12 @@ export function machineCounts(job: Job, machines: Machine[], needs: Need[], shar
     }
   })
 }
+
+// จักรตัวนี้เสีย/ปิด แล้วงานที่ใช้อยู่ต้องพักไหม (ตรงกับ public.set_machine_status · 20261120100000)
+// พักเฉพาะงานที่กำลังเย็บและจักรที่เหลือไม่ครบชุดของสินค้า · ยังครบ = เอาตัวนี้ออก งานเย็บต่อ
+export function pausesJob(machine: Machine, machines: Machine[], job: Job | undefined, needsMap: Record<string, Need[]>): boolean {
+  if (!job || job.status !== 'doing' || machine.jobId !== job.id) return false
+  const need = ((job.productCode && needsMap[job.productCode]) || []).find(n => n.type === machine.type)?.qty ?? 0
+  const left = machines.filter(m => m.jobId === job.id && m.type === machine.type && m.code !== machine.code).length
+  return left < need
+}

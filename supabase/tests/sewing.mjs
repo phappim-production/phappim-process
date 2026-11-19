@@ -143,6 +143,16 @@ export async function sewingTests({ db, ok, as }) {
   ok('คืน OL4-003 (ตัวล่าสุด) เก็บตัวเดิมไว้', JSON.stringify(minus?.codes) === '["OL4-003"]' && (await active(tee1)).includes('OL4-001'), JSON.stringify(minus?.codes))
   ok('บันทึก event คืนจักร', (await lastEvent(tee1)).type === 'machines_released')
 
+  // ---------- จักรเสีย 1 ตัวจากหลายตัว ไม่พักทั้งงาน (20261120100000) ----------
+  await call(U.prod, `public.set_job_machines('${tee1}', 'ovl4', 3)`)
+  await pass('แจ้งจักรเสีย 1 ตัวของงานที่มีจักรเกินชุด', U.prod, `public.set_machine_status('OL4-003', 'broken', 'เข็มหัก', now() + interval '2 hours')`)
+  ok('งานยังกำลังเย็บ (จักรที่เหลือยังครบชุด)', await status(tee1) === 'doing')
+  ok('จักรที่เสียออกจากงาน ตัวอื่นยังอยู่', !(await active(tee1)).includes('OL4-003') && (await active(tee1)).filter(c => c.startsWith('OL4')).length === 2)
+  const evKeep = await lastEvent(tee1)
+  ok('บันทึกว่าคืนจักรเพราะเสีย', evKeep.type === 'machines_released' && evKeep.payload.reason === 'จักรเสีย', JSON.stringify(evKeep))
+  ok('ไม่เปิดปัญหาพักงาน', (await db.query(`select count(*)::int n from public.issues where job_id = '${tee1}' and closed_at is null`)).rows[0].n === 0)
+  await call(U.prod, `public.set_machine_status('OL4-003', 'ready')`)
+
   // ---------- ออกจากสถานีเย็บ = คืนจักรอัตโนมัติ ----------
   await db.exec(`update public.jobs set station_seq = 5, station_status = 'queued' where id = '${tee1}'`)
   ok('งานไป QC แล้วคืนจักรทุกตัว', (await active(tee1)).length === 0)
@@ -150,7 +160,7 @@ export async function sewingTests({ db, ok, as }) {
   await db.exec(`update public.jobs set phase = 'done', station_seq = null, station_status = null where id = '${tee2}'`)
   ok('งานเสร็จแล้วคืนจักรทุกตัว', (await active(tee2)).length === 0)
   await reject('คืนจักรของงานที่ไม่มีจักร ถูกปฏิเสธ', U.owner, `public.release_machines('${tee2}')`, /ไม่มีจักร/)
-  ok('ประวัติการใช้จักรยังอยู่ครบ', (await db.query(`select count(*)::int n from public.machine_assignments`)).rows[0].n === 13)
+  ok('ประวัติการใช้จักรยังอยู่ครบ', (await db.query(`select count(*)::int n from public.machine_assignments`)).rows[0].n === 14)
 
   // ---------- แจ้งเสีย / ซ่อมเสร็จ (สถานะจักร) ----------
   await rejectSql('owner แก้สถานะจักรตรงเข้าตารางไม่ได้ (ต้องผ่านปุ่มแจ้งเสีย)',
@@ -203,7 +213,7 @@ export async function sewingTests({ db, ok, as }) {
   const reason4 = (await db.query(`select reason from public.issues where job_id = '${tee4}' and closed_at is null`)).rows[0]?.reason ?? ''
   ok('สาเหตุพักงานบอกเวลาคาดว่าซ่อมเสร็จ', /คาดว่าซ่อมเสร็จ \d\d\/\d\d \d\d:\d\d$/.test(reason4), reason4)
   await call(U.prod, `public.set_machine_status('${used}', 'ready')`)
-  ok('ประวัติจักรครบทุกครั้งที่กด', (await db.query(`select count(*)::int n from public.machine_status_log`)).rows[0].n === 11) // SN-001 · OL4-002 · BD-001 ปิด/เปิด · BD-001 ฝ่ายผลิต · จักรของ T4 (ละ 2 ครั้ง)
+  ok('ประวัติจักรครบทุกครั้งที่กด', (await db.query(`select count(*)::int n from public.machine_status_log`)).rows[0].n === 13) // OL4-003 เสีย/ซ่อม · SN-001 · OL4-002 · BD-001 ปิด/เปิด · BD-001 ฝ่ายผลิต · จักรของ T4 (ละ 2 ครั้ง)
   await rejectSql('แก้ประวัติจักรตรงไม่ได้', `insert into public.machine_status_log (machine_id, status) select id, 'ready' from public.sewing_machines limit 1`, /row-level security/, U.owner)
 
   // ---------- จองจักรเป็นวัน-เวลา ----------

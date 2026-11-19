@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { SewingNow, type SewActions } from '../pages/SewingNow'
 import { SewingFloor } from '../pages/WorkPanels'
 import { type Job } from './model'
-import { machineCounts, type Booking, type Machine, type MachineType, type Need } from './sewing'
+import { machineCounts, pausesJob, type Booking, type Machine, type MachineType, type Need } from './sewing'
 
 const now = new Date('2026-11-21T03:00:00Z')
 const job = (id: string, fields: Partial<Job> = {}): Job => ({
@@ -100,5 +100,20 @@ describe('ปุ่มบนหน้าจอ', () => {
     expect(html).toContain('aria-label="เพิ่มเข็มเดี่ยว"')
     expect(html).toContain('ว่าง 2 ตัว')
     expect(html).toContain('เริ่มเย็บ')
+  })
+})
+
+describe('pausesJob (จักรเสียแล้วงานต้องพักไหม)', () => {
+  const needsMap = { tshirt: needs }
+  it('งานมีเข็มเดี่ยวตัวเดียว เสีย = พักงาน', () => {
+    expect(pausesJob(machines[0], machines, job('a'), needsMap)).toBe(true)
+  })
+  it('งานมีเข็มเดี่ยว 2 ตัว เสีย 1 = ไม่พัก เย็บต่อได้', () => {
+    const two = machines.map(x => x.code === 'SN-001' ? { ...x, jobId: 'a' } : x)
+    expect(pausesJob(two[0], two, job('a'), needsMap)).toBe(false)
+  })
+  it('งานพักอยู่แล้ว หรือจักรว่าง = ไม่มีงานให้พัก', () => {
+    expect(pausesJob(machines[0], machines, job('a', { status: 'hold' }), needsMap)).toBe(false)
+    expect(pausesJob(machines[1], machines, undefined, needsMap)).toBe(false)
   })
 })
