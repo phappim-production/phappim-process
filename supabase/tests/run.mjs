@@ -116,9 +116,11 @@ ok('foreign key ทุกตัวมี index', fkNoIdx.rows.length === 0, fkNo
 const { sopTests } = await import('./sop.mjs')
 await sopTests({ db, ok })
 const machines = (await db.query(`select code, machines, machine_pool from public.stations where machines is not null order by code`)).rows
-ok('เครื่องจริงต่อสถานี: พิมพ์ 2 · รีด/รีดฟิล์มใช้เครื่องรีดร้อนร่วม 1 · ตัด 2 · QC 1',
+const dtfPool = (await db.query(`select machine_pool from public.stations where code = 'dtf_press'`)).rows[0].machine_pool
+ok('รีดฟิล์มไม่ใช้เครื่องรีดร้อนร่วมกับรีด', dtfPool === 'dtf_press', dtfPool)
+ok('เครื่องจริงต่อสถานี: พิมพ์ 2 · รีด 1 · ตัด 2 · รีดฟิล์ม 2 (เครื่องของตัวเอง) · QC 1',
   JSON.stringify(machines.map(r => [r.code, r.machines, r.machine_pool])) === JSON.stringify([
-    ['cut', 2, 'cut'], ['dtf_press', 1, 'heat_press'], ['press', 1, 'heat_press'], ['print', 2, 'print'], ['qc_pack', 1, 'qc_pack']]), JSON.stringify(machines))
+    ['cut', 2, 'cut'], ['dtf_press', 2, 'dtf_press'], ['press', 1, 'heat_press'], ['print', 2, 'print'], ['qc_pack', 1, 'qc_pack']]), JSON.stringify(machines))
 // ชุดทดสอบอื่นทิ้งงาน "กำลังทำ" ไว้หลายงานในฐานเดียวกัน จึงปิดการจำกัดเครื่อง · station-machines.mjs ทดสอบการจำกัดเอง
 await db.exec('update public.stations set machines = null')
 // ชุด workflow เดินงานแบบยังไม่มีจักร และ sewing.mjs ตั้งจักรสมมติเอง จึงล้างจักรจริงออกหลังตรวจข้อมูลแล้ว
