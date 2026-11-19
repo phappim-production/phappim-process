@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
-import { confirmationPath, draftFromConfirmation, pdfProblem, type ReceiveDraft } from '../data/confirmation'
+import { confirmationPath, draftFromConfirmation, pdfProblem, sewRecipeProblem, type ReceiveDraft } from '../data/confirmation'
 import { draftLabel, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
 import { receiveForecast, type SewFloor } from '../proto/capacity'
@@ -86,6 +86,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
     ? receiveForecast(jobs, now, floor, { route: draft.route, qty: draft.qty, productCode: product.code, needsSample: draft.needsSample, due: draft.due })
     : null, [jobs, now, floor, product, draft.route, draft.qty, draft.needsSample, draft.due])
   const pdfIssue = pdfProblem(pdf)
+  const recipeIssue = product ? sewRecipeProblem(draft.route, floor.needsOf(product.code)) : null
   const missing = [
     !draft.no.trim() && 'เลขที่ใบยืนยัน', !draft.customer.trim() && 'ชื่อลูกค้า', !product && 'ประเภทสินค้า',
     draft.qty <= 0 && 'จำนวน', !draft.due && 'กำหนดส่ง', draft.needsSample === null && 'ขึ้นตัวอย่างหรือไม่', pdf && pdfIssue && 'PDF ใบยืนยัน',
@@ -188,6 +189,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
           </label>
         </div>
         <p className="text-sm text-muted">ลำดับสถานี: {ROUTES[draft.route].stations.map(s => STATION_NAME[s]).join(' → ')} · แนบไฟล์จากฟอร์มแล้ว ระบบเลือกเส้นทางตามเทคนิคพิมพ์ให้</p>
+        {recipeIssue && <p role="alert" className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">{recipeIssue}</p>}
 
         {/* ขึ้นตัวอย่างเฉพาะงานที่ลูกค้าจ่ายค่าตัวอย่าง (ตกลงกันแล้วในใบยืนยัน) · ไม่มีค่าตั้งต้น ต้องเลือกเอง */}
         <fieldset className="grid gap-2">
