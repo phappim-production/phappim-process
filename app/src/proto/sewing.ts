@@ -435,32 +435,41 @@ export function applyFinishSewing(jobs: Job[], machines: Machine[], bookings: Bo
   }
 }
 
-// ---------- จัดจักร (เพิ่ม / คืน) ระหว่างเย็บ · ตรงกับ public.assign_machines / release_machines ----------
-// คำนวณล่วงหน้าเพื่อปิดปุ่มพร้อมบอกเหตุผล · ฐานข้อมูลตรวจซ้ำเสมอ
-export type AdjustMine = { machine: Machine; blocked?: string }
-export type AdjustFree = { machine: Machine; blocked?: string }
-export function machineAdjust(job: Job, machines: Machine[], needs: Need[], shared: readonly MachineType[], bookings: Booking[], now: Date,
-  jobNo: (id: string) => string = () => 'งานอื่น'):
-  { mine: AdjustMine[]; free: AdjustFree[] } {
-  const byCode = (a: Machine, b: Machine) => a.code.localeCompare(b.code)
-  const mineList = machines.filter(m => m.jobId === job.id).sort(byCode)
-  const mine = mineList.map(machine => {
-    const need = needs.find(n => n.type === machine.type)?.qty ?? 0
-    const have = mineList.filter(m => m.type === machine.type).length
-    // กำลังเย็บ = ต้องเหลือครบชุด · พักอยู่คืนได้หมด (กดเย็บต่อแล้วระบบจ่ายที่ขาดให้)
-    const blocked = job.status === 'doing' && have - 1 < need
-      ? `ต้องเหลือ${MACHINE_TYPE_NAME[machine.type]}อย่างน้อย ${need} ตัวระหว่างเย็บ · จะหยุดให้รายงานปัญหาและพักงานก่อน`
-      : undefined
-    return { machine, blocked }
+// ---------- จัดจักรแบบตั้งจำนวน (ปุ่ม − / +) · ตรงกับ public.set_job_machines ----------
+// หน้างานคิดเป็นจำนวน "งานนี้ใช้ 4 ตัว" ไม่เลือกรหัส · คำนวณล่วงหน้าเพื่อปิดปุ่มพร้อมบอกเหตุผล (ฐานข้อมูลตรวจซ้ำ)
+export type MachineCountRow = {
+  type: MachineType
+  have: number          // จักรชนิดนี้ที่งานถืออยู่
+  codes: string[]       // รหัสที่ถืออยู่ (ไว้ดูตอนแจ้งเสีย ไม่ต้องกดเลือก)
+  need: number          // ที่สินค้าต้องใช้ (ขั้นต่ำตอนกำลังเย็บ)
+  free: number          // ตัวว่างที่หยิบได้ตอนนี้
+  base: boolean         // ชนิดที่สินค้าต้องใช้ หรือที่งานถืออยู่ (แสดงก่อน) · ที่เหลือ = ชนิดอื่นที่สเปกลูกค้าอาจต้องใช้
+  minusBlocked?: string
+  plusBlocked?: string
+}
+export function machineCounts(job: Job, machines: Machine[], needs: Need[], shared: readonly MachineType[], bookings: Booking[], now: Date): MachineCountRow[] {
+  const soon = new Date(now.getTime() + ONE_MINUTE)
+  const doing = job.status === 'doing'
+  // จักรใช้ร่วมทุกไลน์ใช้ได้อยู่แล้ว ไม่ต้องจ่าย · แสดงเฉพาะชนิดที่มีจักรในโรงงาน
+  const types = MACHINE_TYPES.filter(t => !shared.includes(t) && machines.some(m => m.type === t))
+  return types.map(type => {
+    const name = MACHINE_TYPE_NAME[type]
+    const ofType = machines.filter(m => m.type === type)
+    const mine = ofType.filter(m => m.jobId === job.id)
+    const need = needs.find(n => n.type === type)?.qty ?? 0
+    const others = ofType.filter(m => m.jobId !== job.id)
+    const booked = others.filter(m => machineState(m) === 'free' && bookedByOther(m.id, now, soon, bookings, job.id))
+    const free = others.filter(m => machineState(m) === 'free').length - booked.length
+    const busy = others.filter(m => machineState(m) === 'busy').length
+    const down = others.filter(m => m.status !== 'ready').length
+    const min = doing ? need : 0
+    const why = [busy && `ใช้กับงานอื่น ${busy}`, down && `เสีย/ปิด ${down}`, booked.length && `จองไว้ ${booked.length}`].filter(Boolean).join(' · ')
+    return {
+      type, have: mine.length, codes: mine.map(m => m.code).sort(), need, free,
+      base: need > 0 || mine.length > 0,
+      minusBlocked: mine.length === 0 ? 'ยังไม่มีจักรชนิดนี้'
+        : mine.length <= min ? `ระหว่างเย็บต้องมี${name}อย่างน้อย ${min} ตัว · จะหยุดให้รายงานปัญหาและพักงานก่อน` : undefined,
+      plusBlocked: free > 0 ? undefined : `ไม่มี${name}ว่าง${why ? ` (${why})` : ''}`,
+    }
   })
-  const free = machines
-    // จักรผูกกับสเปกที่ลูกค้าสั่ง ไม่ใช่ชนิดสินค้า (เจ้าของ 18 พ.ย.) → เสนอจักรประจำไลน์ทุกชนิดที่ว่าง ไม่จำกัดตามสูตรสินค้า
-    // จักรใช้ร่วมทุกไลน์ใช้ได้อยู่แล้ว ไม่ต้องจ่าย (ฐานข้อมูลปฏิเสธ)
-    .filter(m => !m.jobId && m.status === 'ready' && !shared.includes(m.type))
-    .sort(byCode)
-    .map(machine => {
-      const b = bookedByOther(machine.id, now, new Date(now.getTime() + ONE_MINUTE), bookings, job.id)
-      return { machine, blocked: b ? `จองให้ ${jobNo(b.jobId)} อยู่` : undefined }
-    })
-  return { mine, free }
 }

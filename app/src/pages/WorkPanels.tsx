@@ -6,7 +6,7 @@ import { WORK_END, WORK_START, byQueue, type Job } from '../proto/model'
 import { todoList } from '../proto/actions'
 import {
   bookedByOther, checkStartSewing, floorSummary, repairEtaProblem, repairStatus, MACHINE_PREFIX, MACHINE_STATE_NAME, MACHINE_TYPE_NAME, MACHINE_TYPES, machineState, sewQueue, type Need,
-  type Booking, type Machine, type MachineState, type MachineStatus,
+  machineCounts, type Booking, type Machine, type MachineState, type MachineStatus, type MachineType,
 } from '../proto/sewing'
 
 // ต้องทำตอนนี้: 1 แถว = 1 งาน = 1 สิ่งที่ต้องทำ เรียงตามคิว (ด่วนบอกด้วยสี)
@@ -59,11 +59,15 @@ const SEWING_VIEWS = [
 // จักรเย็บ (S14): งานที่ถึงเฟส 2 แล้ว = รอเย็บ · กดเริ่มเย็บได้เมื่อจักรครบทุกชนิดว่างจริง (ฐานข้อมูลบังคับกฎเดียวกัน)
 export type SewingView = (typeof SEWING_VIEWS)[number][0]
 
-export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen, onStart, onStatus, onEta, booking, sewing, initialView }: {
+type StartResult = { ok: true; picked: string[]; warning?: string } | { ok: false; reason: string }
+type Counts = Partial<Record<MachineType, number>>
+
+export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen, onStart, onStatus, onEta, booking, sewing, initialView, shared = [] }: {
   jobs: Job[]; machines: Machine[]; bookings?: Booking[]; needs: Record<string, Need[]>; now: Date; onOpen: (id: string) => void
   booking?: ReactNode  // แผงจองจักร (วางระหว่างคิวรอเย็บกับผังจักร)
   sewing?: ReactNode   // แผงกำลังเย็บ (ต่อจากคิวรอเย็บ: รอเย็บ → กำลังเย็บ → เย็บเสร็จ)
-  onStart?: (jobId: string) => Promise<{ ok: true; picked: string[] } | { ok: false; reason: string }>  // ไม่ส่ง = ดูอย่างเดียว
+  onStart?: (jobId: string, counts?: Counts) => Promise<StartResult>  // ไม่ส่ง = ดูอย่างเดียว
+  shared?: readonly MachineType[]
   onStatus?: OnStatus
   onEta?: OnEta
   initialView?: SewingView  // มาจากการกดตัวเลขสรุป เช่น จักรเสีย → สถานะจักร
@@ -79,13 +83,15 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
   const byJob = new Map(jobs.map(j => [j.id, j]))
 
   const [starting, setStarting] = useState<string | null>(null)
+  // จำนวนจักรที่เลือกก่อนกดเริ่ม (ต่องาน) · ไม่ปรับ = ตามที่สินค้าต้องใช้
+  const [counts, setCounts] = useState<Record<string, Counts>>({})
   async function start(job: Job) {
     if (!onStart || starting) return
     setStarting(job.id)
-    const r = await onStart(job.id)
+    const r = await onStart(job.id, counts[job.id])
     setStarting(null)
     setNotice(r.ok
-      ? { ok: true, text: `เริ่มเย็บ ${job.no} แล้ว · ใช้จักร ${r.picked.join(', ')}` }
+      ? { ok: !r.warning, text: `เริ่มเย็บ ${job.no} แล้ว · ใช้จักร ${r.picked.length} ตัว: ${r.picked.join(', ')}${r.warning ? ` · ${r.warning}` : ''}` }
       : { ok: false, text: `${job.no}: ${r.reason}` })
   }
 
@@ -118,7 +124,7 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
                       </span>
                       <span className="mt-0.5 block truncate text-sm text-muted">{job.customer} · {job.product} {job.qty.toLocaleString('th-TH')} {job.unit}</span>
                       {check.ok ? (
-                        <span className="mt-1 block text-sm text-ok">จักรว่างพร้อม: {check.picked.map(m => m.code).join(' · ')}</span>
+                        !onStart && <span className="mt-1 block text-sm text-ok">จักรว่างพร้อม: {check.picked.map(m => m.code).join(' · ')}</span>
                       ) : (
                         <span className="mt-1 block text-sm text-danger">
                           <span className="font-semibold">{check.reason}</span>
@@ -132,11 +138,16 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
                         </span>
                       )}
                     </button>
+                    {onStart && check.ok && (
+                      <StartCounts rows={machineCounts(job, machines, (job.productCode && needs[job.productCode]) || [], shared, bookings, now).filter(r => r.need > 0)}
+                        value={counts[job.id] ?? {}} disabled={starting !== null}
+                        onChange={(type, qty) => setCounts(c => ({ ...c, [job.id]: { ...c[job.id], [type]: qty } }))} />
+                    )}
                     {onStart && (
                       <button onClick={() => void start(job)} disabled={!check.ok || starting !== null}
                         title={check.ok ? undefined : check.reason}
                         className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-line disabled:text-muted ">
-                        <IconSewing className="size-5" />{check.ok ? 'เริ่มเย็บ' : 'จักรไม่ว่าง'}
+                        <IconSewing className="size-5" />{!check.ok ? 'จักรไม่ว่าง' : starting === job.id ? 'กำลังเริ่ม…' : 'เริ่มเย็บ'}
                       </button>
                     )}
                   </li>
@@ -150,6 +161,34 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
       <section hidden={view !== 'machines'}>
         <MachineBoard jobs={jobs} machines={machines} bookings={bookings} now={now} onOpen={onOpen} onStatus={onStatus} onEta={onEta} />
       </section>
+    </div>
+  )
+}
+
+// เลือกจำนวนจักรก่อนกดเริ่ม: งานใหญ่ใส่ได้หลายตัวทีเดียว · ค่าเริ่มต้น = ที่สินค้าต้องใช้ (ไม่ปรับก็กดเริ่มได้เลย)
+// ตัวว่าง = row.free (ชุดแรกหยิบจากตัวว่างเหล่านี้) จึงเพิ่มได้สูงสุด free ตัว
+function StartCounts({ rows, value, disabled, onChange }: {
+  rows: ReturnType<typeof machineCounts>; value: Counts; disabled: boolean; onChange: (type: MachineType, qty: number) => void
+}) {
+  return (
+    <div className="grid gap-2 sm:min-w-56">
+      {rows.map(row => {
+        const name = MACHINE_TYPE_NAME[row.type]
+        const qty = Math.min(Math.max(value[row.type] ?? row.need, row.need), row.free)
+        const step = 'grid size-12 shrink-0 place-items-center rounded-xl border border-line text-2xl font-bold text-brand hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-40'
+        return (
+          <div key={row.type} className="flex items-center gap-2">
+            <span className="min-w-0 flex-1 text-sm font-semibold">{name}<span className="block font-normal text-muted">ว่าง {row.free} ตัว</span></span>
+            <button type="button" className={step} aria-label={`ลด${name}`} disabled={disabled || qty <= row.need}
+              title={qty <= row.need ? `สินค้านี้ใช้${name}อย่างน้อย ${row.need} ตัว` : undefined}
+              onClick={() => onChange(row.type, qty - 1)}>−</button>
+            <span className="w-8 text-center text-xl font-bold tabular-nums">{qty}</span>
+            <button type="button" className={step} aria-label={`เพิ่ม${name}`} disabled={disabled || qty >= row.free}
+              title={qty >= row.free ? `${name}ว่างแค่ ${row.free} ตัว` : undefined}
+              onClick={() => onChange(row.type, qty + 1)}>+</button>
+          </div>
+        )
+      })}
     </div>
   )
 }

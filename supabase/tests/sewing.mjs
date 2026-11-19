@@ -126,6 +126,23 @@ export async function sewingTests({ db, ok, as }) {
   ok('OL4-003 ว่างแล้ว งานเหลือครบชุด', !(await active(tee1)).includes('OL4-003') && (await active(tee1)).length === 5)
   await reject('กดคืนจักรตัวเดิมซ้ำ = บอกว่าคืนไปแล้ว', U.prod, `public.release_machines('${tee1}', array['OL4-003'])`, /คืนไปแล้ว/)
 
+  // ---------- ตั้งจำนวนจักร (ปุ่ม − / + · 20261120090000) ----------
+  // หน้างานคิดเป็นจำนวน ไม่เลือกรหัส · ส่งจำนวนที่ต้องการ → กดซ้ำได้ผลเดียว
+  await reject('ตั้งจำนวนจักรของงานที่ยังไม่เริ่มเย็บไม่ได้', U.prod, `public.set_job_machines('${tee2}', 'ovl4', 3)`, /กด "เริ่มเย็บ" ก่อน/)
+  await reject('แอดมินตั้งจำนวนจักรไม่ได้', U.admin, `public.set_job_machines('${tee1}', 'ovl4', 3)`, /บทบาท/)
+  await reject('ชนิดจักรที่ไม่มี ถูกปฏิเสธ', U.prod, `public.set_job_machines('${tee1}', 'laser', 1)`, /ไม่พบชนิดจักร/)
+  await reject('จำนวนติดลบ ถูกปฏิเสธ', U.prod, `public.set_job_machines('${tee1}', 'ovl4', -1)`, /0 ขึ้นไป/)
+  const plus = await pass('กด + เพิ่มโพ้งเป็น 3 ตัว ระบบหยิบตัวว่างให้เอง', U.prod, `public.set_job_machines('${tee1}', 'ovl4', 3) as codes`)
+  ok('ได้จักรว่างตัวที่เหลือ', JSON.stringify(plus?.codes) === '["OL4-003"]', JSON.stringify(plus?.codes))
+  ok('บันทึก event จ่ายจักร', (await lastEvent(tee1)).type === 'machines_assigned')
+  await reject('กด + ซ้ำ (จำนวนเดิม) = บอกว่ามีอยู่แล้ว ไม่จ่ายเกิน', U.prod, `public.set_job_machines('${tee1}', 'ovl4', 3)`, /มี 3 ตัวอยู่แล้ว/)
+  await reject('จักรว่างไม่พอ = บอกว่าว่างกี่ตัว ไม่จ่ายบางส่วน', U.prod, `public.set_job_machines('${tee1}', 'ovl4', 5)`, /ว่างอยู่ 0 ตัว เพิ่มเป็น 5 ตัวไม่ได้/)
+  ok('ยังมีโพ้ง 3 ตัว', (await active(tee1)).filter(c => c.startsWith('OL4')).length === 3)
+  await reject('กำลังเย็บ ลดต่ำกว่าที่สินค้าต้องใช้ไม่ได้', U.prod, `public.set_job_machines('${tee1}', 'ovl4', 1)`, /ต้องมีโพ้ง 4 เส้น อย่างน้อย 2 ตัว.*พักงานก่อน/)
+  const minus = await pass('กด − คืนตัวที่ได้มาล่าสุด', U.prod, `public.set_job_machines('${tee1}', 'ovl4', 2) as codes`)
+  ok('คืน OL4-003 (ตัวล่าสุด) เก็บตัวเดิมไว้', JSON.stringify(minus?.codes) === '["OL4-003"]' && (await active(tee1)).includes('OL4-001'), JSON.stringify(minus?.codes))
+  ok('บันทึก event คืนจักร', (await lastEvent(tee1)).type === 'machines_released')
+
   // ---------- ออกจากสถานีเย็บ = คืนจักรอัตโนมัติ ----------
   await db.exec(`update public.jobs set station_seq = 5, station_status = 'queued' where id = '${tee1}'`)
   ok('งานไป QC แล้วคืนจักรทุกตัว', (await active(tee1)).length === 0)
@@ -133,7 +150,7 @@ export async function sewingTests({ db, ok, as }) {
   await db.exec(`update public.jobs set phase = 'done', station_seq = null, station_status = null where id = '${tee2}'`)
   ok('งานเสร็จแล้วคืนจักรทุกตัว', (await active(tee2)).length === 0)
   await reject('คืนจักรของงานที่ไม่มีจักร ถูกปฏิเสธ', U.owner, `public.release_machines('${tee2}')`, /ไม่มีจักร/)
-  ok('ประวัติการใช้จักรยังอยู่ครบ', (await db.query(`select count(*)::int n from public.machine_assignments`)).rows[0].n === 12)
+  ok('ประวัติการใช้จักรยังอยู่ครบ', (await db.query(`select count(*)::int n from public.machine_assignments`)).rows[0].n === 13)
 
   // ---------- แจ้งเสีย / ซ่อมเสร็จ (สถานะจักร) ----------
   await rejectSql('owner แก้สถานะจักรตรงเข้าตารางไม่ได้ (ต้องผ่านปุ่มแจ้งเสีย)',
@@ -339,6 +356,13 @@ export async function sewingTests({ db, ok, as }) {
     } catch (e) {
       ok('จ่ายจักรใช้ร่วมให้งานไม่ได้ (ทุกไลน์ใช้ร่วมกันอยู่แล้ว)', /CV-001 เป็นจักรลา.*ใช้ร่วมกันอยู่แล้ว/.test(e.message), e.message.split('\n')[0])
     } finally { await db.exec('rollback to savepoint shared_assign; reset role') }
+    await db.exec(`savepoint shared_count; set role authenticated; select set_config('request.jwt.claim.sub', '${U.prod}', false)`)
+    try {
+      await db.query(`select public.set_job_machines('${p1}', 'cover', 1)`)
+      ok('ตั้งจำนวนจักรใช้ร่วมให้งานไม่ได้', false, 'ควรถูกปฏิเสธแต่ผ่าน')
+    } catch (e) {
+      ok('ตั้งจำนวนจักรใช้ร่วมให้งานไม่ได้', /จักรลา ทุกไลน์ใช้ร่วมกันอยู่แล้ว/.test(e.message), e.message.split('\n')[0])
+    } finally { await db.exec('rollback to savepoint shared_count; reset role') }
     const p3 = await jobAt('SC-SHARE-3', 'plain', 2, 'pet')
     // อยู่ในธุรกรรม: ข้อผิดพลาดทำให้ธุรกรรมค้าง จึงย้อนกลับถึง savepoint เองแทน helper reject
     await db.exec('savepoint brk')
