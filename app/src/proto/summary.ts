@@ -1,5 +1,4 @@
-// ตัวเลขสรุปบนสุดของแดชบอร์ด แยกตามตำแหน่ง (docs/แผน-1-สัปดาห์.md หัวข้อ 1.4)
-// แต่ละตำแหน่งเห็น 4 ตัวเลขที่ตัวเองต้องใช้ตัดสินใจ ไม่ใช่ตัวเลขชุดเดียวกันทั้งโรงงาน
+// แต่ละตำแหน่งเห็น 4 ตัวเลขที่ตัวเองใช้ตัดสินใจ ไม่ใช่ชุดเดียวกันทั้งโรงงาน
 import { columnOf, isDoneToday, isOverdue, isWaitingFilm, type Job } from './model.ts'
 import { floorSummary, sewQueue, type Machine } from './sewing.ts'
 
@@ -15,8 +14,8 @@ export type SummaryTile = {
   note?: string
   tone: SummaryTone
   icon: SummaryIcon
-  tab?: SummaryTab     // กดแล้วไปแท็บที่ใช้จัดการเรื่องนั้น
-  sewingView?: SewingView  // แท็บจักรเย็บ: เปิดแท็บย่อยที่ตรงเรื่อง
+  tab?: SummaryTab
+  sewingView?: SewingView
 }
 
 const active = (jobs: Job[]) => jobs.filter(j => j.phase !== 'done')
@@ -41,10 +40,7 @@ function machineTile(machines: Machine[]): SummaryTile {
   }
 }
 
-/**
- * @param jobs งานในขอบเขตของตำแหน่งนั้น (ผ่าน jobInScope แล้ว)
- * @param allJobs งานทั้งโรงงาน (ใช้กับคิวเย็บที่ต้องรู้ว่าจักรถูกใช้กับงานไหน)
- */
+// jobs = งานในขอบเขตของตำแหน่ง · allJobs = ทั้งโรงงาน (คิวเย็บต้องรู้ว่าจักรถูกใช้กับงานไหน)
 export function roleSummary(kind: SummaryKind, jobs: Job[], allJobs: Job[], machines: Machine[], now: Date): SummaryTile[] {
   switch (kind) {
     case 'phase1':

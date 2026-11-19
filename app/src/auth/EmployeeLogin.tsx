@@ -55,8 +55,7 @@ export function SignOutButton({ className = secondaryButton, children }: { class
     setBusy(true)
     setFailed(false)
     try {
-      // ล้างหน้าที่เปิดค้าง (#/system) ก่อน คนต่อไปที่ล็อกอินจะเริ่มที่หน้าหลักของบทบาทตัวเอง
-      // (replace = ไม่เพิ่มประวัติให้กดย้อนกลับมาหน้าบัญชีได้ และยังส่ง hashchange ให้ App เปลี่ยนหน้า)
+      // ล้างหน้าที่เปิดค้างด้วย replace: ไม่เพิ่มประวัติให้ย้อนกลับมาได้ และยังส่ง hashchange ให้ App เปลี่ยนหน้า
       if (window.location.hash && window.location.hash !== '#/') window.location.replace('#/')
       const { error } = await supabase.auth.signOut({ scope: 'local' })
       setFailed(Boolean(error))

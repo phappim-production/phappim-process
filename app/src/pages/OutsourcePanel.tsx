@@ -6,8 +6,7 @@ import { defaultBack, outSpan } from '../proto/outsource'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconAlert, IconCheck, IconPackage } from '../components/icons'
 
-// ส่งงานออกบริษัทภายนอก / ส่งต่อ / รับของกลับ / แบ่งงาน · แอดมินบันทึก (เจ้าของสั่ง 18 พ.ย.) · กฎทั้งหมดตรวจซ้ำที่ฐานข้อมูล
-// ฟอร์มถาม 3 อย่างตามที่หน้างานใช้จริง: ของถึงบริษัทเมื่อไร · บริษัทใช้กี่วัน · ของถึงที่ต่อไปเมื่อไร
+// ถาม 3 อย่างตามที่หน้างานใช้จริง: ของถึงบริษัทเมื่อไร · บริษัทใช้กี่วัน · ของถึงที่ต่อไปเมื่อไร
 
 const pad = (n: number) => String(n).padStart(2, '0')
 /** ค่า input datetime-local ตามเวลาเครื่อง */
@@ -104,7 +103,7 @@ export function OutsourcePanel({ job: j, vendors, admin, now, refresh }: {
       {!out && mode === 'split' && (
         <SplitForm job={j} busy={busy} onCancel={() => setMode(null)}
           onSave={async qty => {
-            // รหัสคำขอเดิมจนกว่าแบ่งสำเร็จ: กดซ้ำ / กดใหม่หลังเน็ตช้า ไม่ได้ใบลูกเพิ่ม (QA รอบ 6)
+            // ใช้รหัสคำขอเดิมจนกว่าแบ่งสำเร็จ กดซ้ำตอนเน็ตช้าจึงไม่ได้ใบลูกเพิ่ม
             const ok = await act('split_job', { p_job: j.id, p_qty: qty, p_request: splitRequest }, `แบ่ง ${qty.toLocaleString('th-TH')} ${j.unit} เป็นงานใหม่ ${j.no}-… แล้ว · เปิดงานใหม่เพื่อส่งออก`)
             if (ok) setSplitRequest(newRequestId())
             return ok
@@ -265,7 +264,6 @@ function SplitForm({ job: j, busy, onSave, onCancel }: { job: Job; busy: boolean
   )
 }
 
-/** ปุ่มโทร / เปิดแผนที่ของบริษัท (ข้อมูลจากชีต Supplier) · ไม่มีข้อมูล = ไม่แสดง */
 export function ContactLinks({ phone, mapUrl }: { phone?: string; mapUrl?: string }) {
   const tel = telHref(phone)
   if (!tel && !mapUrl) return null

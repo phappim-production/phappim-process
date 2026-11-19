@@ -10,7 +10,7 @@ export const ROLE_LABELS = {
 export type EmployeeRole = keyof typeof ROLE_LABELS
 export type PageKey = 'overview' | 'board' | 'reports' | 'settings' | 'system' | 'inbox' | 'label'
 
-// เฟสของผู้ควบคุมงาน (docs/แผน-1-สัปดาห์.md หัวข้อ 1.3) · ฐานข้อมูลบังคับเอง หน้าเว็บใช้แสดงและกรองงาน
+// ฐานข้อมูลบังคับเอง หน้าเว็บใช้แสดงและกรองงาน
 export const SECTION_LABELS = {
   1: 'เฟส 1 พิมพ์-รีด-ตัด',
   2: 'เฟส 2 เย็บ-QC',
@@ -32,8 +32,7 @@ export function isEmployeeRole(role: unknown): role is EmployeeRole {
   return typeof role === 'string' && Object.hasOwn(ROLE_LABELS, role)
 }
 
-// ปิดปัญหา ("แก้แล้ว ทำต่อ") ตรงกับ close_issue ในฐานข้อมูล · แอดมินไม่มีหน้าที่แก้ปัญหาของสถานี (เจ้าของ 18 พ.ย.)
-// งานเย็บที่พักใช้ resume_sewing ซึ่งต้องจ่ายจักร จึงเป็นของฝ่ายผลิตเท่านั้น
+// ตรงกับ close_issue · แอดมินไม่แก้ปัญหาของสถานี · เย็บที่พักใช้ resume_sewing ซึ่งจ่ายจักร จึงเป็นของฝ่ายผลิต
 export function canCloseIssue(role: EmployeeRole, station: string | null | undefined): boolean {
   const floor = role === 'production' || role === 'supervisor' || role === 'owner'
   return station === 'sew' ? floor : floor || role === 'manager'

@@ -7,7 +7,6 @@ import { IconAlert, IconCheck, IconChevronRight, IconClock, IconFilm, IconSearch
 
 type Props = { jobs: Job[]; now: Date; forecast: Forecast; onOpen: (id: string) => void }
 
-// ตามหางาน: พิมพ์เลขที่ใบ (SC…) หรือชื่อลูกค้า แล้วเห็นทันทีว่างานอยู่ขั้นไหน
 export default function JobFinder({ jobs, now, forecast, onOpen }: Props) {
   const [q, setQ] = useState('')
   const [picked, setPicked] = useState<string | null>(null)
@@ -28,7 +27,6 @@ export default function JobFinder({ jobs, now, forecast, onOpen }: Props) {
 
   const job = jobs.find(j => j.id === picked) ?? null
   const pick = (j: Job) => { setPicked(j.id); setQ(j.no); setFocus(false) }
-  // ทางลัด: งานที่ควรดูก่อน (ติดปัญหา / เลยกำหนด / เสี่ยงไม่ทัน)
   const quick = useMemo(() => jobs.filter(j => j.phase !== 'done')
     .map(j => ({ j, late: lateDays(workdayToDate(forecast.finishDay.get(j.id) ?? 0, now), j.due) }))
     .sort((a, b) => Number(b.j.status === 'hold') - Number(a.j.status === 'hold') || b.late - a.late)
@@ -56,7 +54,6 @@ export default function JobFinder({ jobs, now, forecast, onOpen }: Props) {
           )}
         </div>
 
-        {/* รายการแนะนำ */}
         {focus && q && !job && (
           <ul className="absolute inset-x-4 top-full z-20 -mt-2 overflow-hidden rounded-2xl border border-line bg-card shadow-lift sm:inset-x-5">
             {matches.map(j => (
@@ -111,7 +108,6 @@ function JobStatus({ job: j, now, forecast, onOpen }: { job: Job; now: Date; for
 
   return (
     <div className="animate-fade border-t border-line">
-      {/* หัว: งานไหน + อยู่ตรงไหน */}
       <div className="flex flex-wrap items-start gap-4 p-4 sm:p-5">
         <MockupThumb job={j} size="md" />
         <div className="min-w-0 flex-1">
@@ -147,7 +143,6 @@ function JobStatus({ job: j, now, forecast, onOpen }: { job: Job; now: Date; for
         </div>
       </div>
 
-      {/* แถบขั้นตอนเต็ม */}
       <ol ref={stepsRef} className="scroll-thin flex overflow-x-auto px-4 pt-5 pb-4 sm:px-5" aria-label="ขั้นตอนของงาน">
         {all.map((s, i) => {
           const state = i < cur || j.phase === 'done' ? 'done' : i === cur ? (hold ? 'hold' : 'current') : 'todo'
@@ -165,7 +160,6 @@ function JobStatus({ job: j, now, forecast, onOpen }: { job: Job; now: Date; for
         })}
       </ol>
 
-      {/* เรื่องที่ต้องรู้ */}
       <Notes job={j} now={now} />
     </div>
   )

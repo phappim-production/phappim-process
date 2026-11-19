@@ -1,5 +1,4 @@
-// อ่านไฟล์ .json ที่ฟอร์มใบยืนยันการผลิต (production-confirmation.html) บันทึกไว้ → เติมช่องหน้ารับงานให้
-// ไม่ต้องพิมพ์เลขที่ใบ ลูกค้า จำนวน กำหนดส่ง ซ้ำ (พิมพ์ซ้ำ = โอกาสพิมพ์ผิด)
+// เติมช่องหน้ารับงานจากไฟล์ของฟอร์มใบยืนยัน เพราะพิมพ์ซ้ำ = โอกาสพิมพ์ผิด
 import { ROUTES, type RouteCode } from '../proto/model.ts'
 
 export type ReceiveDraft = {
@@ -11,7 +10,7 @@ export type ReceiveDraft = {
   qty: number
   spare: number
   due: string            // YYYY-MM-DD
-  route: RouteCode
+  route: RouteCode | null       // null = ยังไม่ได้เลือก · แอดมินกำหนดเองทุกงาน (เทคนิคพิมพ์ไม่ได้บอกเส้นทางตายตัว)
   needsSample: boolean | null   // null = ยังไม่ได้เลือก (ต้องเลือกก่อนรับงาน)
   spec: Record<string, unknown>
 }
@@ -22,8 +21,6 @@ const num = (v: unknown) => {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
 }
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
-const isRouteCode = (v: unknown): v is RouteCode =>
-  typeof v === 'string' && Object.prototype.hasOwnProperty.call(ROUTES, v)
 
 // คำตอบของสินค้าอยู่ใน d.p[d.product] · รองรับไฟล์รุ่นเก่าที่เก็บคำตอบไว้ที่ d.p ตรงๆ
 function productAnswers(p: Answers, product: string): Answers {
@@ -53,25 +50,6 @@ export function totalQty(p: Answers): number {
   return num(p.qty)
 }
 
-// เทคนิคที่เลือกกำหนดเส้นทาง: ฟิล์มที่สั่งเข้า (DTF / DTG / สกรีน) ก่อน · ปัก (มีพิมพ์ซับ/ดิจิทัลด้วย = พิมพ์ + ปัก)
-// · ซับ/ดิจิทัล = ปกติ · นอกนั้น ไม่พิมพ์ · ตรงกับ route() ใน production-confirmation.html
-export function suggestRoute(p: Answers): RouteCode {
-  const other = text(p.print_method__other) || 'อื่นๆ'
-  const methods = ([] as unknown[])
-    .concat(p.print_method ?? [])
-    .map(x => {
-      const s = String(x)
-      return s === 'อื่นๆ' ? other : s
-    })
-  const has = (re: RegExp) => methods.some(m => re.test(m))
-  const sub = has(/ซับ|ดิจิทัล/)
-  if (has(/DTF/i)) return 'dtf'
-  if (has(/DTG/i)) return 'dtg'
-  if (has(/ซิลค์|สกรีน/)) return 'screen'
-  if (has(/ปัก/)) return sub ? 'print_emb' : 'emb'
-  if (sub) return 'normal'
-  return 'plain'
-}
 
 // ฟอร์มใบยืนยันมีช่อง "ขึ้นตัวอย่าง" · ไฟล์รุ่นเก่าไม่มีช่องนี้ → null ให้ผู้รับงานเลือกเอง
 export function sampleChoice(h: Answers): boolean | null {
@@ -95,7 +73,6 @@ export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
   const ans = productAnswers(d.p, d.product)
   const sum = d.summary && typeof d.summary === 'object' ? d.summary : undefined
   const sumQty = sum ? num(sum.qty) : 0
-  const sumRoute = sum && isRouteCode(sum.route) ? sum.route : null
   // ภาพม็อคอัพในไฟล์หนักหลาย MB ไม่เก็บลงฐานข้อมูล (ดูภาพได้จาก PDF)
   const { imgs: _imgs, ...spec } = d as Record<string, unknown>
   return {
@@ -107,7 +84,7 @@ export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
     qty: sumQty > 0 ? sumQty : totalQty(ans),
     spare: num(ans.spare),
     due: /^\d{4}-\d{2}-\d{2}$/.test(text(d.h.due_date)) ? text(d.h.due_date) : '',
-    route: sumRoute ?? suggestRoute(ans),
+    route: null,
     needsSample: sampleChoice(d.h),
     spec,
   }
@@ -128,9 +105,8 @@ export function pdfProblem(file: { name: string; size: number; type: string } | 
   return null
 }
 
-// สินค้าที่ยังไม่มีสูตรจักร + เส้นทางผ่านเย็บ = ฝ่ายผลิตกดเริ่มเย็บไม่ได้ (ฐานข้อมูลปฏิเสธ) งานค้างที่เย็บ
-// เตือนแอดมินก่อนส่งงานเข้า (ตรวจก่อนทดลองจริง 19 พ.ย.: หมวก หมอน เหรียญ โล่ กระจูด พรีเมียม งานบริการ ยังไม่มีสูตร)
-export function sewRecipeProblem(route: RouteCode, recipe: readonly unknown[]): string | null {
-  if (!ROUTES[route].stations.includes('sew') || recipe.length > 0) return null
+// สินค้าที่ยังไม่มีสูตรจักร + เส้นทางผ่านเย็บ = ฐานข้อมูลไม่ให้เริ่มเย็บ งานจะค้าง จึงเตือนแอดมินก่อนส่งเข้า
+export function sewRecipeProblem(route: RouteCode | null, recipe: readonly unknown[]): string | null {
+  if (!route || !ROUTES[route].stations.includes('sew') || recipe.length > 0) return null
   return 'สินค้านี้ยังไม่มีข้อมูลจักรเย็บ ถ้าเลือกเส้นทางที่ผ่านเย็บ ฝ่ายผลิตจะกดเริ่มเย็บไม่ได้ · ถ้าไม่ต้องเย็บให้เลือก "ตัดงานลูกค้า" · ถ้าต้องเย็บให้เจ้าของระบบใส่จักรของสินค้านี้ที่ ตั้งค่า ก่อน'
 }

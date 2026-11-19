@@ -1,5 +1,3 @@
-// เฟส 1 (ต้นแบบ): รูปแบบข้อมูลงานฝั่งหน้าจอ + ข้อมูลตั้งค่าที่คัดจาก supabase/migrations/20261116000002_master_data.sql
-// เฟส 2 จะเปลี่ยนไปอ่านจากฐานข้อมูลจริง (ตาราง jobs, stations, routes)
 
 export type StationCode = 'print' | 'press' | 'cut' | 'dtf_press' | 'emb' | 'sew' | 'qc_pack'
 export type RouteCode = 'normal' | 'dtf' | 'dtg' | 'screen' | 'emb' | 'print_emb' | 'cut_only' | 'plain'
@@ -29,7 +27,7 @@ export const ROUTES: Record<RouteCode, { name: string; short: string; stations: 
   plain: { name: 'ไม่มีงานพิมพ์', short: 'ไม่พิมพ์', stations: ['cut', 'sew', 'qc_pack'] },
 }
 
-// DTF / DTG / สกรีน สั่งฟิล์มเข้ามาแล้วรีดที่สถานีรีดฟิล์ม (ตรงกับ private.uses_film ในฐานข้อมูล)
+// เส้นทางที่สั่งฟิล์มมารีด (ตรงกับ private.uses_film)
 export const usesFilm = (r: RouteCode) => r === 'dtf' || r === 'dtg' || r === 'screen'
 export const filmLabel = (r: RouteCode) => (r === 'dtg' ? 'งาน DTG' : r === 'screen' ? 'งานสกรีน' : 'ฟิล์ม DTF')
 
@@ -39,10 +37,10 @@ export const STATUS_NAME: Record<StationStatus, string> = { queued: 'รอค�
 
 export type Job = {
   id: string
-  no: string                 // เลขที่ใบยืนยัน
+  no: string
   customer: string
   product: string
-  productCode?: string       // product_types.code · ใช้หาจักรที่สินค้าต้องใช้
+  productCode?: string
   unit: string
   qty: number
   due: Date
@@ -52,7 +50,7 @@ export type Job = {
   status?: StationStatus
   since: Date                // เวลาที่เข้าขั้นปัจจุบัน
   sampleRound: number
-  needsSample?: boolean      // false = ลูกค้าไม่ได้จ่ายค่าตัวอย่าง วัตถุดิบครบแล้วเข้าผลิตจริงเลย
+  needsSample?: boolean      // false = ลูกค้าไม่จ่ายค่าตัวอย่าง เข้าผลิตจริงเลย
   materials: Record<Dept, boolean>
   film?: { eta: Date; received: boolean }  // เฉพาะเส้นทางที่สั่งฟิล์ม (DTF / DTG / สกรีน)
   sewCount?: number
@@ -62,9 +60,9 @@ export type Job = {
   rework?: { qty: number; reason: string }
   holdReason?: string
   doneAt?: Date
-  queue?: number             // ลำดับคิว (jobs.queue_seq) · ตามลำดับรับงานเข้า แทรกงานด่วนได้
-  out?: OutRun               // อยู่ที่บริษัทภายนอก (station_status = out)
-  sla?: SlaLevel             // เวลามาตรฐานของสถานีที่ทำอยู่ (job_sla_flags) · ไม่มี = ยังไม่ใกล้ครบ / ไม่จับเวลา
+  queue?: number             // jobs.queue_seq · แทรกงานด่วนได้
+  out?: OutRun
+  sla?: SlaLevel             // ไม่มี = ยังไม่ใกล้ครบหรือไม่จับเวลา
 }
 
 // ส้ม = ใกล้ครบ · แดง = เกินแล้ว (report = ยังไม่ส่งรายงานปัญหา กดเสร็จไม่ได้ · over = รายงานแล้ว)
@@ -79,7 +77,7 @@ export const SLA_LABEL: Record<SlaLevel, { tone: 'warn' | 'danger'; text: string
 export type OutRun = {
   id: number; vendor: string; vendorId: number; stations: StationCode[]; qty: number; rework: boolean
   sentAt: Date; arriveAt: Date; leadDays: number; backAt: Date; note?: string
-  phone?: string; mapUrl?: string   // ของบริษัท · ให้แอดมินกดโทร/เปิดแผนที่ตามของ
+  phone?: string; mapUrl?: string
 }
 // kind: outsource = รับงานไปทำแทน · supplier = ร้านขายวัตถุดิบ/ฟิล์ม (ไม่ขึ้นในรายการส่งออก)
 export type Vendor = {
@@ -94,10 +92,8 @@ export function telHref(phone?: string): string | undefined {
 }
 /** สถานีที่ส่งออกได้ (ตรงกับ private.outsourceable ในฐานข้อมูล) */
 export const OUTSOURCEABLE: StationCode[] = ['print', 'press', 'cut', 'sew', 'emb']
-/** ของจากบริษัทภายนอกเลยกำหนดถึงแล้วยังไม่รับ */
 export const isOutLate = (j: Job, now: Date) => !!j.out && j.out.backAt.getTime() < now.getTime()
 
-// คอลัมน์ของบอร์ด (DEVELOPMENT.md หัวข้อ 8)
 export type ColumnKey = 'materials' | 'sample' | 'sample_review' | StationCode | 'done'
 export const COLUMNS: { key: ColumnKey; name: string }[] = [
   { key: 'sample', name: 'ขึ้นตัวอย่าง' },
@@ -112,14 +108,13 @@ export const COLUMNS: { key: ColumnKey; name: string }[] = [
   { key: 'done', name: 'เสร็จ' },
 ]
 
-// กลุ่มสถานีบนแถบเลือกสถานี · หน้างานมองหาสถานีตัวเองตามเฟส ไม่ต้องเลื่อนหา (เจ้าของโปรเจกต์ขอ 17 พ.ย.)
 export const STATION_GROUPS: { name: string; keys: ColumnKey[] }[] = [
   { name: 'ก่อนผลิต', keys: ['sample', 'sample_review'] },
   { name: 'เฟส 1', keys: ['print', 'press', 'cut', 'dtf_press', 'emb'] },
   { name: 'เฟส 2', keys: ['sew', 'qc_pack', 'done'] },
 ]
 
-/** แบ่งคอลัมน์ที่บทบาทนี้เห็นออกเป็นกลุ่ม (ตัดกลุ่มที่ไม่มีคอลัมน์ทิ้ง) · คอลัมน์ที่ไม่อยู่ในกลุ่มใดไปต่อท้ายกลุ่มสุดท้าย */
+// คอลัมน์ที่ไม่อยู่ในกลุ่มใดไปต่อท้ายกลุ่มสุดท้าย
 export function groupColumns<C extends { key: ColumnKey }>(columns: readonly C[]): { name: string; columns: C[] }[] {
   const grouped = STATION_GROUPS.map(g => ({ name: g.name, columns: columns.filter(c => g.keys.includes(c.key)) }))
   const known = new Set(STATION_GROUPS.flatMap(g => g.keys))
@@ -128,7 +123,7 @@ export function groupColumns<C extends { key: ColumnKey }>(columns: readonly C[]
   return grouped.filter(g => g.columns.length > 0)
 }
 
-/** สถานีที่เครื่องนี้เลือกไว้ครั้งก่อน · ใช้ได้เฉพาะสถานีที่บทบาทนี้ยังเห็นอยู่ ไม่อย่างนั้นกลับเป็นทุกสถานี */
+// ใช้ได้เฉพาะสถานีที่บทบาทนี้ยังเห็นอยู่
 export function savedStation(raw: string | null, columns: readonly { key: ColumnKey }[]): ColumnKey | 'all' {
   return columns.some(c => c.key === raw) ? raw as ColumnKey : 'all'
 }
@@ -136,7 +131,7 @@ export function savedStation(raw: string | null, columns: readonly { key: Column
 export function columnOf(j: Job): ColumnKey {
   // กันข้อมูลเพี้ยน: งานผลิตที่ไม่มีสถานี ให้ไปอยู่สถานีแรกของเส้นทาง
   if (j.phase === 'production') return j.station ?? ROUTES[j.route].stations[0]
-  // ไม่มีขั้นรอวัตถุดิบแล้ว (17 พ.ย.) · งานเก่าที่ยังค้างขั้นนี้แสดงที่จุดถัดไปที่งานจะไป ไม่ให้หายจากบอร์ด
+  // งานเก่าที่ค้างขั้นรอวัตถุดิบ (ยกเลิกขั้นนี้แล้ว) แสดงที่จุดถัดไป ไม่ให้หายจากบอร์ด
   if (j.phase === 'materials') return j.needsSample === false ? ROUTES[j.route].stations[0] : 'sample'
   return j.phase
 }
@@ -145,33 +140,30 @@ const DAY = 86_400_000
 // ใช้เรียงลำดับ (ไม่ใช้ตัดสินวัน) · การตัดสินว่า "วันไหน" ต้องใช้ thaiDay
 export const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
 
-// วันตามปฏิทินไทย (YYYY-MM-DD) ไม่ขึ้นกับเขตเวลาของเครื่อง
-// แท็บเล็ตที่ตั้งเขตเวลาผิดต้องยังขึ้นแดง "เลยกำหนด" ทันทีหลังเที่ยงคืนไทย ไม่ใช่ช้าไปหลายชั่วโมง
+// แท็บเล็ตที่ตั้งเขตเวลาผิดต้องยังขึ้นเลยกำหนดทันทีหลังเที่ยงคืนไทย
 const thaiDayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' })
 export const thaiDay = (d: Date) => thaiDayFormat.format(d)
-/** a อยู่หลัง b กี่วันตามปฏิทินไทย (ติดลบ = ก่อน) */
+// ติดลบ = a อยู่ก่อน b
 export function thaiDayDiff(a: Date, b: Date) {
   return Math.round((Date.parse(thaiDay(a)) - Date.parse(thaiDay(b))) / DAY)
 }
 
-// คิวงาน: เรียงตามลำดับรับเข้าเสมอ ไม่เรียงตามกำหนดส่งเอง (เจ้าของสั่ง 18 พ.ย. "อย่ามั่วคิว") · งานด่วน = แทรกคิวในฐานข้อมูล
-// ไม่มีเลขคิว (ข้อมูลจำลอง) → ตามเวลาเข้าขั้น
+// ตามลำดับรับเข้าเสมอ ไม่ใช่กำหนดส่ง · งานด่วนแทรกคิวในฐานข้อมูล · ไม่มีเลขคิว (ข้อมูลจำลอง) ใช้เวลาเข้าขั้น
 export function byQueue(a: Job, b: Job) {
   return (a.queue ?? Infinity) - (b.queue ?? Infinity) || a.since.getTime() - b.since.getTime() || a.id.localeCompare(b.id)
 }
 const inStation = (j: Job) => (j.phase === 'sample' || j.phase === 'production') && !!j.station
-/** งานที่รอเริ่มที่สถานีนี้ เรียงตามคิว · ตรงกับที่ฐานข้อมูลใช้ตรวจเริ่มข้ามคิว (note_queue_skip) */
+// ตรงกับที่ฐานข้อมูลใช้ตรวจเริ่มข้ามคิว (note_queue_skip)
 export function waitingAt(jobs: Job[], station: StationCode): Job[] {
   return jobs.filter(j => inStation(j) && j.station === station && j.status === 'queued').sort(byQueue)
 }
-/** งานนี้เป็นคิวที่เท่าไรของสถานี (1 = คิวแรก) · ไม่ได้รอเริ่ม = undefined */
+// 1 = คิวแรก · ไม่ได้รอเริ่ม = undefined
 export function queueNo(job: Job, jobs: Job[]): number | undefined {
   if (!job.station || job.status !== 'queued' || !inStation(job)) return undefined
   const i = waitingAt(jobs, job.station).findIndex(j => j.id === job.id)
   return i < 0 ? undefined : i + 1
 }
 
-/** จำนวนงานต่อสถานี (รอ · กำลังทำ · ติดปัญหา · เลยกำหนด) เรียงตามกระบวนการ */
 export function stationCounts(jobs: Job[], now: Date) {
   return COLUMNS.filter(c => c.key in STATION_NAME).map(c => {
     const here = jobs.filter(j => (j.phase === 'sample' || j.phase === 'production') && j.station === c.key)
@@ -189,7 +181,7 @@ export function stationCounts(jobs: Job[], now: Date) {
 // เวลางานโรงงาน 09:00–18:00 (จันทร์–เสาร์) · ที่เดียวที่กำหนด หน้าจอที่แปลง "วันที่" เป็นเวลาใช้ค่านี้ทั้งหมด
 export const WORK_START = '09:00'
 export const WORK_END = '18:00'
-/** เวลาเลิกงานของวันที่ไทย (YYYY-MM-DD) · ระบุ +07:00 จึงไม่เพี้ยนตามเขตเวลาเครื่อง */
+// ระบุ +07:00 จึงไม่เพี้ยนตามเขตเวลาเครื่อง
 export const thaiWorkEnd = (day: string) => new Date(`${day}T${WORK_END}:00+07:00`)
 
 export function isOverdue(j: Job, now: Date) {

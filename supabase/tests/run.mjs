@@ -1,5 +1,4 @@
 // ทดสอบ migrations บน Postgres ในเครื่อง (PGlite) โดยไม่ต้องมี Supabase/Docker
-// รัน: cd supabase/tests && npm test
 import { PGlite } from '@electric-sql/pglite'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -15,7 +14,7 @@ async function expectError(name, sql, re) {
   catch (e) { ok(name, re ? re.test(e.message) : true, e.message.split('\n')[0]) }
 }
 
-// ---- จำลองส่วนที่ Supabase มีให้: schema auth, auth.uid(), บทบาท authenticated/anon ----
+// จำลองส่วนที่ Supabase มีให้: schema auth, auth.uid(), บทบาท authenticated/anon
 await db.exec(`
   create schema auth;
   create table auth.users (id uuid primary key, email text);
@@ -25,7 +24,6 @@ await db.exec(`
   create role anon nologin;
 `)
 
-// ---- 1. migrations ----
 for (const f of readdirSync(migDir).filter(f => f.endsWith('.sql')).sort()) {
   try { await db.exec(readFileSync(join(migDir, f), 'utf8')); ok(`migration ${f}`, true) }
   catch (e) { ok(`migration ${f}`, false, e.message); process.exit(1) }
@@ -37,7 +35,6 @@ await db.exec(`
   -- ฟังก์ชันใน public/private ใช้สิทธิ์ตามที่ migration กำหนดเอง (ทดสอบกฎข้อ 12)
 `)
 
-// ---- 2. ข้อมูลตั้งค่า ----
 const count = async t => (await db.query(`select count(*)::int n from public.${t}`)).rows[0].n
 ok('สถานี 8 สถานี', await count('stations') === 8)
 ok('เส้นทาง 8 เส้น', await count('routes') === 8)
@@ -49,7 +46,6 @@ ok('เส้นทาง DTF เรียงถูก', r.rows[0].path === 'ต
 const bad = await db.query(`select code from stations where jsonb_typeof(substeps) <> 'array' or jsonb_array_length(substeps) = 0`)
 ok('ทุกสถานีมีขั้นย่อย', bad.rows.length === 0)
 
-// ---- 3. ผู้ใช้ทดสอบ ----
 const U = { owner: '00000000-0000-0000-0000-000000000001', sup: '00000000-0000-0000-0000-000000000002',
             nobody: '00000000-0000-0000-0000-000000000003', off: '00000000-0000-0000-0000-000000000004' }
 await db.exec(`
@@ -66,7 +62,6 @@ const as = async (uid, fn) => {
 }
 const n = async t => (await db.query(`select count(*)::int n from public.${t}`)).rows[0].n
 
-// ---- 4. Row Level Security ----
 ok('ผู้ใช้ที่ไม่มี profile อ่านสินค้าไม่ได้', await as(U.nobody, () => n('product_types')) === 0)
 ok('ผู้ใช้ที่ถูกปิด (active=false) อ่านงานไม่ได้', await as(U.off, () => n('jobs')) === 0)
 ok('ผู้ควบคุมงานอ่านสินค้าได้ 37', await as(U.sup, () => n('product_types')) === 37)
@@ -87,8 +82,7 @@ await as(U.owner, async () => {
 ok('owner แก้ข้อมูลตั้งค่าได้', (await db.query(`select name from stations where code='cut'`)).rows[0].name === 'ตัดงาน (แก้)')
 await db.exec(`update public.stations set name='ตัดงาน' where code='cut'`)
 
-// ---- 5. กฎข้อมูล ----
-// PDF ใบยืนยันว่างได้ตั้งแต่ 20261119230000 (แนบทีหลัง) · ทดสอบใน workflow.mjs / storage.mjs
+// PDF ใบยืนยันว่างได้ (แนบทีหลัง) · ทดสอบใน workflow.mjs / storage.mjs
 ok('ตาราง jobs ยอมให้ PDF ใบยืนยันว่าง (แนบทีหลังได้)', (await db.query(`select is_nullable from information_schema.columns
   where table_schema = 'public' and table_name = 'jobs' and column_name = 'confirmation_pdf_path'`)).rows[0]?.is_nullable === 'YES')
 await expectError('เลขที่ใบยืนยันซ้ำไม่ได้',
@@ -105,7 +99,6 @@ await expectError('พักงานต้องมีสาเหตุ',
 await expectError('แก้ events ไม่ได้ (แม้เป็นผู้ดูแลฐานข้อมูล)', `update public.events set type='x'`, /เพิ่มอย่างเดียว/)
 await expectError('ลบ events ไม่ได้', `delete from public.events`, /เพิ่มอย่างเดียว/)
 
-// ---- 6. ฟังก์ชันสิทธิ์และ policy (migration 3) ----
 const fn = await db.query(`select n.nspname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where p.proname in ('my_role','is_owner')`)
 ok('ฟังก์ชันสิทธิ์อยู่ใน schema private เท่านั้น', fn.rows.length === 2 && fn.rows.every(r => r.nspname === 'private'))
 await db.exec('set role anon')
@@ -120,48 +113,37 @@ const fkNoIdx = await db.query(`
     and not exists (select 1 from pg_index i where i.indrelid = c.conrelid and i.indkey[0] = c.conkey[1])`)
 ok('foreign key ทุกตัวมี index', fkNoIdx.rows.length === 0, fkNoIdx.rows.map(r => r.conname).join(','))
 
-// ---- 6.1 ข้อมูลจริงจาก PP-SOP-01 ----
 const { sopTests } = await import('./sop.mjs')
 await sopTests({ db, ok })
-// ชุดทดสอบ workflow เดินงานแบบ "ยังไม่ได้ใส่จักร" (ไม่บังคับจักร) และ sewing.mjs ตั้งจักรสมมติของตัวเอง
-// จึงล้างจักรจริงออกหลังตรวจข้อมูลแล้ว
+// ชุด workflow เดินงานแบบยังไม่มีจักร และ sewing.mjs ตั้งจักรสมมติเอง จึงล้างจักรจริงออกหลังตรวจข้อมูลแล้ว
 await db.exec('delete from public.sewing_machines')
 
-// ---- 7. workflow (A1) ----
 const { workflowTests } = await import('./workflow.mjs')
 await workflowTests({ db, ok, as })
 
-// ---- 8. ผู้ควบคุมงาน 2 เฟส ----
 const { sectionTests } = await import('./sections.mjs')
 await sectionTests({ db, ok, as })
 
-// ---- 8.1 ฝ่ายผลิตคุมหน้างานทั้งหมด ----
 const { productionTests } = await import('./production.mjs')
 await productionTests({ db, ok, as })
 
-// ---- 8.2 เดินงานแบบทีมจริง (ฝ่ายผลิต + แอดมิน + QC) ----
 const { teamTests } = await import('./e2e.mjs')
 await teamTests({ db, ok, as })
 
-// ---- 9. จักรเย็บ (S14) ----
 const { sewingTests } = await import('./sewing.mjs')
 await sewingTests({ db, ok, as })
 
-// ---- 10. PDF ใบยืนยันใน Storage (A3) ----
 const { storageTests } = await import('./storage.mjs')
 await storageTests({ db, ok, as })
 
-// ---- 11. กล่องจดหมายแจ้งเตือน (C3) ----
 const { inboxTests } = await import('./inbox.mjs')
 await inboxTests({ db, ok, as })
 
-// ---- 12. เส้นทางตามงานจริง + ตัวอย่างเลือกได้ ----
 const { routeTests } = await import('./routes.mjs')
 await routeTests({ db, ok, as })
 const { settingsTests } = await import('./settings.mjs')
 await settingsTests({ db, ok, as })
 
-// ---- 13. ชื่อพนักงานสำหรับไทม์ไลน์ (S8) ----
 const { staffTests } = await import('./staff.mjs')
 await staffTests({ db, ok, as })
 const { historyTests } = await import('./history.mjs')

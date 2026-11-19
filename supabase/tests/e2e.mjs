@@ -1,5 +1,4 @@
-// เดินงานแบบทีมจริงหลังเลิกใช้ผู้ควบคุมงาน: ฝ่ายผลิต + แอดมิน + QC เท่านั้น (ไม่มีบัญชี supervisor)
-// ตามรายการตรวจทั้งระบบ docs/แผน-1-สัปดาห์.md หัวข้อ 4.3 · เรียกจาก run.mjs ก่อน sewing.mjs (ยังไม่มีจักร)
+// เดินงานแบบทีมจริง (ฝ่ายผลิต + แอดมิน + QC) · รันก่อน sewing.mjs เพราะยังไม่มีจักร
 
 import { requiredSteps, substepSql } from './steps.mjs'
 
@@ -27,11 +26,10 @@ export async function teamTests({ db, ok, as }) {
     }
     return all
   }
-  // ขั้นที่ต้องทำในแต่ละสถานี อ่านจากขั้นย่อยจริงในตาราง (ตัวอย่าง = เฉพาะ req · ผลิตจริง = ครบทุกขั้นบังคับ)
+  // ตัวอย่าง = เฉพาะ req · ผลิตจริง = ครบทุกขั้นบังคับ
   const sub = substepSql
   const route = async code => (await db.query(`select station_code from public.route_stations where route_code = '${code}' order by seq`)).rows.map(r => r.station_code)
 
-  // สถานีหนึ่งตามที่คนหน้างานกดจริง · เย็บ = เริ่ม → (ผลิตจริง: ตัวแรก + ยอดเย็บ) → เย็บเสร็จ · QC = บันทึกผ่าน + นับ + ลงลัง
   const doStation = async (id, s, phase, who = U.prod) => {
     if (!await step(`${s}: เริ่ม`, who, `public.start_station('${id}')`)) return false
     if (s === 'sew') {
@@ -46,7 +44,6 @@ export async function teamTests({ db, ok, as }) {
     return step(`${s}: เสร็จ`, who, `public.finish_station('${id}')`)
   }
 
-  // ---------- 1. งานปกติ ตั้งแต่รับงานจนเสร็จ (ตัวอย่างไม่ผ่าน 1 รอบ) ----------
   const A = await receive('SC-TEAM-A', 'normal')
   ok('ทีมจริง: แอดมินส่งงานเข้า → ขึ้นตัวอย่างทันที (ไม่มีขั้นรอวัตถุดิบ)', (await live(A)).phase === 'sample')
   let walked = true
@@ -68,7 +65,6 @@ export async function teamTests({ db, ok, as }) {
   const noBy = (await db.query(`select count(*)::int n from public.events where job_id = '${A}' and by is null`)).rows[0].n
   ok('ทีมจริง: ทุกการกดบันทึกชื่อผู้กด', noBy === 0, `ไม่มีชื่อ ${noBy} แถว`)
 
-  // ---------- 2. DTF: ฟิล์ม + QC เป็นคนกด QC ----------
   const B = await receive('SC-TEAM-B', 'dtf')
   ok('ทีมจริง DTF: แอดมินสั่งฟิล์ม + ทุกฝ่ายติ๊กวัตถุดิบ',
     await step('สั่งฟิล์ม', U.admin, `public.order_film('${B}', (now() + interval '2 days')::date)`) && await tickMaterials(B) && (await live(B)).phase === 'sample')
@@ -79,7 +75,7 @@ export async function teamTests({ db, ok, as }) {
     await doStation(B, 'dtf_press', 'sample') && await doStation(B, 'sew', 'sample') && await doStation(B, 'qc_pack', 'sample', U.qc)
     && (await live(B)).phase === 'sample_review')
 
-  // ---------- 3. กดพร้อมกัน 2 เครื่อง (กฎ 11) · พักงาน (กฎ 9) ----------
+  // กฎข้อ 11 กดพร้อมกัน 2 เครื่อง · กฎข้อ 9 พักงาน
   const C = await receive('SC-TEAM-C', 'plain')
   await tickMaterials(C)
   await step('เริ่มตัด', U.prod, `public.start_station('${C}')`)

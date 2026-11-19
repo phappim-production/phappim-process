@@ -1,4 +1,4 @@
-// ชื่อพนักงานสำหรับไทม์ไลน์รายละเอียดงาน (S8) · เปิดเฉพาะชื่อ ไม่เปิด profile ทั้งแถว
+// เปิดเฉพาะชื่อ ไม่เปิด profile ทั้งแถว
 
 export async function staffTests({ db, ok, as }) {
   const U = {

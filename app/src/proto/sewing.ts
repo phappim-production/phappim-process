@@ -1,6 +1,4 @@
-// จักรเย็บ (S14 · docs/แผน-1-สัปดาห์.md) · งานรอเย็บกดเริ่มได้เมื่อจักรครบทุกชนิดที่สินค้าต้องใช้ว่างจริง
-// กฎเดียวกับฐานข้อมูล (public.start_sewing) · หน้าเว็บใช้คำนวณล่วงหน้าเพื่อบอกเหตุผลก่อนกด
-// ชนิดจักรและจักรที่สินค้าต้องใช้ ตรงกับ supabase/migrations/20261118000002_sewing_machines.sql (ร่างจาก PP-SOP-01 ST-05)
+// คำนวณกฎเดียวกับ public.start_sewing ล่วงหน้าเพื่อบอกเหตุผลก่อนกด (ฐานข้อมูลตรวจจริง)
 import { byQueue, ROUTES, type Job } from './model.ts'
 
 export type MachineType =
@@ -22,7 +20,7 @@ export const MACHINE_TYPE_NAME: Record<MachineType, string> = {
 }
 export const MACHINE_TYPES = Object.keys(MACHINE_TYPE_NAME) as MachineType[]
 
-// รหัสนำหน้าของแต่ละประเภท · รหัสจักร = นำหน้า-เลข 3 หลัก เช่น OL4-001 (เผื่อเกิน 99 ตัว · เรียงตามตัวอักษรถูก) (ติดบนตัวจักร หน้างานเรียกตามนี้)
+// รหัสจักร = นำหน้า-เลข 3 หลัก เช่น OL4-001 ตามที่ติดบนตัวจักร
 export const MACHINE_PREFIX: Record<MachineType, string> = {
   single: 'SN', double: 'DN', ovl3: 'OL3', ovl4: 'OL4', ovl5: 'OL5', cover: 'CV', flat: 'FL',
   button: 'BT', buttonhole: 'BH', elastic: 'EL', binding: 'BD',
@@ -39,17 +37,17 @@ export const MACHINE_STATUS_NAME: Record<MachineStatus, string> = { ready: 'ใ�
 
 export type Machine = {
   id: string
-  code: string          // รหัสที่ติดบนตัวจักร เช่น OL4-001
+  code: string
   type: MachineType
   status: MachineStatus
-  jobId?: string        // งานที่ใช้จักรนี้อยู่ (ไม่มี = ว่าง)
-  note?: string         // อาการตอนแจ้งเสีย
-  repairEta?: Date      // คาดว่าซ่อมเสร็จเมื่อไร (ฝ่ายผลิตกำหนด)
+  jobId?: string
+  note?: string
+  repairEta?: Date
 }
 
 export type Need = { type: MachineType; qty: number }
 
-// สินค้า → จักรที่ต้องใช้พร้อมกันเพื่อเดินงาน 1 งาน (ร่าง · เจ้าของระบบแก้ได้ที่หน้าตั้งค่า)
+// ค่าเริ่มต้น · แก้ได้ที่หน้าตั้งค่า
 const TEE: Need[] = [{ type: 'ovl4', qty: 2 }, { type: 'cover', qty: 1 }, { type: 'flat', qty: 1 }, { type: 'single', qty: 1 }]
 const SHIRT: Need[] = [{ type: 'ovl4', qty: 1 }, { type: 'single', qty: 1 }, { type: 'double', qty: 1 }, { type: 'button', qty: 1 }, { type: 'buttonhole', qty: 1 }]
 const PANTS: Need[] = [{ type: 'ovl4', qty: 1 }, { type: 'elastic', qty: 1 }, { type: 'cover', qty: 1 }]
@@ -73,7 +71,7 @@ export function emptyCount(): FreeCount {
   return Object.fromEntries(MACHINE_TYPES.map(t => [t, 0])) as FreeCount
 }
 
-// สถานะที่หน้างานเห็นบนตัวจักร · เสีย/ปิด มาก่อนเสมอ (จักรเสียที่ยังผูกงานอยู่ ไม่นับว่าใช้งาน)
+// เสีย/ปิดมาก่อนเสมอ: จักรเสียที่ยังผูกงานอยู่ไม่นับว่าใช้งาน
 export type MachineState = 'free' | 'busy' | 'broken' | 'off'
 export const MACHINE_STATE_NAME: Record<MachineState, string> = { free: 'ว่าง', busy: 'ใช้อยู่', broken: 'เสีย', off: 'ปิดใช้งาน' }
 export function machineState(m: Machine): MachineState {
@@ -97,17 +95,16 @@ export function floorSummary(machines: Machine[]) {
   return { total, free, count: machines.length, inUse, broken, off, freeTotal }
 }
 
-export type QueueSource = 'waiting' | 'coming'  // รอเย็บแล้ว (อยู่สถานีเย็บ ยังไม่ได้จักร) · กำลังมา (สถานีก่อนหน้าเย็บ)
+export type QueueSource = 'waiting' | 'coming'
 export type QueueRow = {
   job: Job
   source: QueueSource
   verdict: 'ready' | 'wait' | 'unknown'
   needs: Need[]
-  missing: Need[]       // ขาดจักรชนิดใด กี่ตัว (เมื่อ verdict = wait)
+  missing: Need[]
 }
 
-// สถานีถัดไปหลังงานกลับเข้าโรงงาน: งานที่อยู่ข้างนอกนับต่อจากสถานีสุดท้ายที่บริษัททำ (ส่งออกพิมพ์ถึงตัด → กลับมาเย็บ)
-// งานแก้ที่รับกลับไป QC เสมอ จึงไม่ใช่งานกำลังมาเย็บ (QA รอบ 6 C10 บั๊ก 5)
+// งานข้างนอกนับต่อจากสถานีสุดท้ายที่บริษัททำ · งานแก้กลับไป QC เสมอ
 function nextStation(j: Job) {
   if (!j.station) return undefined
   if (j.status === 'out' && j.out && j.out.rework) return undefined
@@ -116,13 +113,12 @@ function nextStation(j: Job) {
   return list[list.indexOf(from) + 1]
 }
 
-// งานที่จะต้องใช้จักร: อยู่สถานีเย็บแต่ยังไม่ได้จักร + งานที่สถานีถัดไปคือเย็บ
 export function sewQueue(jobs: Job[], machines: Machine[], includeComing = false): { job: Job; source: QueueSource }[] {
   const hasMachine = new Set(machines.filter(m => m.jobId).map(m => m.jobId))
   const out: { job: Job; source: QueueSource }[] = []
   for (const j of jobs) {
     if (j.phase !== 'sample' && j.phase !== 'production') continue
-    // เย็บที่บริษัทภายนอก ไม่ใช้จักรโรงงาน (เดิมขึ้นในรอบเย็บว่า "จักรไม่ว่าง" · QA รอบ 5 G7 ข้อ 3)
+    // เย็บที่บริษัทภายนอกไม่ใช้จักรโรงงาน
     if (j.status === 'out' && j.out?.stations.includes('sew')) continue
     if (j.station === 'sew' && !hasMachine.has(j.id)) out.push({ job: j, source: 'waiting' })
     else if (includeComing && nextStation(j) === 'sew') out.push({ job: j, source: 'coming' })
@@ -130,7 +126,7 @@ export function sewQueue(jobs: Job[], machines: Machine[], includeComing = false
   return out
 }
 
-// ลำดับขึ้นเย็บ: รอเย็บแล้วก่อนกำลังมา · แล้วตามคิว (ไม่เรียงตามกำหนดส่งเอง · งานด่วนแทรกคิวในฐานข้อมูล)
+// รอเย็บแล้วก่อนกำลังมา แล้วตามคิว (ไม่เรียงตามกำหนดส่ง)
 function rank(a: { job: Job; source: QueueSource }, b: { job: Job; source: QueueSource }) {
   return (a.source === 'waiting' ? 0 : 1) - (b.source === 'waiting' ? 0 : 1) || byQueue(a.job, b.job)
 }
@@ -160,7 +156,7 @@ export function needText(list: Need[]): string {
   return list.map(n => `${MACHINE_TYPE_NAME[n.type]}${n.qty > 1 ? ` ×${n.qty}` : ''}`).join(' · ')
 }
 
-// ---------- จองจักรเป็นวัน-เวลา (ตรงกับ public.book_machines / cancel_booking) ----------
+// ตรงกับ public.book_machines / cancel_booking
 export type Booking = { id: string; machineId: string; jobId: string; starts: Date; ends: Date }
 
 export const BOOKING_TIME_ZONE = 'Asia/Bangkok'
@@ -195,7 +191,6 @@ export function groupBookings(bookings: Booking[]): Booking[][] {
   return [...groups.values()].sort((a, b) => a[0].starts.getTime() - b[0].starts.getTime())
 }
 
-// การจองของงานอื่นที่ทับช่วง [from, to) ของจักรตัวนี้ (ไม่นับงาน exceptJob)
 export function bookedByOther(machineId: string, from: Date, to: Date, bookings: Booking[], exceptJob?: string): Booking | undefined {
   return bookings
     .filter(b => b.machineId === machineId && b.jobId !== exceptJob && b.starts < to && b.ends > from)
@@ -203,13 +198,13 @@ export function bookedByOther(machineId: string, from: Date, to: Date, bookings:
 }
 const ONE_MINUTE = 60_000
 
-// ---------- กดเริ่มเย็บ (ตรงกับ public.start_sewing ในฐานข้อมูล) ----------
+// ตรงกับ public.start_sewing
 export type Blocker = { code: string; state: 'busy' | 'broken' | 'off' | 'booked'; jobId?: string; until?: Date }
 export type StartCheck =
   | { ok: true; picked: Machine[] }
   | { ok: false; reason: string; missing: Need[]; blockers: Blocker[] }
 
-// เลือกจักรว่างให้ครบทุกชนิดที่สินค้าต้องใช้ · จักรที่งานนี้จองไว้มาก่อน · จักรที่งานอื่นจองช่วงนี้ใช้ไม่ได้
+// จักรที่งานนี้จองไว้ได้ก่อน · จักรที่งานอื่นจองช่วงนี้ใช้ไม่ได้
 export function checkStartSewing(job: Job, machines: Machine[], needsMap: Record<string, Need[]>,
   bookings: Booking[] = [], now: Date = new Date(), resume = false): StartCheck {
   if (job.station !== 'sew' || (job.phase !== 'production' && job.phase !== 'sample')) {
@@ -248,7 +243,7 @@ export function checkStartSewing(job: Job, machines: Machine[], needsMap: Record
   return { ok: true, picked }
 }
 
-// จำลองการกดเริ่มเย็บบนข้อมูลในหน้าจอ (ข้อมูลจำลอง) · ของจริงเรียก RPC แล้วรอ realtime
+// ใช้กับข้อมูลจำลอง · ของจริงเรียก RPC แล้วรอ realtime
 export function applyStartSewing(jobs: Job[], machines: Machine[], jobId: string, needsMap: Record<string, Need[]>,
   now: Date, bookings: Booking[] = [], resume = false) {
   const job = jobs.find(j => j.id === jobId)
@@ -264,7 +259,6 @@ export function applyStartSewing(jobs: Job[], machines: Machine[], jobId: string
   }
 }
 
-// ตรวจก่อนจอง: ช่วงเวลา · จักรครบทุกชนิดในช่วงนั้น · ไม่ชนการจองของงานอื่น
 export function checkBooking(job: Job, machines: Machine[], bookings: Booking[], starts: Date, ends: Date,
   needsMap: Record<string, Need[]>, now: Date): { ok: true; picked: Machine[] } | { ok: false; reason: string } {
   if (job.phase === 'done') return { ok: false, reason: 'งานนี้เสร็จแล้ว จองจักรไม่ได้' }
@@ -288,7 +282,6 @@ export function checkBooking(job: Job, machines: Machine[], bookings: Booking[],
   return { ok: true, picked }
 }
 
-// จักรที่ยังว่างทั้งช่วง [starts, ends) แยกตามชนิด · ใช้บอกคนจองว่าช่วงนี้ยังขึ้นงานอื่นได้อีกแค่ไหน
 function isFreeDuring(m: Machine, bookings: Booking[], starts: Date, ends: Date, now: Date, jobId?: string): boolean {
   return m.status === 'ready' && !bookedByOther(m.id, starts, ends, bookings)
     && !(starts <= now && m.jobId && m.jobId !== jobId)
@@ -302,7 +295,6 @@ export function freeDuring(machines: Machine[], bookings: Booking[], starts: Dat
   return free
 }
 
-// งานที่จองช่วงเวลาทับกับ [starts, ends)
 export function jobsBookedDuring(bookings: Booking[], starts: Date, ends: Date): string[] {
   return [...new Set(bookings.filter(b => b.starts < ends && b.ends > starts).map(b => b.jobId))]
 }
@@ -327,7 +319,7 @@ export function cancelBookings(bookings: Booking[], jobId: string, now: Date) {
   }
 }
 
-// ---------- แจ้งเสีย / ปิดใช้งาน / ซ่อมเสร็จ (ตรงกับ public.set_machine_status) ----------
+// ตรงกับ public.set_machine_status
 // กรอบเวลาซ่อม (ตรงกับ private.check_repair_eta) · null = ผ่าน
 export function repairEtaProblem(eta: Date | undefined, now: Date): string | null {
   if (!eta || Number.isNaN(eta.getTime())) return 'ต้องกำหนดเวลาซ่อมเสร็จ'
@@ -336,7 +328,6 @@ export function repairEtaProblem(eta: Date | undefined, now: Date): string | nul
   return null
 }
 
-// สถานะเวลาซ่อมบนช่องจักร: ยังไม่กำหนด / อีกเท่าไร / เลยกำหนด
 export function repairStatus(m: Machine, now: Date): { tone: 'warn' | 'danger'; text: string } | null {
   if (m.status !== 'broken') return null
   if (!m.repairEta) return { tone: 'warn', text: 'ยังไม่กำหนดเวลาซ่อม' }
@@ -378,7 +369,7 @@ export function applyMachineStatus(jobs: Job[], machines: Machine[], code: strin
   }
 }
 
-// ฝ่ายผลิตกำหนด / เลื่อนเวลาซ่อม (ตรงกับ public.set_repair_eta)
+// ตรงกับ public.set_repair_eta
 export function applyRepairEta(machines: Machine[], code: string, eta: Date, now: Date) {
   const m = machines.find(x => x.code === code.trim().toUpperCase())
   if (!m) return { ok: false as const, reason: `ไม่พบจักรรหัส ${code}`, machines }
@@ -415,7 +406,6 @@ export function applyReportSewingIssue(jobs: Job[], id: string, reason: string, 
   }
 }
 
-// ยืนยันเย็บเสร็จครั้งเดียว ส่ง QC + Packing และคืนจักรกับช่วงจองที่เหลือ
 export function applyFinishSewing(jobs: Job[], machines: Machine[], bookings: Booking[], id: string, now: Date) {
   const j = sewingJob(jobs, id)
   if (typeof j === 'string') return { ok: false as const, reason: j, jobs, machines, bookings }
@@ -435,15 +425,15 @@ export function applyFinishSewing(jobs: Job[], machines: Machine[], bookings: Bo
   }
 }
 
-// ---------- จัดจักรแบบตั้งจำนวน (ปุ่ม − / +) · ตรงกับ public.set_job_machines ----------
-// หน้างานคิดเป็นจำนวน "งานนี้ใช้ 4 ตัว" ไม่เลือกรหัส · คำนวณล่วงหน้าเพื่อปิดปุ่มพร้อมบอกเหตุผล (ฐานข้อมูลตรวจซ้ำ)
+// ตรงกับ public.set_job_machines
+// หน้างานคิดเป็นจำนวนตัว ไม่เลือกรหัส · ฐานข้อมูลตรวจซ้ำ
 export type MachineCountRow = {
   type: MachineType
-  have: number          // จักรชนิดนี้ที่งานถืออยู่
-  codes: string[]       // รหัสที่ถืออยู่ (ไว้ดูตอนแจ้งเสีย ไม่ต้องกดเลือก)
-  need: number          // ที่สินค้าต้องใช้ (ขั้นต่ำตอนกำลังเย็บ)
-  free: number          // ตัวว่างที่หยิบได้ตอนนี้
-  base: boolean         // ชนิดที่สินค้าต้องใช้ หรือที่งานถืออยู่ (แสดงก่อน) · ที่เหลือ = ชนิดอื่นที่สเปกลูกค้าอาจต้องใช้
+  have: number
+  codes: string[]
+  need: number
+  free: number
+  base: boolean         // ชนิดที่สินค้าต้องใช้หรือที่งานถืออยู่ (แสดงก่อน)
   minusBlocked?: string
   plusBlocked?: string
 }
@@ -474,8 +464,7 @@ export function machineCounts(job: Job, machines: Machine[], needs: Need[], shar
   })
 }
 
-// จักรตัวนี้เสีย/ปิด แล้วงานที่ใช้อยู่ต้องพักไหม (ตรงกับ public.set_machine_status · 20261120100000)
-// พักเฉพาะงานที่กำลังเย็บและจักรที่เหลือไม่ครบชุดของสินค้า · ยังครบ = เอาตัวนี้ออก งานเย็บต่อ
+// พักเฉพาะงานที่กำลังเย็บและจักรที่เหลือไม่ครบชุด (ตรงกับ public.set_machine_status)
 export function pausesJob(machine: Machine, machines: Machine[], job: Job | undefined, needsMap: Record<string, Need[]>): boolean {
   if (!job || job.status !== 'doing' || machine.jobId !== job.id) return false
   const need = ((job.productCode && needsMap[job.productCode]) || []).find(n => n.type === machine.type)?.qty ?? 0
@@ -483,8 +472,7 @@ export function pausesJob(machine: Machine, machines: Machine[], job: Job | unde
   return left < need
 }
 
-// เหตุผลที่เริ่มเย็บไม่ได้บนการ์ดรอเย็บ: สรุปเป็นจำนวน ไม่ไล่รหัสทุกตัว (QA รอบ 7: จักร 14 ตัวไม่ว่าง = การ์ดสูงเต็มจอมือถือ)
-// จักรเสีย/ปิดยังบอกรหัส เพราะคนหน้างานต้องรู้ว่าตัวไหนรอซ่อม
+// สรุปเป็นจำนวนไม่ให้การ์ดสูงเต็มจอมือถือ · จักรเสีย/ปิดยังบอกรหัสเพราะต้องรู้ว่าตัวไหนรอซ่อม
 export function blockerSummary(blockers: Blocker[]): string {
   const count = (s: Blocker['state']) => blockers.filter(b => b.state === s).length
   const down = blockers.filter(b => b.state === 'broken' || b.state === 'off').map(b => `${b.code} ${b.state === 'broken' ? 'เสีย' : 'ปิด'}`)

@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 
-// ส่วนใดส่วนหนึ่งพัง ต้องบอกผู้ใช้ว่าเกิดอะไรและทำอะไรต่อ ไม่ใช่กดแล้วเงียบ (กฎหน้าเว็บ: ทุกหน้ามีสถานะผิดพลาด)
+// ส่วนใดพังต้องบอกผู้ใช้ว่าเกิดอะไรและทำอะไรต่อ ไม่ใช่เงียบ
 export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
 

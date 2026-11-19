@@ -13,7 +13,6 @@ const ROLE_CAN: Record<EmployeeRole, string[]> = {
   manager: ['ดูภาพรวมและรายงานทั้งโรงงาน', 'แทรกงานด่วนเข้าคิว (ต้องใส่เหตุผล)'],
 }
 
-// หน้าบัญชีของฉัน: ใครล็อกอินอยู่ · ทำอะไรได้ · ออกจากระบบ · เปลี่ยนรหัสผ่าน
 // เครื่องหน้างานใช้ร่วมกันได้ จึงให้ชื่อผู้ใช้และปุ่มออกจากระบบเด่นที่สุด
 export default function AccountPage({ name, role, roleLabel, email }: { name: string; role: EmployeeRole; roleLabel: string; email?: string }) {
   const initial = [...name.trim()][0] ?? '?'

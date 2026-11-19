@@ -86,7 +86,7 @@ const MASKS: ((row: number, col: number) => boolean)[] = [
 ]
 
 function linePenalty(line: boolean[]) {
-  const runs = [0] // First run is light, even when the first module is dark.
+  const runs = [0] // รอบแรกเป็นสีอ่อนเสมอ แม้โมดูลแรกเป็นสีเข้ม
   let dark = false
   for (const module of line) {
     if (module !== dark) {
@@ -97,7 +97,7 @@ function linePenalty(line: boolean[]) {
   }
   let score = runs.reduce((sum, length) => sum + (length >= 5 ? length - 2 : 0), 0)
 
-  // The outside of the symbol is light. Count each side with four light units.
+  // ขอบนอกของสัญลักษณ์เป็นสีอ่อน นับเพิ่มข้างละ 4 หน่วย
   if (dark) runs.push(0)
   runs[0] += line.length
   runs[runs.length - 1] += line.length
@@ -129,7 +129,7 @@ function penalty(matrix: boolean[][]) {
 
 function drawFormat(matrix: boolean[][], mask: number, draw = (r: number, c: number, value: boolean) => { matrix[r][c] = value }) {
   const size = matrix.length
-  // Level M has format indicator 00, so only the mask contributes to the payload.
+  // ระดับ M มีตัวบอกระดับเป็น 00 จึงมีแค่ mask ที่มีผลกับข้อมูลรูปแบบ
   const bits = bch(mask, 10, 0x537) ^ 0x5412
   for (let i = 0; i <= 5; i++) draw(i, 8, bit(bits, i))
   draw(7, 8, bit(bits, 6))
@@ -158,7 +158,7 @@ export function qrMatrix(text: string): boolean[][] {
   }
   if (useEci) {
     append(0b0111, 4)
-    append(26, 8) // ECI assignment for UTF-8
+    append(26, 8) // ECI สำหรับ UTF-8
   }
   append(0b0100, 4)
   append(bytes.length, countWidth(index))

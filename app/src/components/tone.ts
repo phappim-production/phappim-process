@@ -1,4 +1,3 @@
-// สีตามสถานะ (คลาส Tailwind) ใช้ร่วมกันทุกหน้า
 export type Tone = 'danger' | 'warn' | 'info' | 'ok' | 'brand' | 'neutral' | 'dtf'
 export const TONE: Record<Tone, { text: string; soft: string; dot: string }> = {
   danger: { text: 'text-danger', soft: 'bg-danger-soft text-danger', dot: 'bg-danger' },

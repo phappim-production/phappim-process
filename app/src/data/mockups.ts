@@ -1,4 +1,3 @@
-// รูปม็อคอัพของงาน (Storage 'mockups' · 20261120110000) · คนหน้างานจำงานจากรูปมากกว่ารหัสงาน
 // bucket ไม่เปิดสาธารณะ (งานลูกค้า) → ขอลิงก์ชั่วคราวทีละชุด แล้วจำไว้ใช้ซ้ำจนใกล้หมดอายุ
 import { supabase } from '../lib/supabase'
 import type { Job } from '../proto/model'
@@ -11,8 +10,7 @@ const RENEW_BEFORE_MS = 60 * 60 * 1000
 // ขอลิงก์รูปช้า ต้องไม่ทำให้ข้อมูลงานทั้งหน้าโหลดไม่ขึ้น (หน้าโหลดตัดที่ 30 วิ) → ตัดที่ 8 วิ แสดงกรอบว่างไปก่อน
 const SIGN_TIMEOUT_MS = 8_000
 
-// ชื่อไฟล์ใน Storage ใช้อังกฤษ/ตัวเลขเท่านั้น (ชื่อไทยอัปโหลดไม่ผ่าน) · โฟลเดอร์ = เลขที่ใบ (ฐานข้อมูลตรวจว่าเป็นรูปของงานนั้น)
-// ชื่อไฟล์ = ลายนิ้วมือของเนื้อรูป: บันทึกใบเดิมซ้ำด้วยรูปเดิมได้ไฟล์เดิม ไม่สะสมไฟล์ซ้ำใน Storage
+// ชื่อไฟล์ใน Storage ใช้อังกฤษ/ตัวเลขเท่านั้น (ชื่อไทยอัปโหลดไม่ผ่าน) · ชื่อ = ลายนิ้วมือเนื้อรูป บันทึกซ้ำจึงไม่สะสมไฟล์
 export function mockupFolder(no: string): string {
   return no.trim().replace(/[^A-Za-z0-9-]/g, '_') || 'job'
 }
@@ -20,7 +18,7 @@ export function mockupPath(no: string, key: string | Date, ext: 'jpg' | 'png' | 
   return `${mockupFolder(no)}/${typeof key === 'string' ? key : key.getTime()}.${ext}`
 }
 
-/** ลายนิ้วมือ 16 ตัวของเนื้อไฟล์ (SHA-256) · เครื่องที่ไม่มี crypto.subtle ใช้เวลาแทน (ได้ไฟล์ใหม่ทุกครั้ง แต่ยังใช้ได้) */
+// เครื่องที่ไม่มี crypto.subtle ใช้เวลาแทน (ได้ไฟล์ใหม่ทุกครั้ง แต่ยังใช้ได้)
 export async function contentKey(blob: Blob): Promise<string> {
   try {
     const hash = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())
@@ -43,7 +41,6 @@ export function mockupProblem(file: { size: number; type: string }): string | nu
   return null
 }
 
-/** รูปย่อที่ฟอร์มส่งมา (data URL JPEG/PNG/WEBP) · ไม่ใช่รูป = null */
 export function mockupDataUrl(value: unknown): { type: string; base64: string } | null {
   if (typeof value !== 'string') return null
   const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(value)
@@ -57,7 +54,7 @@ export function dataUrlBlob(d: { type: string; base64: string }): Blob {
   return new Blob([bytes], { type: d.type })
 }
 
-/** ใส่ลิงก์รูปให้งานที่มีรูป · งานที่ขอลิงก์ไม่ได้ = ไม่มีรูป (แสดงกรอบว่าง ไม่ทำให้หน้าเสีย) */
+// ขอลิงก์ไม่ได้ = ไม่มีรูป ไม่ทำให้หน้าเสีย
 export function attachMockupUrls(jobs: Job[], urls: ReadonlyMap<string, string>): Job[] {
   return jobs.map(j => {
     const url = j.mockup ? urls.get(j.mockup) : undefined
@@ -67,7 +64,6 @@ export function attachMockupUrls(jobs: Job[], urls: ReadonlyMap<string, string>)
 
 const cache = new Map<string, { url: string; until: number }>()
 
-/** ลิงก์ชั่วคราวของรูปทุกงาน (ขอเฉพาะที่ยังไม่มีหรือใกล้หมดอายุ) · ขอไม่ได้ = คืนเท่าที่มี */
 export async function signMockups(paths: readonly string[], now = Date.now()): Promise<Map<string, string>> {
   // ลิงก์หมดอายุแล้วใช้ไม่ได้อยู่ดี → ทิ้ง (แท็บที่เปิดทิ้งไว้ทั้งสัปดาห์ไม่สะสมลิงก์ของงานเก่า)
   for (const [p, hit] of cache) if (hit.until <= now) cache.delete(p)
@@ -96,7 +92,7 @@ export async function withMockups(jobs: Job[]): Promise<Job[]> {
   return attachMockupUrls(jobs, await signMockups(paths))
 }
 
-/** รูปจากกล้องมือถือมักใหญ่หลาย MB → ย่อด้านยาวไม่เกิน 1200px เป็น JPEG ก่อนอัปโหลด · ย่อไม่ได้ = ใช้ไฟล์เดิม */
+// รูปจากกล้องมือถือใหญ่หลาย MB → ย่อก่อนอัปโหลด · ย่อไม่ได้ = ใช้ไฟล์เดิม
 export async function shrinkImage(file: Blob, max = 1200): Promise<Blob> {
   try {
     const bmp = await createImageBitmap(file)
@@ -117,7 +113,7 @@ export async function shrinkImage(file: Blob, max = 1200): Promise<Blob> {
   }
 }
 
-/** อัปโหลดรูปเข้า Storage แล้วคืน path · ไม่สำเร็จ = ข้อความภาษาไทย · รูปเดิมของใบเดิมมีอยู่แล้ว = ใช้ไฟล์เดิม */
+// รูปเดิมของใบเดิมมีอยู่แล้ว = ใช้ไฟล์เดิม
 export async function uploadMockup(no: string, blob: Blob): Promise<{ ok: true; path: string } | { ok: false; reason: string }> {
   if (!supabase) return { ok: false, reason: 'ยังไม่ได้ตั้งค่าระบบ' }
   const problem = mockupProblem(blob)

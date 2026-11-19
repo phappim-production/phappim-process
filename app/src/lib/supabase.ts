@@ -6,6 +6,5 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
 export const isConfigured = Boolean(url && anonKey)
 
-// anon key เป็นค่าที่เปิดเผยได้ (ความปลอดภัยมาจาก Row Level Security ในฐานข้อมูล)
-// ห้ามใส่ service_role key ในฝั่งหน้าเว็บเด็ดขาด
+// anon key เปิดเผยได้ (ปลอดภัยด้วย RLS) · ห้ามใส่ service_role key ฝั่งหน้าเว็บ
 export const supabase = isConfigured ? createClient(url!, anonKey!) : null

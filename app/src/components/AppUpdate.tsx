@@ -8,7 +8,7 @@ import {
   isEditingElement,
 } from './appUpdateModel'
 
-/** แถบแจ้งเตือนและโหลดหน้าเว็บรุ่นใหม่หลัง deploy (ไม่ทำงานตอน dev) */
+// ไม่ทำงานตอน dev
 export function AppUpdate() {
   if (import.meta.env.DEV) return null
   return <AppUpdateLive />

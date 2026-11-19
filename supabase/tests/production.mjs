@@ -1,5 +1,4 @@
-// ฝ่ายผลิตคุมหน้างานทั้งหมด ตั้งแต่พิมพ์ถึง QC + Packing (migration 20261118000004)
-// เรียกจาก run.mjs หลัง sections.mjs และก่อน sewing.mjs (ยังไม่มีจักรในระบบ = เริ่มสถานีเย็บได้โดยไม่ต้องจ่ายจักร)
+// รันก่อน sewing.mjs: ยังไม่มีจักรในระบบ จึงเริ่มสถานีเย็บได้โดยไม่ต้องจ่ายจักร
 
 import { requiredSteps, substepSql } from './steps.mjs'
 
@@ -23,11 +22,9 @@ export async function productionTests({ db, ok, as }) {
     returning id`)).rows[0].id
   const state = async id => (await db.query(`select station_seq, station_status, phase from public.jobs where id = '${id}'`)).rows[0]
 
-  // ---------- รับงาน ----------
   await reject('ฝ่ายผลิตรับงานไม่ได้ (แอดมินเป็นคนส่งงานเข้า)', U.prod, `public.receive_job('SC-PRD-NO', 'ลูกค้าทดสอบ', 'งานทดสอบ', 'tshirt', 10, 'ตัว', '2026-12-31', 'normal', 'confirmations/SC-PRD-NO.pdf')`, /แอดมินเป็นคนส่งงานเข้าโรงงาน/)
   await pass('แอดมินส่งงานเข้าได้', U.admin, `public.receive_job('SC-PRD-RCV', 'ลูกค้าทดสอบ', 'งานทดสอบ', 'tshirt', 10, 'ตัว', '2026-12-31', 'normal', 'confirmations/SC-PRD-RCV.pdf')`)
 
-  // ---------- เฟส 1 (พิมพ์) ----------
   const p = await jobAt('SC-PRD-PRINT', 'normal', 1)
   await reject('แอดมินเริ่มสถานีพิมพ์ไม่ได้', U.admin, `public.start_station('${p}')`, /บทบาท/)
   await reject('ผู้บริหารเริ่มสถานีพิมพ์ไม่ได้', U.mgr, `public.start_station('${p}')`, /บทบาท/)
@@ -38,7 +35,6 @@ export async function productionTests({ db, ok, as }) {
   await pass('ฝ่ายผลิตกดเสร็จสถานีพิมพ์ได้', U.prod, `public.finish_station('${p}')`)
   ok('งานไปสถานีถัดไป (รีด) รอคิว', (await state(p)).station_seq === 2 && (await state(p)).station_status === 'queued')
 
-  // ---------- เฟส 2 (เย็บ) ----------
   const s = await jobAt('SC-PRD-SEW', 'normal', 4)
   await pass('ฝ่ายผลิตเริ่มสถานีเย็บได้ (ไม่จำกัดเฟส)', U.prod, `public.start_station('${s}')`)
   await pass('ฝ่ายผลิตอนุมัติตัวแรกได้ (ขั้นย่อยแบบอนุมัติ)', U.prod, `public.complete_substep('${s}', 'first_piece')`)
@@ -47,14 +43,12 @@ export async function productionTests({ db, ok, as }) {
   await pass('ฝ่ายผลิตยืนยันเย็บเสร็จได้', U.prod, `public.finish_sewing('${s}')`)
   ok('เย็บเสร็จแล้วงานไป QC + Packing', (await state(s)).station_seq === 5)
 
-  // ---------- QC + Packing ----------
   await pass('ฝ่ายผลิตเริ่ม QC + Packing ได้', U.prod, `public.start_station('${s}')`)
   await pass('ฝ่ายผลิตบันทึกยอดผ่าน QC ได้', U.prod, `public.record_qc('${s}', 5)`)
   await pass('ฝ่ายผลิตส่งงานกลับแก้ได้ (จำนวน + สาเหตุ + สถานีต้นเหตุ)', U.prod, `public.send_rework('${s}', 2, 'ตะเข็บเบี้ยว', 'sew')`)
   ok('ส่งแก้แล้วงานกลับไปสถานีเย็บ', (await state(s)).station_seq === 4)
   await pass('ฝ่าย QC ยังบันทึก QC ได้เหมือนเดิม', U.qc, `public.start_station('${await jobAt('SC-PRD-QC', 'normal', 5)}')`)
 
-  // ---------- แก้ไขย้อนหลัง ----------
   const ev = (await db.query(`select id from public.events where job_id = '${p}' order by id limit 1`)).rows[0].id
   await reject('แอดมินแก้ไขย้อนหลังไม่ได้', U.admin, `public.correct_event('${p}', ${ev}, 'กดผิด')`, /บทบาท/)
   await pass('ฝ่ายผลิตแก้ไขย้อนหลังได้ (บันทึกเหตุผล)', U.prod, `public.correct_event('${p}', ${ev}, 'กดเริ่มผิดเวลา')`)

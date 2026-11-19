@@ -4,7 +4,7 @@ import { IconCalendar } from '../components/icons'
 import { STATION_NAME, type Job } from '../proto/model'
 import { BOOKING_TIME_ZONE, bookingDay, bookingTime, checkBooking, freeDuring, groupBookings, isBookingSunday, jobsBookedDuring, moveBookingDay, MACHINE_PREFIX, MACHINE_TYPE_NAME, MACHINE_TYPES, type Booking, type Machine, type Need } from '../proto/sewing'
 
-// จองจักรเป็นวัน-เวลา (S14) · ตารางรายวันต่อจักร + ฟอร์มจอง · กฎเดียวกับ public.book_machines
+// กฎเดียวกับ public.book_machines
 type Result = { ok: true; picked?: string[] } | { ok: false; reason: string }
 
 const DAY_START = 7   // แสดงช่วง 07:00–20:00 (เวลาทำงานของโรงงาน)
@@ -18,7 +18,6 @@ const range = (b: { starts: Date; ends: Date }) =>
     ? `${dayLabel(b.starts)} ${hm(b.starts)}–${hm(b.ends)}`
     : `${dayLabel(b.starts)} ${hm(b.starts)} – ${dayLabel(b.ends)} ${hm(b.ends)}`
 
-// วันทำงานถัดไป (จันทร์–เสาร์) สำหรับค่าเริ่มของฟอร์ม
 function nextWorkday(day: string) {
   const next = moveBookingDay(day, 1)
   return isBookingSunday(next) ? moveBookingDay(next, 1) : next
@@ -93,7 +92,6 @@ export function BookingPanel({ jobs, machines, bookings, needs, now, onOpen, onB
         </p>
       )}
 
-      {/* รายการจอง */}
       <div className="border-t border-line">
         {groups.length === 0 ? (
           <p className="px-5 py-4 text-muted">ยังไม่มีการจองจักร</p>
@@ -140,7 +138,6 @@ export function BookingPanel({ jobs, machines, bookings, needs, now, onOpen, onB
         )}
       </div>
 
-      {/* ตารางรายวัน: ค่าเริ่มดูทีละงาน (แถวน้อย อ่านง่าย) · สลับดูรายจักรได้ */}
       <div className="border-t border-line px-5 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <h4 className="mr-auto font-semibold">ตารางจองรายวัน</h4>
@@ -152,7 +149,6 @@ export function BookingPanel({ jobs, machines, bookings, needs, now, onOpen, onB
           </div>
         </div>
 
-        {/* เลือกวัน: ปุ่มก่อนหน้า / ถัดไป ใหญ่พอสำหรับแท็บเล็ต */}
         <div className="mt-3 flex items-center gap-2">
           <button onClick={() => setDay(moveBookingDay(day, -1))} aria-label="วันก่อนหน้า" className="grid size-12 shrink-0 place-items-center rounded-full border border-line text-xl hover:bg-paper">‹</button>
           <label className="relative min-w-0 flex-1 cursor-pointer rounded-xl border border-line px-3 py-1.5 text-center hover:bg-paper">
@@ -296,7 +292,6 @@ function BookDialog({ jobs, machines, bookings, needs, now, defaultDay, defaultS
               <label className="grid gap-1 font-medium">ถึงวันที่<input type="date" value={endDay} min={startDay} className={field} onChange={e => { setEndDay(e.target.value); setError('') }} /></label>
               <label className="grid gap-1 font-medium">เวลาจบ<input type="time" value={endTime} className={field} onChange={e => { setEndTime(e.target.value); setError('') }} /></label>
             </div>
-            {/* หลายงานเย็บวันเดียวกันได้: บอกว่าช่วงนี้มีใครจองแล้ว และงานนี้ยังได้จักรครบทุกชนิดไหม */}
             {job && !Number.isNaN(starts.getTime()) && !Number.isNaN(ends.getTime()) && ends > starts && (() => {
               const others = jobsBookedDuring(bookings, starts, ends).map(id => jobs.find(j => j.id === id)?.no).filter(Boolean)
               const free = freeDuring(machines, bookings, starts, ends, now, job.id)
@@ -354,7 +349,6 @@ function BookDialog({ jobs, machines, bookings, needs, now, defaultDay, defaultS
   )
 }
 
-// ---------- ส่วนประกอบของตารางรายวัน ----------
 const WORK_START = 9   // พื้นขาว = เวลางาน
 const WORK_END = 18
 type Axis = { startHour: number; endHour: number }

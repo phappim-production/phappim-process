@@ -35,7 +35,6 @@ const STATUS_FILTERS: [Filter, string][] = [
 ]
 const filterField = 'min-h-12 w-full min-w-0 rounded-xl border border-line bg-card px-3 focus-visible:outline-2 focus-visible:outline-brand'
 
-// ภาพรวมแอดมิน + บอร์ดสถานี + จักรเย็บ · ข้อมูลจริงจากฐานข้อมูล อัปเดตสดผ่าน Realtime (A5) · DEVELOPMENT.md หัวข้อ 8
 export default function Dashboard({ view, today, role, scope = FACTORY_SCOPE }: { view: View; today: string; role: EmployeeRole; scope?: BoardScope }) {
   const { state, live, refresh } = useFactoryData()
   if (state.status === 'loading') {
@@ -67,7 +66,7 @@ export default function Dashboard({ view, today, role, scope = FACTORY_SCOPE }: 
 function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: {
   view: View; today: string; role: EmployeeRole; myScope: BoardScope; data: FactoryData; loadedAt: Date; refresh: () => Promise<void>
 }) {
-  // ส่งงานเข้าโรงงาน = แอดมิน (กรอกใบยืนยันและเตรียมวัตถุดิบเอง · ตัดสินใจ 17 พ.ย.) · owner ทำแทนได้ · ฐานข้อมูลตรวจซ้ำ
+  // แอดมินส่งงานเข้าโรงงาน · owner ทำแทนได้ · ฐานข้อมูลตรวจซ้ำ
   const canReceive = role === 'admin' || role === 'owner'
   const [receiving, setReceiving] = useState(false)
   const [received, setReceived] = useState<string | null>(null)
@@ -75,13 +74,13 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   const now = useNow(30_000)
   const { jobs: allJobs, machines, bookings, needs, products, shared } = data
   const noOf = (jobId: string) => allJobs.find(j => j.id === jobId)?.no ?? ''
-  // ทุกปุ่มเรียกฟังก์ชันในฐานข้อมูล (กฎตรวจที่นั่น) แล้วโหลดใหม่ทันที ไม่รอ Realtime
+  // โหลดใหม่ทันทีหลังกด ไม่รอ Realtime
   async function call<T>(name: string, args: Record<string, unknown>) {
     const r = await rpc<T>(name, args)
     if (r.ok) await refresh()
     return r
   }
-  // เริ่มเย็บได้ชุดตามสินค้าก่อน แล้วค่อยเพิ่มจำนวนที่เลือก (2 คำสั่ง) · เพิ่มไม่ได้ = งานเริ่มแล้ว บอกให้กด + ในจัดการจักร
+  // เริ่มเย็บเป็น 2 คำสั่ง (ชุดตามสินค้า แล้วเพิ่มจำนวน) · เพิ่มไม่ได้ = งานเริ่มแล้ว ให้กด + ในจัดการจักร
   const startSewing = async (jobId: string, counts: Partial<Record<MachineType, number>> = {}) => {
     const r = await rpc<string[]>('start_sewing', { p_job: jobId })
     if (!r.ok) return r
@@ -106,7 +105,6 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     return r.ok ? { ok: true as const } : r
   }
   const setMachineStatus = async (code: string, status: MachineStatus, note: string, repairEta?: Date) => {
-    // งานที่จะถูกพักอัตโนมัติ (จักรเสียแล้วเหลือไม่ครบชุด) · รู้ก่อนกดจากข้อมูลบนจอ
     const m = machines.find(x => x.code === code)
     const job = m?.jobId ? allJobs.find(j => j.id === m.jobId) : undefined
     const held = status !== 'ready' && m && pausesJob(m, machines, job, needs) ? job?.no : undefined
@@ -144,7 +142,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   }
   // คนหน้างานเห็นเฉพาะงานของตัวเองก่อน · กดดูทั้งโรงงานได้เมื่ออยากรู้ว่างานกำลังจะมาถึง
   const [wholeFactory, setWholeFactory] = useState(false)
-  // ลิงก์ #/board?station=… ตอนเปิดหน้าครั้งแรก → เปิดแท็บบอร์ด (คิวสถานี) ไม่ใช่แท็บแรกของบทบาท (QA รอบ 4 บั๊ก 5)
+  // ลิงก์ #/board?station=… ตอนเปิดหน้าครั้งแรก → เปิดแท็บบอร์ด ไม่ใช่แท็บแรกของบทบาท
   const [tab, setTab] = useState<DashTab>(() => stationFromHash() && myScope.tabs.includes('board') ? 'board' : myScope.tabs[0])
   const [sewFocus, setSewFocus] = useState<{ view?: SewingView; n: number }>({ n: 0 })
   const activeTab = myScope.tabs.includes(tab) ? tab : myScope.tabs[0]
@@ -156,7 +154,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   const jobs = useMemo(() => allJobs.filter(j => jobInScope(j, scope)), [allJobs, scope])
   const columns = scope.columns ? COLUMNS.filter(c => scope.columns!.includes(c.key)) : COLUMNS
   const [filter, setFilter] = useState<Filter>('all')
-  // แท็บเล็ตประจำสถานี: เปิดมาเจอสถานีที่เลือกไว้ครั้งก่อน (เก็บในเครื่อง · อ่านไม่ได้ = ทุกสถานี)
+  // แท็บเล็ตประจำสถานีเปิดมาเจอสถานีที่เลือกไว้ครั้งก่อน
   const [station, setStationState] = useState<ColumnKey | 'all'>(() => {
     const fromLink = stationFromHash()
     if (fromLink) {
@@ -170,7 +168,6 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     setStationState(key)
     try { localStorage.setItem(STATION_KEY, key) } catch { /* โหมดส่วนตัว / ปิดการเก็บข้อมูล: ไม่จำก็ใช้ได้ */ }
   }
-  // สถานีจริง (ไม่ใช่ตัวอย่าง/รอผล/เสร็จ) → แสดงคิวของสถานีพร้อมปุ่มบนการ์ด
   const focusStation = activeTab === 'board' && station !== 'all' && station in STATION_NAME ? station as StationCode : null
   const [pickStation, setPickStation] = useState(false)
   const [route, setRoute] = useState<RouteCode | 'all'>('all')
@@ -180,10 +177,9 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     const id = jobFromHash()
     return id !== null ? { id, source: 'link' } : null
   })
-  // ลิงก์ #/board?job=<id> จากกล่องจดหมายและ QR ใบปะงาน เปิดรายละเอียดงานทันที (กดลิงก์ขณะเปิดหน้านี้อยู่ด้วย)
+  // รวมกรณีกดลิงก์ ?job= ขณะเปิดหน้านี้อยู่
   useEffect(() => {
     const on = () => {
-      // ลิงก์ #/board?station=… จากหน้าภาพรวม (สถานีตอนนี้) เปิดคิวของสถานีนั้น
       const st = stationFromHash()
       if (st) {
         clearStationLink(); setStation(savedStation(st, COLUMNS)); setTab('board'); setPickStation(false)
@@ -203,7 +199,6 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     // ปิดแล้วเอา ?job= ออก ไม่อย่างนั้นรีเฟรชหน้าจะเปิดงานเดิมซ้ำ
     if (!id && jobFromHash() !== null) window.location.replace(window.location.hash.split('?')[0])
   }
-  // คาดวันเสร็จจากจักรจริง: เย็บได้พร้อมกันกี่งานขึ้นกับจักรครบชุดของแต่ละสินค้า
   const floor = useMemo(() => sewFloorOf(machines, needs, shared), [machines, needs, shared])
   const forecast = useMemo(() => simulate(jobs, now, undefined, floor), [jobs, now, floor])
 
@@ -341,7 +336,6 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
       ) : (
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-4">
           {focusStation && !pickStation ? (
-            // เลือกสถานีแล้ว: ซ่อนแผงเลือกสถานี เหลือแถบเดียว · คนหน้างานเห็นแค่คิวของตัวเอง
             <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-card px-4 py-3 shadow-card">
               <span className="text-muted">สถานี</span>
               <b className="text-xl">{STATION_NAME[focusStation]}</b>
@@ -350,7 +344,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
           ) : (
             <StationStrip columns={columns} byColumn={byColumn} now={now} station={station} onPick={key => {
               setStation(key); setPickStation(false)
-              // ปุ่มสถานีอยู่ล่างจอ → กลับบนสุดให้เห็นแถบสถานีและคิวแรก (QA รอบ 4)
+              // ปุ่มสถานีอยู่ล่างจอ → กลับบนสุดให้เห็นแถบสถานีและคิวแรก
               requestAnimationFrame(() => document.querySelector('[data-scroll="dashboard"]')?.scrollTo(0, 0))
             }} />
           )}
@@ -442,7 +436,6 @@ const SUMMARY_ICON: Record<SummaryIcon, typeof IconFactory> = {
   sewing: IconSewing, check: IconCheck, package: IconPackage, clipboard: IconClipboard,
 }
 
-/** ตัวเลข 4 ช่องของตำแหน่งนั้น · กดแล้วไปแท็บที่ใช้จัดการเรื่องนั้น */
 function RoleSummary({ scope, jobs, machines, now, onPick }: {
   scope: BoardScope; jobs: Job[]; machines: Parameters<typeof roleSummary>[3]; now: Date; onPick: (tab: DashTab, view?: SewingView) => void
 }) {
@@ -519,13 +512,12 @@ const STRIPE: Record<Tone, string> = {
 
 const STATION_KEY = 'pp142.station'
 
-/** ปุ่มสถานีแบ่งกลุ่มตามเฟส เห็นครบทุกสถานีโดยไม่ต้องเลื่อน · กดเพื่อดูเฉพาะสถานีนั้น กดซ้ำ = ทุกสถานี */
 function StationStrip({ columns, byColumn, now, station, onPick }: {
   columns: { key: ColumnKey; name: string }[]; byColumn: Map<ColumnKey, Job[]>; now: Date
   station: ColumnKey | 'all'; onPick: (key: ColumnKey | 'all') => void
 }) {
   const total = columns.reduce((n, c) => n + (byColumn.get(c.key)?.length ?? 0), 0)
-  // งานตัวอย่างอยู่คอลัมน์ "ขึ้นตัวอย่าง" แต่ก็รออยู่ที่สถานีจริงด้วย → บอกบนปุ่มสถานี ให้ตรงกับหน้าคิวและหน้าภาพรวม (QA รอบ 4)
+  // งานตัวอย่างรออยู่ที่สถานีจริงด้วย → นับบนปุ่มสถานีให้ตรงกับหน้าคิวและหน้าภาพรวม
   const samplesAt = (key: ColumnKey) => (byColumn.get('sample') ?? []).filter(j => j.station === key).length
   const item = (key: ColumnKey | 'all', name: string, count: number, urgent: number, sample = 0) => {
     const on = station === key
@@ -637,7 +629,6 @@ function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Jo
         </header>
 
         <div className="grid gap-4 p-4 text-sm">
-          {/* รูปม็อคอัพใหญ่ไว้ยืนยันว่าหยิบงานถูก · กดดูเต็มจอ */}
           <div className="grid justify-items-center gap-1 rounded-2xl border border-line bg-card p-3 shadow-card">
             {j.mockupUrl
               ? <a href={j.mockupUrl} target="_blank" rel="noreferrer" className="w-full max-w-72" aria-label="เปิดรูปม็อคอัพเต็มจอ"><MockupThumb job={j} size="lg" /></a>
@@ -678,7 +669,7 @@ function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Jo
             <ol>{steps.map((s, i) => <Step key={i} label={s.label} state={s.state} last={i === steps.length - 1} />)}</ol>
           </div>
 
-          {/* ไม่มีขั้นวัตถุดิบแล้ว (17 พ.ย.) · แสดงเฉพาะงานเก่าที่ยังค้างขั้นนี้ และสถานะฟิล์ม */}
+          {/* แสดงเฉพาะงานเก่าที่ยังค้างขั้นวัตถุดิบ (ยกเลิกขั้นนี้แล้ว) และสถานะฟิล์ม */}
           {(j.phase === 'materials' || j.film) && (
           <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
             <h3 className="mb-2 font-semibold">{j.phase === 'materials' ? 'วัตถุดิบ' : filmLabel(j.route)}</h3>
@@ -737,7 +728,6 @@ function useNow(intervalMs: number) {
   return now
 }
 
-/** สถานีจากลิงก์ #/board?station=<code> · ไม่มี = null */
 function stationFromHash(): string | null {
   return new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('station')
 }
@@ -747,7 +737,6 @@ function clearStationLink() {
   window.history.replaceState(null, '', window.location.hash.split('?')[0])
 }
 
-/** id งานจากลิงก์ #/board?job=<id> · ไม่มี = null */
 function jobFromHash(): string | null {
   return new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('job')
 }

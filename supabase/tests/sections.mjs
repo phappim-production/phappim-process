@@ -1,5 +1,4 @@
-// ทดสอบผู้ควบคุมงาน 2 เฟส (docs/แผน-1-สัปดาห์.md หัวข้อ 1.3)
-// เรียกจาก run.mjs หลัง workflow.mjs · ใช้ผู้ใช้จาก run.mjs/workflow.mjs ร่วม (owner, sup ไม่กำหนดเฟส, qc)
+// ใช้ผู้ใช้จาก run.mjs/workflow.mjs ร่วม (owner, sup ไม่กำหนดเฟส, qc)
 
 import { requiredSteps, substepSql } from './steps.mjs'
 
@@ -29,7 +28,6 @@ export async function sectionTests({ db, ok, as }) {
     values ('${no}','ลูกค้าทดสอบ','งานทดสอบเฟส','tshirt',10,'ตัว','2026-12-31','${route}','x.pdf','${phase}',${seq},'queued')
     returning id`)).rows[0].id
 
-  // ---------- ข้อมูลตั้งค่า ----------
   const sec = async code => (await db.query(`select section from public.stations where code = '${code}'`)).rows[0].section
   ok('เฟส 1: พิมพ์ · รีด · ตัด · รีด DTF', [await sec('print'), await sec('press'), await sec('cut'), await sec('dtf_press')].every(s => s === 1))
   ok('เฟส 2: เย็บ · QC + Packing', await sec('sew') === 2 && await sec('qc_pack') === 2)
@@ -40,7 +38,6 @@ export async function sectionTests({ db, ok, as }) {
   await as(U.sup1, () => db.query(`update public.profiles set section = 2 where user_id = '${U.sup1}'`))
   ok('ผู้ควบคุมงานเปลี่ยนเฟสตัวเองไม่ได้', (await db.query(`select section from public.profiles where user_id = '${U.sup1}'`)).rows[0].section === 1)
 
-  // ---------- งานอยู่สถานีเฟส 1 (พิมพ์) ----------
   const p1 = await jobAt('SC-SEC-P1', 'normal', 1)
   await reject('ผู้ควบคุมงานเฟส 2 เริ่มสถานีพิมพ์ไม่ได้', U.sup2, `public.start_station('${p1}')`, /เฟส 1/)
   await reject('ผู้ควบคุมงานเฟส 2 พักงานที่อยู่สถานีพิมพ์ไม่ได้', U.sup2, `public.open_issue('${p1}', 'ทดสอบ')`, /เฟส 1/)
@@ -51,12 +48,10 @@ export async function sectionTests({ db, ok, as }) {
   await reject('ผู้ควบคุมงานเฟส 2 กดเสร็จสถานีพิมพ์ไม่ได้', U.sup2, `public.finish_station('${p1}')`, /เฟส 1/)
   await pass('ผู้ควบคุมงานเฟส 1 กดเสร็จสถานีพิมพ์ได้', U.sup1, `public.finish_station('${p1}')`)
 
-  // ---------- รีด DTF อยู่เฟส 1 ----------
   const d1 = await jobAt('SC-SEC-DTF', 'dtf', 2)
   await reject('ผู้ควบคุมงานเฟส 2 พักงานที่สถานีรีด DTF ไม่ได้', U.sup2, `public.open_issue('${d1}', 'ทดสอบ')`, /เฟส 1/)
   await pass('ผู้ควบคุมงานเฟส 1 พักงานที่สถานีรีด DTF ได้', U.sup1, `public.open_issue('${d1}', 'ทดสอบ')`)
 
-  // ---------- งานอยู่สถานีเฟส 2 (เย็บ · QC) ----------
   const s2 = await jobAt('SC-SEC-SEW', 'normal', 4)
   await reject('ผู้ควบคุมงานเฟส 1 เริ่มสถานีเย็บไม่ได้', U.sup1, `public.start_station('${s2}')`, /เฟส 2/)
   await pass('ผู้ควบคุมงานเฟส 2 เริ่มสถานีเย็บได้', U.sup2, `public.start_station('${s2}')`)
@@ -69,7 +64,6 @@ export async function sectionTests({ db, ok, as }) {
   await reject('ผู้ควบคุมงานเฟส 1 บันทึกผล QC ไม่ได้', U.sup1, `public.record_qc('${q2}', 1)`, /เฟส 2/)
   await pass('ผู้ควบคุมงานเฟส 2 บันทึกผล QC ได้', U.sup2, `public.record_qc('${q2}', 1)`)
 
-  // ---------- ข้อยกเว้น ----------
   const any = await jobAt('SC-SEC-ANY', 'normal', 4)
   await pass('ผู้ควบคุมงานที่ไม่กำหนดเฟส กดได้ทุกเฟส', U.sup, `public.start_station('${any}')`)
   const own = await jobAt('SC-SEC-OWN', 'normal', 1)
