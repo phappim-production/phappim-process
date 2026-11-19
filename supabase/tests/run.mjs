@@ -178,5 +178,9 @@ await flowR5Tests({ db, ok, as })
 const { flowR6Tests } = await import('./flow-r6.mjs')
 await flowR6Tests({ db, ok, as })
 
+// ---- สคริปต์ล้างข้อมูลก่อนเปิดใช้ (ต้องอยู่ท้ายสุด: commit จริงและลบงาน TEST- ทั้งหมด) ----
+const { goliveCleanupTests } = await import('./golive-cleanup.mjs')
+await goliveCleanupTests({ db, ok })
+
 console.log(`\nผ่าน ${pass} · ไม่ผ่าน ${fail}`)
 process.exit(fail ? 1 : 0)
