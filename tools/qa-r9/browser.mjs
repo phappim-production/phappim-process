@@ -280,14 +280,14 @@ try {
       return 'ถอด QR แล้วเปิดงานรหัสเดียวกันบน loopback · PDF ' + ptsWide + ' × ' + ptsHigh + ' pt หน้าเดียว'
     })
   }
-  await record('BUG: หัวคอลัมน์กำลังทำรวมงานพัก', async () => {
+  await record('หัวคอลัมน์กำลังทำนับเฉพาะงานกำลังทำ · งานพักแยกบอก', async () => {
     api.reset()
     await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 900, deviceScaleFactor: 1, mobile: false })
     await goto('production', '#/board?station=print')
     await waitText('เครื่อง 2/2')
     await screenshot('bug-working-count-375')
     const working = await ev(() => document.querySelector('#q-working').textContent)
-    assert.match(working, /กำลังทำ\s+2 งาน/)
+    assert.match(working, /กำลังทำ\s+2 งาน · พักงาน 1 งาน/)
   })
 } finally {
   await browser?.close()
