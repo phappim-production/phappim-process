@@ -168,6 +168,10 @@ table.dt tfoot td{font-weight:700;background:#f7f8f6}
   .ph{grid-template-columns:auto 1fr}
   .ph .no{grid-column:1/-1;text-align:left}
 }
+/* กระดาษ A4 กว้าง ~794px · จอแท็บเล็ตแคบกว่านั้นให้ตัวอย่างพอดีจอ (ตอนพิมพ์ยังเป็น A4) */
+@media screen and (max-width:860px){
+  .doc{width:auto;min-height:0;padding:16px;margin:0 0 16px}
+}
 @media print{
   body{background:#fff}
   .bar,#form,#nav,.alert,.toast,.page-note{display:none!important}
