@@ -4,9 +4,11 @@ import { TONE } from '../components/tone'
 import { IconClipboard, IconClock, IconSewing } from '../components/icons'
 import { WORK_END, WORK_START, byQueue, type Job } from '../proto/model'
 import { todoList } from '../proto/actions'
+import { defaultPick, pickGroups, pickProblems } from '../proto/machinePick'
+import { MachinePicker } from '../components/MachinePicker'
 import {
   bookedByOther, checkStartSewing, floorSummary, repairEtaProblem, repairStatus, MACHINE_PREFIX, MACHINE_STATE_NAME, MACHINE_TYPE_NAME, MACHINE_TYPES, machineState, sewQueue, type Need,
-  blockerSummary, machineCounts, pausesJob, type Booking, type Machine, type MachineState, type MachineStatus, type MachineType,
+  blockerSummary, pausesJob, type Booking, type Machine, type MachineState, type MachineStatus, type MachineType,
 } from '../proto/sewing'
 
 // ต้องทำตอนนี้: 1 แถว = 1 งาน = 1 สิ่งที่ต้องทำ เรียงตามคิว (ด่วนบอกด้วยสี)
@@ -52,30 +54,26 @@ export function TodoPanel({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpe
 }
 
 const SEWING_VIEWS = [
-  ['work', 'งานเย็บ'],
+  ['work', 'งานเย็บและจักร'],
   ['booking', 'ตารางจอง'],
-  ['machines', 'สถานะจักร'],
 ] as const
 
 // กดเริ่มเย็บได้เมื่อจักรครบทุกชนิดว่างจริง (ฐานข้อมูลบังคับกฎเดียวกัน)
-export type SewingView = (typeof SEWING_VIEWS)[number][0]
+export type SewingView = (typeof SEWING_VIEWS)[number][0] | 'machines'
 
 type StartResult = { ok: true; picked: string[]; warning?: string } | { ok: false; reason: string }
-type Counts = Partial<Record<MachineType, number>>
 
 export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen, onStart, onStatus, onEta, booking, sewing, initialView, shared = [] }: {
   jobs: Job[]; machines: Machine[]; bookings?: Booking[]; needs: Record<string, Need[]>; now: Date; onOpen: (id: string) => void
   booking?: ReactNode
   sewing?: ReactNode
-  onStart?: (jobId: string, counts?: Counts) => Promise<StartResult>  // ไม่ส่ง = ดูอย่างเดียว
+  onStart?: (jobId: string, codes: string[]) => Promise<StartResult>  // ไม่ส่ง = ดูอย่างเดียว
   shared?: readonly MachineType[]
   onStatus?: OnStatus
   onEta?: OnEta
   initialView?: SewingView
 }) {
-  const [view, setView] = useState<SewingView>(
-    () => initialView ?? (onStart ? 'work' : onEta && booking ? 'booking' : 'machines'),
-  )
+  const [view, setView] = useState<'work' | 'booking'>(() => initialView === 'booking' ? 'booking' : 'work')
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const queue = sewQueue(jobs, machines)
     .map(q => ({ job: q.job, check: checkStartSewing(q.job, machines, needs, bookings, now) }))
@@ -83,13 +81,15 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
   const startable = queue.filter(q => q.check.ok).length
 
   const [starting, setStarting] = useState<string | null>(null)
-  // ไม่ปรับ = ตามที่สินค้าต้องใช้
-  const [counts, setCounts] = useState<Record<string, Counts>>({})
-  async function start(job: Job) {
+  const [picking, setPicking] = useState<{ jobId: string; codes: string[] } | null>(null)
+  const groupsOf = (job: Job) => pickGroups(job, machines, (job.productCode && needs[job.productCode]) || [], shared, bookings, now)
+  const noOf = (id?: string) => jobs.find(j => j.id === id)?.no ?? 'งานอื่น'
+  async function start(job: Job, codes: string[]) {
     if (!onStart || starting) return
     setStarting(job.id)
-    const r = await onStart(job.id, counts[job.id])
+    const r = await onStart(job.id, codes)
     setStarting(null)
+    if (r.ok) setPicking(null)
     setNotice(r.ok
       ? { ok: !r.warning, text: `เริ่มเย็บ ${job.no} แล้ว · ใช้จักร ${r.picked.length} ตัว: ${r.picked.join(', ')}${r.warning ? ` · ${r.warning}` : ''}` }
       : { ok: false, text: `${job.no}: ${r.reason}` })
@@ -113,7 +113,7 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
             {queue.length > 0 && (
               <ol className="divide-y divide-line border-t border-line">
                 {queue.map(({ job, check }) => (
-                  <li key={job.id} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center">
+                  <li key={job.id} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:flex-wrap sm:items-center">
                     <button onClick={() => onOpen(job.id)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
                       <MockupThumb job={job} />
                       <span className="min-w-0 flex-1">
@@ -137,18 +137,33 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
                       )}
                       </span>
                     </button>
-                    {onStart && check.ok && (
-                      <StartCounts rows={machineCounts(job, machines, (job.productCode && needs[job.productCode]) || [], shared, bookings, now).filter(r => r.need > 0)}
-                        value={counts[job.id] ?? {}} disabled={starting !== null}
-                        onChange={(type, qty) => setCounts(c => ({ ...c, [job.id]: { ...c[job.id], [type]: qty } }))} />
-                    )}
-                    {onStart && (
-                      <button onClick={() => void start(job)} disabled={!check.ok || starting !== null}
+                    {onStart && picking?.jobId !== job.id && (
+                      <button onClick={() => setPicking({ jobId: job.id, codes: defaultPick(groupsOf(job)) })} disabled={!check.ok || starting !== null}
                         title={check.ok ? undefined : check.reason}
                         className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-line disabled:text-muted ">
-                        <IconSewing className="size-5" />{!check.ok ? 'จักรไม่ว่าง' : starting === job.id ? 'กำลังเริ่ม…' : 'เริ่มเย็บ'}
+                        <IconSewing className="size-5" />{check.ok ? 'เริ่มเย็บ' : 'จักรไม่ว่าง'}
                       </button>
                     )}
+                    {onStart && picking?.jobId === job.id && (() => {
+                      const groups = groupsOf(job)
+                      const problems = pickProblems(groups, picking.codes, MACHINE_TYPE_NAME)
+                      return (
+                        <div className="grid w-full gap-3 rounded-xl border border-brand/40 bg-brand-soft/40 p-3 sm:basis-full">
+                          <p className="font-semibold">เลือกจักรที่จะนั่งเย็บงาน {job.no} · ระบบเลือกตัวว่างไว้ให้แล้ว กดเปลี่ยนได้</p>
+                          <MachinePicker groups={groups} picked={picking.codes} jobNo={noOf} shared={shared} disabled={starting !== null}
+                            onToggle={code => setPicking(p => p && ({ ...p, codes: p.codes.includes(code) ? p.codes.filter(c => c !== code) : [...p.codes, code] }))} />
+                          <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
+                            <button type="button" disabled={problems.length > 0 || starting !== null} onClick={() => void start(job, picking.codes)}
+                              className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl bg-brand px-5 text-lg font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-line disabled:text-muted">
+                              <IconSewing className="size-5" />
+                              {starting === job.id ? 'กำลังเริ่ม…' : problems.length ? problems.join(' · ') : `เริ่มเย็บด้วย ${[...picking.codes].sort().join(' · ')}`}
+                            </button>
+                            <button type="button" disabled={starting !== null} onClick={() => setPicking(null)}
+                              className="min-h-14 rounded-xl border border-line bg-card px-4 font-semibold text-brand hover:bg-brand-soft">ยกเลิก</button>
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </li>
                 ))}
               </ol>
@@ -156,37 +171,10 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
           </Card>
         </div>
       </section>
-      <section hidden={view !== 'booking'}>{booking}</section>
-      <section hidden={view !== 'machines'}>
+      <section hidden={view !== 'work'}>
         <MachineBoard jobs={jobs} machines={machines} bookings={bookings} needs={needs} now={now} onOpen={onOpen} onStatus={onStatus} onEta={onEta} />
       </section>
-    </div>
-  )
-}
-
-// ค่าเริ่มต้น = ที่สินค้าต้องใช้ · ชุดแรกหยิบจากตัวว่าง จึงเพิ่มได้สูงสุด free ตัว
-function StartCounts({ rows, value, disabled, onChange }: {
-  rows: ReturnType<typeof machineCounts>; value: Counts; disabled: boolean; onChange: (type: MachineType, qty: number) => void
-}) {
-  return (
-    <div className="grid gap-2 sm:min-w-56">
-      {rows.map(row => {
-        const name = MACHINE_TYPE_NAME[row.type]
-        const qty = Math.min(Math.max(value[row.type] ?? row.need, row.need), row.free)
-        const step = 'grid size-12 shrink-0 place-items-center rounded-xl border border-line text-2xl font-bold text-brand hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-40'
-        return (
-          <div key={row.type} className="flex items-center gap-2">
-            <span className="min-w-0 flex-1 text-sm font-semibold">{name}<span className="block font-normal text-muted">ว่าง {row.free} ตัว</span></span>
-            <button type="button" className={step} aria-label={`ลด${name}`} disabled={disabled || qty <= row.need}
-              title={qty <= row.need ? `สินค้านี้ใช้${name}อย่างน้อย ${row.need} ตัว` : undefined}
-              onClick={() => onChange(row.type, qty - 1)}>−</button>
-            <span className="w-8 text-center text-xl font-bold tabular-nums">{qty}</span>
-            <button type="button" className={step} aria-label={`เพิ่ม${name}`} disabled={disabled || qty >= row.free}
-              title={qty >= row.free ? `${name}ว่างแค่ ${row.free} ตัว` : undefined}
-              onClick={() => onChange(row.type, qty + 1)}>+</button>
-          </div>
-        )
-      })}
+      <section hidden={view !== 'booking'}>{booking}</section>
     </div>
   )
 }
