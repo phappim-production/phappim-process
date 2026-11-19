@@ -2,16 +2,32 @@
 // bucket ไม่เปิดสาธารณะ (งานลูกค้า) → ขอลิงก์ชั่วคราวทีละชุด แล้วจำไว้ใช้ซ้ำจนใกล้หมดอายุ
 import { supabase } from '../lib/supabase'
 import type { Job } from '../proto/model'
+import { withTimeout } from './live'
 
 export const MOCKUP_BUCKET = 'mockups'
 export const MAX_MOCKUP_BYTES = 5 * 1024 * 1024
 const SIGN_SECONDS = 12 * 60 * 60
 const RENEW_BEFORE_MS = 60 * 60 * 1000
+// ขอลิงก์รูปช้า ต้องไม่ทำให้ข้อมูลงานทั้งหน้าโหลดไม่ขึ้น (หน้าโหลดตัดที่ 30 วิ) → ตัดที่ 8 วิ แสดงกรอบว่างไปก่อน
+const SIGN_TIMEOUT_MS = 8_000
 
-// ชื่อไฟล์ใน Storage ใช้อังกฤษ/ตัวเลขเท่านั้น (ชื่อไทยอัปโหลดไม่ผ่าน) · ใส่เวลากันชื่อซ้ำ
-export function mockupPath(no: string, at: Date, ext: 'jpg' | 'png' | 'webp' = 'jpg'): string {
-  const safe = no.trim().replace(/[^A-Za-z0-9-]/g, '_') || 'job'
-  return `${safe}/${at.getTime()}.${ext}`
+// ชื่อไฟล์ใน Storage ใช้อังกฤษ/ตัวเลขเท่านั้น (ชื่อไทยอัปโหลดไม่ผ่าน) · โฟลเดอร์ = เลขที่ใบ (ฐานข้อมูลตรวจว่าเป็นรูปของงานนั้น)
+// ชื่อไฟล์ = ลายนิ้วมือของเนื้อรูป: บันทึกใบเดิมซ้ำด้วยรูปเดิมได้ไฟล์เดิม ไม่สะสมไฟล์ซ้ำใน Storage
+export function mockupFolder(no: string): string {
+  return no.trim().replace(/[^A-Za-z0-9-]/g, '_') || 'job'
+}
+export function mockupPath(no: string, key: string | Date, ext: 'jpg' | 'png' | 'webp' = 'jpg'): string {
+  return `${mockupFolder(no)}/${typeof key === 'string' ? key : key.getTime()}.${ext}`
+}
+
+/** ลายนิ้วมือ 16 ตัวของเนื้อไฟล์ (SHA-256) · เครื่องที่ไม่มี crypto.subtle ใช้เวลาแทน (ได้ไฟล์ใหม่ทุกครั้ง แต่ยังใช้ได้) */
+export async function contentKey(blob: Blob): Promise<string> {
+  try {
+    const hash = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())
+    return [...new Uint8Array(hash)].slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('')
+  } catch {
+    return String(Date.now())
+  }
 }
 
 export function mockupExt(type: string): 'jpg' | 'png' | 'webp' | null {
@@ -53,10 +69,14 @@ const cache = new Map<string, { url: string; until: number }>()
 
 /** ลิงก์ชั่วคราวของรูปทุกงาน (ขอเฉพาะที่ยังไม่มีหรือใกล้หมดอายุ) · ขอไม่ได้ = คืนเท่าที่มี */
 export async function signMockups(paths: readonly string[], now = Date.now()): Promise<Map<string, string>> {
+  // ลิงก์หมดอายุแล้วใช้ไม่ได้อยู่ดี → ทิ้ง (แท็บที่เปิดทิ้งไว้ทั้งสัปดาห์ไม่สะสมลิงก์ของงานเก่า)
+  for (const [p, hit] of cache) if (hit.until <= now) cache.delete(p)
   const need = [...new Set(paths)].filter(p => (cache.get(p)?.until ?? 0) - now < RENEW_BEFORE_MS)
-  if (need.length && supabase) {
+  const client = supabase
+  if (need.length && client) {
     try {
-      const { data } = await supabase.storage.from(MOCKUP_BUCKET).createSignedUrls(need, SIGN_SECONDS)
+      const reply = await withTimeout(() => client.storage.from(MOCKUP_BUCKET).createSignedUrls(need, SIGN_SECONDS), SIGN_TIMEOUT_MS)
+      const data = reply.timedOut ? [] : reply.value.data
       for (const row of data ?? []) {
         if (row.path && row.signedUrl && !row.error) cache.set(row.path, { url: row.signedUrl, until: now + SIGN_SECONDS * 1000 })
       }
@@ -97,14 +117,15 @@ export async function shrinkImage(file: Blob, max = 1200): Promise<Blob> {
   }
 }
 
-/** อัปโหลดรูปเข้า Storage แล้วคืน path · ไม่สำเร็จ = ข้อความภาษาไทย */
-export async function uploadMockup(no: string, blob: Blob, now = new Date()): Promise<{ ok: true; path: string } | { ok: false; reason: string }> {
+/** อัปโหลดรูปเข้า Storage แล้วคืน path · ไม่สำเร็จ = ข้อความภาษาไทย · รูปเดิมของใบเดิมมีอยู่แล้ว = ใช้ไฟล์เดิม */
+export async function uploadMockup(no: string, blob: Blob): Promise<{ ok: true; path: string } | { ok: false; reason: string }> {
   if (!supabase) return { ok: false, reason: 'ยังไม่ได้ตั้งค่าระบบ' }
-  const ext = mockupExt(blob.type)
-  if (!ext) return { ok: false, reason: 'รูปต้องเป็น JPG / PNG / WEBP' }
-  const path = mockupPath(no, now, ext)
+  const problem = mockupProblem(blob)
+  if (problem) return { ok: false, reason: problem }
+  const path = mockupPath(no, await contentKey(blob), mockupExt(blob.type) ?? 'jpg')
   try {
     const up = await supabase.storage.from(MOCKUP_BUCKET).upload(path, blob, { contentType: blob.type, upsert: false })
+    if (up.error && /exists|duplicate/i.test(up.error.message)) return { ok: true, path }
     if (up.error) return { ok: false, reason: /bucket not found/i.test(up.error.message) ? 'ระบบยังไม่พร้อมรับรูป แจ้งเจ้าของระบบ' : 'อัปโหลดรูปไม่สำเร็จ ลองอีกครั้ง' }
     return { ok: true, path }
   } catch {

@@ -26,7 +26,7 @@ export async function mockupTests({ db, ok, as }) {
     create table storage.buckets (id text primary key);
     create table storage.objects (bucket_id text, name text);
     insert into storage.buckets values ('mockups'), ('confirmations');
-    insert into storage.objects values ('mockups', 'SC-MK-1/1.jpg'), ('mockups', 'SC-MK-3/2.png'), ('confirmations', 'SC-MK-3/9.jpg');`)
+    insert into storage.objects values ('mockups', 'SC-MK-1/1.jpg'), ('mockups', 'SC-MK-3/2.png'), ('mockups', 'SC-MK-3/3.jpg'), ('confirmations', 'SC-MK-3/9.jpg');`)
 
   // ส่งงานเข้าจากใบร่างที่มีรูป
   await pass('บันทึกใบยืนยันพร้อม path รูปม็อคอัพ', U.admin, `public.save_confirmation_draft(${form('SC-MK-1', 'SC-MK-1/1.jpg')})`)
@@ -54,17 +54,21 @@ export async function mockupTests({ db, ok, as }) {
   await reject('รูปที่อยู่ bucket อื่นไม่นับ', U.admin, set('SC-MK-3/9.jpg'), /ยังไม่พบรูปม็อคอัพ/)
   await reject('งานที่ไม่มีอยู่จริง', U.admin, `public.set_job_mockup('00000000-0000-0000-0000-00000000ffff', 'SC-MK-3/2.png')`, /ไม่พบงาน/)
   await pass('แอดมินเพิ่มรูปม็อคอัพทีหลังได้', U.admin, set('SC-MK-3/2.png'))
-  await pass('แอดมินเปลี่ยนรูปซ้ำได้', U.admin, `public.set_job_mockup('${j3.id}', 'SC-MK-1/1.jpg')`)
+  await reject('รูปของงานอื่น (คนละโฟลเดอร์) ใช้กับงานนี้ไม่ได้', U.admin, `public.set_job_mockup('${j3.id}', 'SC-MK-1/1.jpg')`, /ไม่ใช่ของงาน SC-MK-3/)
+  await pass('แอดมินเปลี่ยนรูปซ้ำได้', U.admin, `public.set_job_mockup('${j3.id}', 'SC-MK-3/3.jpg')`)
   const ev = (await db.query(`select payload from public.events where job_id = '${j3.id}' and type = 'mockup' order by at, id`)).rows
   ok('เพิ่ม/เปลี่ยนรูปบันทึกใน events ครั้งละ 1 แถว (ครั้งที่สอง = เปลี่ยน)',
     ev.length === 2 && ev[0].payload.replaced === false && ev[1].payload.replaced === true)
-  ok('งานใช้รูปล่าสุด', (await job('SC-MK-3'))?.mockup_path === 'SC-MK-1/1.jpg')
+  ok('งานใช้รูปล่าสุด', (await job('SC-MK-3'))?.mockup_path === 'SC-MK-3/3.jpg')
+  ok('โฟลเดอร์รูปตรงกับหน้าเว็บ (ตัวไทย/ช่องว่าง = _ · ว่าง = job)',
+    (await db.query(`select private.mockup_folder(' SC-MK ไทย ') a, private.mockup_folder('  ') b`)).rows[0]?.a === 'SC-MK____' &&
+    (await db.query(`select private.mockup_folder('  ') b`)).rows[0]?.b === 'job')
 
   // เขียนตรงไม่ได้ ต้องผ่านฟังก์ชัน
   try {
     await as(U.admin, () => db.query(`update public.jobs set mockup_path = 'x.jpg' where id = '${j3.id}'`))
   } catch { /* RLS / สิทธิ์ปฏิเสธก็ถือว่าผ่าน */ }
-  ok('แก้ mockup_path ตรงในตารางไม่ได้', (await job('SC-MK-3'))?.mockup_path === 'SC-MK-1/1.jpg')
+  ok('แก้ mockup_path ตรงในตารางไม่ได้', (await job('SC-MK-3'))?.mockup_path === 'SC-MK-3/3.jpg')
 
   await db.exec('drop schema storage cascade')
 }

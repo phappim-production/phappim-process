@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attachMockupUrls, dataUrlBlob, mockupDataUrl, mockupExt, mockupPath, mockupProblem, signMockups } from './mockups'
+import { attachMockupUrls, contentKey, dataUrlBlob, mockupDataUrl, mockupExt, mockupFolder, mockupPath, mockupProblem, signMockups } from './mockups'
 import { toJobs, type JobRow } from './live'
 import type { Job } from '../proto/model'
 
@@ -16,6 +16,14 @@ describe('รูปม็อคอัพ: ชื่อไฟล์และช�
     expect(mockupPath('SC-6911/001', at)).toBe(`SC-6911_001/${at.getTime()}.jpg`)
     expect(mockupPath('ใบไทย', at, 'png')).toMatch(/^_+\/\d+\.png$/)
     expect(mockupPath('  ', at)).toBe(`job/${at.getTime()}.jpg`)
+  })
+  it('ชื่อไฟล์จากเนื้อรูป: รูปเดิมได้ชื่อเดิม (บันทึกซ้ำไม่สะสมไฟล์) · รูปต่างได้ชื่อต่าง', async () => {
+    const a = await contentKey(new Blob(['AAA'], { type: 'image/jpeg' }))
+    expect(a).toMatch(/^[0-9a-f]{16}$/)
+    expect(await contentKey(new Blob(['AAA'], { type: 'image/jpeg' }))).toBe(a)
+    expect(await contentKey(new Blob(['AAB'], { type: 'image/jpeg' }))).not.toBe(a)
+    expect(mockupPath('SC-1', a)).toBe(`SC-1/${a}.jpg`)
+    expect(mockupFolder(' ใบ 1 ')).toMatch(/^_+1$/)
   })
   it('รับเฉพาะ JPG / PNG / WEBP', () => {
     expect(mockupExt('image/jpeg')).toBe('jpg')

@@ -105,6 +105,7 @@ export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLi
     case 'queue_skip': return { title: `เริ่มก่อนคิว${st ? ` ที่${st}` : ''}`, detail: [str(p.reason), list(p.ahead) && `ข้ามคิว ${list(p.ahead)}`].filter(Boolean).join(' · ') || undefined, tone: 'warn' }
     case 'correction': return { title: 'แจ้งว่ารายการก่อนหน้ากดผิด', detail: str(p.reason) || undefined, tone: 'warn' }
     case 'confirmation_pdf': return { title: p.replaced ? 'เปลี่ยน PDF ใบยืนยัน' : 'แนบ PDF ใบยืนยันที่ลูกค้าเซ็น', tone: 'ok' }
+    case 'mockup': return { title: p.replaced ? 'เปลี่ยนรูปม็อคอัพ' : 'เพิ่มรูปม็อคอัพ', tone: 'ok' }
     case 'done': return { title: 'งานเสร็จ · พร้อมส่ง', tone: 'ok' }
     default: return { title: e.type, tone: 'neutral' }
   }
