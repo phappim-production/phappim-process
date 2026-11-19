@@ -3,6 +3,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import {
   AUTO_UPDATE_POLL_MS,
   UPDATE_CHECK_INTERVAL_MS,
+  UPDATE_STALL_MS,
   canAutoUpdate,
   canCheckForUpdate,
   isEditingElement,
@@ -31,12 +32,18 @@ function AppUpdateLive() {
   const reloadNow = useCallback(async () => {
     if (updating) return
     setUpdating(true)
+    // บางครั้งรุ่นใหม่ค้างที่ waiting ไม่เข้าคุมแท็บ ปุ่มจะหมุนตลอด → สั่งข้ามรอเองแล้วโหลดหน้าใหม่
+    const stall = window.setTimeout(() => {
+      registration?.waiting?.postMessage({ type: 'SKIP_WAITING' })
+      window.location.reload()
+    }, UPDATE_STALL_MS)
     try {
       await updateServiceWorker(true)
     } catch {
+      window.clearTimeout(stall)
       setUpdating(false)
     }
-  }, [updateServiceWorker, updating])
+  }, [registration, updateServiceWorker, updating])
 
   // ตรวจหารุ่นใหม่ทุก 10 นาที และทุกครั้งที่กลับมาที่แท็บ (ข้ามเงียบๆ เมื่อไม่มีเน็ต)
   useEffect(() => {

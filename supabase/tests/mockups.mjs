@@ -38,6 +38,10 @@ export async function mockupTests({ db, ok, as }) {
   await pass('ส่งงานเข้าได้แม้รูปหาย', U.admin, receive('SC-MK-2'))
   ok('รูปที่ไม่มีไฟล์จริงไม่ถูกผูกกับงาน', (await job('SC-MK-2'))?.mockup_path === null)
 
+  await pass('บันทึกใบที่ชี้ไปรูปในโฟลเดอร์ของใบอื่น', U.admin, `public.save_confirmation_draft(${form('SC-MK-4', 'SC-MK-1/1.jpg')})`)
+  await pass('ส่งงานเข้าได้แม้รูปในใบร่างไม่ใช่ของใบนี้', U.admin, receive('SC-MK-4'))
+  ok('รูปของใบอื่นไม่ถูกผูกกับงานตอนส่งงานเข้า', (await job('SC-MK-4'))?.mockup_path === null)
+
   await pass('ส่งงานเข้าโดยไม่มีใบร่าง', U.admin, receive('SC-MK-3'))
   const j3 = await job('SC-MK-3')
   ok('งานไม่มีใบร่าง = ยังไม่มีรูป', j3?.mockup_path === null)
@@ -56,14 +60,17 @@ export async function mockupTests({ db, ok, as }) {
   ok('เพิ่ม/เปลี่ยนรูปบันทึกใน events ครั้งละ 1 แถว (ครั้งที่สอง = เปลี่ยน)',
     ev.length === 2 && ev[0].payload.replaced === false && ev[1].payload.replaced === true)
   ok('งานใช้รูปล่าสุด', (await job('SC-MK-3'))?.mockup_path === 'SC-MK-3/3.jpg')
-  ok('โฟลเดอร์รูปตรงกับหน้าเว็บ (ตัวไทย/ช่องว่าง = _ · ว่าง = job)',
-    (await db.query(`select private.mockup_folder(' SC-MK ไทย ') a, private.mockup_folder('  ') b`)).rows[0]?.a === 'SC-MK____' &&
+  ok('โฟลเดอร์รูปตรงกับหน้าเว็บ (ตัวอื่น = _ + รหัสอักษร 6 หลัก · ว่าง = job)',
+    (await db.query(`select private.mockup_folder(' SC-MK ไทย ') a, private.mockup_folder('  ') b`)).rows[0]?.a === 'SC-MK_000020_000e44_000e17_000e22' &&
     (await db.query(`select private.mockup_folder('  ') b`)).rows[0]?.b === 'job')
 
   try {
     await as(U.admin, () => db.query(`update public.jobs set mockup_path = 'x.jpg' where id = '${j3.id}'`))
   } catch { /* RLS / สิทธิ์ปฏิเสธก็ถือว่าผ่าน */ }
   ok('แก้ mockup_path ตรงในตารางไม่ได้', (await job('SC-MK-3'))?.mockup_path === 'SC-MK-3/3.jpg')
+
+  ok('เลขที่ใบต่างกันที่ต่างแค่ตัวไทยได้คนละโฟลเดอร์',
+    (await db.query(`select private.mockup_folder('SC-ก') <> private.mockup_folder('SC-ข') d`)).rows[0]?.d === true)
 
   await db.exec('drop schema storage cascade')
 }
