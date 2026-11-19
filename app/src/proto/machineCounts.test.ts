@@ -86,10 +86,10 @@ describe('ปุ่มบนหน้าจอ', () => {
     jobs: [job('a', { status })], machines, now, onOpen: () => {}, actions: a,
   }))
 
-  it('ฝ่ายผลิตเห็นปุ่มจัดจักรทั้งงานที่กำลังเย็บและงานพัก · ดูอย่างเดียวไม่เห็น', () => {
-    expect(sewing(actions)).toContain('จัดจักร')
-    expect(sewing(actions, 'hold')).toContain('จัดจักร')
-    expect(sewing(undefined)).not.toContain('จัดจักร')
+  it('ฝ่ายผลิตเห็นปุ่มจัดการจักรทั้งงานที่กำลังเย็บและงานพัก · ดูอย่างเดียวไม่เห็น', () => {
+    expect(sewing(actions)).toContain('จัดการจักร')
+    expect(sewing(actions, 'hold')).toContain('จัดการจักร')
+    expect(sewing(undefined)).not.toContain('จัดการจักร')
   })
 
   it('งานรอเย็บมีปุ่ม − / + เลือกจำนวนก่อนเริ่ม ค่าเริ่มต้นตามสินค้า', () => {

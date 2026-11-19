@@ -81,7 +81,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     if (r.ok) await refresh()
     return r
   }
-  // เริ่มเย็บได้ชุดตามสินค้าก่อน แล้วค่อยเพิ่มจำนวนที่เลือก (2 คำสั่ง) · เพิ่มไม่ได้ = งานเริ่มแล้ว บอกให้กด + ในจัดจักร
+  // เริ่มเย็บได้ชุดตามสินค้าก่อน แล้วค่อยเพิ่มจำนวนที่เลือก (2 คำสั่ง) · เพิ่มไม่ได้ = งานเริ่มแล้ว บอกให้กด + ในจัดการจักร
   const startSewing = async (jobId: string, counts: Partial<Record<MachineType, number>> = {}) => {
     const r = await rpc<string[]>('start_sewing', { p_job: jobId })
     if (!r.ok) return r
@@ -92,7 +92,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
       if (qty <= have) continue
       const more = await rpc<string[]>('set_job_machines', { p_job: jobId, p_type: type, p_qty: qty })
       if (more.ok) picked.push(...(more.data ?? []))
-      else problems.push(`เพิ่ม${MACHINE_TYPE_NAME[type]}ไม่ได้: ${more.reason} · กด "จัดจักร" เพื่อเพิ่มทีหลัง`)
+      else problems.push(`เพิ่ม${MACHINE_TYPE_NAME[type]}ไม่ได้: ${more.reason} · กด "จัดการจักร" เพื่อเพิ่มทีหลัง`)
     }
     await refresh()
     return { ok: true as const, picked: picked.sort(), warning: problems.join(' · ') || undefined }

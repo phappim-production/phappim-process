@@ -81,7 +81,7 @@ export function SewingNow({ jobs, machines, now, onOpen, actions, needs = {}, sh
                 </button>
                 {actions && (
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" className={secondaryButton} onClick={() => show('machines', job)}>จัดจักร</button>
+                    <button type="button" className={secondaryButton} onClick={() => show('machines', job)}>จัดการจักร</button>
                     {held ? (
                       <button type="button" className={resumeButton} disabled={busy} onClick={async () => {
                         setBusy(true)
@@ -106,7 +106,7 @@ export function SewingNow({ jobs, machines, now, onOpen, actions, needs = {}, sh
       )}
 
       {dialog?.type === 'machines' && actions && (
-        <Dialog title={`จัดจักร ${dialog.job.no}`} onClose={() => setDialog(null)}>
+        <Dialog title={`จัดการจักร ${dialog.job.no}`} onClose={() => setDialog(null)}>
           {/* ข้อมูลงานล่าสุด (อีกเครื่องอาจกดไปแล้ว) · งานออกจากเย็บแล้ว = ไม่มีอะไรให้จัด */}
           <MachinePanel job={list.find(j => j.id === dialog.job.id)} machines={machines} now={now} bookings={bookings} shared={shared}
             needs={needs[dialog.job.productCode ?? ''] ?? []} actions={actions} onClose={() => setDialog(null)} />
