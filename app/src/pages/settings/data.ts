@@ -75,7 +75,7 @@ function named(table: 'routes' | 'product_types') {
 async function loadStations() {
   const db = client()
   const [stations, routes, routeStations] = await Promise.all([
-    rows<Station>(db.from('stations').select(`code,name,section,substeps,${slaColumns}`).order('sort').order('code')),
+    rows<Station>(db.from('stations').select(`code,name,section,substeps,machines,machine_pool,${slaColumns}`).order('sort').order('code')),
     named('routes'),
     rows<RouteStation>(db.from('route_stations').select('route_code,station_code,seq').order('seq')),
   ])

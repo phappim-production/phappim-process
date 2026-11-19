@@ -1,3 +1,4 @@
+import { toStationMachines, type StationMachine, type StationMachineRow } from '../proto/machines'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { withMockups } from './mockups'
@@ -9,7 +10,7 @@ import {
   type AssignmentRow, type BookingRow, type JobRow, type MachineRow, type NeedRow, type ProductRow, type ReworkRow, type SewEventRow, type SlaFlagRow,
 } from './live'
 
-export type FactoryData = { vendors: Vendor[]; jobs: Job[]; machines: Machine[]; bookings: Booking[]; needs: Record<string, Need[]>; products: ProductRow[]; shared: MachineType[] }
+export type FactoryData = { stationMachines: StationMachine[]; vendors: Vendor[]; jobs: Job[]; machines: Machine[]; bookings: Booking[]; needs: Record<string, Need[]>; products: ProductRow[]; shared: MachineType[] }
 export type LoadState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
@@ -58,6 +59,7 @@ async function load(): Promise<FactoryData> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
   const recent = new Date(Date.now() - 14 * DAY).toISOString()
   const slaCall = supabase.rpc('job_sla_flags')
+  const stationCall = supabase.from('stations').select('code, machines, machine_pool')
   const [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types, vendorRows, outRuns] = await Promise.all([
     // งานเสร็จเก่ากว่า 14 วันไม่ต้องแสดงบนบอร์ด
     supabase.from('job_live').select(JOB_COLUMNS).neq('phase', 'cancelled').or(`phase.neq.done,finished_at.gte.${recent}`),
@@ -74,10 +76,13 @@ async function load(): Promise<FactoryData> {
   ])
   // อ่านเวลามาตรฐานไม่ได้ (เน็ตสะดุด) ให้การ์ดสีปกติ ไม่ทำให้ทั้งหน้าโหลดไม่ขึ้น
   const sla = await slaCall
+  // ฐานข้อมูลที่ยังไม่มีคอลัมน์ machines (migration ยังไม่ลง) = ไม่จำกัดเครื่อง ไม่ทำให้หน้าโหลดไม่ขึ้น
+  const stationRows = await stationCall
   const failed = [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types, vendorRows, outRuns].find(r => r.error)
   if (failed?.error) throw new Error(failed.error.message)
   const vendors = toVendors(vendorRows.data as VendorRow[])
   return {
+    stationMachines: stationRows.error ? [] : toStationMachines((stationRows.data ?? []) as StationMachineRow[]),
     vendors,
     jobs: await withMockups(attachSla(attachOutRuns(toJobs(jobs.data as JobRow[], products.data as ProductRow[], reworks.data as ReworkRow[], sewEvents.data as SewEventRow[]), outRuns.data as OutRunRow[], vendors),
       sla.error ? [] : (sla.data ?? []) as SlaFlagRow[])),

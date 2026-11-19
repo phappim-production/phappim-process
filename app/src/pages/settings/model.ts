@@ -15,8 +15,8 @@ export type UserRow = {
 export type ProfileDraft = { name: string; role: EmployeeRole | ''; active: boolean; section: Section | null }
 export type Sla = { sla_days: number | null; warn_pct: number; big_qty: number | null; big_sla_days: number | null }
 export type SlaDraft = { days: string; warn: string; bigQty: string; bigDays: string }
-export type Station = NamedCode & Sla & { section: Section; substeps: Substep[] }
-export type StationDraft = SlaDraft & { name: string; section: Section; substeps: Substep[] }
+export type Station = NamedCode & Sla & { section: Section; substeps: Substep[]; machines: number | null; machine_pool: string | null }
+export type StationDraft = SlaDraft & { name: string; section: Section; substeps: Substep[]; machines: string; machine_pool: string }
 export type Segment = NamedCode & Sla & { route_code: string; from_station: string; to_station: string }
 export type RouteStation = { route_code: string; station_code: string; seq: number }
 export type Material = {
@@ -101,6 +101,8 @@ export function moveStep(steps: Substep[], index: number, offset: -1 | 1): Subst
 export function readStation(draft: StationDraft) {
   return {
     ...readSla(draft), name: requireText(draft.name, 'ชื่อสถานี'), section: draft.section,
+    machines: draft.machines.trim() ? integer(draft.machines, 'จำนวนเครื่อง', 1, 50) : null,
+    machine_pool: draft.machine_pool.trim() || null,
     substeps: draft.substeps.map(step => ({ ...step, name: requireText(step.name, 'ชื่อขั้นย่อยทุกขั้น') })),
   }
 }

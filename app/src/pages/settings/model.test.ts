@@ -85,10 +85,12 @@ describe('ขั้นย่อยและรหัสจักร', () => {
     expect(moveStep(steps, 0, -1)).toBe(steps)
   })
   it('บันทึกชื่อขั้นโดยคง key และชนิดของขั้นเดิม', () => {
-    const changes = { ...draft, name: ' รีดฟิล์ม ', section: 1 as const, substeps: [{ ...lock, name: ' รับฟิล์มแล้ว ' }] }
+    const changes = { ...draft, name: ' รีดฟิล์ม ', section: 1 as const, substeps: [{ ...lock, name: ' รับฟิล์มแล้ว ' }], machines: '', machine_pool: ' ' }
     expect(readStation(changes)).toMatchObject({
-      name: 'รีดฟิล์ม', substeps: [{ ...lock, name: 'รับฟิล์มแล้ว' }],
+      name: 'รีดฟิล์ม', substeps: [{ ...lock, name: 'รับฟิล์มแล้ว' }], machines: null, machine_pool: null,
     })
+    expect(readStation({ ...changes, machines: ' 2 ', machine_pool: 'heat_press' })).toMatchObject({ machines: 2, machine_pool: 'heat_press' })
+    expect(() => readStation({ ...changes, machines: '0' })).toThrow('จำนวนเครื่อง')
     expect(() => readStation({ ...changes, substeps: [{ ...req, name: '' }] })).toThrow('ชื่อขั้นย่อย')
   })
   it('เก็บรหัสจักรตาม prefix ของชนิด และกันรหัสซ้ำ', () => {

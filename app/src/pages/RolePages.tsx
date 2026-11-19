@@ -67,7 +67,7 @@ export function IssuesView({ jobs, now, role, stations, call, onOpen, heldOnly }
     const sew = j.station === 'sew'
     const r = await call(sew ? 'resume_sewing' : 'close_issue', sew ? { p_job: j.id } : { p_job: j.id, p_note: null })
     setBusy(null)
-    setNotice(r.ok ? { ok: true, text: `${j.no} ${sew ? 'เย็บต่อแล้ว' : 'แก้แล้ว · ทำต่อได้'}` } : { ok: false, text: `${j.no}: ${r.reason}` })
+    setNotice(r.ok ? { ok: true, text: `${j.no} ${sew ? 'เย็บต่อแล้ว' : 'แก้แล้ว · ถ้าเครื่องเต็ม งานกลับเข้าคิวรอเริ่ม'}` } : { ok: false, text: `${j.no}: ${r.reason}` })
   }
   return (
     <>

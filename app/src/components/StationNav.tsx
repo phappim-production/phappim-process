@@ -54,8 +54,9 @@ export function StationRail({ columns, counts, urgent, station, onPick }: {
   )
 }
 
-export function StationHeader({ station, jobs, stations, onPick }: {
-  station: StationCode; jobs: Job[]; stations: StationCode[]; onPick: (key: StationCode) => void
+export function StationHeader({ station, jobs, stations, machines, onPick }: {
+  station: StationCode; jobs: Job[]; stations: StationCode[]; machines?: { used: Job[]; total: number; full: boolean } | null
+  onPick: (key: StationCode) => void
 }) {
   const Icon = STATION_ICON[station]
   const here = jobs.filter(j => (j.phase === 'sample' || j.phase === 'production') && j.station === station)
@@ -81,6 +82,12 @@ export function StationHeader({ station, jobs, stations, onPick }: {
           <p className="text-sm text-muted">สถานีที่ {STATION_ORDER.indexOf(station) + 1} จาก {STATION_ORDER.length} · เฟส {STATION_PHASE[station]}</p>
           <h2 className="truncate text-2xl font-bold">{STATION_NAME[station]}</h2>
         </div>
+        {machines && (
+          <span className={`ml-auto shrink-0 rounded-xl px-3 py-1.5 text-center font-semibold ${machines.full ? 'bg-warn-soft text-warn' : 'bg-ok-soft text-ok'}`}>
+            เครื่อง {machines.used.length}/{machines.total}
+            <span className="block text-sm font-medium">{machines.full ? 'เต็ม' : `ว่าง ${machines.total - machines.used.length}`}</span>
+          </span>
+        )}
       </div>
       <dl className="grid grid-cols-4 gap-2">
         {stats.map(([label, n, tone]) => (

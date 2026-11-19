@@ -10,8 +10,8 @@ import { TONE } from '../components/tone'
 export type QueueCall = (name: string, args: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; reason: string }>
 
 // เริ่มคิวหลังได้แต่ต้องใส่เหตุผล · start_in_queue ตรวจคิว + บันทึกเหตุผล + เริ่ม ในธุรกรรมเดียว
-export function StationQueue({ station, jobs, role, myStations = [], now, call, onOpen }: {
-  station: StationCode; jobs: Job[]; role: EmployeeRole; myStations?: StationCode[]; now: Date; call: QueueCall; onOpen: (id: string) => void
+export function StationQueue({ station, jobs, role, myStations = [], machines, now, call, onOpen }: {
+  station: StationCode; jobs: Job[]; role: EmployeeRole; myStations?: StationCode[]; machines?: { used: Job[]; total: number; full: boolean } | null; now: Date; call: QueueCall; onOpen: (id: string) => void
 }) {
   const floor = role === 'production' || role === 'supervisor' || role === 'owner'
   const canPress = floor || (role === 'qc' && station === 'qc_pack') || (role === 'staff' && myStations.includes(station))
@@ -77,7 +77,8 @@ export function StationQueue({ station, jobs, role, myStations = [], now, call, 
           {queue.map((j, i) => (
             <QueueCard key={j.id} job={j} now={now} onOpen={() => onOpen(j.id)} first={i === 0}
               badge={<span className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${i === 0 ? 'bg-brand text-white' : 'bg-paper text-ink'}`}>คิว {i + 1}</span>}>
-              <WaitingActions job={j} first={queue[0]} station={station} canPress={canPress} canInsert={canInsert && i > 0}
+              <WaitingActions job={j} first={queue[0]} station={station} canPress={canPress}
+              full={machines?.full ? `เครื่องเต็ม ${machines.used.length}/${machines.total} (${machines.used.map(u => u.no).join(', ')}) · รอให้งานเสร็จ หรือพักงานที่ติดปัญหาก่อน` : undefined} canInsert={canInsert && i > 0}
                 busy={busy === j.id} run={run} />
             </QueueCard>
           ))}
@@ -144,7 +145,7 @@ function HoldActions({ job: j, station, canResume, busy, run }: { job: Job; stat
   }
   return station === 'sew'
     ? <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['resume_sewing', {}]], `${j.no} เย็บต่อแล้ว`)}>แก้แล้ว เย็บต่อ</button>
-    : <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['close_issue', { p_note: null }]], `${j.no} แก้แล้ว · ทำต่อได้`)}>แก้แล้ว ทำต่อ</button>
+    : <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['close_issue', { p_note: null }]], `${j.no} แก้แล้ว · ถ้าเครื่องเต็ม งานกลับเข้าคิวรอเริ่ม`)}>แก้แล้ว ทำต่อ</button>
 }
 
 function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; station: StationCode; busy: boolean; run: Run; onOpen: () => void }) {
@@ -199,8 +200,8 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
   )
 }
 
-function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run }: {
-  job: Job; first: Job; station: StationCode; canPress: boolean; canInsert: boolean; busy: boolean; run: Run
+function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run, full }: {
+  job: Job; first: Job; station: StationCode; canPress: boolean; canInsert: boolean; busy: boolean; run: Run; full?: string
 }) {
   const [mode, setMode] = useState<'skip' | 'insert' | null>(null)
   const [reason, setReason] = useState('')
@@ -237,7 +238,9 @@ function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run
 
   return (
     <div className="grid gap-2 sm:grid-cols-2">
-      {canPress && (noFilm
+      {canPress && (full
+        ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2">เริ่มไม่ได้ · {full}</p>
+        : noFilm
         ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2">เริ่มไม่ได้ · ยังไม่ได้รับ{filmLabel(j.route)} (แอดมินบันทึกเมื่อได้รับ)</p>
         : isFirst
           ? <button type="button" disabled={busy} className={`${primaryBtn} min-h-14 text-lg sm:col-span-2`}
