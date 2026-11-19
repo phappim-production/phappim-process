@@ -115,19 +115,26 @@ describe('คาดการณ์ตามคิวของสถานี', (
     expect(forecast.extraWaitAt).toBe('cut')
   })
 
-  it('คาดการณ์ 300 งานผ่านหลายสถานีใช้เวลาไม่เกิน 300 ms', () => {
+  // จับเฉพาะกรณีโค้ดช้าลงหลายเท่า (เช่น วนซ้อนจนเป็นกำลังสอง) ไม่ใช่วัดความเร็วเครื่อง
+  // เครื่องพัฒนา ~100 ms · เครื่อง CI ช้ากว่า 3–4 เท่า (เคยได้ 367 ms แล้ว CI ไม่ผ่านทั้งที่โค้ดไม่ผิด 19 พ.ย.)
+  // จึงวัดรอบที่เร็วสุดใน 3 รอบ (ตัดผลจากเครื่องไม่ว่างชั่วขณะ) และให้เกณฑ์ 1,000 ms
+  it('คาดการณ์ 300 งานผ่านหลายสถานีใช้เวลาไม่เกิน 1,000 ms', () => {
     const routes = ['normal', 'dtf', 'dtg', 'screen', 'emb', 'print_emb', 'cut_only', 'plain'] as const
     const jobs = Array.from({ length: 300 }, (_, i) => job(String(i), {
       queue: 300 - i, route: routes[i % routes.length], station: undefined,
       qty: 10 + (i % 20) * 10, productCode: 'tshirt',
     }))
     const floor = { ready: { flat: 3 }, needsOf: () => [{ type: 'flat' as const, qty: 1 }] }
-    const start = performance.now()
-    const result = simulate(jobs, now, undefined, floor)
-    const elapsed = performance.now() - start
-    console.info(`simulate 300 งาน: ${elapsed.toFixed(2)} ms`)
+    let elapsed = Infinity
+    let result = simulate(jobs, now, undefined, floor)
+    for (let round = 0; round < 3; round++) {
+      const start = performance.now()
+      result = simulate(jobs, now, undefined, floor)
+      elapsed = Math.min(elapsed, performance.now() - start)
+    }
+    console.info(`simulate 300 งาน: ${elapsed.toFixed(2)} ms (เร็วสุดใน 3 รอบ)`)
     expect(result.finishDay.size).toBe(300)
-    expect(elapsed).toBeLessThanOrEqual(300)
+    expect(elapsed).toBeLessThanOrEqual(1000)
   })
 })
 
