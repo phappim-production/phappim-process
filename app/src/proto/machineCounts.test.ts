@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { SewingNow, type SewActions } from '../pages/SewingNow'
 import { SewingFloor } from '../pages/WorkPanels'
 import { type Job } from './model'
-import { machineCounts, pausesJob, type Booking, type Machine, type MachineType, type Need } from './sewing'
+import { blockerSummary, machineCounts, pausesJob, type Booking, type Machine, type MachineType, type Need } from './sewing'
 
 const now = new Date('2026-11-21T03:00:00Z')
 const job = (id: string, fields: Partial<Job> = {}): Job => ({
@@ -115,5 +115,14 @@ describe('pausesJob (จักรเสียแล้วงานต้อง�
   it('งานพักอยู่แล้ว หรือจักรว่าง = ไม่มีงานให้พัก', () => {
     expect(pausesJob(machines[0], machines, job('a', { status: 'hold' }), needsMap)).toBe(false)
     expect(pausesJob(machines[1], machines, undefined, needsMap)).toBe(false)
+  })
+})
+
+describe('blockerSummary (เหตุผลบนการ์ดรอเย็บ)', () => {
+  it('สรุปเป็นจำนวน · จักรเสีย/ปิดบอกรหัส', () => {
+    expect(blockerSummary([
+      { code: 'SN-001', state: 'busy', jobId: 'a' }, { code: 'SN-002', state: 'busy', jobId: 'b' },
+      { code: 'SN-003', state: 'booked', jobId: 'c' }, { code: 'SN-004', state: 'broken' }, { code: 'SN-005', state: 'off' },
+    ])).toBe('ใช้กับงานอื่น 2 ตัว · จองไว้ให้งานอื่น 1 ตัว · SN-004 เสีย, SN-005 ปิด')
   })
 })

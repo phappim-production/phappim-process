@@ -6,7 +6,7 @@ import { WORK_END, WORK_START, byQueue, type Job } from '../proto/model'
 import { todoList } from '../proto/actions'
 import {
   bookedByOther, checkStartSewing, floorSummary, repairEtaProblem, repairStatus, MACHINE_PREFIX, MACHINE_STATE_NAME, MACHINE_TYPE_NAME, MACHINE_TYPES, machineState, sewQueue, type Need,
-  machineCounts, pausesJob, type Booking, type Machine, type MachineState, type MachineStatus, type MachineType,
+  blockerSummary, machineCounts, pausesJob, type Booking, type Machine, type MachineState, type MachineStatus, type MachineType,
 } from '../proto/sewing'
 
 // ต้องทำตอนนี้: 1 แถว = 1 งาน = 1 สิ่งที่ต้องทำ เรียงตามคิว (ด่วนบอกด้วยสี)
@@ -80,7 +80,6 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
     .map(q => ({ job: q.job, check: checkStartSewing(q.job, machines, needs, bookings, now) }))
     .sort((a, b) => byQueue(a.job, b.job))  // ตามคิว · งานที่ยังเริ่มไม่ได้บอกเหตุผลบนการ์ด
   const startable = queue.filter(q => q.check.ok).length
-  const byJob = new Map(jobs.map(j => [j.id, j]))
 
   const [starting, setStarting] = useState<string | null>(null)
   // จำนวนจักรที่เลือกก่อนกดเริ่ม (ต่องาน) · ไม่ปรับ = ตามที่สินค้าต้องใช้
@@ -129,11 +128,7 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
                         <span className="mt-1 block text-sm text-danger">
                           <span className="font-semibold">{check.reason}</span>
                           {check.blockers.length > 0 && (
-                            <span className="block text-muted">
-                              {check.blockers.map(b => `${b.code} ${b.state === 'busy' ? `ใช้กับ ${(b.jobId && byJob.get(b.jobId)?.no) || 'งานอื่น'}`
-                                : b.state === 'booked' ? `จองให้ ${(b.jobId && byJob.get(b.jobId)?.no) || 'งานอื่น'}${b.until ? ` ถึง ${b.until.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}` : ''}`
-                                : b.state === 'broken' ? 'เสีย' : 'ปิด'}`).join(' · ')}
-                            </span>
+                            <span className="block text-muted">{blockerSummary(check.blockers)}</span>
                           )}
                         </span>
                       )}
