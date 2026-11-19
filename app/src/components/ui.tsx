@@ -3,6 +3,7 @@ import { ROUTES, isDueSoon, isOverdue, usesFilm, type Job, type RouteCode } from
 import { dayDiff, shortDate } from '../proto/format'
 import { TONE, type Tone } from './tone'
 import { IconImage } from './icons'
+import { processSteps, type StepState } from '../proto/process'
 export type { Tone }
 
 export function ViewSwitch<T extends string>({ label, value, onChange, options, variant = 'main' }: {
@@ -131,4 +132,29 @@ export function MockupThumb({ job, size = 'sm' }: { job: Pick<Job, 'no' | 'mocku
     )
   }
   return <img src={job.mockupUrl} alt={`รูปม็อคอัพงาน ${job.no}`} loading="lazy" decoding="async" className={`${box} object-contain`} />
+}
+
+const STEP_STYLE: Record<StepState, string> = {
+  done: 'bg-ok-soft text-ok',
+  now: 'bg-info-soft text-info ring-2 ring-info',
+  hold: 'bg-danger-soft text-danger ring-2 ring-danger',
+  todo: 'bg-paper text-muted',
+}
+
+export function ProcessBar({ job }: { job: Job }) {
+  const steps = processSteps(job)
+  const here = steps.find(s => s.state === 'now' || s.state === 'hold')
+  return (
+    <ol className="flex min-w-0 items-stretch gap-1" aria-label={here ? `อยู่ขั้น ${here.label}${here.note ? ` ${here.note}` : ''}` : 'ผ่านครบทุกขั้น'}>
+      {steps.map(s => {
+        const current = s.state === 'now' || s.state === 'hold'
+        return (
+          <li key={s.key} className={`flex min-w-0 flex-col justify-center rounded-lg px-1.5 py-1 text-center text-sm leading-tight ${current ? 'flex-[2.2] font-bold' : 'flex-1'} ${STEP_STYLE[s.state]}`}>
+            <span className="truncate">{s.label}{s.state === 'done' && ' ✓'}</span>
+            {current && s.note && <span className="truncate text-xs font-medium">{s.note}</span>}
+          </li>
+        )
+      })}
+    </ol>
+  )
 }
