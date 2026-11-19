@@ -103,14 +103,28 @@ export async function sewingTests({ db, ok, as }) {
 
   // ---------- จ่าย / คืนจักรด้วยมือ ----------
   await reject('จ่ายจักรให้งานที่ยังไม่ถึงสถานีเย็บไม่ได้', U.sup2, `public.assign_machines('${cut}', array['BD-001'])`, /เฉพาะงานที่อยู่สถานีเย็บ/)
-  await reject('ต้องเลือกจักรอย่างน้อย 1 ตัว', U.sup2, `public.assign_machines('${tee2}', array[]::text[])`, /อย่างน้อย 1/)
-  await reject('รหัสจักรที่ไม่มี ถูกปฏิเสธ', U.sup2, `public.assign_machines('${tee2}', array['SN-077'])`, /ไม่พบจักร/)
-  await reject('จักรที่ใช้อยู่จ่ายให้อีกงานไม่ได้', U.sup2, `public.assign_machines('${tee2}', array['OL4-001'])`, /OL4-001 ใช้กับงาน SC-SEW-T1/)
-  await reject('จ่ายจักรว่างปนกับไม่ว่าง ถูกปฏิเสธทั้งชุด', U.sup2, `public.assign_machines('${tee2}', array['OL4-003','OL4-001'])`, /OL4-001/)
-  ok('OL4-003 ไม่ถูกจองค้าง', (await active(tee2)).length === 0)
+  // จัดจักรด้วยมือ = งานที่กำลังเย็บ / พัก เท่านั้น (ยังไม่เริ่ม = ปุ่มเริ่มเย็บจ่ายชุดแรกเอง)
+  await reject('งานที่ยังไม่เริ่มเย็บ จ่ายจักรเพิ่มไม่ได้ (บอกให้กดเริ่มเย็บ)', U.sup2, `public.assign_machines('${tee2}', array['OL4-003'])`, /กด "เริ่มเย็บ" ก่อน/)
+  const t2h = await jobAt('SC-SEW-T2H', 'plain', 2, 'tshirt', 'hold')
+  await reject('ต้องเลือกจักรอย่างน้อย 1 ตัว', U.sup2, `public.assign_machines('${t2h}', array[]::text[])`, /อย่างน้อย 1/)
+  await reject('รหัสว่างอย่างเดียว = ไม่ได้เลือกจักร', U.sup2, `public.assign_machines('${t2h}', array['  '])`, /อย่างน้อย 1/)
+  await reject('รหัสจักรที่ไม่มี ถูกปฏิเสธ', U.sup2, `public.assign_machines('${t2h}', array['SN-077'])`, /ไม่พบจักร/)
+  await reject('จักรที่ใช้อยู่จ่ายให้อีกงานไม่ได้', U.sup2, `public.assign_machines('${t2h}', array['OL4-001'])`, /OL4-001 ใช้กับงาน SC-SEW-T1/)
+  await reject('จ่ายจักรว่างปนกับไม่ว่าง ถูกปฏิเสธทั้งชุด', U.sup2, `public.assign_machines('${t2h}', array['OL4-003','OL4-001'])`, /OL4-001/)
+  ok('OL4-003 ไม่ถูกจองค้าง', (await active(t2h)).length === 0)
   await reject('ผู้ควบคุมงานเฟส 1 คืนจักรไม่ได้', U.sup1, `public.release_machines('${tee1}')`, /เฟส 2/)
-  await pass('คืนจักรบางตัวได้', U.sup2, `public.release_machines('${tee1}', array['FL-001'])`)
-  ok('FL-001 ว่างแล้ว', !(await active(tee1)).includes('FL-001'))
+  await reject('กำลังเย็บ คืนจักรจนไม่ครบชุดไม่ได้ (บอกว่าขาดอะไร + ให้พักงานก่อน)', U.sup2, `public.release_machines('${tee1}', array['FL-001'])`, /ขาด ลาคอ \/ ฟลัตล็อก 1 ตัว.*พักงานก่อน/)
+  await reject('กำลังเย็บ คืนจักรทุกตัวไม่ได้', U.sup2, `public.release_machines('${tee1}')`, /ไม่ครบชุด/)
+  ok('ถูกปฏิเสธแล้วจักรยังอยู่ครบ', (await active(tee1)).length === 5)
+  await pass('ฝ่ายผลิตเพิ่มจักรให้งานที่กำลังเย็บได้ (รหัสพิมพ์เล็ก/ซ้ำ = ตัวเดียว)', U.prod, `public.assign_machines('${tee1}', array['ol4-003', ' OL4-003 '])`)
+  ok('เพิ่มแล้วงานมีจักร 6 ตัว', (await active(tee1)).length === 6)
+  const evAdd = await lastEvent(tee1)
+  ok('บันทึก event จ่ายจักรเพิ่ม', evAdd.type === 'machines_assigned' && JSON.stringify(evAdd.payload.machines) === '["OL4-003"]', JSON.stringify(evAdd))
+  await reject('กดเพิ่มจักรตัวเดิมซ้ำ = บอกว่าอยู่กับงานนี้แล้ว', U.prod, `public.assign_machines('${tee1}', array['OL4-003'])`, /อยู่กับงานนี้แล้ว/)
+  await reject('แอดมินเพิ่มจักรไม่ได้', U.admin, `public.assign_machines('${tee1}', array['BD-001'])`, /บทบาท/)
+  await pass('คืนจักรส่วนที่เกินชุดได้ระหว่างเย็บ', U.prod, `public.release_machines('${tee1}', array['OL4-003'])`)
+  ok('OL4-003 ว่างแล้ว งานเหลือครบชุด', !(await active(tee1)).includes('OL4-003') && (await active(tee1)).length === 5)
+  await reject('กดคืนจักรตัวเดิมซ้ำ = บอกว่าคืนไปแล้ว', U.prod, `public.release_machines('${tee1}', array['OL4-003'])`, /คืนไปแล้ว/)
 
   // ---------- ออกจากสถานีเย็บ = คืนจักรอัตโนมัติ ----------
   await db.exec(`update public.jobs set station_seq = 5, station_status = 'queued' where id = '${tee1}'`)
@@ -119,7 +133,7 @@ export async function sewingTests({ db, ok, as }) {
   await db.exec(`update public.jobs set phase = 'done', station_seq = null, station_status = null where id = '${tee2}'`)
   ok('งานเสร็จแล้วคืนจักรทุกตัว', (await active(tee2)).length === 0)
   await reject('คืนจักรของงานที่ไม่มีจักร ถูกปฏิเสธ', U.owner, `public.release_machines('${tee2}')`, /ไม่มีจักร/)
-  ok('ประวัติการใช้จักรยังอยู่ครบ', (await db.query(`select count(*)::int n from public.machine_assignments`)).rows[0].n === 11)
+  ok('ประวัติการใช้จักรยังอยู่ครบ', (await db.query(`select count(*)::int n from public.machine_assignments`)).rows[0].n === 12)
 
   // ---------- แจ้งเสีย / ซ่อมเสร็จ (สถานะจักร) ----------
   await rejectSql('owner แก้สถานะจักรตรงเข้าตารางไม่ได้ (ต้องผ่านปุ่มแจ้งเสีย)',
@@ -238,7 +252,7 @@ export async function sewingTests({ db, ok, as }) {
     select id, '${bk2}', now(), now() + interval '1 hour' from public.sewing_machines limit 1`, /row-level security/, U.prod)
 
   // ---------- เย็บเสร็จจริง (finish_station) → ไป QC และคืนจักรอัตโนมัติ ----------
-  await call(U.sup2, `public.release_machines('${bk5}')`)   // ให้จักรเข้าขอบว่างก่อน
+  await db.exec(`update public.jobs set station_seq = 3, station_status = 'queued' where id = '${bk5}'`)   // เย็บเสร็จ = จักรเข้าขอบว่าง
   const fin = await jobAt('SC-SEW-FIN', 'plain', 2, 'apron')
   await call(U.sup2, `public.start_sewing('${fin}')`)
   const finMachines = await active(fin)
@@ -263,7 +277,7 @@ export async function sewingTests({ db, ok, as }) {
   // ---------- กันบั๊ก (ตรวจละเอียด 16 พ.ย.) ----------
   // 1) จ่ายจักรด้วยมือต้องเคารพการจองของงานอื่น เหมือนปุ่มเริ่มเย็บ
   const bx = await jobAt('SC-BUG-X', 'plain', 1, 'apron')
-  const by = await jobAt('SC-BUG-Y', 'plain', 2, 'apron')
+  const by = await jobAt('SC-BUG-Y', 'plain', 2, 'apron', 'hold')
   await call(U.prod, `public.book_machines('${bx}', now(), now() + interval '2 hours')`)
   const bxCodes = await booked(bx)
   await reject('จ่ายจักรด้วยมือ ข้ามการจองของงานอื่นไม่ได้', U.sup2, `public.assign_machines('${by}', array['${bxCodes[0]}'])`, /จองให้ SC-BUG-X/)
@@ -317,6 +331,14 @@ export async function sewingTests({ db, ok, as }) {
     ok('ทั้งสองงานกำลังเย็บ', (await status(p1)) === 'doing' && (await status(p2)) === 'doing')
     await pass('แจ้งจักรลาเสีย (จักรใช้ร่วมไม่พักงานที่เย็บอยู่)', U.sup2, `public.set_machine_status('CV-001', 'broken', 'มอเตอร์ไหม้')`)
     ok('งานที่เย็บอยู่ไม่ถูกพักเมื่อจักรใช้ร่วมเสีย', (await status(p1)) === 'doing')
+    // อยู่ในธุรกรรม: error ทำให้ธุรกรรมใช้ไม่ได้ จึงครอบด้วย savepoint
+    await db.exec(`savepoint shared_assign; set role authenticated; select set_config('request.jwt.claim.sub', '${U.prod}', false)`)
+    try {
+      await db.query(`select public.assign_machines('${p1}', array['CV-001'])`)
+      ok('จ่ายจักรใช้ร่วมให้งานไม่ได้ (ทุกไลน์ใช้ร่วมกันอยู่แล้ว)', false, 'ควรถูกปฏิเสธแต่ผ่าน')
+    } catch (e) {
+      ok('จ่ายจักรใช้ร่วมให้งานไม่ได้ (ทุกไลน์ใช้ร่วมกันอยู่แล้ว)', /CV-001 เป็นจักรลา.*ใช้ร่วมกันอยู่แล้ว/.test(e.message), e.message.split('\n')[0])
+    } finally { await db.exec('rollback to savepoint shared_assign; reset role') }
     const p3 = await jobAt('SC-SHARE-3', 'plain', 2, 'pet')
     // อยู่ในธุรกรรม: ข้อผิดพลาดทำให้ธุรกรรมค้าง จึงย้อนกลับถึง savepoint เองแทน helper reject
     await db.exec('savepoint brk')

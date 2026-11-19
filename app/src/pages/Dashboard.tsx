@@ -121,6 +121,14 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
       if (!r.ok) return r
       return { ok: true, text: `${noOf(jobId)} เย็บเสร็จ ส่งต่อ QC + Packing แล้ว · คืนจักร ${released.length} ตัว${released.length ? `: ${released.join(', ')}` : ''}` }
     },
+    assign: async (jobId, codes) => {
+      const r = await call('assign_machines', { p_job: jobId, p_machine_codes: codes })
+      return r.ok ? { ok: true, text: `เพิ่มจักร ${[...codes].sort().join(', ')} ให้ ${noOf(jobId)} แล้ว` } : r
+    },
+    release: async (jobId, code) => {
+      const r = await call('release_machines', { p_job: jobId, p_machine_codes: [code] })
+      return r.ok ? { ok: true, text: `คืนจักร ${code} แล้ว · ว่างให้งานอื่นใช้` } : r
+    },
   }
   // คนหน้างานเห็นเฉพาะงานของตัวเองก่อน · กดดูทั้งโรงงานได้เมื่ออยากรู้ว่างานกำลังจะมาถึง
   const [wholeFactory, setWholeFactory] = useState(false)
@@ -309,7 +317,8 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
           <SewingFloor key={sewFocus.n} initialView={sewFocus.view} jobs={allJobs} machines={machines} bookings={bookings} needs={needs} now={now} onOpen={setOpenId}
             onStart={myScope.canSew ? startSewing : undefined} onStatus={myScope.canReportMachines ? setMachineStatus : undefined}
             onEta={myScope.canSetRepairEta ? setRepairEta : undefined}
-            sewing={<SewingNow jobs={allJobs} machines={machines} now={now} onOpen={setOpenId} actions={myScope.canSew ? sewActions : undefined} />}
+            sewing={<SewingNow jobs={allJobs} machines={machines} now={now} onOpen={setOpenId} actions={myScope.canSew ? sewActions : undefined}
+              needs={needs} shared={shared} bookings={bookings} />}
             booking={<BookingPanel jobs={allJobs} machines={machines} bookings={bookings} needs={needs} now={now} onOpen={setOpenId}
               onBook={myScope.canBook ? book : undefined} onCancel={myScope.canBook ? cancelBook : undefined} />} />
         </ErrorBoundary>

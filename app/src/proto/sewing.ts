@@ -434,3 +434,33 @@ export function applyFinishSewing(jobs: Job[], machines: Machine[], bookings: Bo
       .map(b => (b.jobId === id && b.starts < now && b.ends > now ? { ...b, ends: now } : b)),
   }
 }
+
+// ---------- จัดจักร (เพิ่ม / คืน) ระหว่างเย็บ · ตรงกับ public.assign_machines / release_machines ----------
+// คำนวณล่วงหน้าเพื่อปิดปุ่มพร้อมบอกเหตุผล · ฐานข้อมูลตรวจซ้ำเสมอ
+export type AdjustMine = { machine: Machine; blocked?: string }
+export type AdjustFree = { machine: Machine; blocked?: string }
+export function machineAdjust(job: Job, machines: Machine[], needs: Need[], shared: readonly MachineType[], bookings: Booking[], now: Date,
+  jobNo: (id: string) => string = () => 'งานอื่น'):
+  { mine: AdjustMine[]; free: AdjustFree[] } {
+  const byCode = (a: Machine, b: Machine) => a.code.localeCompare(b.code)
+  const mineList = machines.filter(m => m.jobId === job.id).sort(byCode)
+  const mine = mineList.map(machine => {
+    const need = needs.find(n => n.type === machine.type)?.qty ?? 0
+    const have = mineList.filter(m => m.type === machine.type).length
+    // กำลังเย็บ = ต้องเหลือครบชุด · พักอยู่คืนได้หมด (กดเย็บต่อแล้วระบบจ่ายที่ขาดให้)
+    const blocked = job.status === 'doing' && have - 1 < need
+      ? `ต้องเหลือ${MACHINE_TYPE_NAME[machine.type]}อย่างน้อย ${need} ตัวระหว่างเย็บ · จะหยุดให้รายงานปัญหาและพักงานก่อน`
+      : undefined
+    return { machine, blocked }
+  })
+  const free = machines
+    // จักรผูกกับสเปกที่ลูกค้าสั่ง ไม่ใช่ชนิดสินค้า (เจ้าของ 18 พ.ย.) → เสนอจักรประจำไลน์ทุกชนิดที่ว่าง ไม่จำกัดตามสูตรสินค้า
+    // จักรใช้ร่วมทุกไลน์ใช้ได้อยู่แล้ว ไม่ต้องจ่าย (ฐานข้อมูลปฏิเสธ)
+    .filter(m => !m.jobId && m.status === 'ready' && !shared.includes(m.type))
+    .sort(byCode)
+    .map(machine => {
+      const b = bookedByOther(machine.id, now, new Date(now.getTime() + ONE_MINUTE), bookings, job.id)
+      return { machine, blocked: b ? `จองให้ ${jobNo(b.jobId)} อยู่` : undefined }
+    })
+  return { mine, free }
+}

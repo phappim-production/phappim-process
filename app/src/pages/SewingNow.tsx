@@ -3,13 +3,15 @@ import { Card, CardHeader, DueLabel, Pill } from '../components/ui'
 import { requiredThai } from '../components/forms'
 import { IconCheck, IconSewing } from '../components/icons'
 import { type Job } from '../proto/model'
-import { type Machine } from '../proto/sewing'
+import { MACHINE_TYPE_NAME, machineAdjust, type Booking, type Machine, type MachineType, type Need } from '../proto/sewing'
 
 type Result = { ok: true; text: string } | { ok: false; reason: string }
 export type SewActions = {
   report: (jobId: string, reason: string, pause: boolean) => Promise<Result>
   resume: (jobId: string) => Promise<Result>
   finish: (jobId: string) => Promise<Result>
+  assign: (jobId: string, codes: string[]) => Promise<Result>
+  release: (jobId: string, code: string) => Promise<Result>
 }
 
 const secondaryButton = 'min-h-12 rounded-xl border border-line px-4 font-semibold text-brand hover:bg-brand-soft'
@@ -17,12 +19,13 @@ const finishButton = 'inline-flex min-h-12 items-center justify-center gap-2 rou
 // งานที่พักอยู่มีปุ่มเดียวคือเย็บต่อ จึงต้องเด่นเป็นปุ่มหลัก
 const resumeButton = 'min-h-12 rounded-xl bg-info px-5 font-semibold text-white hover:opacity-90'
 
-export function SewingNow({ jobs, machines, now, onOpen, actions }: {
+export function SewingNow({ jobs, machines, now, onOpen, actions, needs = {}, shared = [], bookings = [] }: {
   jobs: Job[]; machines: Machine[]; now: Date; onOpen: (id: string) => void
   actions?: SewActions
+  needs?: Record<string, Need[]>; shared?: readonly MachineType[]; bookings?: Booking[]
 }) {
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
-  const [dialog, setDialog] = useState<{ type: 'report' | 'finish'; job: Job } | null>(null)
+  const [dialog, setDialog] = useState<{ type: 'report' | 'finish' | 'machines'; job: Job } | null>(null)
   const [error, setError] = useState('')
   // รอคำตอบจากฐานข้อมูล = ปิดปุ่มไว้ กันกดซ้ำตอนเน็ตช้า
   const [busy, setBusy] = useState(false)
@@ -30,7 +33,7 @@ export function SewingNow({ jobs, machines, now, onOpen, actions }: {
     .filter(j => j.station === 'sew' && (j.status === 'doing' || j.status === 'hold'))
     .sort((a, b) => Number(b.status === 'hold') - Number(a.status === 'hold') || a.due.getTime() - b.due.getTime())
 
-  function show(type: 'report' | 'finish', job: Job) {
+  function show(type: 'report' | 'finish' | 'machines', job: Job) {
     setError('')
     setDialog({ type, job })
   }
@@ -79,6 +82,7 @@ export function SewingNow({ jobs, machines, now, onOpen, actions }: {
                 </button>
                 {actions && (
                   <div className="flex flex-wrap gap-2">
+                    <button type="button" className={secondaryButton} onClick={() => show('machines', job)}>จัดจักร</button>
                     {held ? (
                       <button type="button" className={resumeButton} disabled={busy} onClick={async () => {
                         setBusy(true)
@@ -102,7 +106,16 @@ export function SewingNow({ jobs, machines, now, onOpen, actions }: {
         </ol>
       )}
 
-      {dialog && actions && (
+      {dialog?.type === 'machines' && actions && (
+        <Dialog title={`จัดจักร ${dialog.job.no}`} onClose={() => setDialog(null)}>
+          {/* ข้อมูลงานล่าสุด (อีกเครื่องอาจกดไปแล้ว) · งานออกจากเย็บแล้ว = ไม่มีอะไรให้จัด */}
+          <MachinePanel job={list.find(j => j.id === dialog.job.id)} machines={machines} now={now} bookings={bookings} shared={shared}
+            needs={needs[dialog.job.productCode ?? ''] ?? []} noOf={id => jobs.find(j => j.id === id)?.no ?? 'งานอื่น'}
+            actions={actions} onClose={() => setDialog(null)} />
+        </Dialog>
+      )}
+
+      {dialog && dialog.type !== 'machines' && actions && (
         <Dialog title={`${dialog.type === 'finish' ? 'ยืนยันเย็บเสร็จ' : 'รายงานปัญหา'} ${dialog.job.no}`} onClose={() => setDialog(null)}>
           {dialog.type === 'report' ? (
             <ReportForm error={error} busy={busy} onCancel={() => setDialog(null)}
@@ -122,6 +135,89 @@ export function SewingNow({ jobs, machines, now, onOpen, actions }: {
         </Dialog>
       )}
     </Card>
+  )
+}
+
+// จัดจักร: คืนทีละตัว · ติ๊กจักรว่างหลายตัวแล้วเพิ่มทีเดียว · หน้าต่างเปิดค้างไว้ให้จัดต่อได้
+function MachinePanel({ job, machines, needs, shared, bookings, now, noOf, actions, onClose }: {
+  job?: Job; machines: Machine[]; needs: Need[]; shared: readonly MachineType[]; bookings: Booking[]; now: Date
+  noOf: (id: string) => string; actions: SewActions; onClose: () => void
+}) {
+  const [picked, setPicked] = useState<string[]>([])
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  if (!job) {
+    return (
+      <div className="mt-3 grid gap-3">
+        <p role="status">งานนี้ไม่ได้อยู่ระหว่างเย็บแล้ว (อาจมีคนกดเย็บเสร็จไปแล้ว)</p>
+        <button type="button" className={secondaryButton} onClick={onClose}>ปิด</button>
+      </div>
+    )
+  }
+  const current = job
+  const { mine, free } = machineAdjust(current, machines, needs, shared, bookings, now, noOf)
+  const open = new Set(free.filter(f => !f.blocked).map(f => f.machine.code))
+  // จักรที่อีกเครื่องเอาไปแล้วระหว่างเปิดหน้าต่าง ไม่ส่งไปด้วย
+  const chosen = picked.filter(code => open.has(code))
+
+  async function run(pending: Promise<Result>, done?: () => void) {
+    setBusy(true)
+    setMsg(null)
+    const r = await pending
+    setBusy(false)
+    setMsg(r.ok ? { ok: true, text: r.text } : { ok: false, text: r.reason })
+    if (r.ok) done?.()
+  }
+
+  return (
+    <div className="mt-3 grid gap-4">
+      {msg && (
+        <p role={msg.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${msg.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>
+          {msg.text}
+        </p>
+      )}
+      <section className="grid gap-2">
+        <h4 className="font-bold">จักรของงานนี้ {mine.length} ตัว</h4>
+        {mine.length === 0 && <p className="text-muted">ยังไม่มีจักรประจำไลน์ (งานพักอยู่ กด "เย็บต่อ" แล้วระบบจ่ายให้ครบชุด)</p>}
+        <ul className="grid gap-2">
+          {mine.map(({ machine: m, blocked }) => (
+            <li key={m.code} className="grid gap-1 rounded-xl border border-line px-3 py-2">
+              <div className="flex items-center gap-3">
+                <span className="min-w-0 flex-1"><b>{m.code}</b> <span className="text-muted">{MACHINE_TYPE_NAME[m.type]}</span></span>
+                <button type="button" className={`${secondaryButton} disabled:opacity-50`} disabled={busy || !!blocked}
+                  onClick={() => void run(actions.release(current.id, m.code))}>คืน</button>
+              </div>
+              {blocked && <span className="text-sm text-muted">{blocked}</span>}
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section className="grid gap-2">
+        <h4 className="font-bold">เพิ่มจักรที่ว่าง</h4>
+        {free.length === 0 ? <p className="text-muted">ตอนนี้ไม่มีจักรว่าง</p> : (
+          <ul className="grid gap-2">
+            {free.map(({ machine: m, blocked }) => (
+              <li key={m.code}>
+                <label className={`flex min-h-12 items-center gap-3 rounded-xl border border-line px-3 py-1 ${blocked ? 'text-muted' : ''}`}>
+                  <input type="checkbox" className="size-5 shrink-0 accent-brand" disabled={busy || !!blocked} checked={chosen.includes(m.code)}
+                    onChange={e => { const on = e.target.checked; setPicked(p => on ? [...p, m.code] : p.filter(c => c !== m.code)) }} />
+                  <span className="min-w-0 flex-1">
+                    <b>{m.code}</b> {MACHINE_TYPE_NAME[m.type]}
+                    {blocked && <span className="block text-sm">{blocked}</span>}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+        <button type="button" disabled={busy || chosen.length === 0}
+          className="min-h-12 rounded-xl bg-brand px-4 font-semibold text-white disabled:opacity-60"
+          onClick={() => void run(actions.assign(current.id, chosen), () => setPicked([]))}>
+          {busy ? 'กำลังบันทึก…' : chosen.length ? `เพิ่มจักร ${chosen.length} ตัว` : 'ติ๊กเลือกจักรที่จะเพิ่มก่อน'}
+        </button>
+      </section>
+      <button type="button" className={secondaryButton} onClick={onClose}>ปิด</button>
+    </div>
   )
 }
 
