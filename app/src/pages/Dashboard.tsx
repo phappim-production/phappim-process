@@ -25,6 +25,7 @@ import { ReceiveJob } from './ReceiveJob'
 import { ConfirmationOutbox } from './ConfirmationOutbox'
 import { JobHistory } from './JobHistory'
 import type { EmployeeRole } from '../auth/access'
+import type { OverviewView } from '../auth/menus'
 import { IconInbox } from '../components/icons'
 
 type Filter = 'all' | 'overdue' | 'hold' | 'film' | 'doneToday'
@@ -35,7 +36,9 @@ const STATUS_FILTERS: [Filter, string][] = [
 ]
 const filterField = 'min-h-12 w-full min-w-0 rounded-xl border border-line bg-card px-3 focus-visible:outline-2 focus-visible:outline-brand'
 
-export default function Dashboard({ view, today, role, scope = FACTORY_SCOPE }: { view: View; today: string; role: EmployeeRole; scope?: BoardScope }) {
+export default function Dashboard({ view, routeKey, tab, overviewView, today, role, scope = FACTORY_SCOPE }: {
+  view: View; routeKey?: string; tab?: DashTab; overviewView?: OverviewView; today: string; role: EmployeeRole; scope?: BoardScope
+}) {
   const { state, live, refresh } = useFactoryData()
   if (state.status === 'loading') {
     return <main className="flex-1 p-5"><p role="status" className="text-muted">กำลังโหลดข้อมูลงาน…</p></main>
@@ -58,13 +61,13 @@ export default function Dashboard({ view, today, role, scope = FACTORY_SCOPE }: 
           ขาดการเชื่อมต่อ · ข้อมูลอาจไม่ใช่ล่าสุด (อัปเดตล่าสุด {state.loadedAt.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })} น.) · ระบบจะโหลดใหม่เองเมื่อเน็ตกลับมา
         </p>
       )}
-      <DashboardView view={view} today={today} role={role} myScope={scope} data={state.data} loadedAt={state.loadedAt} refresh={refresh} />
+      <DashboardView key={routeKey} view={view} startTab={tab} overviewView={overviewView} today={today} role={role} myScope={scope} data={state.data} loadedAt={state.loadedAt} refresh={refresh} />
     </>
   )
 }
 
-function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: {
-  view: View; today: string; role: EmployeeRole; myScope: BoardScope; data: FactoryData; loadedAt: Date; refresh: () => Promise<void>
+function DashboardView({ view, startTab, overviewView, today, role, myScope, data, loadedAt, refresh }: {
+  view: View; startTab?: DashTab; overviewView?: OverviewView; today: string; role: EmployeeRole; myScope: BoardScope; data: FactoryData; loadedAt: Date; refresh: () => Promise<void>
 }) {
   // แอดมินส่งงานเข้าโรงงาน · owner ทำแทนได้ · ฐานข้อมูลตรวจซ้ำ
   const canReceive = role === 'admin' || role === 'owner'
@@ -143,7 +146,8 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
   // คนหน้างานเห็นเฉพาะงานของตัวเองก่อน · กดดูทั้งโรงงานได้เมื่ออยากรู้ว่างานกำลังจะมาถึง
   const [wholeFactory, setWholeFactory] = useState(false)
   // ลิงก์ #/board?station=… ตอนเปิดหน้าครั้งแรก → เปิดแท็บบอร์ด ไม่ใช่แท็บแรกของบทบาท
-  const [tab, setTab] = useState<DashTab>(() => stationFromHash() && myScope.tabs.includes('board') ? 'board' : myScope.tabs[0])
+  const [tab, setTab] = useState<DashTab>(() => stationFromHash() && myScope.tabs.includes('board') ? 'board'
+    : startTab && myScope.tabs.includes(startTab) ? startTab : myScope.tabs[0])
   const [sewFocus, setSewFocus] = useState<{ view?: SewingView; n: number }>({ n: 0 })
   const activeTab = myScope.tabs.includes(tab) ? tab : myScope.tabs[0]
   const scoped = myScope.columns !== null
@@ -285,7 +289,7 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
           <PageHeader title="ภาพรวมการผลิต" today={today} updated={loadedAt} />
           {linkNotice}
           {receiveBar}
-          <Overview jobs={jobs} now={now} forecast={forecast} floor={floor} products={products} onOpen={setOpenId} />
+          <Overview initialView={overviewView} jobs={jobs} now={now} forecast={forecast} floor={floor} products={products} onOpen={setOpenId} />
         </div>
         {drawer}
         {receive}

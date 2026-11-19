@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { OverviewView } from '../auth/menus'
 import { DEFAULT_SEW_PRODUCT, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, hasSewMinutes, lateDays, lineRate, linesFor, machineSets, simulate, verdict, workdayToDate, type Forecast, type SewFloor } from '../proto/capacity'
 import { MACHINE_TYPE_NAME } from '../proto/sewing'
 import { ROUTES, STATION_NAME, WORK_END, byQueue, isOutLate, stationCounts, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
@@ -20,8 +21,8 @@ const OVERVIEW_VIEWS = [
   ['plan', 'วางแผนรับ'],
 ] as const
 
-export default function Overview({ jobs, now, forecast, floor, products, onOpen }: Props) {
-  const [view, setView] = useState<(typeof OVERVIEW_VIEWS)[number][0]>('follow')
+export default function Overview({ initialView = 'follow', jobs, now, forecast, floor, products, onOpen }: Props & { initialView?: OverviewView }) {
+  const [view, setView] = useState<OverviewView>(initialView)
   const rows: Row[] = useMemo(() => jobs.filter(j => j.phase !== 'done').map(j => {
     const finish = workdayToDate(forecast.finishDay.get(j.id) ?? 0, now)
     return { job: j, finish, late: lateDays(finish, j.due) }
