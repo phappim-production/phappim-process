@@ -178,6 +178,10 @@ await flowR5Tests({ db, ok, as })
 const { flowR6Tests } = await import('./flow-r6.mjs')
 await flowR6Tests({ db, ok, as })
 
+// ---- เดินงานครบทุกเส้นทางด้วยค่าตั้งค่าเดียวกับระบบจริง (ธุรกรรมเดียว · rollback ตอนจบ) ----
+const { flowRouteTests } = await import('./flow-routes.mjs')
+await flowRouteTests({ db, ok })
+
 // ---- สคริปต์ล้างข้อมูลก่อนเปิดใช้ (ต้องอยู่ท้ายสุด: commit จริงและลบงาน TEST- ทั้งหมด) ----
 const { goliveCleanupTests } = await import('./golive-cleanup.mjs')
 await goliveCleanupTests({ db, ok })

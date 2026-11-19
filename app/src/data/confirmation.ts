@@ -127,3 +127,10 @@ export function pdfProblem(file: { name: string; size: number; type: string } | 
   if (file.size > MAX_PDF_BYTES) return `ไฟล์ใหญ่ ${(file.size / 1024 / 1024).toFixed(1)} MB เกิน 20 MB ให้ย่อไฟล์ก่อน หรือใช้ PDF ที่ฟอร์มสร้าง`
   return null
 }
+
+// สินค้าที่ยังไม่มีสูตรจักร + เส้นทางผ่านเย็บ = ฝ่ายผลิตกดเริ่มเย็บไม่ได้ (ฐานข้อมูลปฏิเสธ) งานค้างที่เย็บ
+// เตือนแอดมินก่อนส่งงานเข้า (ตรวจก่อนทดลองจริง 19 พ.ย.: หมวก หมอน เหรียญ โล่ กระจูด พรีเมียม งานบริการ ยังไม่มีสูตร)
+export function sewRecipeProblem(route: RouteCode, recipe: readonly unknown[]): string | null {
+  if (!ROUTES[route].stations.includes('sew') || recipe.length > 0) return null
+  return 'สินค้านี้ยังไม่มีข้อมูลจักรเย็บ ถ้าเลือกเส้นทางที่ผ่านเย็บ ฝ่ายผลิตจะกดเริ่มเย็บไม่ได้ · ถ้าไม่ต้องเย็บให้เลือก "ตัดงานลูกค้า" · ถ้าต้องเย็บให้เจ้าของระบบใส่จักรของสินค้านี้ที่ ตั้งค่า ก่อน'
+}
