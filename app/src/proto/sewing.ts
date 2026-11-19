@@ -434,3 +434,51 @@ export function applyFinishSewing(jobs: Job[], machines: Machine[], bookings: Bo
       .map(b => (b.jobId === id && b.starts < now && b.ends > now ? { ...b, ends: now } : b)),
   }
 }
+
+// ---------- จัดจักรแบบตั้งจำนวน (ปุ่ม − / +) · ตรงกับ public.set_job_machines ----------
+// หน้างานคิดเป็นจำนวน "งานนี้ใช้ 4 ตัว" ไม่เลือกรหัส · คำนวณล่วงหน้าเพื่อปิดปุ่มพร้อมบอกเหตุผล (ฐานข้อมูลตรวจซ้ำ)
+export type MachineCountRow = {
+  type: MachineType
+  have: number          // จักรชนิดนี้ที่งานถืออยู่
+  codes: string[]       // รหัสที่ถืออยู่ (ไว้ดูตอนแจ้งเสีย ไม่ต้องกดเลือก)
+  need: number          // ที่สินค้าต้องใช้ (ขั้นต่ำตอนกำลังเย็บ)
+  free: number          // ตัวว่างที่หยิบได้ตอนนี้
+  base: boolean         // ชนิดที่สินค้าต้องใช้ หรือที่งานถืออยู่ (แสดงก่อน) · ที่เหลือ = ชนิดอื่นที่สเปกลูกค้าอาจต้องใช้
+  minusBlocked?: string
+  plusBlocked?: string
+}
+export function machineCounts(job: Job, machines: Machine[], needs: Need[], shared: readonly MachineType[], bookings: Booking[], now: Date): MachineCountRow[] {
+  const soon = new Date(now.getTime() + ONE_MINUTE)
+  const doing = job.status === 'doing'
+  // จักรใช้ร่วมทุกไลน์ใช้ได้อยู่แล้ว ไม่ต้องจ่าย · แสดงเฉพาะชนิดที่มีจักรในโรงงาน
+  const types = MACHINE_TYPES.filter(t => !shared.includes(t) && machines.some(m => m.type === t))
+  return types.map(type => {
+    const name = MACHINE_TYPE_NAME[type]
+    const ofType = machines.filter(m => m.type === type)
+    const mine = ofType.filter(m => m.jobId === job.id)
+    const need = needs.find(n => n.type === type)?.qty ?? 0
+    const others = ofType.filter(m => m.jobId !== job.id)
+    const booked = others.filter(m => machineState(m) === 'free' && bookedByOther(m.id, now, soon, bookings, job.id))
+    const free = others.filter(m => machineState(m) === 'free').length - booked.length
+    const busy = others.filter(m => machineState(m) === 'busy').length
+    const down = others.filter(m => m.status !== 'ready').length
+    const min = doing ? need : 0
+    const why = [busy && `ใช้กับงานอื่น ${busy}`, down && `เสีย/ปิด ${down}`, booked.length && `จองไว้ ${booked.length}`].filter(Boolean).join(' · ')
+    return {
+      type, have: mine.length, codes: mine.map(m => m.code).sort(), need, free,
+      base: need > 0 || mine.length > 0,
+      minusBlocked: mine.length === 0 ? 'ยังไม่มีจักรชนิดนี้'
+        : mine.length <= min ? `ระหว่างเย็บต้องมี${name}อย่างน้อย ${min} ตัว · จะหยุดให้รายงานปัญหาและพักงานก่อน` : undefined,
+      plusBlocked: free > 0 ? undefined : `ไม่มี${name}ว่าง${why ? ` (${why})` : ''}`,
+    }
+  })
+}
+
+// จักรตัวนี้เสีย/ปิด แล้วงานที่ใช้อยู่ต้องพักไหม (ตรงกับ public.set_machine_status · 20261120100000)
+// พักเฉพาะงานที่กำลังเย็บและจักรที่เหลือไม่ครบชุดของสินค้า · ยังครบ = เอาตัวนี้ออก งานเย็บต่อ
+export function pausesJob(machine: Machine, machines: Machine[], job: Job | undefined, needsMap: Record<string, Need[]>): boolean {
+  if (!job || job.status !== 'doing' || machine.jobId !== job.id) return false
+  const need = ((job.productCode && needsMap[job.productCode]) || []).find(n => n.type === machine.type)?.qty ?? 0
+  const left = machines.filter(m => m.jobId === job.id && m.type === machine.type && m.code !== machine.code).length
+  return left < need
+}

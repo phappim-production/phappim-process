@@ -15,7 +15,7 @@ import { roleSummary, type SewingView, type SummaryIcon } from '../proto/summary
 import Overview from './Overview'
 import { DASH_TAB_NAME, FACTORY_SCOPE, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
 import { SewingFloor, TodoPanel } from './WorkPanels'
-import type { MachineStatus } from '../proto/sewing'
+import { MACHINE_TYPE_NAME, pausesJob, type MachineStatus, type MachineType } from '../proto/sewing'
 import { BookingPanel } from './BookingPanel'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { SewingNow, type SewActions } from './SewingNow'
@@ -81,9 +81,21 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     if (r.ok) await refresh()
     return r
   }
-  const startSewing = async (jobId: string) => {
-    const r = await call<string[]>('start_sewing', { p_job: jobId })
-    return r.ok ? { ok: true as const, picked: r.data ?? [] } : r
+  // เริ่มเย็บได้ชุดตามสินค้าก่อน แล้วค่อยเพิ่มจำนวนที่เลือก (2 คำสั่ง) · เพิ่มไม่ได้ = งานเริ่มแล้ว บอกให้กด + ในจัดจักร
+  const startSewing = async (jobId: string, counts: Partial<Record<MachineType, number>> = {}) => {
+    const r = await rpc<string[]>('start_sewing', { p_job: jobId })
+    if (!r.ok) return r
+    const picked = [...(r.data ?? [])]
+    const problems: string[] = []
+    for (const [type, qty] of Object.entries(counts) as [MachineType, number][]) {
+      const have = picked.filter(code => machines.find(m => m.code === code)?.type === type).length
+      if (qty <= have) continue
+      const more = await rpc<string[]>('set_job_machines', { p_job: jobId, p_type: type, p_qty: qty })
+      if (more.ok) picked.push(...(more.data ?? []))
+      else problems.push(`เพิ่ม${MACHINE_TYPE_NAME[type]}ไม่ได้: ${more.reason} · กด "จัดจักร" เพื่อเพิ่มทีหลัง`)
+    }
+    await refresh()
+    return { ok: true as const, picked: picked.sort(), warning: problems.join(' · ') || undefined }
   }
   const book = async (jobId: string, starts: Date, ends: Date) => {
     const r = await call<string[]>('book_machines', { p_job: jobId, p_starts: starts.toISOString(), p_ends: ends.toISOString() })
@@ -94,9 +106,10 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
     return r.ok ? { ok: true as const } : r
   }
   const setMachineStatus = async (code: string, status: MachineStatus, note: string, repairEta?: Date) => {
-    // งานที่จะถูกพักอัตโนมัติ (จักรเสียระหว่างเย็บ) · รู้ก่อนกดจากข้อมูลบนจอ
+    // งานที่จะถูกพักอัตโนมัติ (จักรเสียแล้วเหลือไม่ครบชุด) · รู้ก่อนกดจากข้อมูลบนจอ
     const m = machines.find(x => x.code === code)
-    const held = status !== 'ready' && m?.jobId ? allJobs.find(j => j.id === m.jobId && j.status === 'doing')?.no : undefined
+    const job = m?.jobId ? allJobs.find(j => j.id === m.jobId) : undefined
+    const held = status !== 'ready' && m && pausesJob(m, machines, job, needs) ? job?.no : undefined
     const r = await call('set_machine_status', {
       p_machine_code: code, p_status: status, p_note: note.trim() || null, p_repair_eta: repairEta?.toISOString() ?? null,
     })
@@ -120,6 +133,13 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
       const r = await call('finish_sewing', { p_job: jobId })
       if (!r.ok) return r
       return { ok: true, text: `${noOf(jobId)} เย็บเสร็จ ส่งต่อ QC + Packing แล้ว · คืนจักร ${released.length} ตัว${released.length ? `: ${released.join(', ')}` : ''}` }
+    },
+    setCount: async (jobId, type, qty) => {
+      const before = machines.filter(m => m.jobId === jobId && m.type === type).length
+      const r = await call<string[]>('set_job_machines', { p_job: jobId, p_type: type, p_qty: qty })
+      if (!r.ok) return r
+      const codes = (r.data ?? []).join(', ')
+      return { ok: true, text: `${MACHINE_TYPE_NAME[type]} ${qty} ตัว · ${qty > before ? `เพิ่ม ${codes}` : `คืน ${codes} ให้งานอื่นใช้`}` }
     },
   }
   // คนหน้างานเห็นเฉพาะงานของตัวเองก่อน · กดดูทั้งโรงงานได้เมื่ออยากรู้ว่างานกำลังจะมาถึง
@@ -306,10 +326,11 @@ function DashboardView({ view, today, role, myScope, data, loadedAt, refresh }: 
       )}
       {activeTab === 'sewing' ? (
         <ErrorBoundary key="sewing">
-          <SewingFloor key={sewFocus.n} initialView={sewFocus.view} jobs={allJobs} machines={machines} bookings={bookings} needs={needs} now={now} onOpen={setOpenId}
+          <SewingFloor key={sewFocus.n} initialView={sewFocus.view} jobs={allJobs} machines={machines} bookings={bookings} needs={needs} shared={shared} now={now} onOpen={setOpenId}
             onStart={myScope.canSew ? startSewing : undefined} onStatus={myScope.canReportMachines ? setMachineStatus : undefined}
             onEta={myScope.canSetRepairEta ? setRepairEta : undefined}
-            sewing={<SewingNow jobs={allJobs} machines={machines} now={now} onOpen={setOpenId} actions={myScope.canSew ? sewActions : undefined} />}
+            sewing={<SewingNow jobs={allJobs} machines={machines} now={now} onOpen={setOpenId} actions={myScope.canSew ? sewActions : undefined}
+              needs={needs} shared={shared} bookings={bookings} />}
             booking={<BookingPanel jobs={allJobs} machines={machines} bookings={bookings} needs={needs} now={now} onOpen={setOpenId}
               onBook={myScope.canBook ? book : undefined} onCancel={myScope.canBook ? cancelBook : undefined} />} />
         </ErrorBoundary>
