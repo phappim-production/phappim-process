@@ -4,6 +4,7 @@ import { spaced } from '../proto/format'
 import { DueLabel, MockupThumb, Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconAlert, IconCheck, IconChevronRight } from '../components/icons'
+import { scrollToDelayReport } from './delayReport'
 import { canCloseIssue, type EmployeeRole } from '../auth/access'
 import { TONE } from '../components/tone'
 
@@ -194,7 +195,9 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
     </div>
   ) : (
     <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
-      <button type="button" disabled={busy} className={okBtn} onClick={() => setMode('finish')}><IconCheck className="size-5" />{name}เสร็จ</button>
+      {j.sla === 'report'
+        ? <button type="button" disabled={busy} className={dangerBtn} onClick={() => { onOpen(); scrollToDelayReport() }}><IconAlert className="size-5" />เกินเวลา · ส่งรายงานปัญหาก่อนกดเสร็จ</button>
+        : <button type="button" disabled={busy} className={okBtn} onClick={() => setMode('finish')}><IconCheck className="size-5" />{name}เสร็จ</button>}
       <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('hold')}>พักงาน</button>
     </div>
   )

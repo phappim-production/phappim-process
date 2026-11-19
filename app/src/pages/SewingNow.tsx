@@ -6,6 +6,7 @@ import { type Job } from '../proto/model'
 import { type Booking, type Machine, type MachineType, type Need } from '../proto/sewing'
 import { pickGroups, type PickTile } from '../proto/machinePick'
 import { MachinePicker } from '../components/MachinePicker'
+import { scrollToDelayReport } from './delayReport'
 
 type Result = { ok: true; text: string } | { ok: false; reason: string }
 export type SewActions = {
@@ -17,6 +18,7 @@ export type SewActions = {
 }
 
 const secondaryButton = 'min-h-12 rounded-xl border border-line px-4 font-semibold text-brand hover:bg-brand-soft'
+const reportButton = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-danger/40 bg-card px-4 font-semibold text-danger hover:bg-danger-soft'
 const finishButton = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-ok px-4 font-semibold text-white hover:opacity-90'
 // งานที่พักอยู่มีปุ่มเดียวคือเย็บต่อ จึงต้องเด่นเป็นปุ่มหลัก
 const resumeButton = 'min-h-12 rounded-xl bg-info px-5 font-semibold text-white hover:opacity-90'
@@ -98,9 +100,11 @@ export function SewingNow({ jobs, machines, now, onOpen, actions, needs = {}, sh
                     ) : (
                       <>
                         <button type="button" className={secondaryButton} onClick={() => show('report', job)}>รายงานปัญหา</button>
-                        <button type="button" className={finishButton} onClick={() => show('finish', job)}>
-                          <IconCheck className="size-5" />เย็บเสร็จ
-                        </button>
+                        {job.sla === 'report'
+                          ? <button type="button" className={reportButton} onClick={() => { onOpen(job.id); scrollToDelayReport() }}>เกินเวลา · ส่งรายงานปัญหาก่อนกดเย็บเสร็จ</button>
+                          : <button type="button" className={finishButton} onClick={() => show('finish', job)}>
+                              <IconCheck className="size-5" />เย็บเสร็จ
+                            </button>}
                       </>
                     )}
                   </div>

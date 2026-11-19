@@ -86,6 +86,14 @@ describe('ปุ่มบนหน้าจอ', () => {
     jobs: [job('a', { status })], machines, now, onOpen: () => {}, actions: a,
   }))
 
+  it('เย็บเกินเวลามาตรฐานยังไม่รายงาน: ปุ่มเย็บเสร็จเปลี่ยนเป็นส่งรายงานปัญหา', () => {
+    const html = renderToStaticMarkup(createElement(SewingNow, {
+      jobs: [job('a', { status: 'doing', sla: 'report' })], machines, now, onOpen: () => {}, actions,
+    }))
+    expect(html).toContain('ส่งรายงานปัญหาก่อนกดเย็บเสร็จ')
+    expect(html).not.toContain('>เย็บเสร็จ<')
+  })
+
   it('ฝ่ายผลิตเห็นปุ่มจัดการจักรทั้งงานที่กำลังเย็บและงานพัก · ดูอย่างเดียวไม่เห็น', () => {
     expect(sewing(actions)).toContain('จัดการจักร')
     expect(sewing(actions, 'hold')).toContain('จัดการจักร')
