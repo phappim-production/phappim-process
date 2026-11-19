@@ -1,0 +1,19 @@
+import { describe, expect, it } from 'vitest'
+import { eventLine, type EventRow, type Names } from './history'
+
+const names: Names = { station: c => c, step: (_s, k) => k }
+const ev = (payload: Record<string, unknown>): EventRow =>
+  ({ id: 1, type: 'machines_released', phase: 'production', station_code: 'sew', payload, by: null, at: '2026-11-19T03:00:00Z' })
+
+describe('ไทม์ไลน์: คืนจักร', () => {
+  it('คืนเพราะจักรเสีย = บอกสาเหตุและอาการ (QA รอบ 7 บั๊ก #1)', () => {
+    expect(eventLine(ev({ machines: ['SN-013'], reason: 'จักรเสีย', note: 'เข็มหัก' }), names))
+      .toEqual({ title: 'คืนจักร', detail: 'SN-013 · จักรเสีย (เข็มหัก)', tone: 'warn' })
+  })
+  it('ปิดใช้งานโดยไม่มีหมายเหตุ = บอกสาเหตุ', () => {
+    expect(eventLine(ev({ machines: ['SN-013'], reason: 'ปิดใช้งาน' }), names).detail).toBe('SN-013 · ปิดใช้งาน')
+  })
+  it('คืนด้วยปุ่ม − / เย็บเสร็จ = แสดงรหัสอย่างเดียว', () => {
+    expect(eventLine(ev({ machines: ['SN-013', 'SN-014'] }), names)).toEqual({ title: 'คืนจักร', detail: 'SN-013, SN-014', tone: 'neutral' })
+  })
+})

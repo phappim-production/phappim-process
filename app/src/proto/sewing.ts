@@ -482,3 +482,15 @@ export function pausesJob(machine: Machine, machines: Machine[], job: Job | unde
   const left = machines.filter(m => m.jobId === job.id && m.type === machine.type && m.code !== machine.code).length
   return left < need
 }
+
+// เหตุผลที่เริ่มเย็บไม่ได้บนการ์ดรอเย็บ: สรุปเป็นจำนวน ไม่ไล่รหัสทุกตัว (QA รอบ 7: จักร 14 ตัวไม่ว่าง = การ์ดสูงเต็มจอมือถือ)
+// จักรเสีย/ปิดยังบอกรหัส เพราะคนหน้างานต้องรู้ว่าตัวไหนรอซ่อม
+export function blockerSummary(blockers: Blocker[]): string {
+  const count = (s: Blocker['state']) => blockers.filter(b => b.state === s).length
+  const down = blockers.filter(b => b.state === 'broken' || b.state === 'off').map(b => `${b.code} ${b.state === 'broken' ? 'เสีย' : 'ปิด'}`)
+  return [
+    count('busy') && `ใช้กับงานอื่น ${count('busy')} ตัว`,
+    count('booked') && `จองไว้ให้งานอื่น ${count('booked')} ตัว`,
+    down.length > 0 && down.join(', '),
+  ].filter(Boolean).join(' · ')
+}
