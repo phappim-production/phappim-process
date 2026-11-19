@@ -1,8 +1,8 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import { Card, CardHeader, DueLabel, MockupThumb, Pill, RouteBadge, ViewSwitch } from '../components/ui'
 import { TONE } from '../components/tone'
 import { IconClipboard, IconClock, IconSewing } from '../components/icons'
-import { WORK_END, WORK_START, byQueue, type Job } from '../proto/model'
+import { WORK_END, WORK_START, byQueue, waitingAt, type Job } from '../proto/model'
 import { todoList } from '../proto/actions'
 import { defaultPick, pickGroups, pickProblems } from '../proto/machinePick'
 import { MachinePicker } from '../components/MachinePicker'
@@ -63,7 +63,7 @@ export type SewingView = (typeof SEWING_VIEWS)[number][0] | 'machines'
 
 type StartResult = { ok: true; picked: string[]; warning?: string } | { ok: false; reason: string }
 
-export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen, onStart, onStatus, onEta, booking, sewing, initialView, shared = [] }: {
+export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen, onStart, onStatus, onEta, booking, sewing, initialView, initialPick, initialPickNoted, onSkip, shared = [] }: {
   jobs: Job[]; machines: Machine[]; bookings?: Booking[]; needs: Record<string, Need[]>; now: Date; onOpen: (id: string) => void
   booking?: ReactNode
   sewing?: ReactNode
@@ -72,6 +72,9 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
   onStatus?: OnStatus
   onEta?: OnEta
   initialView?: SewingView
+  initialPick?: string
+  initialPickNoted?: boolean
+  onSkip?: (jobId: string, reason: string) => Promise<{ ok: true } | { ok: false; reason: string }>
 }) {
   const [view, setView] = useState<'work' | 'booking'>(() => initialView === 'booking' ? 'booking' : 'work')
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
@@ -81,12 +84,25 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
   const startable = queue.filter(q => q.check.ok).length
 
   const [starting, setStarting] = useState<string | null>(null)
-  const [picking, setPicking] = useState<{ jobId: string; codes: string[] } | null>(null)
   const groupsOf = (job: Job) => pickGroups(job, machines, (job.productCode && needs[job.productCode]) || [], shared, bookings, now)
+  const [picking, setPicking] = useState<{ jobId: string; codes: string[]; reason: string; noted: boolean } | null>(() => {
+    const job = initialPick && onStart ? queue.find(q => q.job.id === initialPick && q.check.ok)?.job : undefined
+    return job ? { jobId: job.id, codes: defaultPick(groupsOf(job)), reason: '', noted: !!initialPickNoted } : null
+  })
+  // เหมือนสถานีอื่น: เริ่มงานที่ไม่ใช่คิวแรกต้องมีเหตุผล (บันทึกด้วย note_queue_skip ก่อนเริ่มเย็บ)
+  const firstInQueue = waitingAt(jobs, 'sew')[0]
+  useEffect(() => {
+    if (initialPick) document.getElementById(`sew-pick-${initialPick}`)?.scrollIntoView({ block: 'center' })
+  }, [initialPick])
   const noOf = (id?: string) => jobs.find(j => j.id === id)?.no ?? 'งานอื่น'
-  async function start(job: Job, codes: string[]) {
+  async function start(job: Job, codes: string[], skipReason?: string) {
     if (!onStart || starting) return
     setStarting(job.id)
+    if (skipReason) {
+      const noted = onSkip ? await onSkip(job.id, skipReason) : { ok: false as const, reason: 'บันทึกเหตุผลไม่ได้' }
+      if (!noted.ok) { setStarting(null); setNotice({ ok: false, text: `${job.no}: ${noted.reason}` }); return }
+      setPicking(p => p && { ...p, noted: true })
+    }
     const r = await onStart(job.id, codes)
     setStarting(null)
     if (r.ok) setPicking(null)
@@ -113,7 +129,7 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
             {queue.length > 0 && (
               <ol className="divide-y divide-line border-t border-line">
                 {queue.map(({ job, check }) => (
-                  <li key={job.id} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:flex-wrap sm:items-center">
+                  <li key={job.id} id={`sew-pick-${job.id}`} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:flex-wrap sm:items-center">
                     <button onClick={() => onOpen(job.id)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
                       <MockupThumb job={job} />
                       <span className="min-w-0 flex-1">
@@ -138,7 +154,7 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
                       </span>
                     </button>
                     {onStart && picking?.jobId !== job.id && (
-                      <button onClick={() => setPicking({ jobId: job.id, codes: defaultPick(groupsOf(job)) })} disabled={!check.ok || starting !== null}
+                      <button onClick={() => setPicking({ jobId: job.id, codes: defaultPick(groupsOf(job)), reason: '', noted: false })} disabled={!check.ok || starting !== null}
                         title={check.ok ? undefined : check.reason}
                         className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-line disabled:text-muted ">
                         <IconSewing className="size-5" />{check.ok ? 'เริ่มเย็บ' : 'จักรไม่ว่าง'}
@@ -146,14 +162,22 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
                     )}
                     {onStart && picking?.jobId === job.id && (() => {
                       const groups = groupsOf(job)
-                      const problems = pickProblems(groups, picking.codes, MACHINE_TYPE_NAME)
+                      const needReason = !!firstInQueue && firstInQueue.id !== job.id && !picking.noted
+                      const problems = [...pickProblems(groups, picking.codes, MACHINE_TYPE_NAME), ...(needReason && !picking.reason.trim() ? ['ใส่เหตุผลที่เริ่มก่อนคิว'] : [])]
                       return (
                         <div className="grid w-full gap-3 rounded-xl border border-brand/40 bg-brand-soft/40 p-3 sm:basis-full">
                           <p className="font-semibold">เลือกจักรที่จะนั่งเย็บงาน {job.no} · ระบบเลือกตัวว่างไว้ให้แล้ว กดเปลี่ยนได้</p>
+                          {needReason && (
+                            <label className="grid gap-1 rounded-xl bg-warn-soft p-3 font-semibold text-warn">
+                              งานนี้ยังไม่ถึงคิว (คิวแรกคือ {firstInQueue.no}) · ใส่เหตุผลที่ต้องเริ่มก่อน
+                              <input value={picking.reason} onChange={e => setPicking(p => p && ({ ...p, reason: e.target.value }))}
+                                placeholder="เช่น ผ้างานคิวแรกยังไม่มา" className="min-h-12 rounded-xl border border-line bg-card px-3 font-normal text-ink" />
+                            </label>
+                          )}
                           <MachinePicker groups={groups} picked={picking.codes} jobNo={noOf} shared={shared} disabled={starting !== null}
                             onToggle={code => setPicking(p => p && ({ ...p, codes: p.codes.includes(code) ? p.codes.filter(c => c !== code) : [...p.codes, code] }))} />
                           <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
-                            <button type="button" disabled={problems.length > 0 || starting !== null} onClick={() => void start(job, picking.codes)}
+                            <button type="button" disabled={problems.length > 0 || starting !== null} onClick={() => void start(job, picking.codes, needReason ? picking.reason.trim() : undefined)}
                               className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl bg-brand px-5 text-lg font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-line disabled:text-muted">
                               <IconSewing className="size-5" />
                               {starting === job.id ? 'กำลังเริ่ม…' : problems.length ? problems.join(' · ') : `เริ่มเย็บด้วย ${[...picking.codes].sort().join(' · ')}`}
