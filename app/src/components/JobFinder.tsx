@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ROUTES, STATION_NAME, STATUS_NAME, isFilmLate, isWaitingFilm, missingDepts, DEPT_NAME, type Job } from '../proto/model'
 import { lateDays, workdayToDate, type Forecast } from '../proto/capacity'
 import { duration, shortDate, stageSteps, stageText } from '../proto/format'
-import { DueLabel, Pill, RouteBadge } from './ui'
+import { DueLabel, MockupThumb, Pill, RouteBadge } from './ui'
 import { IconAlert, IconCheck, IconChevronRight, IconClock, IconFilm, IconSearch, IconX } from './icons'
 
 type Props = { jobs: Job[]; now: Date; forecast: Forecast; onOpen: (id: string) => void }
@@ -63,6 +63,7 @@ export default function JobFinder({ jobs, now, forecast, onOpen }: Props) {
               <li key={j.id}>
                 <button onMouseDown={e => e.preventDefault()} onClick={() => pick(j)}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-brand-soft/50">
+                  <MockupThumb job={j} />
                   <span className="shrink-0 font-semibold whitespace-nowrap">{j.no}</span>
                   <span className="min-w-0 flex-1 truncate text-muted">{j.customer} · {j.product}</span>
                   <span className="hidden truncate text-xs sm:block">{stageText(j)}</span>
@@ -112,6 +113,7 @@ function JobStatus({ job: j, now, forecast, onOpen }: { job: Job; now: Date; for
     <div className="animate-fade border-t border-line">
       {/* หัว: งานไหน + อยู่ตรงไหน */}
       <div className="flex flex-wrap items-start gap-4 p-4 sm:p-5">
+        <MockupThumb job={j} size="md" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-lg font-bold">{j.no}</span>

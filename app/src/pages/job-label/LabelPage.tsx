@@ -5,13 +5,14 @@ import { Card } from '../../components/ui'
 import { IconClipboard } from '../../components/icons'
 import { dueDate, thaiError, type JobRow } from '../../data/live'
 import { isJobId } from '../../data/useFactoryData'
+import { signMockups } from '../../data/mockups'
 import { supabase } from '../../lib/supabase'
 import { qrMatrix, qrSvgPath } from './qr'
 import { sampleText } from './sampleText'
 import './label.css'
 
 type LabelJob = Pick<JobRow, 'id' | 'confirmation_no' | 'customer_name' | 'job_name' | 'product_type_code' |
-  'qty' | 'unit' | 'due_date' | 'route_code' | 'needs_sample' | 'sample_round' | 'phase'>
+  'qty' | 'unit' | 'due_date' | 'route_code' | 'needs_sample' | 'sample_round' | 'phase' | 'mockup_path'>
 type Station = { seq: number; station_code: string }
 type Label = {
   job: LabelJob
@@ -19,6 +20,7 @@ type Label = {
   route: string
   stations: (Station & { name: string })[]
   qr: { size: number; path: string }
+  mockupUrl?: string | undefined
 }
 type LoadState =
   | { status: 'loading' }
@@ -28,7 +30,7 @@ type LoadState =
 
 const day = new Intl.DateTimeFormat('th-TH-u-ca-buddhist', { dateStyle: 'medium', timeZone: 'Asia/Bangkok' })
 const quantity = new Intl.NumberFormat('th-TH')
-const columns = 'id, confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, needs_sample, sample_round, phase'
+const columns = 'id, confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, needs_sample, sample_round, phase, mockup_path'
 
 async function loadLabel(jobId: string, signal: AbortSignal): Promise<Label | null> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
@@ -51,6 +53,8 @@ async function loadLabel(jobId: string, signal: AbortSignal): Promise<Label | nu
     if (result.error) throw new Error(result.error.message)
     for (const row of result.data) names.set(row.code, row.name)
   }
+  // รูปม็อคอัพบนใบปะงาน: คนหน้างานเทียบรูปกับกองงานได้ทันที · ขอลิงก์ไม่ได้ = พิมพ์ใบได้โดยไม่มีรูป
+  const mockupUrl = job.mockup_path ? (await signMockups([job.mockup_path])).get(job.mockup_path) : undefined
   const matrix = qrMatrix('https://pp142.pages.dev/#/board?job=' + encodeURIComponent(job.id))
   return {
     job,
@@ -58,18 +62,20 @@ async function loadLabel(jobId: string, signal: AbortSignal): Promise<Label | nu
     route: route.data?.name ?? job.route_code,
     stations: rows.map(row => ({ ...row, name: names.get(row.station_code) ?? row.station_code })),
     qr: { size: matrix.length + 8, path: qrSvgPath(matrix) },
+    mockupUrl,
   }
 }
 
 function LabelSheet({ label, printedOn }: { label: Label; printedOn: string }) {
-  const { job, product, route, stations, qr } = label
+  const { job, product, route, stations, qr, mockupUrl } = label
   return (
     <article className="job-label-sheet">
-      <header className="job-label-heading">
+      <header className={`job-label-heading${mockupUrl ? ' has-mockup' : ''}`}>
         <div className="min-w-0">
           <p>ใบปะงาน</p>
           <h1>{job.confirmation_no}</h1>
         </div>
+        {mockupUrl && <img className="job-label-mockup" src={mockupUrl} alt={`รูปม็อคอัพงาน ${job.confirmation_no}`} />}
         <svg className="job-label-qr" viewBox={'0 0 ' + qr.size + ' ' + qr.size}
           role="img" aria-label="QR เปิดรายละเอียดงาน" shapeRendering="crispEdges">
           <rect width={qr.size} height={qr.size} fill="white" />

@@ -2,6 +2,7 @@ import type { ComponentType, ReactNode } from 'react'
 import { ROUTES, isDueSoon, isOverdue, usesFilm, type Job, type RouteCode } from '../proto/model'
 import { dayDiff, shortDate } from '../proto/format'
 import { TONE, type Tone } from './tone'
+import { IconImage } from './icons'
 export type { Tone }
 
 export function ViewSwitch<T extends string>({ label, value, onChange, options, variant = 'main' }: {
@@ -117,4 +118,19 @@ export function StatTile({ icon: Icon, label, value, note, tone, active, onClick
   ) : (
     <div className={cls}>{body}</div>
   )
+}
+
+const THUMB_SIZE = { sm: 'size-14', md: 'size-20', lg: 'aspect-square w-full max-w-72' } as const
+
+/** รูปม็อคอัพของงาน (คนหน้างานจำงานจากรูปมากกว่ารหัส) · ไม่มีรูป = กรอบว่างขนาดเท่ากัน การ์ดจึงเรียงตรงกัน */
+export function MockupThumb({ job, size = 'sm' }: { job: Pick<Job, 'no' | 'mockupUrl'>; size?: keyof typeof THUMB_SIZE }) {
+  const box = `${THUMB_SIZE[size]} shrink-0 overflow-hidden rounded-xl border border-line bg-paper`
+  if (!job.mockupUrl) {
+    return (
+      <span className={`${box} grid place-items-center text-muted`} title="ยังไม่มีรูปม็อคอัพ">
+        <IconImage className={size === 'lg' ? 'size-10' : 'size-6'} />
+      </span>
+    )
+  }
+  return <img src={job.mockupUrl} alt={`รูปม็อคอัพงาน ${job.no}`} loading="lazy" decoding="async" className={`${box} object-contain`} />
 }

@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from 'react'
-import { Card, CardHeader, DueLabel, Pill, RouteBadge, ViewSwitch } from '../components/ui'
+import { Card, CardHeader, DueLabel, MockupThumb, Pill, RouteBadge, ViewSwitch } from '../components/ui'
 import { TONE } from '../components/tone'
 import { IconClipboard, IconClock, IconSewing } from '../components/icons'
 import { WORK_END, WORK_START, byQueue, type Job } from '../proto/model'
@@ -26,6 +26,7 @@ export function TodoPanel({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpe
             <li key={a.job.id}>
               <button onClick={() => onOpen(a.job.id)} className="flex min-h-14 w-full items-center gap-3 px-5 py-2.5 text-left hover:bg-paper">
                 <span className={`h-9 w-1 shrink-0 rounded-full ${TONE[a.tone].dot}`} />
+                <MockupThumb job={a.job} />
                 <span className="min-w-0 flex-1">
                   <span className={`block font-semibold ${a.tone === 'danger' ? 'text-danger' : 'text-ink'}`}>{a.text}</span>
                   <span className="flex flex-wrap items-baseline gap-x-1.5 text-sm text-muted">
@@ -113,7 +114,9 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
               <ol className="divide-y divide-line border-t border-line">
                 {queue.map(({ job, check }) => (
                   <li key={job.id} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center">
-                    <button onClick={() => onOpen(job.id)} className="min-w-0 flex-1 text-left">
+                    <button onClick={() => onOpen(job.id)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                      <MockupThumb job={job} />
+                      <span className="min-w-0 flex-1">
                       <span className="flex flex-wrap items-center gap-1.5">
                         <Pill tone="warn" dot>รอเย็บ</Pill>
                         <span className="font-semibold">{job.no}</span><RouteBadge route={job.route} />
@@ -132,6 +135,7 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
                           )}
                         </span>
                       )}
+                      </span>
                     </button>
                     {onStart && check.ok && (
                       <StartCounts rows={machineCounts(job, machines, (job.productCode && needs[job.productCode]) || [], shared, bookings, now).filter(r => r.need > 0)}

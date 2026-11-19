@@ -3,7 +3,7 @@ import { DEFAULT_SEW_PRODUCT, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, hasSewMinute
 import { MACHINE_TYPE_NAME } from '../proto/sewing'
 import { ROUTES, STATION_NAME, WORK_END, byQueue, isOutLate, stationCounts, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
 import { duration, shortDate, stageSteps, stageText } from '../proto/format'
-import { Card, CardHeader, DueLabel, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
+import { Card, CardHeader, DueLabel, MockupThumb, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
 import { TONE, type Tone } from '../components/tone'
 import JobFinder from '../components/JobFinder'
 import { ContactLinks } from './OutsourcePanel'
@@ -337,6 +337,7 @@ function OutsideCard({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpen: (i
             <li key={j.id}>
               <button onClick={() => onOpen(j.id)} className="flex min-h-14 w-full items-center gap-3 px-5 py-2.5 text-left transition hover:bg-paper">
                 <span className={`h-9 w-1 shrink-0 rounded-full ${bad ? TONE.danger.dot : TONE.info.dot}`} />
+                <MockupThumb job={j} />
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5"><b>{j.no}</b><Pill tone={bad ? 'danger' : 'info'}>{o.vendor}</Pill>{o.rework && <Pill tone="danger">งานแก้</Pill>}</span>
                   <span className="block text-sm text-muted">{o.stations.map(s => STATION_NAME[s]).join(' → ')} · {o.qty.toLocaleString('th-TH')} {j.unit}</span>
@@ -389,6 +390,7 @@ function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Date; atRi
           <li key={it.id} className="min-w-0">
             <button onClick={() => onOpen(it.job.id)} className="flex min-h-14 w-full items-center gap-3 px-5 py-2.5 text-left transition hover:bg-paper">
               <span className={`h-9 w-1 shrink-0 rounded-full ${TONE[it.tone].dot}`} />
+              <MockupThumb job={it.job} />
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5"><b>{it.job.no}</b><Pill tone={it.tone}>{it.tag}</Pill></span>
                 <span className="block text-sm text-muted">{it.job.customer}{it.text && ` · ${it.text}`}</span>

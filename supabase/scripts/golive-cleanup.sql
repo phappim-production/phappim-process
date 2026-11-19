@@ -87,6 +87,16 @@ begin
         and not exists (select 1 from public.jobs j where j.confirmation_pdf_path = o.name)
       order by o.name
     $q$;
+    -- รูปม็อคอัพของงานทดสอบ (20261120110000) · รูปที่ใบร่างยังใช้อยู่ไม่นับ
+    execute $q$
+      insert into golive_summary
+      select 6, 'ลบเองที่ Storage → mockups', o.name
+      from storage.objects o
+      where o.bucket_id = 'mockups'
+        and not exists (select 1 from public.jobs j where j.mockup_path = o.name)
+        and not exists (select 1 from public.confirmation_drafts d where d.data->>'mockup_path' = o.name)
+      order by o.name
+    $q$;
   end if;
 end $$;
 

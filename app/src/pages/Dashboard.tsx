@@ -7,7 +7,7 @@ import {
 } from '../proto/model'
 import { lateDays, sewFloorOf, simulate, workdayToDate } from '../proto/capacity'
 import { duration, relDay, shortDate } from '../proto/format'
-import { Card, DueLabel, Pill, StatTile, ViewSwitch, pillGroup, pillItem, pillOff, pillOn } from '../components/ui'
+import { Card, DueLabel, MockupThumb, Pill, StatTile, ViewSwitch, pillGroup, pillItem, pillOff, pillOn } from '../components/ui'
 import { thaiError } from '../data/live'
 import type { Tone } from '../components/tone'
 import { IconAlert, IconCheck, IconClipboard, IconClock, IconFactory, IconFilm, IconPackage, IconSearch, IconSewing, IconX } from '../components/icons'
@@ -490,7 +490,9 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: Date; onOpen: () => v
   const tone = stripe(j, now)
   return (
     <button type="button" onClick={onOpen}
-      className={`flex h-full w-full min-w-0 flex-col gap-1 rounded-xl border border-line border-l-[6px] bg-card px-3 py-2.5 text-left shadow-card hover:border-brand ${STRIPE[tone]}`}>
+      className={`flex h-full w-full min-w-0 items-start gap-3 rounded-xl border border-line border-l-[6px] bg-card px-3 py-2.5 text-left shadow-card hover:border-brand ${STRIPE[tone]}`}>
+      <MockupThumb job={j} />
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
       <span className="flex items-baseline gap-2">
         <b className="text-lg">{j.no}</b>
         <span className="ml-auto text-sm"><DueLabel job={j} now={now} /></span>
@@ -504,6 +506,7 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: Date; onOpen: () => v
           {j.rework && <Pill tone="danger">งานแก้</Pill>}
         </span>
       )}
+      </span>
     </button>
   )
 }
@@ -634,6 +637,13 @@ function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Jo
         </header>
 
         <div className="grid gap-4 p-4 text-sm">
+          {/* รูปม็อคอัพใหญ่ไว้ยืนยันว่าหยิบงานถูก · กดดูเต็มจอ */}
+          <div className="grid justify-items-center gap-1 rounded-2xl border border-line bg-card p-3 shadow-card">
+            {j.mockupUrl
+              ? <a href={j.mockupUrl} target="_blank" rel="noreferrer" className="w-full max-w-72" aria-label="เปิดรูปม็อคอัพเต็มจอ"><MockupThumb job={j} size="lg" /></a>
+              : <MockupThumb job={j} size="lg" />}
+            <span className="text-muted">{j.mockupUrl ? 'กดที่รูปเพื่อดูเต็มจอ' : 'ยังไม่มีรูปม็อคอัพ'}</span>
+          </div>
           {actions}
           <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
