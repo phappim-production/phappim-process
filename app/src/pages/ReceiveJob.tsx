@@ -14,7 +14,7 @@ type Product = { code: string; name: string; unit: string }
 // ฟอร์มใบยืนยันอยู่บนเว็บเดียวกัน (vite.config.ts คัดลอก production-confirmation.html ขึ้นไป) · Cloudflare เสิร์ฟไม่มี .html
 const CONFIRMATION_FORM = '/confirmation'
 
-const EMPTY: ReceiveDraft = { no: '', rev: 0, customer: '', jobName: '', product: '', qty: 0, spare: 0, due: '', route: 'normal', needsSample: null, spec: {} }
+const EMPTY: ReceiveDraft = { no: '', rev: 0, customer: '', jobName: '', product: '', qty: 0, spare: 0, due: '', route: null, needsSample: null, spec: {} }
 
 /**
  * รับงานเข้าโรงงาน (S2): เลือกใบยืนยันที่บันทึกจากฟอร์มเข้าระบบ (หรือไฟล์ .json / กรอกเอง)
@@ -82,14 +82,14 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
   const set = <K extends keyof ReceiveDraft>(k: K, v: ReceiveDraft[K]) => { setDraft(d => ({ ...d, [k]: v })); setError('') }
   const product = products?.find(p => p.code === draft.product)
   // คาดวันเสร็จจากคิวงานและจักรจริง · เตือนอย่างเดียว ไม่บล็อกการส่งงานเข้า
-  const forecast = useMemo(() => product && draft.qty > 0 && draft.needsSample !== null
+  const forecast = useMemo(() => product && draft.route && draft.qty > 0 && draft.needsSample !== null
     ? receiveForecast(jobs, now, floor, { route: draft.route, qty: draft.qty, productCode: product.code, needsSample: draft.needsSample, due: draft.due })
     : null, [jobs, now, floor, product, draft.route, draft.qty, draft.needsSample, draft.due])
   const pdfIssue = pdfProblem(pdf)
   const recipeIssue = product ? sewRecipeProblem(draft.route, floor.needsOf(product.code)) : null
   const missing = [
     !draft.no.trim() && 'เลขที่ใบยืนยัน', !draft.customer.trim() && 'ชื่อลูกค้า', !product && 'ประเภทสินค้า',
-    draft.qty <= 0 && 'จำนวน', !draft.due && 'กำหนดส่ง', draft.needsSample === null && 'ขึ้นตัวอย่างหรือไม่', pdf && pdfIssue && 'PDF ใบยืนยัน',
+    draft.qty <= 0 && 'จำนวน', !draft.due && 'กำหนดส่ง', !draft.route && 'เส้นทางผลิต', draft.needsSample === null && 'ขึ้นตัวอย่างหรือไม่', pdf && pdfIssue && 'PDF ใบยืนยัน',
   ].filter(Boolean) as string[]
 
   async function readJson(file: File | undefined) {
@@ -105,7 +105,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
   }
 
   async function submit() {
-    if (missing.length || !product || !supabase || draft.needsSample === null) return
+    if (missing.length || !product || !supabase || !draft.route || draft.needsSample === null) return
     setError('')
     // PDF ไม่บังคับ: มีไฟล์ = อัปโหลดก่อน · ไม่มี = ส่งงานเข้าเลย แนบทีหลังได้
     let path: string | null = null
@@ -183,12 +183,15 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
             <input type="date" value={draft.due} onChange={e => set('due', e.target.value)} className={fieldClass} />
           </label>
           <label className={label}>เส้นทางผลิต
-            <select value={draft.route} onChange={e => set('route', e.target.value as RouteCode)} className={fieldClass}>
+            <select value={draft.route ?? ''} onChange={e => set('route', (e.target.value || null) as RouteCode | null)} className={fieldClass}>
+              <option value="">เลือกเส้นทางผลิตของงานนี้</option>
               {(Object.keys(ROUTES) as RouteCode[]).map(r => <option key={r} value={r}>{ROUTES[r].name}</option>)}
             </select>
           </label>
         </div>
-        <p className="text-sm text-muted">ลำดับสถานี: {ROUTES[draft.route].stations.map(s => STATION_NAME[s]).join(' → ')} · แนบไฟล์จากฟอร์มแล้ว ระบบเลือกเส้นทางตามเทคนิคพิมพ์ให้</p>
+        <p className="text-sm text-muted">{draft.route
+          ? `ลำดับสถานี: ${ROUTES[draft.route].stations.map(s => STATION_NAME[s]).join(' → ')}`
+          : 'แอดมินเลือกเส้นทางเองทุกงาน (ระบบไม่เลือกให้ตามเทคนิคพิมพ์) · เลือกแล้วจะเห็นลำดับสถานี'}</p>
         {recipeIssue && <p role="alert" className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">{recipeIssue}</p>}
 
         {/* ขึ้นตัวอย่างเฉพาะงานที่ลูกค้าจ่ายค่าตัวอย่าง (ตกลงกันแล้วในใบยืนยัน) · ไม่มีค่าตั้งต้น ต้องเลือกเอง */}
