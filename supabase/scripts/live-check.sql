@@ -43,6 +43,8 @@ declare
   j1 uuid; j2 uuid; s1 uuid; s2 uuid; v int; st text; folder text; payload jsonb; n int;
   out json;
 begin
+  -- บัญชีทดสอบปิดอยู่หลังเปิดใช้จริง · เปิดชั่วคราวในธุรกรรมนี้ ถูกย้อนกลับพร้อมทุกอย่างตอนจบ
+  update public.profiles set active = true where user_id in (adm, mgr, prd, qcu);
   -- งาน A: ปกติ ไม่ขึ้นตัวอย่าง · เดินครบ 5 สถานี + พัก/ทำต่อ + QC ส่งแก้
   j1 := pg_temp.ok('รับงานเข้า (admin)', adm, format($$select public.receive_job('TEST-LIVE-A','ลูกค้าทดสอบสด','งานทดสอบสด','tshirt',10,'ตัว',current_date + 7,'normal','',0,0,%L::jsonb,false)::text$$, spec))::uuid;
   perform pg_temp.err('QC รับงานเข้าไม่ได้', qcu, $$select public.receive_job('TEST-LIVE-X','x','x','tshirt',1,'ตัว',current_date+7,'normal','',0,0,'{}',false)$$, 'บทบาท|แอดมิน');
@@ -135,6 +137,21 @@ begin
   perform pg_temp.err('เริ่มผลิตแล้ว ฝ่ายผลิตอนุมัติฉบับแก้ไขไม่ได้', prd, format($$select public.approve_mockup_sheet(%L)$$, s2), 'แอดมิน ผู้บริหาร หรือเจ้าของ');
   perform pg_temp.ok('ผู้บริหารอนุมัติฉบับ 2', mgr, format($$select public.approve_mockup_sheet(%L)::text$$, s2));
   perform pg_temp.chk('ฉบับ 1 ถูกแทนที่ · ฉบับ 2 ใช้ผลิต', (select status from public.mockup_sheets where id=s1)='superseded' and (select status from public.mockup_sheets where id=s2)='approved', '');
+  s2 := pg_temp.ok('สร้างฉบับ 3 (แอดมินอนุมัติเอง)', adm, format($$select public.start_mockup_sheet(%L,'ทดสอบแอดมินอนุมัติเอง')::text$$, j1))::uuid;
+  v := (select version from public.mockup_sheets where id = s2);
+  perform pg_temp.err('ฝ่ายผลิตอนุมัติฉบับร่างไม่ได้', prd, format($$select public.approve_mockup_sheet(%L,null,%s)$$, s2, v), 'แอดมิน');
+  perform pg_temp.err('อนุมัติร่างด้วยเลขฉบับเก่าไม่ได้ (ปฏิเสธทันที)', adm, format($$select public.approve_mockup_sheet(%L,null,%s)$$, s2, v - 1), 'มีคนบันทึก');
+  perform pg_temp.ok('แอดมินอนุมัติฉบับ 3 จากร่างเอง', adm, format($$select public.approve_mockup_sheet(%L,null,%s)::text$$, s2, v));
+  perform pg_temp.chk('ฉบับ 3 ใช้ผลิต', (select status from public.mockup_sheets where id=s2)='approved', '');
+
+  -- จัดส่ง
+  perform pg_temp.err('ฝ่ายผลิตบันทึกจัดส่งไม่ได้', prd, format($$select public.mark_delivered(%L)$$, j1), 'บทบาท');
+  perform pg_temp.ok('แอดมินบันทึกจัดส่ง', adm, format($$select public.mark_delivered(%L,'ทดสอบเลขพัสดุ')::text$$, j1));
+  perform pg_temp.chk('job_live เห็นการจัดส่ง', (select delivery_note from public.job_live where id=j1)='ทดสอบเลขพัสดุ', '');
+  perform pg_temp.err('บันทึกจัดส่งซ้ำไม่ได้', adm, format($$select public.mark_delivered(%L)$$, j1), 'จัดส่งไปแล้ว');
+  perform pg_temp.err('ยกเลิกจัดส่งต้องมีเหตุผล', adm, format($$select public.undo_delivery(%L,'')$$, j1), 'เหตุผล');
+  perform pg_temp.ok('แอดมินยกเลิกจัดส่ง', adm, format($$select public.undo_delivery(%L,'ทดสอบ')::text$$, j1));
+  perform pg_temp.chk('ยกเลิกแล้วกลับเป็นรอส่ง', (select delivered_at is null from public.jobs where id=j1), '');
   perform pg_temp.chk('ฉบับแก้ไขแจ้ง QC ให้รับทราบใหม่', exists (select 1 from public.inbox_messages where job_id=j1 and kind='mockup_approved' and 'qc' = any(audience)), '');
 
   -- งาน B: DTF + ขึ้นตัวอย่าง (ไม่ผ่าน 1 รอบ → ผ่าน) + ฟิล์ม
@@ -154,6 +171,8 @@ begin
   perform pg_temp.chk('รอผลตัวอย่าง', (select phase from public.job_live where id=j2)='sample_review', (select phase from public.job_live where id=j2));
   perform pg_temp.ok('ตัวอย่างไม่ผ่าน', adm, format($$select public.record_sample_result(%L,false,'ทดสอบไม่ผ่าน',null)::text$$, j2));
   perform pg_temp.chk('ไม่ผ่าน = ขึ้นตัวอย่างรอบ 2', (select phase='sample' and sample_round=2 from public.job_live where id=j2), (select phase||' รอบ '||sample_round from public.job_live where id=j2));
+
+  perform pg_temp.err('งานที่ยังไม่เสร็จบันทึกจัดส่งไม่ได้', adm, format($$select public.mark_delivered(%L)$$, j2), 'ยังผลิตไม่เสร็จ');
 
   out := (select json_agg(json_build_object('n', name, 'ok', pass, 'i', left(info, 140))) from pg_temp.res);
   raise exception 'RESULTS%', out;
