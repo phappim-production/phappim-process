@@ -175,7 +175,7 @@ function StartSheet({ data, role, reload, revision }: { data: MockupData; role: 
         </button>
       </> : <>
         <h2 className="font-bold">ยังไม่มีม็อคอัพกำกับสเปก</h2>
-        <p className="text-muted">อัปโหลดภาพเสื้อด้านหน้า / หลัง แล้วกดบนภาพเพื่อชี้จุดและผูกสเปก · ข้อมูลในใบยืนยันเลือกใช้ได้เลยไม่ต้องกรอกซ้ำ</p>
+        <p className="text-muted">อัปโหลดภาพม็อคอัพ (ภาพเดียวที่มีทั้งด้านหน้าและหลังก็ได้) แล้วกดบนภาพเพื่อชี้จุดและผูกสเปก · ข้อมูลในใบยืนยันเลือกใช้ได้เลยไม่ต้องกรอกซ้ำ</p>
         <button type="button" className={primaryBtn} disabled={busy} onClick={() => void start()}>{busy ? 'กำลังสร้าง…' : 'เริ่มทำม็อคอัพกำกับสเปก'}</button>
       </>}
       <Note msg={msg} />
@@ -433,14 +433,14 @@ function SheetWork({ data, sheet, approved, role, reload }: {
         </Card>
       )}
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[minmax(0,1fr)_320px] lg:grid-cols-[260px_minmax(0,1fr)_360px]">
-        <Card className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 p-3 md:col-span-2 lg:col-span-1">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[minmax(0,1fr)_320px] lg:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[260px_minmax(0,1fr)_360px]">
+        <Card className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 p-3 md:col-span-2 2xl:col-span-1">
           <h2 className="font-bold">ภาพ</h2>
           {views.length > 0 && <ViewTabs views={views} value={shown?.view ?? 'front'} onChange={setView} counts={v => draft.callouts.filter(c => c.view === v).length} />}
           {editable && (
             <div className="grid gap-2 rounded-xl border border-dashed border-line p-2">
               <select value={upload.view} onChange={e => setUpload(u => ({ ...u, view: e.target.value as ViewKey }))} className={fieldClass} aria-label="มุมภาพที่จะอัปโหลด">
-                {VIEW_ORDER.map(v => <option key={v} value={v}>{VIEW_NAME[v]}{views.includes(v) ? ' (แทนภาพเดิม)' : ''}</option>)}
+                {VIEW_ORDER.map(v => <option key={v} value={v}>{v === 'front' ? 'ภาพหลัก (หน้า หรือ หน้า + หลังในภาพเดียว)' : `ภาพเพิ่ม: ${VIEW_NAME[v]}`}{views.includes(v) ? ' (แทนภาพเดิม)' : ''}</option>)}
               </select>
               <FilePick accept="image/png,image/jpeg,image/webp" label="เลือกภาพม็อคอัพ" chosen={upload.file?.name ?? ''} onPick={f => { setUpload(u => ({ ...u, file: f ?? null, preview: f && !mockupProblem(f) ? URL.createObjectURL(f) : '' })); setMsg(null) }} />
               {upload.file && mockupProblem(upload.file) && <p role="alert" className="text-danger">{mockupProblem(upload.file)}</p>}
@@ -448,7 +448,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
               <button type="button" className={primaryBtn} disabled={!upload.file || !!mockupProblem(upload.file) || !!busy} onClick={() => void doUpload()}>
                 {busy === 'upload' ? 'กำลังอัปโหลด…' : `ใช้เป็นภาพ${VIEW_NAME[upload.view]}`}
               </button>
-              <p className="text-sm text-muted">PNG / JPG / WEBP ไม่เกิน 5 MB · เก็บไฟล์ต้นฉบับไม่ย่อ</p>
+              <p className="text-sm text-muted">PNG / JPG / WEBP ไม่เกิน 5 MB · เก็บไฟล์ต้นฉบับไม่ย่อ · ม็อคอัพที่มีหน้า + หลังในภาพเดียว อัปโหลดเป็นภาพหลักภาพเดียวพอ แล้ววางจุดได้ทั้งสองตัว</p>
               {shown && <button type="button" className={dangerBtn} onClick={() => edit({ type: 'remove_view', view: shown.view })}>ลบภาพ{VIEW_NAME[shown.view]}</button>}
             </div>
           )}
@@ -472,7 +472,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
                 onAdd={(x, y) => { const key = newKey(); edit({ type: 'add_callout', key, view: shown.view, x, y }); setSelected(key) }}
                 onMove={(key, patch) => edit({ type: 'update_callout', key, patch })} />
             </div>
-          ) : <p className="grid min-h-60 place-items-center p-6 text-center text-muted">{editable ? 'เลือกมุมภาพแล้วอัปโหลดภาพด้านหน้าก่อน' : 'ฉบับนี้ยังไม่มีภาพ'}</p>}
+          ) : <p className="grid min-h-60 place-items-center p-6 text-center text-muted">{editable ? 'อัปโหลดภาพหลักก่อน (ภาพม็อคอัพที่มีทั้งด้านหน้าและหลังในภาพเดียว ใช้เป็นภาพหลักได้เลย)' : 'ฉบับนี้ยังไม่มีภาพ'}</p>}
           {editable && shown && <p className="px-2 pt-2 text-sm text-muted">กดบนภาพ = เพิ่มจุด · ลากจุด/กล่อง = ย้าย · Ctrl + ล้อเมาส์ = ซูม · Ctrl+Z / Ctrl+Y = ย้อน / ทำซ้ำ</p>}
         </Card>
 

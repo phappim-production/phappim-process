@@ -165,7 +165,7 @@ describe('สเปก', () => {
 
 describe('ตรวจก่อนบันทึก / ส่งอนุมัติ', () => {
   it('ส่งอนุมัติต้องมีภาพหน้า และทุกจุดมีชื่อ + สเปกหรือข้อความ', () => {
-    expect(submitProblems(EMPTY_DRAFT)).toEqual(['ยังไม่มีภาพด้านหน้า'])
+    expect(submitProblems(EMPTY_DRAFT)).toEqual(['ยังไม่มีภาพหลัก'])
     expect(submitProblems(withPoints())).toEqual(['Callout 1, 2, 3 ยังไม่มีชื่อจุด', 'Callout 1, 2, 3 ยังไม่มีสเปกหรือข้อความ'])
   })
 
