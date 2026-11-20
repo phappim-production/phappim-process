@@ -47,6 +47,7 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 | `receive_back` | `p_run, p_note` | admin · owner | ของถึงโรงงาน → งานเข้าสถานีถัดไป (งานแก้ → QC) รอคิว · event `outsource_received` (`late`) |
 | `update_out_plan` | `p_run, p_arrive_at, p_lead_days, p_back_at` | admin · owner | แก้กำหนด · event `outsource_plan` |
 | `split_job` | `p_job, p_qty, p_request = null` → uuid งานใหม่ |  admin · owner | งานผลิตจริงที่รอเริ่ม (ไม่ใช่งานแก้/QC) แยก `p_qty` เป็นงาน `เลขเดิม-2` สถานีเดียวกัน คิวถัดไป · event `job_split` / `job_split_from` |
+| `cancel_job` | `p_job, p_reason` | **manager** · owner | ยกเลิกงาน (ลูกค้ายกเลิกออเดอร์) → phase `cancelled` ล้างสถานี · คืนจักร · การจองที่กำลังใช้จบทันที / ในอนาคตยกเลิก · ปิดปัญหาที่ค้าง · event `job_cancelled` (เหตุผล สถานี สถานะเดิม) · กล่องจดหมาย `job_cancelled` ทุกฝ่าย · ย้อนกลับไม่ได้ · ปฏิเสธ: บทบาทอื่น, ไม่มีเหตุผล, เสร็จแล้ว, ยกเลิกแล้ว, อยู่บริษัทภายนอก (รับของกลับก่อน) |
 
 ## จัดส่ง (`20261120240000`)
 | ฟังก์ชัน | พารามิเตอร์ | ใครเรียกได้ | ทำอะไร / ปฏิเสธเมื่อ |

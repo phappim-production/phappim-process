@@ -132,6 +132,10 @@ export function fixtureApi() {
             Object.assign(job, { delivered_at: null, delivered_by: null, delivery_note: null })
             log(job.id, 'delivery_undone', { reason: args.p_reason })
             return json(null)
+          case 'cancel_job':
+            Object.assign(job, { phase: 'cancelled', station_seq: null, station_status: null })
+            log(job.id, 'job_cancelled', { reason: args.p_reason })
+            return json(null)
           case 'save_confirmation_draft':
             confirmation = [{ id: id(80), confirmation_no: args.p_data.h.doc_no, status: 'draft', data: args.p_data, updated_at: now }]
             return json(id(80))

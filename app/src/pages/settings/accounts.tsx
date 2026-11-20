@@ -147,6 +147,7 @@ const inboxDescriptions: Record<InboxKind, string> = {
   mockup_pending: 'เมื่อแอดมินส่งม็อคอัพกำกับสเปกให้อนุมัติ · ฝ่ายผลิต ผู้บริหาร',
   mockup_returned: 'เมื่อม็อคอัพถูกส่งกลับให้แก้ · แอดมิน',
   mockup_approved: 'เมื่ออนุมัติม็อคอัพ · แอดมิน ฝ่ายผลิต (ฉบับแก้ไข: ทุกฝ่ายต้องรับทราบใหม่ รวม QC ผู้บริหาร)',
+  job_cancelled: 'เมื่อผู้บริหารยกเลิกงาน · ทุกฝ่าย',
 }
 
 export function InboxTab({ data, controls }: TabProps<'inbox'>) {
