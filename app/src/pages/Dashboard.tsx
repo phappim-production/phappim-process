@@ -205,7 +205,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
     return jobs.filter(j => {
       if (route !== 'all' && j.route !== route) return false
       if (q && !`${j.no} ${j.customer} ${j.product}`.toLowerCase().includes(q)) return false
-      if (j.phase === 'done' && j.doneAt && now.getTime() - j.doneAt.getTime() > 3 * 86_400_000) return false
+      if (j.phase === 'done' && j.delivered && now.getTime() - j.delivered.at.getTime() > 3 * 86_400_000) return false
       switch (filter) {
         case 'overdue': return isOverdue(j, now)
         case 'hold': return j.status === 'hold'
@@ -504,7 +504,7 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: Date; onOpen: () => v
     : j.status === 'hold' ? 'พักงาน'
     : j.sla ? SLA_LABEL[j.sla].text
     : isWaitingFilm(j) ? 'รอฟิล์ม'
-    : j.phase === 'done' ? 'เสร็จ'
+    : j.phase === 'done' ? (j.delivered ? 'จัดส่งแล้ว' : 'เสร็จ · รอส่ง')
     : j.phase === 'sample' && j.station ? STATION_NAME[j.station]
     : j.status ? STATUS_NAME[j.status] : null
   const tone = stripe(j, now)
@@ -557,6 +557,9 @@ function CardStatus({ job: j, now }: { job: Job; now: Date }) {
     rows.push(<Pill key="film" tone={late ? 'danger' : 'warn'}><IconFilm className="size-3" />รอฟิล์ม · ETA {shortDate(j.film!.eta)}{late && ' (เลยแล้ว)'}</Pill>)
   }
   if (j.phase === 'done' && j.doneAt) rows.push(<Pill key="d" tone="ok"><IconCheck className="size-3" />เสร็จ{relDay(j.doneAt, now)} {j.doneAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</Pill>)
+  if (j.phase === 'done') rows.push(j.delivered
+    ? <Pill key="dl" tone="ok" dot>จัดส่งแล้ว{relDay(j.delivered.at, now)}{j.delivered.note && ` · ${j.delivered.note}`}</Pill>
+    : <Pill key="dl" tone="warn" dot>รอจัดส่ง</Pill>)
 
   if (!rows.length) return null
   return <div className="mt-2.5 flex flex-col items-start gap-1.5 border-t border-dashed border-line pt-2.5 text-xs">{rows}</div>
@@ -583,6 +586,7 @@ function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Jo
       state: (j.phase === 'done' ? 'done' : j.phase !== 'production' ? 'todo' : i < curIdx ? 'done' : i === curIdx ? (j.status === 'hold' ? 'hold' : 'current') : 'todo') as StepState,
     })),
     { label: 'เสร็จ / พร้อมส่ง', state: j.phase === 'done' ? 'done' : 'todo' },
+    { label: 'จัดส่งแล้ว', state: j.delivered ? 'done' : j.phase === 'done' ? 'current' : 'todo' },
   ]
 
   return (

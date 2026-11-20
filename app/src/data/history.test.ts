@@ -25,3 +25,12 @@ describe('ไทม์ไลน์: รูปม็อคอัพ', () => {
     expect(eventLine(pic(true), names).title).toBe('เปลี่ยนรูปม็อคอัพ')
   })
 })
+
+describe('ไทม์ไลน์: จัดส่ง', () => {
+  const row = (type: string, payload: Record<string, unknown>): EventRow => ({ id: 3, type, phase: 'done', station_code: null, payload, by: null, at: '2026-11-21T03:00:00Z' })
+  it('จัดส่งแล้วแสดงเลขพัสดุ · ยกเลิกแสดงเหตุผล', () => {
+    expect(eventLine(row('delivered', { note: 'Kerry KEX123' }), names)).toEqual({ title: 'จัดส่งให้ลูกค้าแล้ว', detail: 'Kerry KEX123', tone: 'ok' })
+    expect(eventLine(row('delivered', { note: null }), names)).toEqual({ title: 'จัดส่งให้ลูกค้าแล้ว', tone: 'ok' })
+    expect(eventLine(row('delivery_undone', { reason: 'กดผิดงาน' }), names)).toEqual({ title: 'ยกเลิกการบันทึกจัดส่ง', detail: 'กดผิดงาน', tone: 'warn' })
+  })
+})

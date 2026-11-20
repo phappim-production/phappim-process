@@ -9,13 +9,13 @@ import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
 import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job, type StationCode, type Vendor } from '../proto/model'
 import { OutsourcePanel } from './OutsourcePanel'
 import { FilePick } from '../components/FilePick'
-import { slaAmount, spaced } from '../proto/format'
+import { relDay, slaAmount, spaced } from '../proto/format'
 import { newRequestId } from '../data/requestId'
 import { bookingDay } from '../proto/sewing'
 import { canCloseIssue, type EmployeeRole } from '../auth/access'
 import { Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
-import { IconAlert, IconCheck, IconClock, IconFilm, IconPause } from '../components/icons'
+import { IconAlert, IconCheck, IconClock, IconFilm, IconPackage, IconPause } from '../components/icons'
 
 type Material = { id: number; name: string; dept: Dept; key: string | null; checked_at: string | null }
 type Reason = { code: string; grp: string; name: string }
@@ -103,6 +103,7 @@ export function JobActions({ job: j, role, myStations = [], version, now, refres
         <p role={notice.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>{notice.text}</p>
       )}
       <OutsourcePanel job={j} vendors={vendors} admin={admin} now={now} refresh={refresh} />
+      {j.phase === 'done' && <Delivery job={j} admin={admin} busy={busy} now={now} act={act} />}
       {j.phase === 'materials' && <Materials materials={d.materials} role={role} busy={busy} sample={j.needsSample !== false}
         onCheck={(m, on) => act('check_material', { p_material_id: m.id, p_checked: on }, on ? `ติ๊ก "${m.name}" แล้ว` : `ยกเลิกติ๊ก "${m.name}" แล้ว`, false)} />}
       {usesFilm(j.route) && !j.film?.received && j.phase !== 'done' && (
@@ -297,6 +298,46 @@ function Film({ job: j, ordered, admin, busy, now, onOrder, onReceive }: {
           )}
         </div>
       ) : <p className="mt-2 text-sm text-muted">แอดมินเป็นคนบันทึกสั่งและรับ{label}</p>}
+    </Section>
+  )
+}
+
+function Delivery({ job: j, admin, busy, now, act }: { job: Job; admin: boolean; busy: boolean; now: Date; act: Act }) {
+  const [note, setNote] = useState('')
+  const [reason, setReason] = useState('')
+  const [confirm, setConfirm] = useState<'send' | 'undo' | null>(null)
+  if (j.delivered) {
+    const at = `${relDay(j.delivered.at, now)} ${j.delivered.at.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })} น.`
+    return (
+      <Section title="จัดส่งให้ลูกค้าแล้ว" icon={<IconPackage className="size-5" />}>
+        <p className="font-medium text-ok">จัดส่งแล้ว {at}{j.delivered.note && ` · ${j.delivered.note}`}</p>
+        {admin && (confirm === 'undo' ? (
+          <div className="mt-3 grid gap-2">
+            <label className="grid gap-1 font-medium">เหตุผลที่ยกเลิก
+              <input value={reason} onChange={e => setReason(e.target.value)} className={fieldClass} placeholder="เช่น กดผิดงาน ลูกค้ายังไม่ได้รับ" />
+            </label>
+            <Confirm text="ยกเลิกการบันทึกจัดส่ง? งานจะกลับเป็นรอจัดส่ง" busy={busy} danger
+              onYes={async () => { if (!reason.trim()) return; if (await act('undo_delivery', { p_reason: reason.trim() }, 'ยกเลิกการบันทึกจัดส่งแล้ว · งานกลับเป็นรอจัดส่ง')) { setConfirm(null); setReason('') } }}
+              onNo={() => setConfirm(null)} />
+            {!reason.trim() && <p className="text-sm text-warn">ใส่เหตุผลก่อนกดยืนยัน</p>}
+          </div>
+        ) : <button type="button" disabled={busy} className={`${secondaryBtn} mt-3`} onClick={() => setConfirm('undo')}>บันทึกผิด · ยกเลิกการจัดส่ง</button>)}
+      </Section>
+    )
+  }
+  if (!admin) return <Section title="รอจัดส่ง" icon={<IconPackage className="size-5" />}><p className="text-muted">งานเสร็จแล้ว · แอดมินเป็นคนบันทึกเมื่อส่งให้ลูกค้า</p></Section>
+  return (
+    <Section title="จัดส่งให้ลูกค้า" icon={<IconPackage className="size-5" />} tone="warn">
+      <div className="grid gap-3">
+        <label className="grid gap-1 font-medium">เลขพัสดุ / ผู้รับ / วิธีส่ง (ถ้ามี)
+          <input value={note} onChange={e => setNote(e.target.value)} className={fieldClass} placeholder="เช่น Kerry KEX123456 · ลูกค้ามารับเอง" />
+        </label>
+        {confirm === 'send'
+          ? <Confirm text={`ยืนยันว่า ${j.no} ส่งให้ลูกค้าแล้ว?`} busy={busy}
+              onYes={async () => { if (await act('mark_delivered', { p_note: note.trim() || null }, `บันทึกจัดส่ง ${j.no} แล้ว`)) { setConfirm(null); setNote('') } }}
+              onNo={() => setConfirm(null)} />
+          : <button type="button" disabled={busy} className={okBtn} onClick={() => setConfirm('send')}><IconCheck className="size-5" />จัดส่งให้ลูกค้าแล้ว</button>}
+      </div>
     </Section>
   )
 }

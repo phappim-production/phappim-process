@@ -48,6 +48,12 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 | `update_out_plan` | `p_run, p_arrive_at, p_lead_days, p_back_at` | admin · owner | แก้กำหนด · event `outsource_plan` |
 | `split_job` | `p_job, p_qty, p_request = null` → uuid งานใหม่ |  admin · owner | งานผลิตจริงที่รอเริ่ม (ไม่ใช่งานแก้/QC) แยก `p_qty` เป็นงาน `เลขเดิม-2` สถานีเดียวกัน คิวถัดไป · event `job_split` / `job_split_from` |
 
+## จัดส่ง (`20261120240000`)
+| ฟังก์ชัน | พารามิเตอร์ | ใครเรียกได้ | ทำอะไร / ปฏิเสธเมื่อ |
+|---|---|---|---|
+| `mark_delivered` | `p_job, p_note = null` | admin · owner | งาน `done` → `delivered_at / delivered_by / delivery_note` · event `delivered` · ปฏิเสธ: ยังไม่เสร็จ, บันทึกแล้ว |
+| `undo_delivery` | `p_job, p_reason` | admin · owner | ล้างข้อมูลจัดส่ง · event `delivery_undone` (เหตุผล + ข้อมูลเดิม) · ปฏิเสธ: ยังไม่ได้ส่ง, ไม่มีเหตุผล |
+
 ## สถานีทั่วไป
 | ฟังก์ชัน | อาร์กิวเมนต์ | ใครเรียก | ทำอะไร / ปฏิเสธเมื่อ |
 |---|---|---|---|

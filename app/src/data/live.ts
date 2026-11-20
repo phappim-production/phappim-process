@@ -28,6 +28,8 @@ export type JobRow = {
   finished_at: string | null
   queue_seq?: number | string     // numeric จาก PostgREST อาจมาเป็นข้อความ
   mockup_path?: string | null
+  delivered_at?: string | null
+  delivery_note?: string | null
 }
 export type ProductRow = { code: string; name: string }
 export type ReworkRow = { job_id: string; failed: number; reasons: string[] | null; at: string }
@@ -152,6 +154,7 @@ export function toJobs(rows: JobRow[], products: ProductRow[], reworks: ReworkRo
     if (r.finished_at) job.doneAt = new Date(r.finished_at)
     if (r.queue_seq != null) job.queue = Number(r.queue_seq)
     if (r.mockup_path) job.mockup = r.mockup_path
+    if (r.delivered_at) job.delivered = { at: new Date(r.delivered_at), note: r.delivery_note ?? '' }
     const list = reports.get(r.id)
     if (list) job.sewingReports = list
     return job

@@ -64,6 +64,7 @@ export type Job = {
   rework?: { qty: number; reason: string }
   holdReason?: string
   doneAt?: Date
+  delivered?: { at: Date; note: string }  // แอดมินบันทึกส่งให้ลูกค้าแล้ว (เฉพาะงานเสร็จ)
   queue?: number             // jobs.queue_seq · แทรกงานด่วนได้
   out?: OutRun
   sla?: SlaLevel             // ไม่มี = ยังไม่ใกล้ครบหรือไม่จับเวลา
