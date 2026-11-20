@@ -95,7 +95,7 @@ export async function loadSheet(sheetId: string): Promise<LoadedSheet> {
 
 export async function imageSize(blob: Blob): Promise<{ width: number; height: number } | null> {
   try {
-    const bmp = await createImageBitmap(blob)
+    const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' })
     const size = { width: bmp.width, height: bmp.height }
     bmp.close()
     return size.width > 0 && size.height > 0 ? size : null
@@ -143,3 +143,21 @@ export function newKey(): string {
   try { return crypto.randomUUID() } catch { return `k${Date.now().toString(36)}${Math.random().toString(36).slice(2)}` }
 }
 
+
+export const unsavedKey = (sheet: string, version: number) => `pp142-mockup-unsaved:${sheet}:${version}`
+
+export function parseUnsaved(text: string | null): Draft | null {
+  if (!text) return null
+  try {
+    const d: unknown = JSON.parse(text)
+    if (typeof d !== 'object' || d === null) return null
+    const { views, specs, callouts } = d as Record<string, unknown>
+    if (!Array.isArray(views) || !Array.isArray(specs) || !Array.isArray(callouts)) return null
+    const okView = (v: unknown) => typeof v === 'object' && v !== null && typeof (v as MockView).path === 'string' && (v as MockView).width > 0 && (v as MockView).height > 0
+    const okCallout = (c: unknown) => typeof c === 'object' && c !== null && typeof (c as Callout).key === 'string' && typeof (c as Callout).x === 'number' && typeof (c as Callout).y === 'number'
+    if (!views.every(okView) || !callouts.every(okCallout)) return null
+    return { views, specs, callouts } as Draft
+  } catch {
+    return null
+  }
+}

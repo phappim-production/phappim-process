@@ -63,7 +63,7 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
           <h2 id="q-working" className="text-lg font-bold">กำลังทำ <span className="font-medium text-muted">{working.filter(j => j.status === 'doing').length} งาน{working.some(j => j.status === 'hold') && ` · พักงาน ${working.filter(j => j.status === 'hold').length} งาน`}</span></h2>
           {working.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">ยังไม่มีงานที่กำลังทำ · กดเริ่มงานคิว 1 ในคิวรอเริ่ม</p>}
           {working.map(j => (
-            <QueueCard key={j.id} job={j} now={now} onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger" dot>พักงาน</Pill>
+            <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger" dot>พักงาน</Pill>
               : j.sla ? <Pill tone={SLA_LABEL[j.sla].tone} dot>{SLA_LABEL[j.sla].text}</Pill> : <Pill tone="info" dot>กำลังทำ</Pill>}>
               {j.status === 'hold'
                 ? <HoldActions job={j} station={station} canResume={canCloseIssue(role, station)} busy={busy === j.id} run={run} />
@@ -76,7 +76,7 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
           <h2 id="q-waiting" className="text-lg font-bold">คิวรอเริ่ม <span className="font-medium text-muted">{queue.length} งาน · เรียงตามคิว</span></h2>
           {queue.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">ไม่มีงานรอที่{spaced(name).trimEnd()}</p>}
           {queue.map((j, i) => (
-            <QueueCard key={j.id} job={j} now={now} onOpen={() => onOpen(j.id)} first={i === 0}
+            <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} first={i === 0}
               badge={<span className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${i === 0 ? 'bg-brand text-white' : 'bg-paper text-ink'}`}>คิว {i + 1}</span>}>
               <WaitingActions job={j} first={queue[0]} station={station} canPress={canPress}
               onSewStart={onSewStart}
@@ -91,7 +91,7 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
             {outside.map(j => {
               const late = isOutLate(j, now)
               return (
-                <QueueCard key={j.id} job={j} now={now} onOpen={() => onOpen(j.id)} badge={<Pill tone={late ? 'danger' : 'info'} dot>ข้างนอก</Pill>}>
+                <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={<Pill tone={late ? 'danger' : 'info'} dot>ข้างนอก</Pill>}>
                   <p className={`rounded-xl px-3 py-2 ${late ? 'bg-danger-soft font-semibold text-danger' : 'bg-info-soft text-info'}`}>
                     {j.out!.vendor} · {j.out!.stations.map(s => STATION_NAME[s]).join(' → ')} · คาดว่าของถึง {j.out!.backAt.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} น.{late ? ' · เลยกำหนด' : ''}
                   </p>
@@ -106,9 +106,10 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
   )
 }
 
-function QueueCard({ job: j, now, badge, first, onOpen, children }: {
-  job: Job; now: Date; badge: ReactNode; first?: boolean; onOpen: () => void; children?: ReactNode
+function QueueCard({ job: j, now, badge, first, onOpen, children, station }: {
+  job: Job; now: Date; badge: ReactNode; first?: boolean; onOpen: () => void; children?: ReactNode; station?: StationCode
 }) {
+  const spec = j.specSheet && station && !j.specSheet.acked.includes(station) ? j.specSheet : null
   const late = isOverdue(j, now)
   return (
     <article className={`grid gap-3 rounded-2xl border-2 bg-card p-4 shadow-card ${first ? 'border-brand'
@@ -121,6 +122,7 @@ function QueueCard({ job: j, now, badge, first, onOpen, children }: {
           <b className="text-xl">{j.no}</b>
           {j.phase === 'sample' && <Pill tone="info">ตัวอย่าง</Pill>}
           {j.rework && <Pill tone="danger">งานแก้ {j.rework.qty} {j.unit}</Pill>}
+          {spec && <Pill tone={spec.rev > 1 ? 'danger' : 'warn'}>{spec.rev > 1 ? `สเปกเปลี่ยน ฉบับ ${spec.rev}` : 'มีสเปกกำกับ'} · ยังไม่รับทราบ</Pill>}
           <IconChevronRight className="ml-auto size-5 text-muted" />
         </span>
         <span className="truncate text-base">{j.customer}</span>

@@ -9,30 +9,39 @@ import { newKey } from '../../data/mockupSheets'
 
 const label = 'grid gap-1 text-sm font-semibold text-muted'
 
+type Edit2 = (e: Edit, tag?: string) => void
+
 function Text({ label: name, value, onCommit, area, disabled, placeholder }: {
   label: string; value: string; onCommit: (v: string) => void; area?: boolean; disabled?: boolean; placeholder?: string
 }) {
-  const [draft, setDraft] = useState<{ base: string; text: string } | null>(null)
-  const text = draft && draft.base === value ? draft.text : value
-  const commit = () => { if (draft && draft.text !== value) onCommit(draft.text); setDraft(null) }
-  const common = {
-    value: text, disabled, placeholder, 'aria-label': name,
-    onChange: (e: { target: { value: string } }) => setDraft({ base: value, text: e.target.value }),
-    onBlur: commit,
-  }
+  const common = { value, disabled, placeholder, 'aria-label': name, onChange: (e: { target: { value: string } }) => onCommit(e.target.value) }
   return (
     <label className={label}>
       {name}
       {area
         ? <textarea {...common} rows={3} className={`${fieldClass} py-2 font-normal text-ink`} />
-        : <input {...common} className={`${fieldClass} font-normal text-ink`} onKeyDown={e => { if (e.key === 'Enter') commit() }} />}
+        : <input {...common} className={`${fieldClass} font-normal text-ink`} />}
     </label>
   )
 }
 
 function Num({ label: name, value, onCommit, disabled }: { label: string; value: number | null; onCommit: (v: number | null) => void; disabled?: boolean }) {
-  return <Text label={name} value={value === null ? '' : String(value)} disabled={disabled}
-    onCommit={v => { const n = Number(v.replace(',', '.')); onCommit(v.trim() === '' ? null : Number.isFinite(n) ? n : 0) }} />
+  const [typing, setTyping] = useState<string | null>(null)
+  const shown = typing ?? (value === null ? '' : String(value))
+  return (
+    <label className={label}>
+      {name}
+      <input value={shown} disabled={disabled} inputMode="decimal" aria-label={name} className={`${fieldClass} font-normal text-ink`}
+        onFocus={() => setTyping(shown)} onBlur={() => setTyping(null)}
+        onChange={e => {
+          const v = e.target.value
+          setTyping(v)
+          const n = Number(v.replace(',', '.'))
+          if (!v.trim()) onCommit(null)
+          else if (Number.isFinite(n)) onCommit(n)
+        }} />
+    </label>
+  )
 }
 
 function StationPick({ value, options, onChange, disabled }: {
@@ -59,14 +68,14 @@ function StationPick({ value, options, onChange, disabled }: {
 }
 
 function SpecEditor({ spec, used, stations, edit, disabled }: {
-  spec: Spec; used: number[]; stations: StationCode[]; edit: (e: Edit) => void; disabled?: boolean
+  spec: Spec; used: number[]; stations: StationCode[]; edit: Edit2; disabled?: boolean
 }) {
-  const set = (patch: Partial<Omit<Spec, 'key'>>) => edit({ type: 'update_spec', key: spec.key, patch })
+  const set = (patch: Partial<Omit<Spec, 'key'>>) => edit({ type: 'update_spec', key: spec.key, patch }, `${spec.key}:${Object.keys(patch).join()}`)
   return (
     <section className="grid gap-3 rounded-xl border border-gold/50 bg-gold-soft/40 p-3" aria-label={`สเปก ${spec.code}`}>
       <p className="text-sm text-muted">สเปก <b className="text-ink">{spec.code}</b> · ใช้กับ Callout {used.join(', ') || '—'} {used.length > 1 && '(แก้ที่นี่ = แก้ทุกจุดที่ใช้)'}</p>
       <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2">
-        <Text label="รหัส" value={spec.code} onCommit={v => set({ code: v.trim() })} disabled={disabled} />
+        <Text label="รหัส" value={spec.code} onCommit={v => set({ code: v.replace(/\s/g, '') })} disabled={disabled} />
         <Text label="ชื่อสเปก" value={spec.name} onCommit={v => set({ name: v })} disabled={disabled} placeholder="เช่น โลโก้อกซ้าย" />
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -103,7 +112,7 @@ function SpecEditor({ spec, used, stations, edit, disabled }: {
 }
 
 export function SpecPanel({ draft, callout, jobSpec, stations, edit, editable }: {
-  draft: Draft; callout: Callout | null; jobSpec: unknown; stations: StationCode[]; edit: (e: Edit) => void; editable: boolean
+  draft: Draft; callout: Callout | null; jobSpec: unknown; stations: StationCode[]; edit: Edit2; editable: boolean
 }) {
   if (!callout) {
     return <p className="rounded-xl border border-dashed border-line p-4 text-muted">
@@ -111,7 +120,7 @@ export function SpecPanel({ draft, callout, jobSpec, stations, edit, editable }:
     </p>
   }
   const c = callout
-  const set = (patch: Partial<Omit<Callout, 'key' | 'no'>>) => edit({ type: 'update_callout', key: c.key, patch })
+  const set = (patch: Partial<Omit<Callout, 'key' | 'no'>>) => edit({ type: 'update_callout', key: c.key, patch }, `${c.key}:${Object.keys(patch).join()}`)
   const refs = confirmationRefs(jobSpec)
   const spec = specOf(draft, c)
   const used = (key: string) => draft.callouts.filter(x => x.specKey === key).map(x => x.no).sort((a, b) => a - b)

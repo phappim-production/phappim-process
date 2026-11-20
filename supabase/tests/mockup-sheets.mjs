@@ -206,6 +206,16 @@ export async function mockupSheetTests({ db, ok, as }) {
     await db.exec('drop schema storage cascade')
   }
 
+  const inbox = (await db.query(`select kind, title, audience from public.inbox_messages where job_id = '${job}' order by id`)).rows
+  const kinds = inbox.map(m => m.kind)
+  ok('ทุกครั้งที่เข้ารออนุมัติแจ้งกล่องจดหมายฝ่ายผลิต + ผู้บริหาร (4 ครั้ง = 4 ข้อความ)', kinds.filter(k => k === 'mockup_pending').length === 4
+    && inbox.find(m => m.kind === 'mockup_pending').audience.join() === 'production,manager', JSON.stringify(kinds))
+  ok('ส่งกลับแล้วแจ้งแอดมินพร้อมเหตุผล', inbox.some(m => m.kind === 'mockup_returned' && m.audience.join() === 'admin'))
+  const changed = inbox.filter(m => m.kind === 'mockup_approved')
+  ok('อนุมัติฉบับแรก + ฉบับแก้ไข แจ้ง 2 ครั้ง · ฉบับแก้ไขแจ้ง QC ด้วยว่าต้องรับทราบใหม่', changed.length === 2
+    && !changed[0].audience.includes('qc') && changed[1].audience.includes('qc') && /เปลี่ยนเป็นฉบับ 2/.test(changed[1].title), JSON.stringify(changed.map(m => m.title)))
+  ok('แจ้งเตือนม็อคอัพไม่มี error ค้าง', (await db.query(`select count(*)::int n from public.inbox_errors where source = 'on_mockup_status_inbox'`)).rows[0].n === 0)
+
   await db.exec(`alter table public.events disable trigger events_append_only;
     delete from public.jobs where id = '${job}';
     alter table public.events enable trigger events_append_only;`)

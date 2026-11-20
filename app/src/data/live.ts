@@ -1,5 +1,5 @@
 // แยกเป็น pure function เพื่อทดสอบได้โดยไม่ต้องต่อ Supabase
-import { thaiWorkEnd, usesFilm, type OutRun, type Vendor, type Dept, type Job, type Phase, type RouteCode, type SlaLevel, type StationCode, type StationStatus } from '../proto/model.ts'
+import { isStationCode, thaiWorkEnd, usesFilm, type OutRun, type Vendor, type Dept, type Job, type Phase, type RouteCode, type SlaLevel, type StationCode, type StationStatus } from '../proto/model.ts'
 import type { Booking, Machine, MachineStatus, MachineType, Need } from '../proto/sewing.ts'
 
 export type JobRow = {
@@ -67,6 +67,20 @@ export function attachSla(jobs: Job[], rows: SlaFlagRow[]): Job[] {
     if (sla) return { ...j, sla }
     const { sla: _gone, ...rest } = j
     return rest
+  })
+}
+
+export type SpecSheetRow = { id: string; job_id: string; rev: number }
+export type SpecAckRow = { sheet_id: string; station_code: string }
+
+export function attachSpecSheets(jobs: Job[], sheets: SpecSheetRow[], acks: SpecAckRow[]): Job[] {
+  if (!sheets.length) return jobs
+  const byJob = new Map(sheets.map(s => [s.job_id, s]))
+  return jobs.map(j => {
+    const s = byJob.get(j.id)
+    if (!s) return j
+    const acked = [...new Set(acks.filter(a => a.sheet_id === s.id).map(a => a.station_code))].filter(isStationCode)
+    return { ...j, specSheet: { id: s.id, rev: s.rev, acked } }
   })
 }
 
