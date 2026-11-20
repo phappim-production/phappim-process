@@ -33,7 +33,7 @@ export function stageText(j: Job) {
     case 'sample': return `ขึ้นตัวอย่าง${j.sampleRound > 1 ? ` รอบ ${j.sampleRound}` : ''}${j.station ? ` · ${STATION_NAME[j.station]}` : ''}`
     case 'sample_review': return 'รอลูกค้ายืนยันตัวอย่าง'
     case 'production': return j.station ? `${STATION_NAME[j.station]} · ${STATUS_NAME[j.status ?? 'queued']}` : 'กำลังผลิต'
-    case 'done': return 'เสร็จ / พร้อมส่ง'
+    case 'done': return j.delivered ? 'จัดส่งแล้ว' : 'เสร็จ / รอจัดส่ง'
   }
 }
 

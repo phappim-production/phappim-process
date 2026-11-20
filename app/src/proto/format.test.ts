@@ -55,12 +55,16 @@ const phases: [Phase, number, string][] = [
   ['sample', 1, 'ขึ้นตัวอย่าง รอบ 2 · เย็บงาน'],
   ['sample_review', 2, 'รอลูกค้ายืนยันตัวอย่าง'],
   ['production', 6, 'เย็บงาน · รอคิว'],
-  ['done', 8, 'เสร็จ / พร้อมส่ง'],
+  ['done', 8, 'เสร็จ / รอจัดส่ง'],
 ]
 
 it.each(phases)('สถานะ %s ไฮไลต์ตำแหน่ง %s และแสดงข้อความตามขั้น', (phase, current, label) => {
   expect(stageSteps({ ...job, phase }).current).toBe(current)
   expect(stageText({ ...job, phase })).toBe(label)
+})
+
+it('งานเสร็จที่แอดมินบันทึกส่งแล้วแสดงว่าจัดส่งแล้ว', () => {
+  expect(stageText({ ...job, phase: 'done', delivered: { at: new Date('2026-11-21T03:00:00Z'), note: '' } })).toBe('จัดส่งแล้ว')
 })
 
 it('ขึ้นตัวอย่างรอบแรกที่ยังไม่มีสถานีแสดงเพียงชื่อขั้น', () => {

@@ -95,7 +95,7 @@ function JobStatus({ job: j, now, forecast, onOpen }: { job: Job; now: Date; for
   const late = finish ? lateDays(finish, j.due) : 0
   const next = j.phase !== 'done' ? all[cur + 1] : null
   const where = (j.phase === 'production' || j.phase === 'sample') && j.station ? STATION_NAME[j.station]
-    : j.phase === 'materials' ? 'รอวัตถุดิบ' : j.phase === 'sample_review' ? 'รอลูกค้ายืนยันตัวอย่าง' : j.phase === 'done' ? 'พร้อมส่ง' : all[cur]
+    : j.phase === 'materials' ? 'รอวัตถุดิบ' : j.phase === 'sample_review' ? 'รอลูกค้ายืนยันตัวอย่าง' : j.phase === 'done' ? (j.delivered ? 'จัดส่งแล้ว' : 'รอจัดส่ง') : all[cur]
   const status = j.phase === 'done' ? 'เสร็จแล้ว'
     : j.status ? STATUS_NAME[j.status]
     : j.phase === 'materials' ? `รอ ${missingDepts(j).map(d => DEPT_NAME[d]).join(', ')}`
