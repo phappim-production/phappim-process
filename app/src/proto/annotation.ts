@@ -129,15 +129,17 @@ export function applyEdit(d: Draft, e: Edit): Draft {
   }
 }
 
-export type History = { past: Draft[]; present: Draft; future: Draft[] }
+export type History = { past: Draft[]; present: Draft; future: Draft[]; tag?: string | undefined }
 const HISTORY_LIMIT = 50
 
 export const historyOf = (present: Draft): History => ({ past: [], present, future: [] })
 
-export function historyEdit(h: History, e: Edit): History {
+// พิมพ์ต่อเนื่องในช่องเดียวกัน (tag เดียวกัน) = ย้อนกลับครั้งเดียวทั้งคำ ไม่ใช่ทีละตัวอักษร
+export function historyEdit(h: History, e: Edit, tag?: string): History {
   const next = applyEdit(h.present, e)
   if (next === h.present) return h
-  return { past: [...h.past, h.present].slice(-HISTORY_LIMIT), present: next, future: [] }
+  if (tag && tag === h.tag && !h.future.length) return { ...h, present: next }
+  return { past: [...h.past, h.present].slice(-HISTORY_LIMIT), present: next, future: [], tag }
 }
 export function undo(h: History): History {
   const prev = h.past.at(-1)

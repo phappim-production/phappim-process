@@ -67,6 +67,7 @@ export type Job = {
   queue?: number             // jobs.queue_seq · แทรกงานด่วนได้
   out?: OutRun
   sla?: SlaLevel             // ไม่มี = ยังไม่ใกล้ครบหรือไม่จับเวลา
+  specSheet?: { id: string; rev: number; acked: StationCode[] }
 }
 
 // ส้ม = ใกล้ครบ · แดง = เกินแล้ว (report = ยังไม่ส่งรายงานปัญหา กดเสร็จไม่ได้ · over = รายงานแล้ว)

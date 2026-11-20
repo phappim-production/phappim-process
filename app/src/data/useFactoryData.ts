@@ -6,7 +6,7 @@ import type { Job, Vendor } from '../proto/model'
 import type { Booking, Machine, MachineType, Need } from '../proto/sewing'
 import {
   RPC_TIMEOUT_MS, SLOW_REPLY, withTimeout,
-  attachOutRuns, attachSla, sharedTypes, thaiError, toBookings, toJobs, toMachines, toNeeds, toVendors, type MachineTypeRow, type OutRunRow, type VendorRow,
+  attachOutRuns, attachSla, attachSpecSheets, sharedTypes, thaiError, toBookings, toJobs, toMachines, toNeeds, toVendors, type MachineTypeRow, type SpecAckRow, type SpecSheetRow, type OutRunRow, type VendorRow,
   type AssignmentRow, type BookingRow, type JobRow, type MachineRow, type NeedRow, type ProductRow, type ReworkRow, type SewEventRow, type SlaFlagRow,
 } from './live'
 
@@ -59,6 +59,10 @@ async function load(): Promise<FactoryData> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
   const recent = new Date(Date.now() - 14 * DAY).toISOString()
   const slaCall = supabase.rpc('job_sla_flags')
+  const specCall = Promise.all([
+    supabase.from('mockup_sheets').select('id, job_id, rev').eq('status', 'approved'),
+    supabase.from('mockup_acks').select('sheet_id, station_code'),
+  ])
   const stationCall = supabase.from('stations').select('code, machines, machine_pool')
   const [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types, vendorRows, outRuns] = await Promise.all([
     // งานเสร็จเก่ากว่า 14 วันไม่ต้องแสดงบนบอร์ด
@@ -78,14 +82,17 @@ async function load(): Promise<FactoryData> {
   const sla = await slaCall
   // ฐานข้อมูลที่ยังไม่มีคอลัมน์ machines (migration ยังไม่ลง) = ไม่จำกัดเครื่อง ไม่ทำให้หน้าโหลดไม่ขึ้น
   const stationRows = await stationCall
+  // อ่านสเปกกำกับไม่ได้ = การ์ดไม่มีป้ายรับทราบ ไม่ทำให้บอร์ดโหลดไม่ขึ้น
+  const [specSheets, specAcks] = await specCall
+  const specs = specSheets.error || specAcks.error ? { sheets: [], acks: [] } : { sheets: specSheets.data as SpecSheetRow[], acks: specAcks.data as SpecAckRow[] }
   const failed = [jobs, products, reworks, sewEvents, machines, assignments, bookings, needs, types, vendorRows, outRuns].find(r => r.error)
   if (failed?.error) throw new Error(failed.error.message)
   const vendors = toVendors(vendorRows.data as VendorRow[])
   return {
     stationMachines: stationRows.error ? [] : toStationMachines((stationRows.data ?? []) as StationMachineRow[]),
     vendors,
-    jobs: await withMockups(attachSla(attachOutRuns(toJobs(jobs.data as JobRow[], products.data as ProductRow[], reworks.data as ReworkRow[], sewEvents.data as SewEventRow[]), outRuns.data as OutRunRow[], vendors),
-      sla.error ? [] : (sla.data ?? []) as SlaFlagRow[])),
+    jobs: await withMockups(attachSpecSheets(attachSla(attachOutRuns(toJobs(jobs.data as JobRow[], products.data as ProductRow[], reworks.data as ReworkRow[], sewEvents.data as SewEventRow[]), outRuns.data as OutRunRow[], vendors),
+      sla.error ? [] : (sla.data ?? []) as SlaFlagRow[]), specs.sheets, specs.acks)),
     machines: toMachines(machines.data as MachineRow[], assignments.data as AssignmentRow[]),
     bookings: toBookings(bookings.data as BookingRow[]),
     needs: toNeeds(needs.data as NeedRow[], new Set(sharedTypes(types.data as MachineTypeRow[]))),

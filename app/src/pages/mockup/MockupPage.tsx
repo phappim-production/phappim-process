@@ -10,10 +10,10 @@ import {
   toPayload, undo, type Callout, type Draft, type Edit, type History, type ViewKey,
 } from '../../proto/annotation'
 import {
-  ackSheet, approveSheet, discardDraft, loadMockupJob, loadSheet, newKey, pickSheets, returnSheet, saveDraft, startSheet,
-  submitSheet, uploadOriginal, type MockupData, type SheetRow,
+  ackSheet, approveSheet, discardDraft, loadMockupJob, loadSheet, newKey, parseUnsaved, pickSheets, returnSheet, saveDraft, startSheet,
+  submitSheet, unsavedKey, uploadOriginal, type MockupData, type SheetRow,
 } from '../../data/mockupSheets'
-import { mockupProblem } from '../../data/mockups'
+import { mockupProblem, signMockups } from '../../data/mockups'
 import { isJobId } from '../../data/useFactoryData'
 import { thaiError } from '../../data/live'
 import { AnnotationCanvas } from './AnnotationCanvas'
@@ -84,7 +84,8 @@ export default function MockupPage({ jobId, role, myStations }: { jobId: string;
   const { data } = state
   const { approved, open } = pickSheets(data.sheets)
   const seeOpen = !!open && canSeeMockupDraft(role)
-  const current = tab ?? (seeOpen && (canEditMockup(role) || (open?.status === 'pending' && canApproveMockup(role))) ? 'work' : approved ? 'view' : seeOpen ? 'work' : 'view')
+  const auto = seeOpen && (canEditMockup(role) || (open?.status === 'pending' && canApproveMockup(role))) ? 'work' : approved ? 'view' : seeOpen ? 'work' : 'view'
+  const current = tab === 'work' && seeOpen ? 'work' : tab === 'view' && approved ? 'view' : auto
   const history = data.sheets.filter(s => s.status === 'approved' || s.status === 'superseded')
 
   return (
@@ -254,6 +255,8 @@ function SheetWork({ data, sheet, approved, role, reload }: {
   const [upload, setUpload] = useState<{ view: ViewKey; file: File | null; preview: string }>({ view: 'front', file: null, preview: '' })
   useEffect(() => () => { if (upload.preview) URL.revokeObjectURL(upload.preview) }, [upload.preview])
   const [decision, setDecision] = useState({ note: '', reason: '' })
+  const [recover, setRecover] = useState<Draft | null>(null)
+  const storeKey = unsavedKey(sheet.id, sheet.version)
 
   useEffect(() => {
     let live = true
@@ -263,13 +266,23 @@ function SheetWork({ data, sheet, approved, role, reload }: {
       setUrls(r.urls)
       setLoaded({ status: 'ready', saved: r.draft })
       setView(r.draft.views[0]?.view ?? 'front')
+      setUpload(u => ({ ...u, view: VIEW_ORDER.find(v => !r.draft.views.some(x => x.view === v)) ?? 'front' }))
+      try { setRecover(parseUnsaved(localStorage.getItem(storeKey))) } catch { /* เครื่องที่ปิดการเก็บข้อมูล: ไม่มีงานค้างให้กู้ */ }
     }).catch((e: unknown) => { if (live) setLoaded({ status: 'error', message: e instanceof Error ? e.message : thaiError(undefined) }) })
     return () => { live = false }
-  }, [sheet.id])
+  }, [sheet.id, storeKey])
 
   const draft = hist.present
   const editable = sheet.status === 'draft' && canEditMockup(role) && wide
   const dirty = loaded.status === 'ready' && draft !== loaded.saved
+  // เปลี่ยนหน้าในแอป / แท็บเล็ตปิดแท็บเอง ไม่มีกล่องเตือน → เก็บงานที่ยังไม่บันทึกไว้ในเครื่องให้กู้คืน
+  useEffect(() => {
+    if (loaded.status !== 'ready' || !editable) return
+    try {
+      if (dirty) localStorage.setItem(storeKey, JSON.stringify(draft))
+      else if (!recover) localStorage.removeItem(storeKey)
+    } catch { /* เก็บไม่ได้ก็ยังแก้ต่อได้ */ }
+  }, [draft, dirty, editable, loaded.status, recover, storeKey])
   useEffect(() => {
     if (!dirty) return
     const warn = (e: BeforeUnloadEvent) => { e.preventDefault() }
@@ -277,7 +290,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
 
-  const edit = useCallback((e: Edit) => setHist(h => historyEdit(h, e)), [])
+  const edit = useCallback((e: Edit, tag?: string) => setHist(h => historyEdit(h, e, tag)), [])
   useEffect(() => {
     if (!editable) return
     const key = (e: KeyboardEvent) => {
@@ -319,7 +332,16 @@ function SheetWork({ data, sheet, approved, role, reload }: {
     if (!r.ok) { fail(r.reason); return null }
     return r.data
   }
-  const saveAndReload = async () => { if (await save() !== null) await reload() }
+  const forget = () => { try { localStorage.removeItem(storeKey) } catch { /* ไม่มีอะไรให้ลบ */ } }
+  const saveAndReload = async () => { if (await save() !== null) { forget(); await reload() } }
+  const restore = async () => {
+    if (!recover) return
+    const missing = recover.views.map(v => v.path).filter(p => !urls.has(p))
+    if (missing.length) { const signed = await signMockups(missing); setUrls(m => new Map([...m, ...signed])) }
+    setHist(h => ({ past: [...h.past, h.present], present: recover, future: [] }))
+    setView(recover.views[0]?.view ?? 'front')
+    setRecover(null)
+  }
   const submit = async () => {
     const problems = submitProblems(draft)
     if (problems.length) { fail(problems.join(' · ')); return }
@@ -329,6 +351,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
     const r = await submitSheet(sheet.id, version)
     setBusy('')
     if (!r.ok) { fail(r.reason); if (dirty) await reload(); return }
+    forget()
     await reload()
   }
   const discard = async () => {
@@ -337,6 +360,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
     const r = await discardDraft(sheet.id)
     setBusy('')
     if (!r.ok) { fail(r.reason); return }
+    forget()
     await reload()
   }
   const decide = async (kind: 'approve' | 'return') => {
@@ -376,6 +400,15 @@ function SheetWork({ data, sheet, approved, role, reload }: {
       {sheet.status === 'draft' && canEditMockup(role) && !wide && (
         <p className="rounded-xl bg-info-soft px-3 py-2 text-info">แก้ไขม็อคอัพต้องใช้จอกว้าง 768 px ขึ้นไป (แท็บเล็ตแนวนอน / คอมพิวเตอร์) · มือถือดูได้อย่างเดียว</p>
       )}
+      {recover && editable && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">
+          <IconAlert className="size-5 shrink-0" />มีงานที่ยังไม่ได้บันทึกจากครั้งก่อนในเครื่องนี้ ({recover.callouts.length} จุด · {recover.views.length} ภาพ)
+          <span className="ml-auto flex gap-2">
+            <button type="button" className={primaryBtn} onClick={() => void restore()}>กู้คืน</button>
+            <button type="button" className={secondaryBtn} onClick={() => { forget(); setRecover(null) }}>ทิ้ง</button>
+          </span>
+        </div>
+      )}
       <Note msg={msg} />
       {conflict && <button type="button" className={secondaryBtn} onClick={() => void reload()}>โหลดใหม่ (งานที่ยังไม่บันทึกจะหาย)</button>}
 
@@ -400,8 +433,8 @@ function SheetWork({ data, sheet, approved, role, reload }: {
         </Card>
       )}
 
-      <div className="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)_360px]">
-        <Card className="grid content-start gap-3 p-3">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_320px] lg:grid-cols-[260px_minmax(0,1fr)_360px]">
+        <Card className="grid content-start gap-3 p-3 md:col-span-2 lg:col-span-1">
           <h2 className="font-bold">ภาพ</h2>
           {views.length > 0 && <ViewTabs views={views} value={shown?.view ?? 'front'} onChange={setView} counts={v => draft.callouts.filter(c => c.view === v).length} />}
           {editable && (

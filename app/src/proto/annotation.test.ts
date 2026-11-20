@@ -99,6 +99,29 @@ describe('Undo / Redo', () => {
   })
 })
 
+describe('ย้อนกลับเมื่อพิมพ์', () => {
+  it('พิมพ์ต่อเนื่องช่องเดียวกัน = ย้อนครั้งเดียวทั้งคำ · ช่องอื่นหรือจุดอื่นแยกขั้น', () => {
+    let h = historyOf(withPoints())
+    for (const t of ['ค', 'คอ', 'คอเ', 'คอเสื้อ']) h = historyEdit(h, { type: 'update_callout', key: 'a', patch: { title: t } }, 'a:title')
+    h = historyEdit(h, { type: 'update_callout', key: 'b', patch: { title: 'อ' } }, 'b:title')
+    h = historyEdit(h, { type: 'update_callout', key: 'b', patch: { title: 'อก' } }, 'b:title')
+    expect(h.past).toHaveLength(2)
+    h = undo(h)
+    expect([h.present.callouts[0]!.title, h.present.callouts[1]!.title]).toEqual(['คอเสื้อ', ''])
+    h = undo(h)
+    expect(h.present.callouts[0]!.title).toBe('')
+  })
+
+  it('พิมพ์ต่อหลังย้อนกลับ = เริ่มขั้นใหม่ ไม่ทับขั้นที่ย้อนไป', () => {
+    let h = historyOf(withPoints())
+    h = historyEdit(h, { type: 'update_callout', key: 'a', patch: { title: 'คอ' } }, 'a:title')
+    h = undo(h)
+    h = historyEdit(h, { type: 'update_callout', key: 'a', patch: { title: 'ค' } }, 'a:title')
+    expect(h.past).toHaveLength(1)
+    expect(undo(h).present.callouts[0]!.title).toBe('')
+  })
+})
+
 describe('สเปก', () => {
   it('ค่าจากใบยืนยันตรงกับในฐานข้อมูล (ตำแหน่งไม่ใส่เทคนิค = ใช้เทคนิคเดียวของใบ)', () => {
     expect(refValue(spec, 'placement:หน้าอกซ้าย')).toBe('DTF · 8 × 8 ซม. · ห่างคอ 8 ซม.')
