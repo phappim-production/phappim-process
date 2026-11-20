@@ -109,6 +109,7 @@ export async function flowR8Tests({ db, ok }) {
     const functions = (await rows("select distinct proname from pg_proc where pronamespace='public'::regnamespace" +
       " and prorettype<>'trigger'::regtype and has_function_privilege('authenticated',oid,'execute') order by proname")).map(r => r.proname)
     const matrix = []
+    const changedAfterCancel = []
     for (const job of fixtures) {
       const { id, run_id: run, current_station: station, confirmation_no: no, first_event: first } = job
       const state = no.endsWith('-P-2') ? 'P' : no.at(-1)
@@ -169,7 +170,32 @@ export async function flowR8Tests({ db, ok }) {
           matrix.push({ state, name, role, ...cell })
         }
       }
+      if (!['done', 'cancelled'].includes(job.phase) && job.station_status !== 'out') {
+        await isolated('r8_cancelled', async () => {
+          await call('manager', 'cancel_job', [id, reason])
+          const snapshot = async () => JSON.stringify(await one(
+            'select (select to_jsonb(j) from public.jobs j where j.id=$1) as job,' +
+            ' (select count(*) from public.events where job_id=$1) as events,' +
+            ' (select count(*) from public.machine_assignments where job_id=$1 and released_at is null) as machines,' +
+            ' (select count(*) from public.machine_bookings where job_id=$1 and cancelled_at is null and ends_at>now()) as bookings,' +
+            ' (select count(*) from public.issues where job_id=$1 and closed_at is null) as issues,' +
+            ' (select count(*) from public.outsource_runs where job_id=$1) as runs,' +
+            ' (select count(*) from public.qc_results where job_id=$1) as qc,' +
+            ' (select count(*) from public.mockup_sheets where job_id=$1) as sheets', [id]))
+          const before = await snapshot()
+          // แจ้งว่ากดผิด = จดหมายเหตุในประวัติ ไม่เปลี่ยนงาน จึงยังทำได้
+          for (const name of functions.filter(f => f !== 'correct_event')) {
+            const tail = ['send_out', 'forward_out', 'update_out_plan'].includes(name) ? plan : ''
+            const changed = await isolated('r8_cancelled_call', async () => {
+              try { await call('owner', name, args[name], tail) } catch { return false }
+              return await snapshot() !== before
+            })
+            if (changed) changedAfterCancel.push({ state, name })
+          }
+        })
+      }
     }
+    ok('R8 งานที่ยกเลิกแล้ว ทุกคำสั่งเปลี่ยนงานไม่ได้', changedAfterCancel.length === 0, JSON.stringify(changedAfterCancel))
     console.log('R8_MATRIX ' + JSON.stringify(matrix))
     const authExceptions = ['my_role', 'is_owner', 'inbox_unread_count']
     ok('R8 ตาราง A–P: anon และบัญชีปิดเรียกคำสั่งงานไม่ได้',
