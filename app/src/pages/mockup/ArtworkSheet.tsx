@@ -116,7 +116,7 @@ export default function ArtworkSheet({ jobId, role }: { jobId: string; role: Emp
   if (state.status !== 'ready') {
     return (
       <div className="mx-auto max-w-xl p-4 sm:p-6">
-        <Card className="grid gap-2 p-5">
+        <Card className="grid grid-cols-[minmax(0,1fr)] gap-2 p-5">
           <h1 className="text-xl font-bold">ใบกำกับงานพิมพ์</h1>
           {state.status === 'loading' && <p role="status" className="text-muted">กำลังโหลด…</p>}
           {state.status === 'missing' && <p role="alert" className="text-danger">{state.text}</p>}
@@ -127,7 +127,7 @@ export default function ArtworkSheet({ jobId, role }: { jobId: string; role: Emp
   }
   const sheet = <ArtworkPaper r={state.r} paper={paper} printedOn={printedOn} />
   return (
-    <div className="mx-auto grid max-w-[1200px] gap-3 p-3 sm:p-5">
+    <div className="mx-auto grid max-w-[1200px] grid-cols-[minmax(0,1fr)] gap-3 p-3 sm:p-5">
       <style>{`@page { size: ${paper} landscape; margin: 8mm; }`}</style>
       <div className="flex flex-wrap items-center gap-2">
         <a href={`#/mockup?id=${state.r.data.job.id}`} className={secondaryBtn}>กลับไปม็อคอัพ</a>
