@@ -3,7 +3,7 @@ import type { StationCode } from './model'
 export type ViewKey = 'front' | 'back' | 'left' | 'right' | 'detail'
 export const VIEW_ORDER: ViewKey[] = ['front', 'back', 'left', 'right', 'detail']
 export const VIEW_NAME: Record<ViewKey, string> = {
-  front: 'ด้านหน้า', back: 'ด้านหลัง', left: 'ด้านซ้าย', right: 'ด้านขวา', detail: 'รายละเอียด',
+  front: 'ภาพหลัก', back: 'ด้านหลัง', left: 'ด้านซ้าย', right: 'ด้านขวา', detail: 'รายละเอียด',
 }
 
 export type SheetStatus = 'draft' | 'pending' | 'approved' | 'superseded'
@@ -219,7 +219,7 @@ export function refLabel(ref: string): string {
 
 export function submitProblems(d: Draft): string[] {
   const out: string[] = []
-  if (!d.views.some(v => v.view === 'front')) out.push('ยังไม่มีภาพด้านหน้า')
+  if (!d.views.some(v => v.view === 'front')) out.push('ยังไม่มีภาพหลัก')
   const noTitle = d.callouts.filter(c => !c.title.trim()).map(c => c.no)
   if (noTitle.length) out.push(`Callout ${noTitle.join(', ')} ยังไม่มีชื่อจุด`)
   const empty = d.callouts.filter(c => !c.specRef && !c.specKey && !c.body.trim()).map(c => c.no)
