@@ -17,12 +17,13 @@ it('ตารางสิทธิ์ตรงกับที่หน้าเ�
   }
 })
 
-it('ตารางสิทธิ์ม็อคอัพตรงกับที่หน้าเว็บใช้ · แอดมินอนุมัติไม่ได้', () => {
+it('ตารางสิทธิ์ม็อคอัพตรงกับที่หน้าเว็บใช้ · แอดมินอนุมัติใช้ผลิตเองได้', () => {
   for (const role of ROLE_ORDER) {
     expect(cell(row('mockup_edit'), role) !== false, role).toBe(canEditMockup(role))
     expect(cell(row('mockup_approve'), role) !== false, role).toBe(canApproveMockup(role))
     expect(cell(row('mockup_ack'), role) !== false, role).toBe(canAckMockup(role))
   }
-  expect(canApproveMockup('admin')).toBe(false)
+  expect(canApproveMockup('admin')).toBe(true)
+  expect(canApproveMockup('supervisor')).toBe(false)
   expect(canOpenPage('staff', 'artwork')).toBe(false)
 })

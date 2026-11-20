@@ -11,7 +11,7 @@ import {
 } from '../../proto/annotation'
 import {
   ackSheet, approveSheet, discardDraft, loadMockupJob, loadSheet, newKey, parseUnsaved, pickSheets, returnSheet, saveDraft, startSheet,
-  submitSheet, unsavedKey, uploadOriginal, type MockupData, type SheetRow,
+  unsavedKey, uploadOriginal, type MockupData, type SheetRow,
 } from '../../data/mockupSheets'
 import { mockupProblem, signMockups } from '../../data/mockups'
 import { isJobId } from '../../data/useFactoryData'
@@ -351,13 +351,16 @@ function SheetWork({ data, sheet, approved, role, reload }: {
     setView(recover.views[0]?.view ?? 'front')
     setRecover(null)
   }
-  const submit = async () => {
+  const approveNow = async () => {
     const problems = submitProblems(draft)
     if (problems.length) { fail(problems.join(' · ')); return }
+    const revision = approved ? ' · ทุกสถานีต้องรับทราบสเปกใหม่' : ''
+    if (!window.confirm(`อนุมัติฉบับ ${sheet.rev} ใช้ผลิต?
+อนุมัติแล้วแก้ไม่ได้ ถ้าต้องแก้ให้สร้างฉบับแก้ไขใหม่${revision}`)) return
     const version = dirty ? await save() : sheet.version
     if (version === null) return
-    setBusy('submit')
-    const r = await submitSheet(sheet.id, version)
+    setBusy('approve')
+    const r = await approveSheet(sheet.id, '', version)
     setBusy('')
     if (!r.ok) { fail(r.reason); if (dirty) await reload(); return }
     forget()
@@ -381,7 +384,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
   }
 
   const approverBlocked = sheet.status === 'pending' && role === 'production' && !!approved && data.job.started
-    ? 'งานนี้เริ่มผลิตแล้ว ฉบับแก้ไขต้องให้ผู้บริหารหรือเจ้าของอนุมัติ' : ''
+    ? 'งานนี้เริ่มผลิตแล้ว ฉบับแก้ไขต้องให้แอดมิน ผู้บริหาร หรือเจ้าของอนุมัติ' : ''
   const submitIssues = submitProblems(draft)
 
   return (
@@ -395,11 +398,13 @@ function SheetWork({ data, sheet, approved, role, reload }: {
             <button type="button" className={`${secondaryBtn} px-4`} disabled={!hist.past.length} onClick={() => setHist(undo)} aria-label="ย้อนกลับ (Undo)">↶ ย้อน</button>
             <button type="button" className={`${secondaryBtn} px-4`} disabled={!hist.future.length} onClick={() => setHist(redo)} aria-label="ทำซ้ำ (Redo)">↷ ทำซ้ำ</button>
             <button type="button" className={secondaryBtn} disabled={!!busy || !dirty} onClick={() => void saveAndReload()}>{busy === 'save' ? 'กำลังบันทึก…' : 'บันทึกร่าง'}</button>
-            <button type="button" className={primaryBtn} disabled={!!busy || submitIssues.length > 0}
-              title={submitIssues.join(' · ')} onClick={() => void submit()}>{busy === 'submit' ? 'กำลังส่ง…' : 'ส่งอนุมัติ'}</button>
+            <button type="button" className={okBtn} disabled={!!busy || submitIssues.length > 0}
+              title={submitIssues.join(' · ')} onClick={() => void approveNow()}>
+              <IconCheck className="size-5" />{busy === 'approve' ? 'กำลังอนุมัติ…' : `อนุมัติฉบับ ${sheet.rev} ใช้ผลิต`}
+            </button>
           </>}
         </span>
-        {editable && submitIssues.length > 0 && <p className="w-full text-sm text-warn">ส่งอนุมัติไม่ได้: {submitIssues.join(' · ')}</p>}
+        {editable && submitIssues.length > 0 && <p className="w-full text-sm text-warn">ยังอนุมัติไม่ได้: {submitIssues.join(' · ')}</p>}
       </Card>
 
       {sheet.status === 'draft' && sheet.return_reason && (
@@ -444,7 +449,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
             <button type="button" className={dangerBtn} disabled={!!busy || !decision.reason.trim()} onClick={() => void decide('return')}>
               {decision.reason.trim() ? (busy === 'return' ? 'กำลังส่งกลับ…' : 'ส่งกลับให้แอดมินแก้') : 'ใส่เหตุผลก่อนส่งกลับ'}
             </button>
-          </> : <p className="text-muted">{role === 'admin' ? 'แอดมินอนุมัติเองไม่ได้ · รอฝ่ายผลิต ผู้บริหาร หรือเจ้าของ' : 'รอฝ่ายผลิต ผู้บริหาร หรือเจ้าของอนุมัติ'}</p>}
+          </> : <p className="text-muted">รอแอดมิน ฝ่ายผลิต ผู้บริหาร หรือเจ้าของอนุมัติ</p>}
         </Card>
       )}
 
