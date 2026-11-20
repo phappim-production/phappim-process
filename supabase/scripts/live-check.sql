@@ -47,7 +47,10 @@ begin
   j1 := pg_temp.ok('รับงานเข้า (admin)', adm, format($$select public.receive_job('TEST-LIVE-A','ลูกค้าทดสอบสด','งานทดสอบสด','tshirt',10,'ตัว',current_date + 7,'normal','',0,0,%L::jsonb,false)::text$$, spec))::uuid;
   perform pg_temp.err('QC รับงานเข้าไม่ได้', qcu, $$select public.receive_job('TEST-LIVE-X','x','x','tshirt',1,'ตัว',current_date+7,'normal','',0,0,'{}',false)$$, 'บทบาท|แอดมิน');
   perform pg_temp.chk('งานใหม่อยู่สถานีพิมพ์ รอคิว', (select current_station='print' and station_status='queued' from public.job_live where id=j1), (select current_station||'/'||station_status from public.job_live where id=j1));
-  perform pg_temp.err('เริ่มงานที่ไม่ใช่คิวแรกโดยไม่มีเหตุผลไม่ได้', prd, format($$select public.start_in_queue(%L, null)$$, j1), 'คิว|เหตุผล');
+  if exists (select 1 from public.job_live o where o.current_station = 'print' and o.station_status = 'queued' and o.phase in ('sample', 'production')
+             and o.id <> j1 and o.queue_seq < (select queue_seq from public.job_live where id = j1)) then
+    perform pg_temp.err('เริ่มงานที่ไม่ใช่คิวแรกโดยไม่มีเหตุผลไม่ได้', prd, format($$select public.start_in_queue(%L, null)$$, j1), 'คิว|เหตุผล');
+  end if;
 
   -- ม็อคอัพ: ร่าง → ส่ง → ส่งกลับ → ส่ง → อนุมัติ (ก่อนเริ่มผลิต)
   folder := private.mockup_folder('TEST-LIVE-A');
@@ -91,10 +94,10 @@ begin
   perform pg_temp.as_user(qcu);
   execute 'set local role authenticated';
   n := (select count(*) from public.mockup_callouts where sheet_id = s1);
-  perform pg_temp.chk('QC อ่าน Callout ฉบับอนุมัติได้ 3 จุด (RLS)', n = 3, n::text);
-  n := (select count(*) from public.mockup_snapshots where sheet_id = s1);
-  perform pg_temp.chk('QC อ่าน snapshot ไม่ได้ (RLS)', n = 0, n::text);
+  v := (select count(*) from public.mockup_snapshots where sheet_id = s1);
   execute 'reset role';
+  perform pg_temp.chk('QC อ่าน Callout ฉบับอนุมัติได้ 3 จุด (RLS)', n = 3, n::text);
+  perform pg_temp.chk('QC อ่าน snapshot ไม่ได้ (RLS)', v = 0, v::text);
 
   -- เดินงาน A ทุกสถานี
   perform pg_temp.ok('พิมพ์: เริ่มก่อนคิว (มีเหตุผล)', prd, format($$select public.start_in_queue(%L,'ทดสอบระบบสด')::text$$, j1));
