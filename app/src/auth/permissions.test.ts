@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { canCloseIssue, canOpenPage, ROLE_LABELS, type EmployeeRole } from './access'
+import { canAckMockup, canApproveMockup, canCloseIssue, canEditMockup, canOpenPage, ROLE_LABELS, type EmployeeRole } from './access'
 import { cell, PERMISSIONS, ROLE_ORDER } from './permissions'
 
 const row = (key: string) => PERMISSIONS.find(p => p.key === key)!
@@ -15,4 +15,14 @@ it('ตารางสิทธิ์ตรงกับที่หน้าเ�
     expect(cell(row('overview'), role) !== false, role).toBe(canOpenPage(role, 'overview'))
     expect(cell(row('settings'), role) !== false, role).toBe(canOpenPage(role, 'settings'))
   }
+})
+
+it('ตารางสิทธิ์ม็อคอัพตรงกับที่หน้าเว็บใช้ · แอดมินอนุมัติไม่ได้', () => {
+  for (const role of ROLE_ORDER) {
+    expect(cell(row('mockup_edit'), role) !== false, role).toBe(canEditMockup(role))
+    expect(cell(row('mockup_approve'), role) !== false, role).toBe(canApproveMockup(role))
+    expect(cell(row('mockup_ack'), role) !== false, role).toBe(canAckMockup(role))
+  }
+  expect(canApproveMockup('admin')).toBe(false)
+  expect(canOpenPage('staff', 'artwork')).toBe(false)
 })

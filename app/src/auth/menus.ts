@@ -34,6 +34,8 @@ export const ROUTES: Record<string, Route> = {
   '#/settings': { page: 'settings', settingsTab: 'stations' },
   '#/system': { page: 'system' },
   '#/label': { page: 'label' },
+  '#/mockup': { page: 'mockup' },
+  '#/artwork': { page: 'artwork' },
 }
 
 export function routeOf(path: string): Route {
