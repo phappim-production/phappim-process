@@ -473,7 +473,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
               <button type="button" className={primaryBtn} disabled={!upload.file || !!mockupProblem(upload.file) || !!busy} onClick={() => void doUpload()}>
                 {busy === 'upload' ? 'กำลังอัปโหลด…' : `ใช้เป็นภาพ${VIEW_NAME[upload.view]}`}
               </button>
-              <p className="text-sm text-muted">PNG / JPG / WEBP ไม่เกิน 5 MB · เก็บไฟล์ต้นฉบับไม่ย่อ · ม็อคอัพที่มีหน้า + หลังในภาพเดียว อัปโหลดเป็นภาพหลักภาพเดียวพอ แล้ววางจุดได้ทั้งสองตัว</p>
+              <p className="text-sm text-muted">PNG / JPG / WEBP ไม่เกิน 20 MB · เก็บไฟล์ต้นฉบับไม่ย่อ · ม็อคอัพที่มีหน้า + หลังในภาพเดียว อัปโหลดเป็นภาพหลักภาพเดียวพอ แล้ววางจุดได้ทั้งสองตัว</p>
               {shown && <button type="button" className={dangerBtn} onClick={() => edit({ type: 'remove_view', view: shown.view })}>ลบภาพ{VIEW_NAME[shown.view]}</button>}
             </div>
           )}
