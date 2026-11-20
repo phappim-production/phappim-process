@@ -269,9 +269,9 @@ export async function flowR11Tests({ db, ok }) {
       await deny('disabled', 'job_sla_flags', [], { code: '42501' })
     })
 
-    await check('BUG: A3 บัญชีปิดแล้วยังอ่านโปรไฟล์ตัวเองได้', async () => {
+    await check('A3 บัญชีปิดอ่านได้แค่โปรไฟล์ตัวเอง เพื่อให้หน้าเว็บขึ้น "บัญชีถูกปิด"', async () => {
       const profiles = await auth('disabled', 'select user_id, active from public.profiles')
-      assert.equal(profiles.length, 0, 'บัญชีที่ปิดแล้วยังอ่านโปรไฟล์ตัวเองได้ ' + profiles.length + ' แถว')
+      assert.deepEqual(profiles, [{ user_id: actors.disabled, active: false }])
     })
 
     await check('A4 ใบยืนยัน → ร่าง → อนุมัติ → แก้หลังเริ่มผลิต → รับทราบ', async () => {

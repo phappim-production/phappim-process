@@ -246,7 +246,7 @@ try {
     })
   }
 
-  await record('BUG: B3 ภาพรวมมือถือไม่แสดงจำนวนรอจัดส่ง', async () => {
+  await record('B3 ภาพรวมมือถือแสดงจำนวนรอจัดส่ง', async () => {
     api.reset('delivery')
     await t.goto('admin', '#/', 375)
     await t.waitText('เสร็จวันนี้')
@@ -260,7 +260,7 @@ try {
     await waitFor(() => tab.ev(s => document.querySelector(s)?.value, nameField), 'ช่องชื่อจุด')
   }
 
-  await record('BUG: B4 คีย์ลัด Ctrl+Z/Y ไม่ทำงานเมื่อโฟกัสชื่อจุด', async () => {
+  await record('B4 คีย์ลัด Ctrl+Z/Y ทำงานเมื่อโฟกัสชื่อจุด', async () => {
     api.reset('draft')
     await t.goto('admin', mockupHash)
     await editFirst()
@@ -276,8 +276,7 @@ try {
     })
     await t.key(nameField, 'KeyZ', 'ผ')
     const afterUndo = await t.ev(s => ({ value: document.querySelector(s).value, keys: window.r11Press }), nameField)
-    if (afterUndo.value !== 'จุดหน้าอก') await t.button('↶ ย้อน')
-    assert.equal(await t.ev(s => document.querySelector(s).value, nameField), 'จุดหน้าอก', 'ปุ่มย้อนในแถบเครื่องมือต้องทำงาน')
+    assert.equal(afterUndo.value, 'จุดหน้าอก', JSON.stringify(afterUndo.keys))
     await t.key(nameField, 'KeyY', 'ั')
     const afterRedo = await t.ev(s => ({ value: document.querySelector(s).value, keys: window.r11Press }), nameField)
     assert.deepEqual([afterUndo.value, afterRedo.value], ['จุดหน้าอก', 'จุดหน้าอกใหม่'],
@@ -352,7 +351,7 @@ try {
 
   for (const [role, links] of [['qc', ['qc_pack']], ['staffQc', ['qc_pack']], ['cut', ['cut']], ['multi', ['print', 'press', 'cut']]]) {
     for (const width of widths) {
-      await record((width === 375 ? 'BUG: ' : '') + 'B4/B6 สถานีม็อคอัพ ' + role + ' ' + width, async () => {
+      await record('B4/B6 สถานีม็อคอัพ ' + role + ' ' + width, async () => {
         api.reset('approved')
         await t.goto(role, mockupHash, width)
         await t.waitText('ดูเฉพาะสถานี')

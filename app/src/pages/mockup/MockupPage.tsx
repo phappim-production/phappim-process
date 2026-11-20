@@ -102,9 +102,9 @@ export default function MockupPage({ jobId, role, myStations }: { jobId: string;
         </div>
         <div className="flex flex-wrap gap-2">
           {approved
-            ? <Pill tone="ok" dot>ใช้ผลิต: ฉบับ {approved.rev} · อนุมัติ {when(approved.approved_at)} โดย {data.names.get(approved.approved_by ?? '') ?? '—'}</Pill>
+            ? <Pill tone="ok" dot wrap>ใช้ผลิต: ฉบับ {approved.rev} · อนุมัติ {when(approved.approved_at)} โดย {data.names.get(approved.approved_by ?? '') ?? '—'}</Pill>
             : <Pill tone="neutral">ยังไม่มีฉบับที่อนุมัติ</Pill>}
-          {open && <Pill tone={SHEET_STATUS[open.status].tone} dot>ฉบับ {open.rev}: {SHEET_STATUS[open.status].text}</Pill>}
+          {open && <Pill tone={SHEET_STATUS[open.status].tone} dot wrap>ฉบับ {open.rev}: {SHEET_STATUS[open.status].text}</Pill>}
         </div>
         {approved && open && (
           <p className="flex items-start gap-2 rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">
