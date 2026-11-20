@@ -44,7 +44,7 @@ export default function JobFinder({ jobs, now, forecast, onOpen }: Props) {
             onFocus={e => { setFocus(true); e.currentTarget.select() }}
             onKeyDown={e => { if (e.key === 'Enter' && matches[0]) pick(matches[0]); if (e.key === 'Escape') setFocus(false) }}
             placeholder="พิมพ์เลขที่ใบยืนยัน เช่น SC691520 หรือชื่อลูกค้า"
-            className="w-full rounded-2xl border-2 border-line bg-paper/50 py-3.5 pr-12 pl-12 text-base outline-none transition placeholder:text-muted/70 focus:border-brand focus:bg-card focus:ring-4 focus:ring-brand/10"
+            className="w-full rounded-2xl border-2 border-line bg-paper/50 pt-3 pb-4 pr-12 pl-12 text-base outline-none transition placeholder:text-muted/70 focus:border-brand focus:bg-card focus:ring-4 focus:ring-brand/10"
             aria-label="ค้นหางาน" autoComplete="off" inputMode="search"
           />
           {q && (
