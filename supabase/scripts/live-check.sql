@@ -45,6 +45,8 @@ declare
 begin
   -- บัญชีทดสอบปิดอยู่หลังเปิดใช้จริง · เปิดชั่วคราวในธุรกรรมนี้ ถูกย้อนกลับพร้อมทุกอย่างตอนจบ
   update public.profiles set active = true where user_id in (adm, mgr, prd, qcu);
+  -- งานอื่นในฐานจริงอาจใช้เครื่องเต็มอยู่ · ไม่นับเครื่องในธุรกรรมนี้ (กฎเครื่องเต็มมีทดสอบใน station-machines.mjs)
+  update public.stations set machines = null where machines is not null;
   -- งาน A: ปกติ ไม่ขึ้นตัวอย่าง · เดินครบ 5 สถานี + พัก/ทำต่อ + QC ส่งแก้
   j1 := pg_temp.ok('รับงานเข้า (admin)', adm, format($$select public.receive_job('TEST-LIVE-A','ลูกค้าทดสอบสด','งานทดสอบสด','tshirt',10,'ตัว',current_date + 7,'normal','',0,0,%L::jsonb,false)::text$$, spec))::uuid;
   perform pg_temp.err('QC รับงานเข้าไม่ได้', qcu, $$select public.receive_job('TEST-LIVE-X','x','x','tshirt',1,'ตัว',current_date+7,'normal','',0,0,'{}',false)$$, 'บทบาท|แอดมิน');

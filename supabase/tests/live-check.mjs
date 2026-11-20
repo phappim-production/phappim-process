@@ -27,6 +27,11 @@ await db.exec(`
   insert into public.profiles (user_id, name, role, active) values
     ('63ad8527-bd2d-4ea5-8f5c-e0602d1212a7','ทดสอบ แอดมิน','admin',false),('60c2aa77-751b-403d-a9aa-a042caca76b9','ทดสอบ ผู้บริหาร','manager',false),
     ('34d97810-626e-42c1-a961-ae0a1da8f1b9','ทดสอบ ฝ่ายผลิต','production',false),('088bd56e-1d95-42df-8bd9-a7667f545b72','ทดสอบ ฝ่าย QC','qc',false);
+  update public.stations set machines = 1 where code = 'qc_pack';
+  insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code,
+    confirmation_pdf_path, phase, station_seq, station_status)
+  values ('TEST-BUSY-QC','ลูกค้า','งานใช้เครื่อง QC ค้าง','tshirt',5,'ตัว','2026-12-31','normal','x.pdf','production',
+    private.last_seq('normal'), 'doing');
 `)
 let out = null
 try {
