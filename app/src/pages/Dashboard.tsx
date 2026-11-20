@@ -10,7 +10,7 @@ import { duration, relDay, shortDate } from '../proto/format'
 import { Card, DueLabel, MockupThumb, Pill, StatTile, ViewSwitch, pillGroup, pillItem, pillOff, pillOn } from '../components/ui'
 import { thaiError } from '../data/live'
 import type { Tone } from '../components/tone'
-import { IconAlert, IconCheck, IconClipboard, IconClock, IconFactory, IconFilm, IconPackage, IconSearch, IconSewing, IconX } from '../components/icons'
+import { IconAlert, IconCheck, IconClipboard, IconClock, IconFactory, IconFilm, IconImage, IconPackage, IconSearch, IconSewing, IconX } from '../components/icons'
 import { roleSummary, type SewingView, type SummaryIcon } from '../proto/summary'
 import Overview, { StationNow } from './Overview'
 import { DASH_TAB_NAME, FACTORY_SCOPE, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
@@ -603,6 +603,10 @@ function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Jo
           <a href={'#/label?id=' + encodeURIComponent(j.id)}
             className="mt-2 inline-flex min-h-12 items-center gap-2 rounded-xl border border-line px-3 font-semibold text-brand hover:bg-brand-soft">
             <IconClipboard className="size-5" /> พิมพ์ใบปะงาน
+          </a>
+          <a href={'#/mockup?id=' + encodeURIComponent(j.id)}
+            className="mt-2 ml-2 inline-flex min-h-12 items-center gap-2 rounded-xl border border-line px-3 font-semibold text-brand hover:bg-brand-soft">
+            <IconImage className="size-5" /> ม็อคอัพกำกับสเปก
           </a>
           {finish && (
             <div className={`mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${late > 0 ? 'bg-danger-soft text-danger' : 'bg-ok-soft text-ok'}`}>

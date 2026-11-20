@@ -24,6 +24,8 @@ import {
 } from './components/icons'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
+const MockupPage = lazy(() => import('./pages/mockup/MockupPage'))
+const ArtworkSheet = lazy(() => import('./pages/mockup/ArtworkSheet'))
 
 const MENU_ICON: Record<MenuIcon, ComponentType<{ className?: string }>> = {
   gauge: IconGauge, list: IconList, columns: IconColumns, chart: IconChart, queue: IconLayers, users: IconUsers,
@@ -183,6 +185,13 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
               {page === 'roles' && <RolesPage />}
               {page === 'audit' && <AuditPage />}
               {page === 'label' && <JobLabel jobId={labelId} />}
+              {(page === 'mockup' || page === 'artwork') && (
+                <Suspense fallback={<p role="status" className="p-5">กำลังโหลด…</p>}>
+                  {page === 'mockup'
+                    ? <MockupPage key={labelId} jobId={labelId} role={profile.role} myStations={profile.stations} />
+                    : <ArtworkSheet key={labelId} jobId={labelId} role={profile.role} />}
+                </Suspense>
+              )}
             </main>
           )}
           </ErrorBoundary>

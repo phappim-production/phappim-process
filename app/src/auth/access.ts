@@ -10,7 +10,7 @@ export const ROLE_LABELS = {
 
 export type EmployeeRole = keyof typeof ROLE_LABELS
 export type PageKey = 'overview' | 'board' | 'reports' | 'settings' | 'system' | 'inbox' | 'label'
-  | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews' | 'sysOverview' | 'roles' | 'audit'
+  | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews' | 'sysOverview' | 'roles' | 'audit' | 'mockup' | 'artwork'
 
 export type FactoryView = 'overview' | 'board' | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews'
 export const FACTORY_VIEWS: readonly PageKey[] = ['overview', 'board', 'issues', 'report', 'history', 'queueAll', 'dept', 'reviews']
@@ -61,7 +61,15 @@ export function canOpenPage(role: EmployeeRole, page: PageKey): boolean {
     // ภาพรวม (รับงานเพิ่มได้ไหม · งานเสี่ยงทั้งโรงงาน) เป็นข้อมูลสำหรับคนตัดสินใจ · คนหน้างานใช้บอร์ดของตัวเอง
     case 'overview':
       return role === 'owner' || role === 'admin' || role === 'manager'
+    case 'artwork':
+      return role !== 'staff'
     default:
       return true
   }
 }
+
+// ตรงกับ start/save/submit/approve/ack_mockup_sheet ในฐานข้อมูล · แอดมินทำร่าง แต่อนุมัติไม่ได้
+export const canEditMockup = (role: EmployeeRole) => role === 'admin' || role === 'owner'
+export const canApproveMockup = (role: EmployeeRole) => role === 'owner' || role === 'manager' || role === 'production'
+export const canAckMockup = (role: EmployeeRole) => ['owner', 'production', 'supervisor', 'qc', 'staff'].includes(role)
+export const canSeeMockupDraft = (role: EmployeeRole) => ['owner', 'manager', 'admin', 'production', 'supervisor'].includes(role)

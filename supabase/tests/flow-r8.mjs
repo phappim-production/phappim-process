@@ -137,6 +137,8 @@ export async function flowR8Tests({ db, ok }) {
         add_vendor: ['บริษัทจำลองรอบ 8', ['cut']], owner_list_users: [], staff_names: [],
         inbox_mark_read: [[notice?.id ?? 0]], inbox_mark_all_read: [], inbox_scan: [],
         inbox_unread_count: [], job_sla_flags: [], my_role: [], is_owner: [], ack_review: ['queue_event', 0],
+        start_mockup_sheet: [id, reason], save_mockup_draft: [id, 1, { views: [], specs: [], callouts: [] }], discard_mockup_draft: [id],
+        submit_mockup_sheet: [id, 1], return_mockup_sheet: [id, reason], approve_mockup_sheet: [id, reason], ack_mockup_sheet: [id, 'cut'],
       }
       assert.deepEqual(functions.filter(name => !Object.hasOwn(args, name)), [])
       for (const name of functions) {

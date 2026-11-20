@@ -1,0 +1,150 @@
+.artwork-print {
+  display: none;
+}
+
+.artwork-sheet {
+  position: relative;
+  display: grid;
+  gap: 4mm;
+  min-width: 260mm;
+  padding: 6mm;
+  background: white;
+  color: var(--color-ink);
+  font-size: 10pt;
+}
+
+.artwork-sheet.paper-A3 {
+  min-width: 400mm;
+  font-size: 11pt;
+}
+
+.artwork-watermark {
+  position: absolute;
+  inset: 40% 0 auto;
+  z-index: 50;
+  text-align: center;
+  font-size: 48pt;
+  font-weight: 700;
+  color: var(--color-danger);
+  opacity: .18;
+  transform: rotate(-12deg);
+  pointer-events: none;
+}
+
+.artwork-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4mm;
+  border-bottom: 2px solid var(--color-brand);
+  padding-bottom: 2mm;
+}
+
+.artwork-brand {
+  color: var(--color-brand);
+  font-weight: 700;
+}
+
+.artwork-head h1 {
+  font-size: 16pt;
+  font-weight: 700;
+}
+
+.artwork-meta {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 1mm 5mm;
+}
+
+.artwork-meta dt {
+  color: var(--color-muted);
+  font-size: 8pt;
+}
+
+.artwork-meta dd {
+  font-weight: 600;
+}
+
+.artwork-views {
+  display: grid;
+  gap: 4mm;
+}
+
+.artwork-views.count-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.artwork-views figure {
+  display: grid;
+  gap: 1mm;
+  justify-items: center;
+  break-inside: avoid;
+}
+
+.artwork-views figcaption {
+  font-weight: 700;
+  color: var(--color-brand);
+}
+
+.artwork-table {
+  width: 100%;
+  border-collapse: collapse;
+  break-inside: auto;
+}
+
+.artwork-table th,
+.artwork-table td {
+  border: 1px solid var(--color-line);
+  padding: 1mm 2mm;
+  text-align: left;
+  vertical-align: top;
+}
+
+.artwork-table th {
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
+}
+
+.artwork-table tr {
+  break-inside: avoid;
+}
+
+.artwork-table td.no {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.artwork-table td.wrap {
+  overflow-wrap: anywhere;
+}
+
+.artwork-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 4mm;
+  padding-top: 3mm;
+  color: var(--color-muted);
+}
+
+@media print {
+  body:has(> .artwork-print) {
+    background: white;
+  }
+
+  body:has(> .artwork-print) > :not(.artwork-print) {
+    display: none !important;
+  }
+
+  .artwork-print {
+    display: block;
+  }
+
+  .artwork-print .artwork-sheet {
+    min-width: 0;
+    padding: 0;
+  }
+
+  .artwork-print * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

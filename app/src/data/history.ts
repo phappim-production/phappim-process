@@ -105,6 +105,8 @@ export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLi
     case 'correction': return { title: 'แจ้งว่ารายการก่อนหน้ากดผิด', detail: str(p.reason) || undefined, tone: 'warn' }
     case 'confirmation_pdf': return { title: p.replaced ? 'เปลี่ยน PDF ใบยืนยัน' : 'แนบ PDF ใบยืนยันที่ลูกค้าเซ็น', tone: 'ok' }
     case 'mockup': return { title: p.replaced ? 'เปลี่ยนรูปม็อคอัพ' : 'เพิ่มรูปม็อคอัพ', tone: 'ok' }
+    case 'mockup_approved': return { title: `อนุมัติม็อคอัพกำกับสเปก ฉบับ ${num(p.rev)}`, detail: [p.replaced_rev != null && `แทนฉบับ ${num(p.replaced_rev)}`, str(p.note)].filter(Boolean).join(' · ') || undefined, tone: 'ok' }
+    case 'mockup_revision': return { title: `เริ่มแก้ม็อคอัพ ฉบับ ${num(p.rev)}`, detail: str(p.reason) || undefined, tone: 'warn' }
     case 'done': return { title: 'งานเสร็จ · พร้อมส่ง', tone: 'ok' }
     default: return { title: e.type, tone: 'neutral' }
   }
