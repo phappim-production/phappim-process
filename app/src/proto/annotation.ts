@@ -198,7 +198,7 @@ export function refValue(spec: unknown, ref: string | null): string | null {
       if (methods.length === 1) tech = methods[0]!
     }
     const size = text(x.size)
-    return [tech, size && `${size} ซม.`, text(x.note)].filter(Boolean).join(' · ') || null
+    return [tech, size && (/^[0-9 .,xX×*/-]+$/.test(size) ? `${size} ซม.` : size), text(x.note)].filter(Boolean).join(' · ') || null
   }
   if (ref.startsWith('field:')) {
     const v = base[ref.slice(6)]
@@ -231,6 +231,12 @@ export function refLabel(ref: string): string {
   if (ref.startsWith('placement:')) return `ตำแหน่ง ${ref.slice(10)}`
   if (ref.startsWith('field:')) return FIELD_LABEL[ref.slice(6)] ?? ref.slice(6)
   return ref
+}
+
+export function parseSize(input: string): number | null | undefined {
+  if (!input.trim()) return null
+  const n = Number(input.trim().replace(',', '.'))
+  return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
 export function submitProblems(d: Draft): string[] {

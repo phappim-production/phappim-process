@@ -213,11 +213,11 @@ function CalloutList({ draft, selected, onSelect, edit, jobSpec }: {
   const list = [...draft.callouts].sort((a, b) => a.no - b.no)
   if (!list.length) return <p className="text-muted">ยังไม่มี Callout</p>
   return (
-    <ol className="grid grid-cols-[minmax(0,1fr)] gap-1">
+    <ol className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1">
       {list.map(c => {
         const ok = !!(c.specRef || c.specKey || c.body.trim()) && !!c.title.trim()
         return (
-          <li key={c.key} className={`flex items-center gap-1 rounded-xl border ${c.key === selected ? 'border-brand bg-brand-soft' : 'border-line bg-card'}`}>
+          <li key={c.key} className={`flex min-w-0 items-center gap-1 rounded-xl border ${c.key === selected ? 'border-brand bg-brand-soft' : 'border-line bg-card'}`}>
             <button type="button" onClick={() => onSelect(c)} className="flex min-h-12 min-w-0 flex-1 items-center gap-2 px-2 text-left">
               <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand text-sm font-bold text-white">{c.no}</span>
               <span className="min-w-0">
@@ -294,9 +294,14 @@ function SheetWork({ data, sheet, approved, role, reload }: {
   useEffect(() => {
     if (!editable) return
     const key = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || (e.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName))) return
-      if (e.key.toLowerCase() === 'z') { e.preventDefault(); setHist(h => (e.shiftKey ? redo(h) : undo(h))) }
-      if (e.key.toLowerCase() === 'y') { e.preventDefault(); setHist(redo) }
+      if (!(e.ctrlKey || e.metaKey)) return
+      // ช่องพิมพ์ที่ผูกกับ React ใช้ undo ของเบราว์เซอร์ไม่ได้ (Ctrl+Y ไม่ทำงาน) → ช่องของ Callout/สเปกใช้ประวัติของร่างแทน
+      const field = e.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)
+      if (field && !(e.target as HTMLElement).closest('[data-draft-undo]')) return
+      // e.code ไม่ขึ้นกับภาษาแป้นพิมพ์ (แป้นไทยได้ e.key เป็นอักษรไทย)
+      const k = e.code === 'KeyZ' ? 'z' : e.code === 'KeyY' ? 'y' : e.key.toLowerCase()
+      if (k === 'z') { e.preventDefault(); setHist(h => (e.shiftKey ? redo(h) : undo(h))) }
+      if (k === 'y') { e.preventDefault(); setHist(redo) }
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
@@ -454,7 +459,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
       )}
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[minmax(0,1fr)_320px] lg:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[260px_minmax(0,1fr)_360px]">
-        <Card className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 p-3 md:col-span-2 2xl:col-span-1">
+        <Card className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3 p-3 md:col-span-2 2xl:col-span-1">
           <h2 className="font-bold">ภาพ</h2>
           {views.length > 0 && <ViewTabs views={views} value={shown?.view ?? 'front'} onChange={setView} counts={v => draft.callouts.filter(c => c.view === v).length} />}
           {editable && (
@@ -496,7 +501,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
           {editable && shown && <p className="px-2 pt-2 text-sm text-muted">กดบนภาพ = เพิ่มจุด · ลากจุด/กล่อง = ย้าย · Ctrl + ล้อเมาส์ = ซูม · Ctrl+Z / Ctrl+Y = ย้อน / ทำซ้ำ</p>}
         </Card>
 
-        <Card className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 p-3">
+        <Card className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3 p-3" data-draft-undo>
           <SpecPanel draft={draft} callout={callout} jobSpec={data.job.spec} stations={data.job.stations} edit={edit} editable={editable} />
         </Card>
       </div>
@@ -515,7 +520,8 @@ function SheetViewer({ data, sheet, role, myStations, reload }: {
     if (role === 'qc') return data.job.stations.filter(s => s === 'qc_pack')
     return data.job.stations
   }, [role, myStations, data.job.stations])
-  const [station, setStation] = useState<StationCode | null>(() => (role === 'staff' || role === 'qc') ? ackStations[0] ?? null : null)
+  const locked = role === 'staff' || role === 'qc'
+  const [station, setStation] = useState<StationCode | null>(() => locked ? ackStations[0] ?? null : null)
   const [view, setView] = useState<ViewKey>('front')
   const [selected, setSelected] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
@@ -556,9 +562,9 @@ function SheetViewer({ data, sheet, role, myStations, reload }: {
         <div className="flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-2 font-semibold">ดูเฉพาะสถานี
             <select value={station ?? ''} onChange={e => setStation((e.target.value || null) as StationCode | null)} className={`${fieldClass} w-auto font-normal`}
-              disabled={role === 'staff' && ackStations.length <= 1}>
-              {role !== 'staff' && <option value="">ทุกสถานี</option>}
-              {(role === 'staff' ? ackStations : data.job.stations).map(s => <option key={s} value={s}>{STATION_NAME[s]}</option>)}
+              disabled={locked && ackStations.length <= 1}>
+              {!locked && <option value="">ทุกสถานี</option>}
+              {(locked ? ackStations : data.job.stations).map(s => <option key={s} value={s}>{STATION_NAME[s]}</option>)}
             </select>
           </label>
           <span className="ml-auto flex flex-wrap items-center gap-2">

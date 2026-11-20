@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { fieldClass, dangerBtn, secondaryBtn } from '../../components/Dialog'
 import { STATION_NAME, type StationCode } from '../../proto/model'
 import {
-  SPEC_KIND_NAME, UNIT_NAME, blankSpec, calloutLines, confirmationRefs, refLabel, refValue, specLine, specOf,
+  SPEC_KIND_NAME, UNIT_NAME, blankSpec, calloutLines, confirmationRefs, parseSize, refLabel, refValue, specLine, specOf,
   type Callout, type Draft, type Edit, type Spec, type SpecKind, type Unit,
 } from '../../proto/annotation'
 import { newKey } from '../../data/mockupSheets'
@@ -28,18 +28,19 @@ function Text({ label: name, value, onCommit, area, disabled, placeholder }: {
 function Num({ label: name, value, onCommit, disabled }: { label: string; value: number | null; onCommit: (v: number | null) => void; disabled?: boolean }) {
   const [typing, setTyping] = useState<string | null>(null)
   const shown = typing ?? (value === null ? '' : String(value))
+  const bad = typing !== null && parseSize(typing) === undefined
   return (
     <label className={label}>
       {name}
-      <input value={shown} disabled={disabled} inputMode="decimal" aria-label={name} className={`${fieldClass} font-normal text-ink`}
-        onFocus={() => setTyping(shown)} onBlur={() => setTyping(null)}
+      <input value={shown} disabled={disabled} inputMode="decimal" aria-label={name} aria-invalid={bad}
+        className={`${fieldClass} font-normal text-ink aria-invalid:border-danger`}
+        onFocus={() => setTyping(shown)} onBlur={() => { if (!bad) setTyping(null) }}
         onChange={e => {
-          const v = e.target.value
-          setTyping(v)
-          const n = Number(v.replace(',', '.'))
-          if (!v.trim()) onCommit(null)
-          else if (Number.isFinite(n)) onCommit(n)
+          setTyping(e.target.value)
+          const n = parseSize(e.target.value)
+          if (n !== undefined) onCommit(n)
         }} />
+      {bad && <span role="alert" className="text-sm font-normal text-danger">ใส่ตัวเลขมากกว่า 0 (ค่านี้ยังไม่ถูกบันทึก)</span>}
     </label>
   )
 }
