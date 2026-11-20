@@ -50,7 +50,6 @@ export function AnnotationCanvas({ view, url, callouts, labels, selected, editab
   const full = stageSize(w, h)
   const img = onStage(0, 0)
   const at100 = (x: number, y: number) => { const s = onStage(x, y); return { left: `${s.left * 100}%`, top: `${s.top * 100}%` } }
-  const marker = print ? 'size-[4.5mm] text-[7pt] border' : 'size-6 text-xs border-2'
   return (
     <div ref={stage} className="relative mx-auto select-none" data-testid={`canvas-${view.view}`}
       style={{ width: fitHeight ? `min(100%, calc(${fitHeight} * ${full.width / full.height}))` : `${zoom * 100}%`, aspectRatio: `${full.width} / ${full.height}` }}
@@ -72,12 +71,11 @@ export function AnnotationCanvas({ view, url, callouts, labels, selected, editab
         const lines = labels(c)
         return (
           <div key={c.key} className="contents">
-            <button type="button" aria-label={`Callout ${c.no} ${c.title}`} aria-pressed={on}
+            {/* ปลายเส้นไม่มีตัวเลข ไม่บังลายลูกค้า · หน้าแก้ไขมีวงแหวนบางไว้จับลาก */}
+            {!print && <button type="button" aria-label={`Callout ${c.no} ${c.title}`} aria-pressed={on}
               onPointerDown={down(c, 'point')} onPointerMove={move} onPointerUp={up} onPointerCancel={() => setDrag(null)}
-              className={`absolute grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-white font-bold leading-none text-white shadow-card ${marker} ${on ? 'z-30 bg-gold text-brand-700 ring-2 ring-brand' : 'z-20 bg-brand'} ${editable ? 'cursor-grab touch-none' : ''}`}
-              style={at100(p.x, p.y)}>
-              {c.no}
-            </button>
+              className={`absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-transparent ${editable ? `cursor-grab touch-none border-2 ${on ? 'z-30 border-brand' : 'z-20 border-gold'}` : 'z-20'}`}
+              style={at100(p.x, p.y)} />}
             <div role="button" tabIndex={0} aria-label={`กล่องข้อความ Callout ${c.no}`}
               onPointerDown={down(c, 'box')} onPointerMove={move} onPointerUp={up} onPointerCancel={() => setDrag(null)}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onSelect?.(c.key) }}

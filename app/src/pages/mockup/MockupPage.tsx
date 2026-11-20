@@ -498,7 +498,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
                 onMove={(key, patch) => edit({ type: 'update_callout', key, patch })} />
             </div>
           ) : <p className="grid min-h-60 place-items-center p-6 text-center text-muted">{editable ? 'อัปโหลดภาพหลักก่อน (ภาพม็อคอัพที่มีทั้งด้านหน้าและหลังในภาพเดียว ใช้เป็นภาพหลักได้เลย)' : 'ฉบับนี้ยังไม่มีภาพ'}</p>}
-          {editable && shown && <p className="px-2 pt-2 text-sm text-muted">กดบนภาพ = เพิ่มจุด · ลากจุด/กล่อง = ย้าย · Ctrl + ล้อเมาส์ = ซูม · Ctrl+Z / Ctrl+Y = ย้อน / ทำซ้ำ</p>}
+          {editable && shown && <p className="px-2 pt-2 text-sm text-muted">กดบนภาพ = เพิ่มจุด · ลากวงแหวนปลายเส้น/กล่อง = ย้าย · Ctrl + ล้อเมาส์ = ซูม · Ctrl+Z / Ctrl+Y = ย้อน / ทำซ้ำ</p>}
         </Card>
 
         <Card className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3 p-3" data-draft-undo>
