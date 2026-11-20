@@ -6,7 +6,7 @@ import { IconAlert, IconCheck, IconImage, IconPrinter } from '../../components/i
 import { canAckMockup, canApproveMockup, canEditMockup, canOpenPage, canSeeMockupDraft, type EmployeeRole } from '../../auth/access'
 import { STATION_NAME, type StationCode } from '../../proto/model'
 import {
-  SHEET_STATUS, VIEW_NAME, VIEW_ORDER, calloutLines, forStation, historyEdit, historyOf, redo, saveProblems, submitProblems,
+  SHEET_STATUS, VIEW_NAME, VIEW_ORDER, calloutLines, confirmationDraft, forStation, historyEdit, historyOf, redo, saveProblems, submitProblems,
   toPayload, undo, type Callout, type Draft, type Edit, type History, type ViewKey,
 } from '../../proto/annotation'
 import {
@@ -213,7 +213,7 @@ function CalloutList({ draft, selected, onSelect, edit, jobSpec }: {
   const list = [...draft.callouts].sort((a, b) => a.no - b.no)
   if (!list.length) return <p className="text-muted">ยังไม่มี Callout</p>
   return (
-    <ol className="grid gap-1">
+    <ol className="grid grid-cols-[minmax(0,1fr)] gap-1">
       {list.map(c => {
         const ok = !!(c.specRef || c.specKey || c.body.trim()) && !!c.title.trim()
         return (
@@ -334,6 +334,15 @@ function SheetWork({ data, sheet, approved, role, reload }: {
   }
   const forget = () => { try { localStorage.removeItem(storeKey) } catch { /* ไม่มีอะไรให้ลบ */ } }
   const saveAndReload = async () => { if (await save() !== null) { forget(); await reload() } }
+  const fromForm = draft.callouts.length === 0 ? confirmationDraft(data.job.spec, data.job.mockupPath) : null
+  const applyForm = async () => {
+    if (!fromForm) return
+    const missing = fromForm.views.map(v => v.path).filter(p => !urls.has(p))
+    if (missing.length) { const signed = await signMockups(missing); setUrls(m => new Map([...m, ...signed])) }
+    setHist(h => historyEdit(h, { type: 'set_view', view: fromForm.views[0]! }))
+    setHist(h => ({ past: [...h.past, h.present], present: { ...h.present, callouts: fromForm.callouts }, future: [] }))
+    setView('front')
+  }
   const restore = async () => {
     if (!recover) return
     const missing = recover.views.map(v => v.path).filter(p => !urls.has(p))
@@ -399,6 +408,12 @@ function SheetWork({ data, sheet, approved, role, reload }: {
       {sheet.change_reason && <p className="text-muted">ฉบับนี้แก้จากฉบับ {approved?.rev ?? '—'} เพราะ {sheet.change_reason}</p>}
       {sheet.status === 'draft' && canEditMockup(role) && !wide && (
         <p className="rounded-xl bg-info-soft px-3 py-2 text-info">แก้ไขม็อคอัพต้องใช้จอกว้าง 768 px ขึ้นไป (แท็บเล็ตแนวนอน / คอมพิวเตอร์) · มือถือดูได้อย่างเดียว</p>
+      )}
+      {fromForm && editable && !recover && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-info-soft px-3 py-2 font-medium text-info">
+          <IconImage className="size-5 shrink-0" />ใบยืนยันมีจุดกำกับไว้แล้ว {fromForm.callouts.length} จุด
+          <button type="button" className={`${primaryBtn} ml-auto`} onClick={() => void applyForm()}>ใช้จุดจากใบยืนยัน</button>
+        </div>
       )}
       {recover && editable && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">

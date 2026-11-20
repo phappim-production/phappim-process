@@ -40,6 +40,21 @@ export const MAX_SPECS = 60
 
 export const clamp01 = (v: number) => Math.min(1, Math.max(0, Number.isFinite(v) ? v : 0))
 const round4 = (v: number) => Math.round(v * 10_000) / 10_000
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : 0))
+
+// ขอบว่างรอบภาพไว้วางกล่องข้อความ ไม่ให้บังลาย · ต้องตรงกับ CO_MX / CO_MY ในฟอร์ม production-confirmation.html
+export const MARGIN_X = 0.25
+export const MARGIN_Y = 0.08
+export const clampBox = (x: number, y: number) => ({ boxX: round4(clamp(x, -MARGIN_X, 1 + MARGIN_X)), boxY: round4(clamp(y, -MARGIN_Y, 1 + MARGIN_Y)) })
+export const stageSize = (w: number, h: number) => ({ width: w * (1 + 2 * MARGIN_X), height: h * (1 + 2 * MARGIN_Y) })
+export const onStage = (x: number, y: number) => ({ left: (x + MARGIN_X) / (1 + 2 * MARGIN_X), top: (y + MARGIN_Y) / (1 + 2 * MARGIN_Y) })
+export function fromStage(clientX: number, clientY: number, rect: { left: number; top: number; width: number; height: number }) {
+  if (rect.width <= 0 || rect.height <= 0) return { x: 0, y: 0 }
+  return {
+    x: ((clientX - rect.left) / rect.width) * (1 + 2 * MARGIN_X) - MARGIN_X,
+    y: ((clientY - rect.top) / rect.height) * (1 + 2 * MARGIN_Y) - MARGIN_Y,
+  }
+}
 
 export function toNormalized(clientX: number, clientY: number, rect: { left: number; top: number; width: number; height: number }) {
   if (rect.width <= 0 || rect.height <= 0) return { x: 0, y: 0 }
@@ -50,10 +65,9 @@ export function toPixels(x: number, y: number, size: { width: number; height: nu
   return { left: x * size.width, top: y * size.height }
 }
 
-// กล่องข้อความวางออกด้านข้างของจุด ฝั่งที่ใกล้ขอบภาพ ไม่บังลาย
+// กล่องข้อความวางในขอบว่างฝั่งที่ใกล้จุด ไม่บังลาย
 export function defaultBox(x: number, y: number) {
-  const boxX = x < 0.5 ? Math.max(0.1, x - 0.28) : Math.min(0.9, x + 0.28)
-  return { boxX: round4(boxX), boxY: round4(Math.min(0.95, Math.max(0.05, y))) }
+  return clampBox(x < 0.5 ? -MARGIN_X / 2 : 1 + MARGIN_X / 2, y)
 }
 
 export const nextNo = (callouts: Callout[]) => callouts.reduce((n, c) => Math.max(n, c.no), 0) + 1
@@ -100,7 +114,9 @@ export function applyEdit(d: Draft, e: Edit): Draft {
     }
     case 'update_callout': {
       const patch = { ...e.patch }
-      for (const k of ['x', 'y', 'boxX', 'boxY'] as const) if (patch[k] !== undefined) patch[k] = round4(clamp01(patch[k]))
+      for (const k of ['x', 'y'] as const) if (patch[k] !== undefined) patch[k] = round4(clamp01(patch[k]))
+      if (patch.boxX !== undefined) patch.boxX = clampBox(patch.boxX, 0).boxX
+      if (patch.boxY !== undefined) patch.boxY = clampBox(0, patch.boxY).boxY
       return { ...d, callouts: d.callouts.map(c => (c.key === e.key ? { ...c, ...patch } : c)) }
     }
     case 'remove_callout':
@@ -289,4 +305,27 @@ export function calloutLines(c: Callout, d: Pick<Draft, 'specs'>, jobSpec?: unkn
   if (s) out.push(`${s.code} ${s.name}${specLine(s) ? ` · ${specLine(s)}` : ''}`)
   if (c.body.trim()) out.push(c.body.trim())
   return out
+}
+
+// จุดที่แอดมินวางไว้ในฟอร์มใบยืนยัน (state.callouts · co_size) → ร่างม็อคอัพบนภาพหลัก
+export function confirmationDraft(spec: unknown, mockupPath: string | null): Draft | null {
+  if (!mockupPath || !isObj(spec) || !Array.isArray(spec.callouts) || !isObj(spec.co_size)) return null
+  const w = Number(spec.co_size.w), h = Number(spec.co_size.h)
+  if (!(w > 0 && h > 0)) return null
+  const callouts: Callout[] = []
+  for (const raw of spec.callouts.slice(0, MAX_CALLOUTS)) {
+    if (!isObj(raw)) continue
+    const x = Number(raw.x), y = Number(raw.y)
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+    const no = callouts.length + 1
+    const ref = text(raw.ref)
+    const box = clampBox(Number(raw.bx), Number(raw.by))
+    callouts.push({
+      key: `confirmation-${no}`, view: 'front', no, x: round4(clamp01(x)), y: round4(clamp01(y)), ...box,
+      title: (text(raw.title) || `จุด ${no}`).slice(0, 80), body: text(raw.body),
+      specRef: /^(placement|field):.+$/.test(ref) ? ref : null, specKey: null, stations: [],
+    })
+  }
+  if (!callouts.length) return null
+  return { views: [{ view: 'front', path: mockupPath, width: w, height: h }], specs: [], callouts }
 }

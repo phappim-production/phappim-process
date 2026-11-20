@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { seedFromConfirmation } from '../data/mockupSheets'
 import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
@@ -121,9 +122,11 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
       p_confirmation_pdf_path: path, p_spare_qty: draft.spare, p_confirmation_rev: draft.rev, p_spec: draft.spec,
       p_needs_sample: draft.needsSample,
     })
+    if (!r.ok) { setSaving(null); setError(r.reason); return }
+    setSaving('กำลังสร้างร่างม็อคอัพจากจุดในใบยืนยัน…')
+    await seedFromConfirmation(r.data)
     setSaving(null)
-    if (!r.ok) setError(r.reason)
-    else onDone(draft.no.trim())
+    onDone(draft.no.trim())
   }
 
   const label = 'grid gap-1 font-medium'

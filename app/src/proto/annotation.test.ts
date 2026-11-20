@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  EMPTY_DRAFT, applyEdit, blankSpec, calloutLines, confirmationRefs, defaultBox, forStation, historyEdit, historyOf,
+  EMPTY_DRAFT, MARGIN_X, MARGIN_Y, applyEdit, blankSpec, clampBox, confirmationDraft, fromStage, onStage, stageSize, calloutLines, confirmationRefs, defaultBox, forStation, historyEdit, historyOf,
   nextSpecCode, redo, refValue, saveProblems, submitProblems, toNormalized, toPayload, toPixels, undo, type Draft,
 } from './annotation'
 
@@ -41,12 +41,25 @@ describe('พิกัดบนภาพ', () => {
     }
   })
 
-  it('กล่องข้อความวางออกด้านที่ใกล้ขอบภาพ และอยู่ในภาพเสมอ', () => {
-    expect(defaultBox(0.2, 0.5).boxX).toBeLessThan(0.2)
-    expect(defaultBox(0.8, 0.5).boxX).toBeGreaterThan(0.8)
-    const edge = defaultBox(0.99, 1)
-    expect(edge.boxX).toBeLessThanOrEqual(0.9)
-    expect(edge.boxY).toBeLessThanOrEqual(0.95)
+  it('กล่องข้อความวางในขอบว่างนอกภาพ ฝั่งที่ใกล้จุด · ลากออกได้ไม่เกินขอบว่าง', () => {
+    expect(defaultBox(0.2, 0.5).boxX).toBeLessThan(0)
+    expect(defaultBox(0.8, 0.5).boxX).toBeGreaterThan(1)
+    expect(clampBox(-3, 9)).toEqual({ boxX: -MARGIN_X, boxY: 1 + MARGIN_Y })
+  })
+
+  it('พิกัดบนพื้นที่รวมขอบ แปลงไป-กลับตรงกันทุกขนาดจอและซูม', () => {
+    for (const width of [375, 768, 1440]) {
+      for (const zoom of [0.5, 1, 2, 4]) {
+        const size = { width: width * zoom, height: width * zoom * 0.7 }
+        for (const [x, y] of [[0.1, 0.2], [-0.2, 1.05], [1.2, -0.05]] as const) {
+          const p = onStage(x, y)
+          const back = fromStage(p.left * size.width + 10, p.top * size.height + 20, { left: 10, top: 20, ...size })
+          expect(Math.abs(back.x - x) * size.width).toBeLessThan(0.5)
+          expect(Math.abs(back.y - y) * size.height).toBeLessThan(0.5)
+        }
+      }
+    }
+    expect(stageSize(100, 200)).toEqual({ width: 100 * (1 + 2 * MARGIN_X), height: 200 * (1 + 2 * MARGIN_Y) })
   })
 })
 
@@ -67,10 +80,10 @@ describe('Callout เพิ่ม / แก้ / ลบ / เรียง', () =>
     expect(applyEdit(same, { type: 'reorder_callout', key: 'a', dir: -1 })).toBe(same)
   })
 
-  it('ย้ายจุดและกล่องได้ ค่าถูกตัดให้อยู่ในภาพ', () => {
+  it('ย้ายจุดและกล่องได้ · จุดอยู่ในภาพ · กล่องไม่เกินขอบว่าง', () => {
     const d = applyEdit(withPoints(), { type: 'update_callout', key: 'a', patch: { x: 1.4, boxY: -2, title: 'คอเสื้อ' } })
     const a = d.callouts.find(c => c.key === 'a')!
-    expect([a.x, a.boxY, a.title]).toEqual([1, 0, 'คอเสื้อ'])
+    expect([a.x, a.boxY, a.title]).toEqual([1, -MARGIN_Y, 'คอเสื้อ'])
   })
 
   it('ลบภาพแล้ว Callout บนภาพนั้นหายด้วย', () => {
@@ -191,5 +204,32 @@ describe('หน้าดูของสถานี', () => {
     d = applyEdit(d, { type: 'update_callout', key: 'b', patch: { stations: ['print', 'press'] } })
     expect(forStation(d.callouts, 'print').map(c => c.key)).toEqual(['b', 'c'])
     expect(forStation(d.callouts, null)).toHaveLength(3)
+  })
+})
+
+describe('จุดจากใบยืนยัน', () => {
+  const form = {
+    product: 'tshirt', co_size: { w: 800, h: 400 },
+    callouts: [
+      { x: 0.3, y: 0.2, bx: -0.12, by: 0.2, title: 'อกซ้าย (หน้า)', ref: 'placement:หน้าอกซ้าย', body: 'ห่างคอ 8 ซม.' },
+      { x: 1.4, y: 0.5, bx: 3, by: 0.5, title: '', ref: 'javascript:x', body: '' },
+      { x: 'oops', y: 1 },
+    ],
+  }
+
+  it('แปลงเป็นร่างบนภาพหลัก · ค่าเกินถูกตัด · ชื่อว่างได้ชื่อตามเลข · อ้างผิดรูปแบบไม่เอา · จุดเสียข้าม', () => {
+    const d = confirmationDraft(form, 'SC-1/abc.jpg')!
+    expect(d.views).toEqual([{ view: 'front', path: 'SC-1/abc.jpg', width: 800, height: 400 }])
+    expect(d.callouts.map(c => [c.no, c.x, c.boxX, c.title, c.specRef, c.body])).toEqual([
+      [1, 0.3, -0.12, 'อกซ้าย (หน้า)', 'placement:หน้าอกซ้าย', 'ห่างคอ 8 ซม.'],
+      [2, 1, 1 + MARGIN_X, 'จุด 2', null, ''],
+    ])
+    expect(submitProblems(d)).toEqual(['Callout 2 ยังไม่มีสเปกหรือข้อความ'])
+  })
+
+  it('ไม่มีรูปในระบบ / ไม่มีจุด / ไม่มีขนาดภาพ = ไม่สร้าง', () => {
+    expect(confirmationDraft(form, null)).toBeNull()
+    expect(confirmationDraft({ ...form, callouts: [] }, 'x.jpg')).toBeNull()
+    expect(confirmationDraft({ ...form, co_size: null }, 'x.jpg')).toBeNull()
   })
 })

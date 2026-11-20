@@ -44,7 +44,7 @@ export async function mockupSheetTests({ db, ok, as }) {
     callouts: [
       { view: 'front', no: 1, x: 0.5, y: 0.12, box_x: 0.8, box_y: 0.05, title: 'คอเสื้อ', spec_key: 'k1', spec_ref: 'field:neck', stations: ['sew'] },
       { view: 'front', no: 2, x: 0.62, y: 0.3, box_x: 0.9, box_y: 0.3, title: 'อกซ้าย', spec_ref: 'placement:หน้าอกซ้าย', stations: ['print', 'press'] },
-      { view: 'back', no: 3, x: 0.5, y: 0.4, box_x: 0.1, box_y: 0.4, title: 'ด้านหลัง', spec_ref: 'placement:กลางหลัง', stations: [] },
+      { view: 'back', no: 3, x: 0.5, y: 0.4, box_x: -0.2, box_y: 1.05, title: 'ด้านหลัง', spec_ref: 'placement:กลางหลัง', stations: [] },
     ],
     ...overrides,
   })
@@ -74,6 +74,8 @@ export async function mockupSheetTests({ db, ok, as }) {
     draft({ views: [{ view: 'front', image_path: `${folder}/sheet/a.pdf`, width: 10, height: 10 }], callouts: [], specs: [] }), /JPG \/ PNG \/ WEBP/)
   await trySave('จุดนอกภาพบันทึกไม่ได้', U.admin, s1, 1,
     draft({ callouts: [{ view: 'front', no: 1, x: 1.2, y: 0.1, box_x: 0.5, box_y: 0.5, title: 'นอกภาพ', body: 'x' }] }), /นอกภาพ/)
+  await trySave('กล่องข้อความเลยขอบว่างรอบภาพบันทึกไม่ได้', U.admin, s1, 1,
+    draft({ callouts: [{ view: 'front', no: 1, x: 0.1, y: 0.1, box_x: 1.6, box_y: 0.5, title: 'x', body: 'x' }] }), /นอกภาพ/)
   await trySave('สถานีที่ไม่มีจริงบันทึกไม่ได้', U.admin, s1, 1,
     draft({ callouts: [{ view: 'front', no: 1, x: 0.1, y: 0.1, box_x: 0.5, box_y: 0.5, title: 'x', body: 'x', stations: ['laser'] }] }), /ไม่พบสถานี laser/)
   await trySave('รหัสสเปกซ้ำบันทึกไม่ได้', U.admin, s1, 1,
@@ -87,8 +89,8 @@ export async function mockupSheetTests({ db, ok, as }) {
   ok('บันทึกแล้วเลขฉบับ (version) เพิ่ม', v2 === 2)
   const pts = (await db.query(`select c.no, c.x, c.y, c.box_x, c.box_y, v.view, s.code from public.mockup_callouts c
     join public.mockup_views v on v.id = c.view_id left join public.mockup_specs s on s.id = c.spec_id where c.sheet_id = '${s1}' order by c.no`)).rows
-  ok('โหลดกลับได้พิกัดเดิมทุกจุด', JSON.stringify(pts.map(p => [p.no, +p.x, +p.y, +p.box_x, +p.box_y, p.view]))
-    === JSON.stringify([[1, 0.5, 0.12, 0.8, 0.05, 'front'], [2, 0.62, 0.3, 0.9, 0.3, 'front'], [3, 0.5, 0.4, 0.1, 0.4, 'back']]))
+  ok('โหลดกลับได้พิกัดเดิมทุกจุด (กล่องในขอบว่างนอกภาพด้วย)', JSON.stringify(pts.map(p => [p.no, +p.x, +p.y, +p.box_x, +p.box_y, p.view]))
+    === JSON.stringify([[1, 0.5, 0.12, 0.8, 0.05, 'front'], [2, 0.62, 0.3, 0.9, 0.3, 'front'], [3, 0.5, 0.4, -0.2, 1.05, 'back']]))
   ok('Callout 1 ผูกกับสเปก S-01', pts[0].code === 'S-01')
   await trySave('แอดมินอีกคนบันทึกด้วยเลขฉบับเก่า = ถูกปฏิเสธ (กันทับกัน)', U.admin2, s1, 1, draft({ callouts: [] }), /มีคนบันทึกม็อคอัพฉบับนี้ไปก่อนแล้ว/)
   ok('ข้อมูลไม่ถูกทับ', (await db.query(`select count(*)::int n from public.mockup_callouts where sheet_id = '${s1}'`)).rows[0].n === 3)
