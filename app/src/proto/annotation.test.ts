@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   EMPTY_DRAFT, MARGIN_X, MARGIN_Y, applyEdit, blankSpec, clampBox, confirmationDraft, fromStage, onStage, stageSize, calloutLines, confirmationRefs, defaultBox, forStation, historyEdit, historyOf,
-  nextSpecCode, redo, refValue, saveProblems, submitProblems, toNormalized, toPayload, toPixels, undo, type Draft,
+  nextSpecCode, parseSize, redo, refValue, saveProblems, submitProblems, toNormalized, toPayload, toPixels, undo, type Draft,
 } from './annotation'
 
 const spec = {
@@ -140,6 +140,10 @@ describe('สเปก', () => {
     expect(refValue(spec, 'placement:หน้าอกซ้าย')).toBe('DTF · 8 × 8 ซม. · ห่างคอ 8 ซม.')
     expect(refValue(spec, 'placement:กลางหลัง')).toBe('ซับลิเมชั่น · 25 ซม.')
     expect(refValue(spec, 'placement:แขนซ้าย')).toBeNull()
+    const sized = (size: string) => refValue({ ...spec, p: { tshirt: { placements: { 'อก': { on: true, tech: 'DTF', size } } } } }, 'placement:อก')
+    expect(sized('8x8 ซม.')).toBe('DTF · 8x8 ซม.')
+    expect(sized('3 นิ้ว')).toBe('DTF · 3 นิ้ว')
+    expect(sized('10 × 12')).toBe('DTF · 10 × 12 ซม.')
     expect(refValue(spec, 'field:print_method')).toBe('DTF')
     expect(refValue(spec, 'field:sleeve')).toBeNull()
     expect(refValue(null, 'field:neck')).toBeNull()
@@ -231,5 +235,16 @@ describe('จุดจากใบยืนยัน', () => {
     expect(confirmationDraft(form, null)).toBeNull()
     expect(confirmationDraft({ ...form, callouts: [] }, 'x.jpg')).toBeNull()
     expect(confirmationDraft({ ...form, co_size: null }, 'x.jpg')).toBeNull()
+  })
+})
+
+describe('ช่องขนาดสเปก', () => {
+  it('รับตัวเลขมากกว่า 0 · ว่าง = ไม่ระบุ · ตัวอักษรหรือ 0 = ผิด', () => {
+    expect(parseSize('12')).toBe(12)
+    expect(parseSize('2,5')).toBe(2.5)
+    expect(parseSize('  ')).toBeNull()
+    expect(parseSize('abc')).toBeUndefined()
+    expect(parseSize('0')).toBeUndefined()
+    expect(parseSize('-3')).toBeUndefined()
   })
 })

@@ -58,6 +58,13 @@ export async function mockupSheetTests({ db, ok, as }) {
     (await db.query(`select private.mockup_ref_value('${JSON.stringify(spec)}'::jsonb, 'placement:หน้าอกซ้าย') v`)).rows[0].v === 'DTF · 8 × 8 ซม. · ห่างคอ 8 ซม.')
   ok('ค่าจากใบยืนยัน: ตำแหน่งที่ไม่ได้ติ๊ก = ไม่มีค่า',
     (await db.query(`select private.mockup_ref_value('${JSON.stringify(spec)}'::jsonb, 'placement:แขนซ้าย') v`)).rows[0].v === null)
+  const sized = size => db.query(`select private.mockup_ref_value($1::jsonb, 'placement:หน้าอกซ้าย') v`,
+    [JSON.stringify({ ...spec, p: { tshirt: { ...spec.p.tshirt, placements: { 'หน้าอกซ้าย': { on: true, tech: 'DTF', size } } } } })]).then(r => r.rows[0].v)
+  ok('ค่าจากใบยืนยัน: ขนาดที่พิมพ์หน่วยมาแล้วไม่ต่อ ซม. ซ้ำ', await sized('8x8 ซม.') === 'DTF · 8x8 ซม.', await sized('8x8 ซม.'))
+  ok('ค่าจากใบยืนยัน: ขนาดหน่วยอื่นคงตามที่พิมพ์', await sized('3 นิ้ว') === 'DTF · 3 นิ้ว')
+  ok('ค่าจากใบยืนยัน: ขนาดตัวเลขล้วนต่อ ซม.', await sized('10 × 12') === 'DTF · 10 × 12 ซม.')
+  ok('ไม่มีฟังก์ชันไหนใช้รหัส 40001 / 40P01 (PostgREST ลองซ้ำไม่หยุด)', (await db.query(`select count(*)::int n from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('public', 'private') and p.prosrc ~ '40001|40P01'`)).rows[0].n === 0)
   ok('ค่าจากใบยืนยัน: ช่องแบบรายการต่อด้วยจุลภาค',
     (await db.query(`select private.mockup_ref_value('${JSON.stringify(spec)}'::jsonb, 'field:print_method') v`)).rows[0].v === 'DTF')
 
