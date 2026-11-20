@@ -106,11 +106,11 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
   return (
     <div className="flex h-full">
       <aside className="hidden w-64 shrink-0 flex-col bg-brand text-white lg:flex">
-        <div className="flex items-center gap-3 px-5 pt-5 pb-6">
-          <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-10 rounded-lg ring-1 ring-white/20" />
-          <span className="text-lg font-bold leading-tight">ติดตาม<br />การผลิต</span>
+        <div className="mx-5 mt-6 mb-4 border-b border-white/15 pb-5">
+          <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-12 w-auto rounded-lg ring-1 ring-white/25" />
+          <p className="mt-3 text-sm font-semibold tracking-wide whitespace-nowrap text-white/75">ระบบติดตามการผลิต</p>
         </div>
-        <nav aria-label="เมนูหลัก" className="grid gap-4 px-3">
+        <nav aria-label="เมนูหลัก" className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-3 pb-3 [scrollbar-color:rgb(255_255_255/0.25)_transparent] [scrollbar-width:thin]">
           {menu.map(group => (
             <div key={group.title} className="grid gap-1">
               <p className="px-4 pb-1 text-xs font-semibold tracking-widest text-white/60">{group.title}</p>
@@ -135,7 +135,7 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
             </div>
           ))}
         </nav>
-        <a href="#/system" className="m-3 mt-auto flex min-h-12 items-center gap-3 rounded-xl bg-white/10 p-3 hover:bg-white/15">
+        <a href="#/system" className="m-3 flex min-h-12 shrink-0 items-center gap-3 rounded-xl bg-white/10 p-3 hover:bg-white/15">
           <span className="grid size-10 shrink-0 place-items-center rounded-full bg-gold text-brand-700"><IconUser className="size-5" /></span>
           <span className="min-w-0 leading-tight">
             <span className="block truncate font-semibold">{profile.name}</span>
@@ -146,8 +146,8 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 bg-brand px-4 py-2 text-white lg:hidden">
-          <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-9 rounded-md" />
-          <span className="hidden font-bold whitespace-nowrap sm:inline">ติดตามการผลิต</span>
+          <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-9 w-auto shrink-0 rounded-md ring-1 ring-white/25" />
+          <span className="hidden text-sm font-semibold whitespace-nowrap text-white/75 sm:inline">ระบบติดตามการผลิต</span>
           {/* แท็บเล็ตใช้ร่วมกันหลายคน ต้องเห็นตลอดว่าใครล็อกอินอยู่ เพราะทุกการกดบันทึกชื่อผู้กด */}
           <span className="ml-auto"><InboxBell /></span>
           <a href="#/system" className="flex min-h-12 min-w-0 items-center gap-2 rounded-xl px-2 hover:bg-white/10">
