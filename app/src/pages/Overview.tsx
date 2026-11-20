@@ -78,7 +78,7 @@ function KpiRow({ jobs, now, atRisk }: { jobs: Job[]; now: Date; atRisk: number 
       <StatTile icon={IconFactory} tone="brand" label="งานในโรงงาน" value={active.length} note={`${active.reduce((s, j) => s + j.qty, 0).toLocaleString('th-TH')} ชิ้น`} />
       <StatTile icon={IconAlert} tone="danger" label="เลยกำหนดส่ง" value={overdue} note={soon ? `ใกล้ส่งอีก ${soon} งาน` : 'ไม่มีงานใกล้ส่ง'} />
       <StatTile icon={IconPause} tone="danger" label="ติดปัญหา / พักงาน" value={hold} note={atRisk ? `เสี่ยงไม่ทัน ${atRisk} งาน` : 'ทุกงานคาดว่าทัน'} />
-      <StatTile icon={IconCheck} tone="ok" label="เสร็จวันนี้" value={done} note={toShip ? `รอจัดส่ง ${toShip} งาน` : 'ส่งครบทุกงาน'} />
+      <StatTile icon={IconCheck} tone="ok" label="เสร็จวันนี้" value={done} note={toShip ? `รอจัดส่ง ${toShip} งาน` : 'ส่งครบทุกงาน'} noteOnPhone={toShip > 0} />
     </div>
   )
 }

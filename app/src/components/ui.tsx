@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from 'react'
+import type { ComponentType, HTMLAttributes, ReactNode } from 'react'
 import { ROUTES, isDueSoon, isOverdue, usesFilm, type Job, type RouteCode } from '../proto/model'
 import { dayDiff, shortDate } from '../proto/format'
 import { TONE, type Tone } from './tone'
@@ -39,8 +39,8 @@ export const pillItem = 'min-h-12 flex-1 rounded-lg px-3 text-base font-semibold
 export const pillOn = 'bg-brand text-white'
 export const pillOff = 'text-ink hover:bg-paper'
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-line bg-card shadow-card ${className}`}>{children}</section>
+export function Card({ children, className = '', ...rest }: { children: ReactNode; className?: string } & Omit<HTMLAttributes<HTMLElement>, 'className' | 'children'>) {
+  return <section {...rest} className={`rounded-2xl border border-line bg-card shadow-card ${className}`}>{children}</section>
 }
 
 export function CardHeader({ icon: Icon, title, sub, right, tone = 'brand' }: {
@@ -58,9 +58,9 @@ export function CardHeader({ icon: Icon, title, sub, right, tone = 'brand' }: {
   )
 }
 
-export function Pill({ tone, children, dot }: { tone: Tone; children: ReactNode; dot?: boolean }) {
+export function Pill({ tone, children, dot, wrap }: { tone: Tone; children: ReactNode; dot?: boolean; wrap?: boolean }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${TONE[tone].soft}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${wrap ? 'max-w-full [overflow-wrap:anywhere]' : 'whitespace-nowrap'} ${TONE[tone].soft}`}>
       {dot && <span className={`size-1.5 rounded-full ${TONE[tone].dot}`} />}
       {children}
     </span>
@@ -94,8 +94,8 @@ export function StageDots({ steps, current, hold }: { steps: string[]; current: 
   )
 }
 
-export function StatTile({ icon: Icon, label, value, note, tone, active, onClick }: {
-  icon: ComponentType<{ className?: string }>; label: string; value: number; note?: string; tone: Tone; active?: boolean; onClick?: () => void
+export function StatTile({ icon: Icon, label, value, note, noteOnPhone, tone, active, onClick }: {
+  icon: ComponentType<{ className?: string }>; label: string; value: number; note?: string; noteOnPhone?: boolean; tone: Tone; active?: boolean; onClick?: () => void
 }) {
   const t = TONE[value === 0 && tone !== 'brand' ? 'neutral' : tone]
   // มือถือ: ไอคอน + ชื่อบรรทัดเดียว ตัวเลขใหญ่ด้านล่าง ไม่ให้ 4 ช่องกินครึ่งจอ
@@ -106,7 +106,7 @@ export function StatTile({ icon: Icon, label, value, note, tone, active, onClick
         <span className="min-w-0 text-sm leading-tight font-semibold text-muted">{label}</span>
       </span>
       <span className={`mt-1.5 block text-3xl leading-none font-bold tabular-nums ${value === 0 ? 'text-ink' : t.text}`}>{value}</span>
-      {note && <span className="mt-1 hidden text-sm leading-snug text-muted sm:block">{note}</span>}
+      {note && <span className={`mt-1 text-sm leading-snug text-muted ${noteOnPhone ? 'block' : 'hidden sm:block'}`}>{note}</span>}
     </>
   )
   const cls = `flex min-w-0 flex-col items-start rounded-2xl border bg-card p-3 text-left shadow-card sm:p-4 ${active ? 'border-brand ring-2 ring-brand/20' : 'border-line'}`
