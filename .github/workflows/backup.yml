@@ -1,7 +1,8 @@
 # สำรองฐานข้อมูลทุกสัปดาห์ (แผนฟรีของ Supabase ไม่ควรพึ่งระบบสำรองของผู้ให้บริการ)
-# ไฟล์สำรองเก็บเป็น Artifact ของ GitHub 90 วัน → ดาวน์โหลดเก็บไว้อีกที่เป็นระยะ
+# ไฟล์สำรองเก็บเป็น Artifact ของ GitHub 90 วัน → ดาวน์โหลดเก็บไว้อีกที่เป็นระยะ · วิธีกู้: docs/สำรองและกู้ข้อมูล.md
 # ต้องตั้ง Secret: SUPABASE_DB_URL (ใช้ Session pooler connection string · ดู SETUP.md)
-# repo ต้องเป็น Private เพราะไฟล์สำรองมีข้อมูลลูกค้า
+# repo ต้องเป็น Private เพราะไฟล์สำรองมีข้อมูลลูกค้าและบัญชีผู้ใช้ (รหัสผ่านเก็บแบบแฮช)
+# ไฟล์ใน R2 ไม่อยู่ที่นี่ (ใหญ่เกินโควตา Artifact) · สำรองลงเครื่องด้วย tools/r2-backup
 name: db-backup
 on:
   schedule:
@@ -16,8 +17,13 @@ jobs:
           DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           stamp=$(date -u +%Y%m%d)
-          docker run --rm -e DB_URL -v "$PWD:/out" postgres:17 \
-            sh -c 'pg_dump "$DB_URL" --schema=public --no-owner --no-privileges -Fc -f /out/pp142-'"$stamp"'.dump'
+          # private.file_settings ไม่สำรอง เพราะเป็นค่าลับของ Worker
+          docker run --rm -e DB_URL -e stamp="$stamp" -v "$PWD:/out" postgres:17 sh -ec '
+            pg_dump "$DB_URL" --schema=public --no-owner --no-privileges -Fc -f /out/pp142-$stamp.dump
+            pg_dump "$DB_URL" --table=private.file_objects --no-owner --no-privileges -Fc -f /out/pp142-$stamp-files.dump
+            pg_dump "$DB_URL" --data-only --table=auth.users --table=auth.identities --no-owner --no-privileges -Fc -f /out/pp142-$stamp-auth.dump
+            for f in /out/*.dump; do pg_restore --list "$f" > /dev/null; done
+          '
           ls -la *.dump
       - uses: actions/upload-artifact@v4
         with:
