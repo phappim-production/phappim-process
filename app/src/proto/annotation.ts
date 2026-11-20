@@ -170,7 +170,7 @@ const FIELD_LABEL: Record<string, string> = {
   fit: 'ทรง', neck: 'คอเสื้อ', neck_fabric: 'ผ้าคอ', neck_color: 'สีคอ', sleeve: 'แขน', sleeve_end: 'ปลายแขน',
   fabric: 'ชนิดผ้า', fabric_color: 'สีผ้าพื้น', gsm: 'น้ำหนักผ้า', fabric_width: 'หน้าผ้า', print_method: 'เทคนิคพิมพ์', side_seam: 'ตะเข็บข้าง',
   hem: 'ชายเสื้อ', thread: 'สีด้าย', neck_label: 'ป้ายคอ', size_label: 'ป้ายไซซ์', color_match: 'การเทียบสี',
-  art_file: 'ไฟล์งาน', notes: 'หมายเหตุ', edge: 'ริม', logo_pos: 'ตำแหน่งโลโก้', print_pos: 'ตำแหน่งและขนาดโลโก้',
+  art_file: 'ไฟล์งาน', notes: 'หมายเหตุ', edge: 'ริม', sew_style: 'รูปแบบการเย็บ', logo_pos: 'ตำแหน่งโลโก้', print_pos: 'ตำแหน่งและขนาดโลโก้',
   bag: 'ใส่ถุง', fold: 'การพับ', box_note: 'การแพ็ค',
 }
 

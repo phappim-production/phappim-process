@@ -162,6 +162,11 @@ describe('สเปก', () => {
     expect(refLabel('field:fabric_width')).toBe('หน้าผ้า')
   })
 
+  it('รูปแบบการเย็บของผ้าเช็ดหน้าเลือกได้ในหน้าม็อคอัพ', () => {
+    const scarf = { product: 'scarf', p: { scarf: { item: 'ผ้าเช็ดหน้า', sew_style: 'ม้วนริม 0.3 มม.' } } }
+    expect(confirmationRefs(scarf)).toEqual([{ ref: 'field:sew_style', label: 'รูปแบบการเย็บ', value: 'ม้วนริม 0.3 มม.' }])
+  })
+
   it('สร้างสเปกใหม่จาก Callout แล้วผูกให้ทันที · ลบสเปกแล้วจุดไม่ค้างอ้างของที่ไม่มี', () => {
     let d = withPoints()
     d = applyEdit(d, { type: 'add_spec', spec: blankSpec('s1', d.specs, { name: 'ขอบคอ', width: 2 }), linkTo: 'a' })
