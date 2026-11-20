@@ -1,0 +1,9 @@
+{
+  "name": "pp142-r2-backup",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"*.test.mjs\"",
+    "pull": "node pull.mjs"
+  }
+}
