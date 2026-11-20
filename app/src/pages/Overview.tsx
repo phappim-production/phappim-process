@@ -137,7 +137,7 @@ function NewJobCheck({ jobs, now, floor, products }: { jobs: Job[]; now: Date; f
   const finish = workdayToDate(r.extraFinishDay ?? 0, now)
   const dueDate = due ? new Date(`${due}T${WORK_END}`) : null
   const late = dueDate ? lateDays(finish, dueDate) : null
-  const input = 'w-full min-w-0 rounded-xl border border-line bg-card px-3 py-2.5 outline-none focus:border-brand focus:ring-2 focus:ring-brand/15'
+  const input = 'w-full min-w-0 rounded-xl border border-line bg-card px-3 pt-2 pb-3 outline-none focus:border-brand focus:ring-2 focus:ring-brand/15'
 
   return (
     <Card className="flex h-full flex-col">

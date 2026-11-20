@@ -28,7 +28,8 @@ export function Dialog({ title, icon: Icon, onClose, children, wide }: {
   )
 }
 
-export const fieldClass = 'min-h-12 w-full min-w-0 rounded-xl border border-line bg-card px-3 text-base focus-visible:outline-2 focus-visible:outline-brand'
+// Sarabun เผื่อที่ด้านบนให้สระ/วรรณยุกต์ ตัวอักษรเลยดูต่ำกว่ากลางช่อง · pb-1 ดันขึ้นให้อยู่กลาง
+export const fieldClass = 'min-h-12 w-full min-w-0 rounded-xl border border-line bg-card px-3 pb-1 text-base focus-visible:outline-2 focus-visible:outline-brand'
 export const primaryBtn = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-line disabled:text-muted'
 export const secondaryBtn = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-line bg-card px-5 font-semibold text-brand hover:bg-brand-soft disabled:opacity-60'
 export const dangerBtn = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-danger/40 bg-card px-5 font-semibold text-danger hover:bg-danger-soft disabled:opacity-60'
