@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase'
 import { isStationCode, type StationCode } from '../proto/model'
 import type { Callout, Draft, MockView, SheetStatus, SpecKind, Unit, ViewKey } from '../proto/annotation'
-import { VIEW_ORDER } from '../proto/annotation'
+import { VIEW_ORDER, confirmationDraft, toPayload } from '../proto/annotation'
 import { MOCKUP_BUCKET, contentKey, mockupExt, mockupFolder, mockupProblem, signMockups } from './mockups'
 import { rpc, type RpcResult } from './useFactoryData'
 import { thaiError } from './live'
@@ -25,7 +25,7 @@ type CalloutRow = {
 export type AckRow = { sheet_id: string; rev: number; user_id: string | null; station_code: StationCode; at: string }
 export type MockupJob = {
   id: string; no: string; customer: string; jobName: string; qty: number; unit: string; due: string
-  route: string; phase: string; started: boolean; spec: unknown; confirmationRev: number; stations: StationCode[]
+  route: string; phase: string; started: boolean; spec: unknown; confirmationRev: number; stations: StationCode[]; mockupPath: string | null
 }
 export type MockupData = { job: MockupJob; sheets: SheetRow[]; acks: AckRow[]; names: Map<string, string> }
 
@@ -35,7 +35,7 @@ const num = (v: number | string | null) => (v === null || v === '' ? null : Numb
 export async function loadMockupJob(jobId: string): Promise<MockupData | null> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
   const [job, sheets, acks, names] = await Promise.all([
-    supabase.from('jobs').select('id, confirmation_no, customer_name, job_name, qty, unit, due_date, route_code, phase, spec, confirmation_rev').eq('id', jobId).maybeSingle(),
+    supabase.from('jobs').select('id, confirmation_no, customer_name, job_name, qty, unit, due_date, route_code, phase, spec, confirmation_rev, mockup_path').eq('id', jobId).maybeSingle(),
     supabase.from('mockup_sheets').select('*').eq('job_id', jobId).order('rev', { ascending: false }),
     supabase.from('mockup_acks').select('sheet_id, rev, user_id, station_code, at').eq('job_id', jobId).order('at'),
     rpc<{ user_id: string; name: string }[]>('staff_names', {}),
@@ -43,7 +43,7 @@ export async function loadMockupJob(jobId: string): Promise<MockupData | null> {
   const failed = [job, sheets, acks].find(r => r.error)
   if (failed?.error) throw new Error(thaiError(failed.error.message))
   if (!job.data) return null
-  const j = job.data as { id: string; confirmation_no: string; customer_name: string; job_name: string; qty: number; unit: string; due_date: string; route_code: string; phase: string; spec: unknown; confirmation_rev: number }
+  const j = job.data as { id: string; confirmation_no: string; customer_name: string; job_name: string; qty: number; unit: string; due_date: string; route_code: string; phase: string; spec: unknown; confirmation_rev: number; mockup_path: string | null }
   const [route, started] = await Promise.all([
     supabase.from('route_stations').select('station_code, seq').eq('route_code', j.route_code).order('seq'),
     supabase.from('events').select('id', { count: 'exact', head: true }).eq('job_id', jobId).eq('type', 'station_start'),
@@ -52,7 +52,7 @@ export async function loadMockupJob(jobId: string): Promise<MockupData | null> {
   return {
     job: {
       id: j.id, no: j.confirmation_no, customer: j.customer_name, jobName: j.job_name, qty: j.qty, unit: j.unit, due: j.due_date,
-      route: j.route_code, phase: j.phase, spec: j.spec, confirmationRev: j.confirmation_rev,
+      route: j.route_code, phase: j.phase, spec: j.spec, confirmationRev: j.confirmation_rev, mockupPath: j.mockup_path,
       started: j.phase === 'production' || j.phase === 'done' || (started.count ?? 0) > 0,
       stations: stations((route.data as { station_code: string }[]).map(r => r.station_code)),
     },
@@ -160,4 +160,18 @@ export function parseUnsaved(text: string | null): Draft | null {
   } catch {
     return null
   }
+}
+
+// รับงานแล้วสร้างร่างม็อคอัพจากจุดที่วางไว้ในใบยืนยันให้เลย · ไม่มีจุด / มีร่างอยู่แล้ว = ไม่ทำอะไร
+export async function seedFromConfirmation(jobId: string): Promise<RpcResult<number>> {
+  if (!supabase) return { ok: false, reason: 'ยังไม่ได้ตั้งค่า Supabase' }
+  const job = await supabase.from('jobs').select('spec, mockup_path').eq('id', jobId).maybeSingle()
+  if (job.error || !job.data) return { ok: false, reason: thaiError(job.error?.message) }
+  const row = job.data as { spec: unknown; mockup_path: string | null }
+  const draft = confirmationDraft(row.spec, row.mockup_path)
+  if (!draft) return { ok: true, data: 0 }
+  const sheet = await startSheet(jobId)
+  if (!sheet.ok) return sheet
+  const saved = await saveDraft(sheet.data, 1, toPayload(draft))
+  return saved.ok ? { ok: true, data: draft.callouts.length } : saved
 }
