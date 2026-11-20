@@ -127,9 +127,9 @@ export async function uploadOriginal(no: string, file: File, view: ViewKey): Pro
 export const startSheet = (job: string, reason?: string) => rpc<string>('start_mockup_sheet', { p_job: job, p_reason: reason ?? null })
 export const saveDraft = (sheet: string, version: number, payload: unknown) => rpc<number>('save_mockup_draft', { p_sheet: sheet, p_version: version, p_data: payload })
 export const discardDraft = (sheet: string) => rpc('discard_mockup_draft', { p_sheet: sheet })
-export const submitSheet = (sheet: string, version: number) => rpc<number>('submit_mockup_sheet', { p_sheet: sheet, p_version: version })
 export const returnSheet = (sheet: string, reason: string) => rpc('return_mockup_sheet', { p_sheet: sheet, p_reason: reason })
-export const approveSheet = (sheet: string, note: string) => rpc('approve_mockup_sheet', { p_sheet: sheet, p_note: note || null })
+export const approveSheet = (sheet: string, note: string, version?: number) =>
+  rpc('approve_mockup_sheet', { p_sheet: sheet, p_note: note || null, p_version: version ?? null })
 export const ackSheet = (sheet: string, station: StationCode) => rpc('ack_mockup_sheet', { p_sheet: sheet, p_station: station })
 
 export function pickSheets(sheets: SheetRow[]) {

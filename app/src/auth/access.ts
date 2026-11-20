@@ -68,8 +68,8 @@ export function canOpenPage(role: EmployeeRole, page: PageKey): boolean {
   }
 }
 
-// ตรงกับ start/save/submit/approve/ack_mockup_sheet ในฐานข้อมูล · แอดมินทำร่าง แต่อนุมัติไม่ได้
+// ตรงกับ start/save/approve/ack_mockup_sheet ในฐานข้อมูล · แอดมินทำร่างและอนุมัติใช้ผลิตเองได้
 export const canEditMockup = (role: EmployeeRole) => role === 'admin' || role === 'owner'
-export const canApproveMockup = (role: EmployeeRole) => role === 'owner' || role === 'manager' || role === 'production'
+export const canApproveMockup = (role: EmployeeRole) => ['owner', 'admin', 'manager', 'production'].includes(role)
 export const canAckMockup = (role: EmployeeRole) => ['owner', 'production', 'supervisor', 'qc', 'staff'].includes(role)
 export const canSeeMockupDraft = (role: EmployeeRole) => ['owner', 'manager', 'admin', 'production', 'supervisor'].includes(role)

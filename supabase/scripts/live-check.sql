@@ -71,7 +71,6 @@ begin
   v := pg_temp.ok('แอดมินบันทึกร่าง (ภาพ 2 · จุด 3 · สเปก 1)', adm, format($$select public.save_mockup_draft(%L,1,%L::jsonb)::text$$, s1, payload))::int;
   perform pg_temp.err('บันทึกด้วยเลขฉบับเก่า = ปฏิเสธ (กันทับ)', adm, format($$select public.save_mockup_draft(%L,1,%L::jsonb)$$, s1, payload), 'มีคนบันทึก');
   v := pg_temp.ok('ส่งอนุมัติ', adm, format($$select public.submit_mockup_sheet(%L,%s)::text$$, s1, v))::int;
-  perform pg_temp.err('แอดมินอนุมัติไม่ได้', adm, format($$select public.approve_mockup_sheet(%L)$$, s1), 'บทบาท');
   perform pg_temp.err('QC อนุมัติไม่ได้', qcu, format($$select public.approve_mockup_sheet(%L)$$, s1), 'บทบาท');
   perform pg_temp.ok('ฝ่ายผลิตส่งกลับ', prd, format($$select public.return_mockup_sheet(%L,'ทดสอบส่งกลับ')::text$$, s1));
   v := (select version from public.mockup_sheets where id = s1);
@@ -133,7 +132,7 @@ begin
   perform pg_temp.chk('ฉบับ 2 คัดลอกจุด 3 + สเปก 1 + ภาพ 2', (select count(*) from public.mockup_callouts where sheet_id=s2)=3
     and (select count(*) from public.mockup_specs where sheet_id=s2)=1 and (select count(*) from public.mockup_views where sheet_id=s2)=2, '');
   perform pg_temp.ok('ส่งฉบับ 2', adm, format($$select public.submit_mockup_sheet(%L,1)::text$$, s2));
-  perform pg_temp.err('เริ่มผลิตแล้ว ฝ่ายผลิตอนุมัติฉบับแก้ไขไม่ได้', prd, format($$select public.approve_mockup_sheet(%L)$$, s2), 'ผู้บริหารหรือเจ้าของ');
+  perform pg_temp.err('เริ่มผลิตแล้ว ฝ่ายผลิตอนุมัติฉบับแก้ไขไม่ได้', prd, format($$select public.approve_mockup_sheet(%L)$$, s2), 'แอดมิน ผู้บริหาร หรือเจ้าของ');
   perform pg_temp.ok('ผู้บริหารอนุมัติฉบับ 2', mgr, format($$select public.approve_mockup_sheet(%L)::text$$, s2));
   perform pg_temp.chk('ฉบับ 1 ถูกแทนที่ · ฉบับ 2 ใช้ผลิต', (select status from public.mockup_sheets where id=s1)='superseded' and (select status from public.mockup_sheets where id=s2)='approved', '');
   perform pg_temp.chk('ฉบับแก้ไขแจ้ง QC ให้รับทราบใหม่', exists (select 1 from public.inbox_messages where job_id=j1 and kind='mockup_approved' and 'qc' = any(audience)), '');

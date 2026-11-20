@@ -106,7 +106,6 @@ export async function mockupSheetTests({ db, ok, as }) {
 
   const v5 = await pass('แอดมินส่งอนุมัติ', U.admin, `public.submit_mockup_sheet('${s1}', ${v4})`)
   await trySave('รออนุมัติแล้วแก้ร่างไม่ได้', U.admin, s1, v5, draft(), /ไม่ใช่ฉบับร่างแล้ว/)
-  await reject('แอดมินอนุมัติไม่ได้', U.admin2, `public.approve_mockup_sheet('${s1}')`, /บทบาทของคุณ/)
   await reject('ผู้ควบคุมงานอนุมัติไม่ได้', U.sup, `public.approve_mockup_sheet('${s1}')`, /บทบาทของคุณ/)
   await reject('QC อนุมัติไม่ได้', U.qc, `public.approve_mockup_sheet('${s1}')`, /บทบาทของคุณ/)
   await reject('พนักงานสถานีอนุมัติไม่ได้', U.staffPrint, `public.approve_mockup_sheet('${s1}')`, /บทบาทของคุณ/)
@@ -172,7 +171,7 @@ export async function mockupSheetTests({ db, ok, as }) {
   await db.exec(`update public.jobs set phase = 'production', station_seq = 1, station_status = 'doing' where id = '${job}'`)
   const s2v = (await sheetOf(s2)).version
   await pass('ส่งอนุมัติฉบับ 2', U.admin, `public.submit_mockup_sheet('${s2}', ${s2v})`)
-  await reject('งานเริ่มผลิตแล้ว ฝ่ายผลิตอนุมัติฉบับแก้ไขไม่ได้', U.prod, `public.approve_mockup_sheet('${s2}')`, /ผู้บริหารหรือเจ้าของอนุมัติ/)
+  await reject('งานเริ่มผลิตแล้ว ฝ่ายผลิตอนุมัติฉบับแก้ไขไม่ได้', U.prod, `public.approve_mockup_sheet('${s2}')`, /แอดมิน ผู้บริหาร หรือเจ้าของอนุมัติ/)
   await pass('ผู้บริหารอนุมัติฉบับแก้ไขหลังเริ่มผลิต', U.mgr, `public.approve_mockup_sheet('${s2}')`)
   ok('ฉบับ 1 ถูกแทนที่ · ฉบับ 2 ใช้ผลิต', (await sheetOf(s1)).status === 'superseded' && (await sheetOf(s2)).status === 'approved')
   ok('ฉบับ 2 อ่านค่าใบยืนยันล่าสุด (10 × 10)', (await db.query(`select ref_value from public.mockup_callouts where sheet_id = '${s2}' and no = 2`)).rows[0].ref_value === 'DTF · 10 × 10 ซม. · ห่างคอ 8 ซม.')
@@ -189,6 +188,39 @@ export async function mockupSheetTests({ db, ok, as }) {
     alter table public.mockup_sheets enable trigger mockup_sheets_guard;`)
   await db.exec(`update public.mockup_sheets set status = 'pending' where id = '${s4}'`)
   await reject('ฉบับที่เลขเก่ากว่าฉบับอนุมัติ อนุมัติทับไม่ได้', U.mgr, `public.approve_mockup_sheet('${s4}')`, /เก่ากว่าฉบับที่อนุมัติแล้ว/)
+
+  const job3 = (await db.query(`insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date,
+      route_code, confirmation_pdf_path, phase, spec, confirmation_rev)
+    values ('SC-MS-3','ลูกค้า 3','งาน 3','tshirt',20,'ตัว','2026-12-31','normal','x.pdf','materials','${JSON.stringify(spec)}'::jsonb, 1)
+    returning id`)).rows[0].id
+  const draft3 = (o = {}) => draft({ views: draft().views.map(v => ({ ...v, image_path: v.image_path.replace(folder, 'SC-MS-3') })), ...o })
+  const approve = (sheet, version) => `public.approve_mockup_sheet('${sheet}', null, ${version})`
+  const d1 = await pass('แอดมินสร้างร่างงานที่ 3', U.admin, `public.start_mockup_sheet('${job3}')`)
+  let dv = await trySave('บันทึกร่างงานที่ 3 (มีจุดที่ยังไม่มีสเปก)', U.admin, d1, 1,
+    draft3({ callouts: [...draft().callouts, { view: 'front', no: 4, x: 0.2, y: 0.5, box_x: 0.02, box_y: 0.6, title: 'แขนซ้าย' }] }))
+  await reject('อนุมัติจากร่างไม่ได้ถ้ามี Callout ไม่มีสเปก', U.admin, approve(d1, dv), /Callout 4 ยังไม่มีสเปก/)
+  dv = await trySave('ลบจุดที่ไม่มีสเปก', U.admin, d1, dv, draft3())
+  await reject('อนุมัติร่างโดยไม่ส่งเลขฉบับไม่ได้', U.admin, `public.approve_mockup_sheet('${d1}')`, /ไปก่อนแล้ว/)
+  await reject('อนุมัติร่างด้วยเลขฉบับเก่าไม่ได้ (มีคนแก้ทับ)', U.admin, approve(d1, dv - 1), /ไปก่อนแล้ว/)
+  await reject('ฝ่ายผลิตอนุมัติฉบับร่างไม่ได้', U.prod, approve(d1, dv), /แอดมินเป็นคนอนุมัติ/)
+  await reject('ผู้บริหารอนุมัติฉบับร่างไม่ได้', U.mgr, approve(d1, dv), /แอดมินเป็นคนอนุมัติ/)
+  await reject('ผู้ควบคุมงานอนุมัติร่างไม่ได้', U.sup, approve(d1, dv), /บทบาทของคุณ/)
+  await reject('พนักงานสถานีอนุมัติร่างไม่ได้', U.staffPrint, approve(d1, dv), /บทบาทของคุณ/)
+  ok('ถูกปฏิเสธแล้วยังเป็นร่าง', (await sheetOf(d1)).status === 'draft')
+  await pass('แอดมินอนุมัติใช้ผลิตเองจากร่าง ไม่ต้องส่งให้ใครอนุมัติ', U.admin, `public.approve_mockup_sheet('${d1}', 'ตรวจกับใบแล้ว', ${dv})`)
+  const a3 = await sheetOf(d1)
+  ok('อนุมัติจากร่าง: สถานะ + ผู้อนุมัติเป็นแอดมิน + หมายเหตุ', a3.status === 'approved' && a3.approved_by === U.admin && a3.approve_note === 'ตรวจกับใบแล้ว')
+  ok('อนุมัติจากร่าง: มี snapshot + แช่ค่าใบยืนยัน', (await db.query(`select count(*)::int n from public.mockup_snapshots where sheet_id = '${d1}'`)).rows[0].n === 1
+    && (await db.query(`select ref_value from public.mockup_callouts where sheet_id = '${d1}' and no = 2`)).rows[0].ref_value === 'DTF · 8 × 8 ซม. · ห่างคอ 8 ซม.')
+  ok('อนุมัติจากร่าง: บันทึก events ว่ามาจากร่าง', (await db.query(`select payload->>'from_draft' f from public.events where job_id = '${job3}' and type = 'mockup_approved'`)).rows[0]?.f === 'true')
+  await reject('อนุมัติซ้ำไม่ได้', U.admin2, approve(d1, a3.version), /อนุมัติไปแล้ว/)
+  await db.exec(`update public.jobs set phase = 'production', station_seq = 1, station_status = 'doing' where id = '${job3}'`)
+  const d2 = await pass('สร้างฉบับแก้ไขหลังเริ่มผลิต', U.admin2, `public.start_mockup_sheet('${job3}', 'ลูกค้าเปลี่ยนสีด้าย')`)
+  await pass('แอดมินอนุมัติฉบับแก้ไขหลังเริ่มผลิตเองได้', U.admin2, approve(d2, (await sheetOf(d2)).version))
+  ok('งานที่ 3: ฉบับ 1 ถูกแทนที่ · ฉบับ 2 ใช้ผลิต', (await sheetOf(d1)).status === 'superseded' && (await sheetOf(d2)).status === 'approved')
+  const in3 = (await db.query(`select kind, audience from public.inbox_messages where job_id = '${job3}' order by id`)).rows
+  ok('อนุมัติจากร่าง: ไม่มีข้อความรออนุมัติ · แจ้งอนุมัติ 2 ครั้ง · ฉบับแก้ไขแจ้ง QC', !in3.some(m => m.kind === 'mockup_pending')
+    && in3.filter(m => m.kind === 'mockup_approved').length === 2 && in3.at(-1).audience.includes('qc'), JSON.stringify(in3))
 
   await db.exec(`
     create schema storage;
@@ -219,7 +251,7 @@ export async function mockupSheetTests({ db, ok, as }) {
   ok('แจ้งเตือนม็อคอัพไม่มี error ค้าง', (await db.query(`select count(*)::int n from public.inbox_errors where source = 'on_mockup_status_inbox'`)).rows[0].n === 0)
 
   await db.exec(`alter table public.events disable trigger events_append_only;
-    delete from public.jobs where id = '${job}';
+    delete from public.jobs where id in ('${job}', '${job3}');
     alter table public.events enable trigger events_append_only;`)
   ok('ลบงานทดสอบ (สคริปต์ล้างวันอาทิตย์) ลบม็อคอัพที่อนุมัติแล้วตามไปได้',
     (await db.query(`select count(*)::int n from public.mockup_sheets where job_id = '${job}'`)).rows[0].n === 0)
