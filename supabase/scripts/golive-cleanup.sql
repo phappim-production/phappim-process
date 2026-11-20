@@ -13,7 +13,9 @@
 
 begin;
 
-create temp table golive_summary (step int, item text, value text) on commit drop;
+-- SQL Editor ของ Supabase ทิ้งตาราง on commit drop ก่อนแสดงผล → เก็บไว้จนจบ session แล้ว select หลัง commit
+create temp table if not exists golive_summary (step int, item text, value text);
+truncate golive_summary;
 
 do $$
 declare
@@ -91,11 +93,12 @@ begin
       where o.bucket_id = 'mockups'
         and not exists (select 1 from public.jobs j where j.mockup_path = o.name)
         and not exists (select 1 from public.confirmation_drafts d where d.data->>'mockup_path' = o.name)
+        and not exists (select 1 from public.mockup_views v where v.image_path = o.name)
       order by o.name
     $q$;
   end if;
 end $$;
 
-select step as ขั้น, item as รายการ, value as ผล from golive_summary order by step, item, value;
-
 commit;
+
+select step as ขั้น, item as รายการ, value as ผล from golive_summary order by step, item, value;
