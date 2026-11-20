@@ -187,6 +187,8 @@ const { flowR8Tests } = await import('./flow-r8.mjs')
 await flowR8Tests({ db, ok })
 const { flowR9Tests } = await import('./flow-r9.mjs')
 await flowR9Tests({ db, ok })
+const { flowR11Tests } = await import('./flow-r11.mjs')
+await flowR11Tests({ db, ok })
 const { flowRouteTests } = await import('./flow-routes.mjs')
 await flowRouteTests({ db, ok })
 
