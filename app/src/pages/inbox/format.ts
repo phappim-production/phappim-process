@@ -14,6 +14,7 @@ export type InboxKind =
   | 'mockup_pending'
   | 'mockup_returned'
   | 'mockup_approved'
+  | 'job_cancelled'
 
 export type InboxItem = {
   id: number
@@ -33,6 +34,7 @@ const DANGER_KINDS = new Set<InboxKind>([
   'machine_broken',
   'sample_failed',
   'mockup_returned',
+  'job_cancelled',
 ])
 
 const KIND_LABELS: Record<InboxKind, string> = {
@@ -49,6 +51,7 @@ const KIND_LABELS: Record<InboxKind, string> = {
   mockup_pending: 'ม็อคอัพรออนุมัติ',
   mockup_returned: 'ม็อคอัพถูกส่งกลับ',
   mockup_approved: 'สเปกอนุมัติแล้ว',
+  job_cancelled: 'ยกเลิกงาน',
 }
 
 export function kindTone(kind: InboxKind): Tone {

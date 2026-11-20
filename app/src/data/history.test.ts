@@ -34,3 +34,13 @@ describe('ไทม์ไลน์: จัดส่ง', () => {
     expect(eventLine(row('delivery_undone', { reason: 'กดผิดงาน' }), names)).toEqual({ title: 'ยกเลิกการบันทึกจัดส่ง', detail: 'กดผิดงาน', tone: 'warn' })
   })
 })
+
+describe('ไทม์ไลน์: ยกเลิกงาน', () => {
+  it('แสดงสถานีที่งานอยู่ตอนยกเลิกและเหตุผล', () => {
+    const row: EventRow = { id: 4, type: 'job_cancelled', phase: 'production', station_code: 'cut', payload: { reason: 'ลูกค้ายกเลิกออเดอร์' }, by: null, at: '2026-11-21T03:00:00Z' }
+    const line = eventLine(row, names)
+    expect(line.tone).toBe('danger')
+    expect(line.title).toMatch(/^ยกเลิกงาน \(อยู่ที่.+\)$/)
+    expect(line.detail).toBe('ลูกค้ายกเลิกออเดอร์')
+  })
+})

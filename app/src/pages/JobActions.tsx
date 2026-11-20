@@ -13,7 +13,7 @@ import { FilePick } from '../components/FilePick'
 import { relDay, slaAmount, spaced } from '../proto/format'
 import { newRequestId } from '../data/requestId'
 import { bookingDay } from '../proto/sewing'
-import { canCloseIssue, type EmployeeRole } from '../auth/access'
+import { canCancelJob, canCloseIssue, type EmployeeRole } from '../auth/access'
 import { Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconAlert, IconCheck, IconClock, IconFilm, IconPackage, IconPause } from '../components/icons'
@@ -125,6 +125,7 @@ export function JobActions({ job: j, role, myStations = [], version, now, refres
       {inStation && st !== 'sew' && (
         <Station job={j} detail={d} canPress={canStation} canResume={canCloseIssue(role, st)} role={role} busy={busy} now={now} act={act} />
       )}
+      {canCancelJob(role) && j.phase !== 'done' && <CancelJob job={j} busy={busy} act={act} />}
     </div>
   )
 }
@@ -344,6 +345,38 @@ function Delivery({ job: j, admin, busy, now, act }: { job: Job; admin: boolean;
   )
 }
 
+function CancelJob({ job: j, busy, act }: { job: Job; busy: boolean; act: Act }) {
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState('')
+  if (j.status === 'out') {
+    return (
+      <Section title="ยกเลิกงาน">
+        <button type="button" disabled className={secondaryBtn}>ยกเลิกงานนี้</button>
+        <p className="mt-2 text-sm text-muted">งานอยู่ที่บริษัทภายนอก ให้แอดมินกด "รับของกลับ" ก่อน แล้วค่อยยกเลิก</p>
+      </Section>
+    )
+  }
+  return (
+    <Section title="ยกเลิกงาน" tone={open ? 'danger' : undefined}>
+      {open ? (
+        <div className="grid gap-2">
+          <label className="grid gap-1 font-medium">เหตุผลที่ยกเลิก
+            <input value={reason} onChange={e => setReason(e.target.value)} className={fieldClass} placeholder="เช่น ลูกค้ายกเลิกออเดอร์ ไม่จ่ายมัดจำ" />
+          </label>
+          <Confirm text={`ยกเลิกงาน ${j.no} (${j.customer})? ทุกสถานีจะหยุดทำ งานหายจากบอร์ด และย้อนกลับไม่ได้`} busy={busy} danger
+            yesLabel="ยืนยันยกเลิกงาน" noLabel="ไม่ยกเลิก กลับ"
+            onYes={async () => { if (!reason.trim()) return; if (await act('cancel_job', { p_reason: reason.trim() }, `ยกเลิกงาน ${j.no} แล้ว · แจ้งทุกฝ่ายในกล่องจดหมาย`)) { setOpen(false); setReason('') } }}
+            onNo={() => { setOpen(false); setReason('') }} />
+          {!reason.trim() && <p className="text-sm text-warn">ใส่เหตุผลก่อนกดยืนยัน</p>}
+        </div>
+      ) : (<>
+        <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setOpen(true)}>ยกเลิกงานนี้</button>
+        <p className="mt-2 text-sm text-muted">ใช้เมื่อลูกค้ายกเลิกออเดอร์ · เฉพาะผู้บริหาร · คืนจักรและปิดปัญหาที่ค้างให้อัตโนมัติ</p>
+      </>)}
+    </Section>
+  )
+}
+
 function SampleResult({ job: j, admin, busy, onSave }: {
   job: Job; admin: boolean; busy: boolean; onSave: (pass: boolean, note: string, day: string) => Promise<boolean>
 }) {
@@ -376,13 +409,15 @@ function SampleResult({ job: j, admin, busy, onSave }: {
   )
 }
 
-function Confirm({ text, busy, danger, onYes, onNo }: { text: string; busy: boolean; danger?: boolean; onYes: () => void; onNo: () => void }) {
+function Confirm({ text, busy, danger, yesLabel = 'ยืนยัน', noLabel = 'ยกเลิก', onYes, onNo }: {
+  text: string; busy: boolean; danger?: boolean; yesLabel?: string; noLabel?: string; onYes: () => void; onNo: () => void
+}) {
   return (
     <div className="grid gap-2 rounded-xl bg-paper p-3">
       <p className="font-semibold">{text}</p>
       <div className="grid gap-2 sm:grid-cols-2">
-        <button type="button" disabled={busy} className={danger ? dangerBtn : okBtn} onClick={onYes}>{busy ? 'กำลังบันทึก…' : 'ยืนยัน'}</button>
-        <button type="button" disabled={busy} className={secondaryBtn} onClick={onNo}>ยกเลิก</button>
+        <button type="button" disabled={busy} className={danger ? dangerBtn : okBtn} onClick={onYes}>{busy ? 'กำลังบันทึก…' : yesLabel}</button>
+        <button type="button" disabled={busy} className={secondaryBtn} onClick={onNo}>{noLabel}</button>
       </div>
     </div>
   )

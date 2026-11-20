@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { canCloseIssue, type EmployeeRole } from './access'
+import { canCancelJob, canCloseIssue, ROLE_LABELS, type EmployeeRole } from './access'
 
 // ต้องตรงกับ close_issue / resume_sewing ในฐานข้อมูล
 it('ปิดปัญหาได้เฉพาะฝ่ายผลิต ผู้บริหาร เจ้าของ · แอดมินกับ QC ไม่ได้', () => {
@@ -15,4 +15,10 @@ it('งานเย็บที่พัก ต้องจ่ายจักร
   expect(canCloseIssue('owner', 'sew')).toBe(true)
   expect(canCloseIssue('manager', 'sew')).toBe(false)
   expect(canCloseIssue('admin', 'sew')).toBe(false)
+})
+
+it('ยกเลิกงานได้เฉพาะผู้บริหารและเจ้าของ', () => {
+  for (const role of Object.keys(ROLE_LABELS) as EmployeeRole[]) {
+    expect(canCancelJob(role), role).toBe(role === 'manager' || role === 'owner')
+  }
 })

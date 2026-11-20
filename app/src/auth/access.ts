@@ -43,6 +43,11 @@ export function canCloseIssue(role: EmployeeRole, station: string | null | undef
   return station === 'sew' ? floor : floor || role === 'manager'
 }
 
+// ตรงกับ cancel_job · ยกเลิกออเดอร์เป็นการตัดสินใจทางธุรกิจ ฝ่ายผลิต/แอดมินไม่มีสิทธิ์
+export function canCancelJob(role: EmployeeRole): boolean {
+  return role === 'manager' || role === 'owner'
+}
+
 export function canOpenPage(role: EmployeeRole, page: PageKey): boolean {
   switch (page) {
     case 'settings':

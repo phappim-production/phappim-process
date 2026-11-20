@@ -139,7 +139,7 @@ export async function flowR8Tests({ db, ok }) {
         inbox_unread_count: [], job_sla_flags: [], my_role: [], is_owner: [], ack_review: ['queue_event', 0],
         start_mockup_sheet: [id, reason], save_mockup_draft: [id, 1, { views: [], specs: [], callouts: [] }], discard_mockup_draft: [id],
         submit_mockup_sheet: [id, 1], return_mockup_sheet: [id, reason], approve_mockup_sheet: [id, reason], ack_mockup_sheet: [id, 'cut'],
-        mark_delivered: [id, reason], undo_delivery: [id, reason],
+        mark_delivered: [id, reason], undo_delivery: [id, reason], cancel_job: [id, reason],
         file_upload_allowed: ['mockups', photo.replace('r8.jpg', 'ab12.jpg'), 10, 'image/jpeg'],
         record_file_upload: ['mockups', photo.replace('r8.jpg', 'ab12.jpg'), 10, 'image/jpeg', 'bad'], file_read_allowed: ['mockups', [photo]],
       }
@@ -157,7 +157,7 @@ export async function flowR8Tests({ db, ok }) {
               const delta = (await events(id)).slice(beforeEvents)
               const primary = delta.filter(e => [
                 'station_start', 'station_done', 'hold', 'resume', 'sample_result', 'rework',
-                'outsource_sent', 'outsource_forwarded', 'outsource_received', 'material_checked',
+                'outsource_sent', 'outsource_forwarded', 'outsource_received', 'material_checked', 'job_cancelled',
               ].includes(e.type))
               if (core(job).join() !== core(await live(id)).join()) assert.equal(primary.length, 1, delta.map(e => e.type).join())
               if (name === 'set_job_mockup') assert.deepEqual(delta.map(e => e.type), ['mockup'])
