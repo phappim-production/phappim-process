@@ -365,7 +365,7 @@ function garment(o){
     { title:'ผ้า', fields:[
       R('fabric','ชนิดผ้า',o.fabrics,{ other:true, hint:o.fabricHint }),
       T('fabric_color','สีผ้าพื้น',{ req:true, hint:o.colorHint }),
-      N('gsm','น้ำหนักผ้า','แกรม/ตร.ม.'),
+      N('fabric_width','หน้าผ้า','นิ้ว'),
       ...(o.fabricExtra||[]),
     ]},
     { title:'แบบและแพทเทิร์น', fields:[...o.style, ...(o.pockets===false?[]:[POCKETS(o.pockets||POCKET_SHIRT)]), ...(o.styleAfter||[])] },
