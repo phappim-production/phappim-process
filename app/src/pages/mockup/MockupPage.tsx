@@ -68,7 +68,7 @@ export default function MockupPage({ jobId, role, myStations }: { jobId: string;
   if (state.status !== 'ready') {
     return (
       <div className="mx-auto max-w-xl p-4 sm:p-6">
-        <Card className="grid gap-2 p-5">
+        <Card className="grid grid-cols-[minmax(0,1fr)] gap-2 p-5">
           <h1 className="text-xl font-bold">ม็อคอัพกำกับสเปก</h1>
           {state.status === 'loading' && <p role="status" className="text-muted">กำลังโหลด…</p>}
           {state.status === 'missing' && <p role="alert" className="text-danger">ไม่พบงานนี้ · เปิดจากรายละเอียดงานอีกครั้ง</p>}
@@ -89,13 +89,13 @@ export default function MockupPage({ jobId, role, myStations }: { jobId: string;
   const history = data.sheets.filter(s => s.status === 'approved' || s.status === 'superseded')
 
   return (
-    <div className="mx-auto grid w-full max-w-[1600px] gap-4 p-3 sm:p-5">
-      <Card className="grid gap-3 p-4">
+    <div className="mx-auto grid w-full max-w-[1600px] grid-cols-[minmax(0,1fr)] gap-4 p-3 sm:p-5">
+      <Card className="grid grid-cols-[minmax(0,1fr)] gap-3 p-4">
         <div className="flex flex-wrap items-start gap-3">
           <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand"><IconImage className="size-6" /></span>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-[12rem] flex-1">
             <p className="text-sm text-muted">ม็อคอัพกำกับสเปก</p>
-            <h1 className="truncate text-2xl font-bold">{data.job.no} <span className="font-medium text-muted">· {data.job.customer}</span></h1>
+            <h1 className="text-2xl font-bold [overflow-wrap:anywhere]">{data.job.no} <span className="font-medium text-muted">· {data.job.customer}</span></h1>
             <p className="text-muted">{data.job.jobName} · {data.job.qty.toLocaleString('th-TH')} {data.job.unit}</p>
           </div>
           <a href={`#/board?job=${encodeURIComponent(data.job.id)}`} className={secondaryBtn}>กลับไปที่งาน</a>
@@ -130,7 +130,7 @@ export default function MockupPage({ jobId, role, myStations }: { jobId: string;
       )}
 
       {history.length > 0 && (
-        <Card className="grid gap-2 p-4">
+        <Card className="grid grid-cols-[minmax(0,1fr)] gap-2 p-4">
           <h2 className="font-bold">ประวัติฉบับ</h2>
           <ul className="grid gap-1">
             {history.map(s => (
@@ -163,7 +163,7 @@ function StartSheet({ data, role, reload, revision }: { data: MockupData; role: 
     await reload()
   }
   return (
-    <Card className="grid gap-3 p-4">
+    <Card className="grid grid-cols-[minmax(0,1fr)] gap-3 p-4">
       {revision ? <>
         <h2 className="font-bold">แก้ไขม็อคอัพ (สร้างฉบับ {Math.max(...data.sheets.map(s => s.rev)) + 1} จากฉบับ {revision})</h2>
         <p className="text-muted">ฉบับ {revision} ยังใช้ผลิตต่อจนกว่าฉบับใหม่จะอนุมัติ{data.job.started && ' · งานนี้เริ่มผลิตแล้ว ฉบับใหม่ต้องให้ผู้บริหารหรือเจ้าของอนุมัติ'}</p>
@@ -376,7 +376,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
   const submitIssues = submitProblems(draft)
 
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       <Card className="flex flex-wrap items-center gap-2 p-3">
         <Pill tone={SHEET_STATUS[sheet.status].tone} dot>ฉบับ {sheet.rev} · {SHEET_STATUS[sheet.status].text}</Pill>
         {dirty && <Pill tone="warn">ยังไม่ได้บันทึก</Pill>}
@@ -413,7 +413,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
       {conflict && <button type="button" className={secondaryBtn} onClick={() => void reload()}>โหลดใหม่ (งานที่ยังไม่บันทึกจะหาย)</button>}
 
       {sheet.status === 'pending' && (
-        <Card className="grid gap-3 p-4">
+        <Card className="grid grid-cols-[minmax(0,1fr)] gap-3 p-4">
           <h2 className="font-bold">รออนุมัติ · ส่งโดย {data.names.get(sheet.submitted_by ?? '') ?? '—'} {when(sheet.submitted_at)}</h2>
           {canApproveMockup(role) ? <>
             <label className="grid gap-1 font-semibold">หมายเหตุการอนุมัติ (ถ้ามี)
@@ -433,8 +433,8 @@ function SheetWork({ data, sheet, approved, role, reload }: {
         </Card>
       )}
 
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_320px] lg:grid-cols-[260px_minmax(0,1fr)_360px]">
-        <Card className="grid content-start gap-3 p-3 md:col-span-2 lg:col-span-1">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[minmax(0,1fr)_320px] lg:grid-cols-[260px_minmax(0,1fr)_360px]">
+        <Card className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 p-3 md:col-span-2 lg:col-span-1">
           <h2 className="font-bold">ภาพ</h2>
           {views.length > 0 && <ViewTabs views={views} value={shown?.view ?? 'front'} onChange={setView} counts={v => draft.callouts.filter(c => c.view === v).length} />}
           {editable && (
@@ -476,7 +476,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
           {editable && shown && <p className="px-2 pt-2 text-sm text-muted">กดบนภาพ = เพิ่มจุด · ลากจุด/กล่อง = ย้าย · Ctrl + ล้อเมาส์ = ซูม · Ctrl+Z / Ctrl+Y = ย้อน / ทำซ้ำ</p>}
         </Card>
 
-        <Card className="grid content-start gap-3 p-3">
+        <Card className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 p-3">
           <SpecPanel draft={draft} callout={callout} jobSpec={data.job.spec} stations={data.job.stations} edit={edit} editable={editable} />
         </Card>
       </div>
@@ -531,8 +531,8 @@ function SheetViewer({ data, sheet, role, myStations, reload }: {
   }
 
   return (
-    <div className="grid gap-3">
-      <Card className="grid gap-3 p-3">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+      <Card className="grid grid-cols-[minmax(0,1fr)] gap-3 p-3">
         <div className="flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-2 font-semibold">ดูเฉพาะสถานี
             <select value={station ?? ''} onChange={e => setStation((e.target.value || null) as StationCode | null)} className={`${fieldClass} w-auto font-normal`}
@@ -561,8 +561,8 @@ function SheetViewer({ data, sheet, role, myStations, reload }: {
         <Note msg={msg} />
       </Card>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <Card className="grid min-w-0 gap-2 p-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <Card className="grid grid-cols-[minmax(0,1fr)] min-w-0 gap-2 p-2">
           {draft.views.length > 1 && <ViewTabs views={draft.views.map(v => v.view)} value={shown?.view ?? 'front'} onChange={setView} counts={v => callouts.filter(c => c.view === v).length} />}
           {shown
             ? <div className="max-h-[78vh] overflow-auto rounded-xl bg-card-2 p-2">
@@ -571,7 +571,7 @@ function SheetViewer({ data, sheet, role, myStations, reload }: {
             </div>
             : <p className="p-6 text-muted">ฉบับนี้ไม่มีภาพ</p>}
         </Card>
-        <Card className="grid content-start gap-3 p-3">
+        <Card className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 p-3">
           <SpecPanel draft={draft} callout={callout} jobSpec={data.job.spec} stations={data.job.stations} edit={() => undefined} editable={false} />
           <h2 className="font-bold">ทุกจุด{station ? `ของ${STATION_NAME[station]}` : ''} ({callouts.length})</h2>
           <CalloutList draft={{ ...draft, callouts }} selected={selected} jobSpec={data.job.spec} onSelect={c => { setSelected(c.key); setView(c.view) }} />

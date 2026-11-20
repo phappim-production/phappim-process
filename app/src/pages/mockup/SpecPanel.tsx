@@ -72,7 +72,7 @@ function SpecEditor({ spec, used, stations, edit, disabled }: {
 }) {
   const set = (patch: Partial<Omit<Spec, 'key'>>) => edit({ type: 'update_spec', key: spec.key, patch }, `${spec.key}:${Object.keys(patch).join()}`)
   return (
-    <section className="grid gap-3 rounded-xl border border-gold/50 bg-gold-soft/40 p-3" aria-label={`สเปก ${spec.code}`}>
+    <section className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-xl border border-gold/50 bg-gold-soft/40 p-3" aria-label={`สเปก ${spec.code}`}>
       <p className="text-sm text-muted">สเปก <b className="text-ink">{spec.code}</b> · ใช้กับ Callout {used.join(', ') || '—'} {used.length > 1 && '(แก้ที่นี่ = แก้ทุกจุดที่ใช้)'}</p>
       <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2">
         <Text label="รหัส" value={spec.code} onCommit={v => set({ code: v.replace(/\s/g, '') })} disabled={disabled} />
@@ -127,7 +127,7 @@ export function SpecPanel({ draft, callout, jobSpec, stations, edit, editable }:
 
   if (!editable) {
     return (
-      <section className="grid gap-3" aria-label={`รายละเอียด Callout ${c.no}`}>
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3" aria-label={`รายละเอียด Callout ${c.no}`}>
         <h3 className="text-xl font-bold"><span className="text-brand">{c.no}</span> {c.title}</h3>
         {calloutLines(c, draft, jobSpec).map((l, i) => <p key={i} className="rounded-xl bg-paper px-3 py-2">{l}</p>)}
         {spec && (
@@ -142,7 +142,7 @@ export function SpecPanel({ draft, callout, jobSpec, stations, edit, editable }:
   }
 
   return (
-    <section className="grid gap-3" aria-label={`แก้ Callout ${c.no}`}>
+    <section className="grid grid-cols-[minmax(0,1fr)] gap-3" aria-label={`แก้ Callout ${c.no}`}>
       <h3 className="text-lg font-bold">Callout {c.no}</h3>
       <Text label="ชื่อจุด" value={c.title} onCommit={v => set({ title: v })} placeholder="เช่น คอเสื้อ อกซ้าย แขนซ้าย" />
       <label className={label}>อ้างข้อมูลจากใบยืนยัน (ไม่ต้องกรอกซ้ำ)
