@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   EMPTY_DRAFT, MARGIN_X, MARGIN_Y, applyEdit, blankSpec, clampBox, confirmationDraft, fromStage, onStage, stageSize, calloutLines, confirmationRefs, defaultBox, forStation, historyEdit, historyOf,
-  nextSpecCode, parseSize, redo, refValue, saveProblems, submitProblems, toNormalized, toPayload, toPixels, undo, type Draft,
+  nextSpecCode, parseSize, redo, refLabel, refValue, saveProblems, submitProblems, toNormalized, toPayload, toPixels, undo, type Draft,
 } from './annotation'
 
 const spec = {
@@ -151,6 +151,15 @@ describe('สเปก', () => {
 
   it('รายการให้เลือกจากใบยืนยัน มีเฉพาะช่องที่มีค่า', () => {
     expect(confirmationRefs(spec).map(r => r.ref)).toEqual(['placement:หน้าอกซ้าย', 'placement:กลางหลัง', 'field:neck', 'field:print_method'])
+  })
+
+  it('ช่องหน้าผ้าเลือกได้ · ใบเก่าที่กรอกน้ำหนักผ้ายังแสดงชื่อเดิม', () => {
+    const fabric = { product: 'tshirt', p: { tshirt: { fabric_width: 60, gsm: 180 } } }
+    expect(confirmationRefs(fabric)).toEqual([
+      { ref: 'field:gsm', label: 'น้ำหนักผ้า', value: '180' },
+      { ref: 'field:fabric_width', label: 'หน้าผ้า', value: '60' },
+    ])
+    expect(refLabel('field:fabric_width')).toBe('หน้าผ้า')
   })
 
   it('สร้างสเปกใหม่จาก Callout แล้วผูกให้ทันที · ลบสเปกแล้วจุดไม่ค้างอ้างของที่ไม่มี', () => {
