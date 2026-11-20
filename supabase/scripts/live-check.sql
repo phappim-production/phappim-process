@@ -59,6 +59,10 @@ begin
   -- ม็อคอัพ: ร่าง → ส่ง → ส่งกลับ → ส่ง → อนุมัติ (ก่อนเริ่มผลิต)
   folder := private.mockup_folder('TEST-LIVE-A');
   insert into storage.objects (bucket_id, name) values ('mockups', folder || '/sheet/live-front.png'), ('mockups', folder || '/sheet/live-back.png');
+  if to_regclass('private.file_objects') is not null then
+    insert into private.file_objects (kind, path, size, content_type)
+    values ('mockups', folder || '/sheet/live-front.png', 1, 'image/png'), ('mockups', folder || '/sheet/live-back.png', 1, 'image/png');
+  end if;
   perform pg_temp.err('ฝ่ายผลิตสร้างม็อคอัพไม่ได้', prd, format($$select public.start_mockup_sheet(%L)$$, j1), 'บทบาท');
   s1 := pg_temp.ok('แอดมินเริ่มม็อคอัพ', adm, format($$select public.start_mockup_sheet(%L)::text$$, j1))::uuid;
   payload := jsonb_build_object(

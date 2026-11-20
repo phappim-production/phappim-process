@@ -3,6 +3,8 @@ import { seedFromConfirmation } from '../data/mockupSheets'
 import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
+import { uploadFile } from '../data/files'
+import { contentKey } from '../data/mockups'
 import { confirmationPath, draftFromConfirmation, pdfProblem, sewRecipeProblem, type ReceiveDraft } from '../data/confirmation'
 import { draftLabel, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
@@ -107,11 +109,11 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
     let path: string | null = null
     if (pdf) {
       setSaving('กำลังอัปโหลด PDF…')
-      path = confirmationPath(draft.no, new Date())
-      const up = await supabase.storage.from('confirmations').upload(path, pdf, { contentType: 'application/pdf', upsert: false })
-      if (up.error) {
+      path = confirmationPath(draft.no, await contentKey(pdf))
+      const up = await uploadFile('confirmations', path, pdf, 'application/pdf')
+      if (!up.ok) {
         setSaving(null)
-        setError(thaiError(up.error.message))
+        setError(up.reason)
         return
       }
     }

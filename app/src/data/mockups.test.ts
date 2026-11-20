@@ -32,8 +32,9 @@ describe('รูปม็อคอัพ: ชื่อไฟล์และช�
     expect(mockupExt('image/webp')).toBe('webp')
     expect(mockupExt('image/gif')).toBeNull()
     expect(mockupProblem({ size: 1000, type: 'application/pdf' })).toMatch(/JPG/)
-    expect(mockupProblem({ size: 6 * 1024 * 1024, type: 'image/png' })).toMatch(/เกิน 5 MB/)
-    expect(mockupProblem({ size: 1000, type: 'image/png' })).toBeNull()
+    expect(mockupProblem({ size: 20 * 1024 * 1024 + 1, type: 'image/png' })).toBe('รูปใหญ่ 20.1 MB เกิน 20 MB ให้ย่อรูปก่อน')
+    expect(mockupProblem({ size: 20 * 1024 * 1024, type: 'image/png' })).toBeNull()
+    expect(mockupProblem({ size: 6 * 1024 * 1024, type: 'image/png' })).toBeNull()
   })
 })
 

@@ -12,12 +12,13 @@ it('เลือกฉบับที่ใช้ผลิต และฉบั
   expect(pickSheets([sheet(1, 'superseded')])).toEqual({ approved: null, open: null })
 })
 
-it('ไฟล์ภาพม็อคอัพ: รับ PNG / JPG / WEBP ไม่เกิน 5 MB', () => {
+it('ไฟล์ภาพม็อคอัพ: รับ PNG / JPG / WEBP ไม่เกิน 20 MB', () => {
   expect(mockupProblem({ size: 1000, type: 'image/png' })).toBeNull()
   expect(mockupProblem({ size: 1000, type: 'image/webp' })).toBeNull()
   expect(mockupProblem({ size: 1000, type: 'image/gif' })).toMatch(/JPG \/ PNG \/ WEBP/)
   expect(mockupProblem({ size: 1000, type: 'application/pdf' })).toMatch(/JPG \/ PNG \/ WEBP/)
-  expect(mockupProblem({ size: 6 * 1024 * 1024, type: 'image/jpeg' })).toMatch(/เกิน 5 MB/)
+  expect(mockupProblem({ size: 20 * 1024 * 1024, type: 'image/jpeg' })).toBeNull()
+  expect(mockupProblem({ size: 20 * 1024 * 1024 + 1, type: 'image/jpeg' })).toMatch(/เกิน 20 MB/)
 })
 
 it('งานที่ยังไม่บันทึกในเครื่อง: อ่านกลับได้ · ข้อมูลเสีย/ผิดรูปแบบ = ไม่กู้', () => {

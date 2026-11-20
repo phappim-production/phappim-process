@@ -140,6 +140,8 @@ export async function flowR8Tests({ db, ok }) {
         start_mockup_sheet: [id, reason], save_mockup_draft: [id, 1, { views: [], specs: [], callouts: [] }], discard_mockup_draft: [id],
         submit_mockup_sheet: [id, 1], return_mockup_sheet: [id, reason], approve_mockup_sheet: [id, reason], ack_mockup_sheet: [id, 'cut'],
         mark_delivered: [id, reason], undo_delivery: [id, reason],
+        file_upload_allowed: ['mockups', photo.replace('r8.jpg', 'ab12.jpg'), 10, 'image/jpeg'],
+        record_file_upload: ['mockups', photo.replace('r8.jpg', 'ab12.jpg'), 10, 'image/jpeg', 'bad'], file_read_allowed: ['mockups', [photo]],
       }
       assert.deepEqual(functions.filter(name => !Object.hasOwn(args, name)), [])
       for (const name of functions) {
