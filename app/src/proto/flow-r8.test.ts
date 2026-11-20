@@ -19,9 +19,9 @@ afterEach(() => {
 })
 
 describe('R8 Storage จำลอง', () => {
-  it('ปฏิเสธรูปใหญ่เกิน 5 MB ก่อนส่งคำขอ', async () => {
+  it('ปฏิเสธรูปใหญ่เกิน 20 MB ก่อนส่งคำขอ', async () => {
     const blob = new Blob([new Uint8Array(MAX_MOCKUP_BYTES + 1)], { type: 'image/jpeg' })
-    await expect(uploadMockup(job.no, blob)).resolves.toEqual({ ok: false, reason: expect.stringContaining('ให้ย่อรูป') })
+    await expect(uploadMockup(job.no, blob)).resolves.toEqual({ ok: false, reason: expect.stringContaining('เกิน 20 MB') })
     expect(storage.upload).not.toHaveBeenCalled()
   })
 
@@ -52,8 +52,8 @@ describe('R8 Storage จำลอง', () => {
     storage.createSignedUrls.mockResolvedValueOnce({ data: [{ path, signedUrl: '/local/old' }] })
       .mockResolvedValueOnce({ data: [{ path, signedUrl: '/local/new' }] })
     expect((await signMockups([path, path], now.getTime())).get(path)).toBe('/local/old')
-    expect(storage.createSignedUrls).toHaveBeenNthCalledWith(1, [path], 43_200)
-    expect((await signMockups([path], now.getTime() + 12 * 3_600_000)).get(path)).toBe('/local/new')
+    expect(storage.createSignedUrls).toHaveBeenNthCalledWith(1, [path], 7_200)
+    expect((await signMockups([path], now.getTime() + 2 * 3_600_000)).get(path)).toBe('/local/new')
   })
 })
 

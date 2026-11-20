@@ -1,0 +1,14 @@
+name = "pp142-files"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "pp142-files"
+
+[vars]
+ALLOWED_ORIGINS = "https://pp142.pages.dev"
+
+# ค่าลับตั้งด้วย `npx wrangler secret put <ชื่อ>` เท่านั้น ห้ามใส่ในไฟล์นี้:
+# SUPABASE_URL · SUPABASE_ANON_KEY · RECORD_SECRET (ค่าเดียวกับ private.file_settings) · LINK_SECRET

@@ -135,11 +135,12 @@ test('วันกำหนดส่งรูปแบบผิด = ว่า�
   assert.equal(draftFromConfirmation(form({ h: { ...form().h, due_date: '30/11/2569' } })).due, '')
 })
 
-test('ชื่อไฟล์ PDF ใน Storage เป็นอังกฤษ/ตัวเลขเท่านั้น และไม่ซ้ำ', () => {
-  const at = new Date('2026-11-17T03:00:00Z')
-  assert.equal(confirmationPath('SC691451', at), `SC691451/${at.getTime()}.pdf`)
-  assert.equal(confirmationPath('SC 69/14 ไทย', at), `SC_69_14____/${at.getTime()}.pdf`)
-  assert.equal(confirmationPath('  ', at), `job/${at.getTime()}.pdf`)
+test('ชื่อไฟล์ PDF เป็นอังกฤษ/ตัวเลขเท่านั้น และตั้งจากเนื้อไฟล์ (ส่งซ้ำได้ชื่อเดิม)', () => {
+  const key = '0a1b2c3d4e5f6071'
+  assert.equal(confirmationPath('SC691451', key), `SC691451/${key}.pdf`)
+  assert.equal(confirmationPath('SC 69/14 ไทย', key), `SC_69_14____/${key}.pdf`)
+  assert.equal(confirmationPath('  ', key), `job/${key}.pdf`)
+  assert.match(confirmationPath('SC 69/14 ไทย', key), /^[A-Za-z0-9_-]{1,200}\/[A-Za-z0-9]{1,64}\.pdf$/)
 })
 
 test('PDF: ต้องมีไฟล์ · ต้องเป็น PDF · ไม่เกิน 20 MB', () => {
@@ -147,6 +148,8 @@ test('PDF: ต้องมีไฟล์ · ต้องเป็น PDF · ไ
   assert.match(pdfProblem({ name: 'a.jpg', size: 10, type: 'image/jpeg' }), /ต้องเป็น PDF/)
   assert.match(pdfProblem({ name: 'a.pdf', size: 21 * 1024 * 1024, type: 'application/pdf' }), /เกิน 20 MB/)
   assert.equal(pdfProblem({ name: 'a.pdf', size: 200_000, type: 'application/pdf' }), null)
+  assert.equal(pdfProblem({ name: 'a.pdf', size: 20 * 1024 * 1024, type: 'application/pdf' }), null)
+  assert.match(pdfProblem({ name: 'a.pdf', size: 20 * 1024 * 1024 + 1, type: 'application/pdf' }), /20\.1 MB เกิน 20 MB/)
 })
 
 const steps = [

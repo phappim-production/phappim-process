@@ -2,7 +2,8 @@ import { supabase } from '../lib/supabase'
 import { isStationCode, type StationCode } from '../proto/model'
 import type { Callout, Draft, MockView, SheetStatus, SpecKind, Unit, ViewKey } from '../proto/annotation'
 import { VIEW_ORDER, confirmationDraft, toPayload } from '../proto/annotation'
-import { MOCKUP_BUCKET, contentKey, mockupExt, mockupFolder, mockupProblem, signMockups } from './mockups'
+import { uploadFile } from './files'
+import { contentKey, mockupExt, mockupFolder, mockupProblem, signMockups } from './mockups'
 import { rpc, type RpcResult } from './useFactoryData'
 import { thaiError } from './live'
 
@@ -106,20 +107,13 @@ export async function imageSize(blob: Blob): Promise<{ width: number; height: nu
 
 // เก็บไฟล์ต้นฉบับตามที่อัปโหลด ไม่ย่อ ไม่แปลง (ต่างจากรูปการ์ดงานที่ย่อเป็น JPEG)
 export async function uploadOriginal(no: string, file: File, view: ViewKey): Promise<RpcResult<MockView & { url: string }>> {
-  if (!supabase) return { ok: false, reason: 'ยังไม่ได้ตั้งค่า Supabase' }
   const problem = mockupProblem(file)
   if (problem) return { ok: false, reason: problem }
   const size = await imageSize(file)
   if (!size) return { ok: false, reason: 'เปิดไฟล์รูปนี้ไม่ได้ ไฟล์อาจเสีย ลองบันทึกรูปใหม่แล้วเลือกอีกครั้ง' }
   const path = `${mockupFolder(no)}/sheet/${await contentKey(file)}.${mockupExt(file.type) ?? 'jpg'}`
-  try {
-    const up = await supabase.storage.from(MOCKUP_BUCKET).upload(path, file, { contentType: file.type, upsert: false })
-    if (up.error && !/exists|duplicate/i.test(up.error.message)) {
-      return { ok: false, reason: /bucket not found/i.test(up.error.message) ? 'ระบบยังไม่พร้อมรับรูป แจ้งเจ้าของระบบ' : 'อัปโหลดรูปไม่สำเร็จ ลองอีกครั้ง' }
-    }
-  } catch {
-    return { ok: false, reason: 'เชื่อมต่อระบบไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง' }
-  }
+  const up = await uploadFile('mockups', path, file, file.type)
+  if (!up.ok) return up
   const url = (await signMockups([path])).get(path)
   return { ok: true, data: { view, path, ...size, url: url ?? URL.createObjectURL(file) } }
 }

@@ -4,7 +4,8 @@ import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { confirmationPath, pdfProblem } from '../data/confirmation'
-import { mockupProblem, shrinkImage, uploadMockup } from '../data/mockups'
+import { contentKey, mockupProblem, shrinkImage, uploadMockup } from '../data/mockups'
+import { signFiles, uploadFile } from '../data/files'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
 import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job, type StationCode, type Vendor } from '../proto/model'
 import { OutsourcePanel } from './OutsourcePanel'
@@ -135,12 +136,12 @@ function AttachPdf({ job, refresh }: { job: Job; refresh: () => Promise<void> })
   const [error, setError] = useState('')
   const problem = pdfProblem(file)
   async function attach() {
-    if (!file || problem || !supabase) return
+    if (!file || problem) return
     setBusy(true)
     setError('')
-    const path = confirmationPath(job.no, new Date())
-    const up = await supabase.storage.from('confirmations').upload(path, file, { contentType: 'application/pdf', upsert: false })
-    if (up.error) { setBusy(false); setError(thaiError(up.error.message)); return }
+    const path = confirmationPath(job.no, await contentKey(file))
+    const up = await uploadFile('confirmations', path, file, 'application/pdf')
+    if (!up.ok) { setBusy(false); setError(up.reason); return }
     const r = await rpc('attach_confirmation_pdf', { p_job: job.id, p_path: path })
     setBusy(false)
     if (!r.ok) { setError(r.reason); return }
@@ -165,7 +166,7 @@ function SetMockup({ job, refresh }: { job: Job; refresh: () => Promise<void> })
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
-  const problem = file ? mockupProblem({ size: 0, type: file.type }) : null
+  const problem = file ? mockupProblem(file) : null
   const has = !!job.mockup
   async function save() {
     if (!file || problem) return
@@ -205,15 +206,16 @@ function OpenPdf({ path }: { path: string }) {
     setLink('')
     // เปิดหน้าต่างก่อนรอลิงก์ ไม่อย่างนั้นเบราว์เซอร์บนมือถือจะบล็อกป๊อปอัป
     const win = window.open('', '_blank')
-    const r = await supabase?.storage.from('confirmations').createSignedUrl(path, 300)
-    if (!r || r.error || !r.data) {
+    const r = await signFiles('confirmations', [path], 300)
+    const url = r.ok ? r.urls.get(path) : undefined
+    if (!url) {
       win?.close()
-      setError(r?.error ? thaiError(r.error.message) : 'ยังไม่ได้ตั้งค่า Supabase')
+      setError(r.ok ? 'เปิด PDF นี้ไม่ได้ (ไม่มีสิทธิ์ หรือไฟล์หาย) แจ้งแอดมินให้แนบใหม่' : r.reason)
       return
     }
-    if (win) win.location.href = r.data.signedUrl
+    if (win) win.location.href = url
     // บางเครื่อง (แอปที่ติดตั้ง / เบราว์เซอร์ในแอปอื่น) เปิดแท็บใหม่ไม่ขึ้นเงียบๆ จึงแสดงลิงก์ให้กดเองเสมอ
-    setLink(r.data.signedUrl)
+    setLink(url)
   }
   return (
     <div className="grid gap-1">

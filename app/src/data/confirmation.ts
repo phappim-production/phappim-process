@@ -90,10 +90,10 @@ export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
   }
 }
 
-// ชื่อไฟล์ใน Storage ใช้ตัวอักษรอังกฤษ/ตัวเลขเท่านั้น (ชื่อไทยทำให้อัปโหลดไม่ผ่าน) · ใส่เวลากันชื่อซ้ำ
-export function confirmationPath(no: string, at: Date): string {
+// ชื่อไฟล์ใช้อังกฤษ/ตัวเลขเท่านั้น (ชื่อไทยอัปโหลดไม่ผ่าน) · ชื่อไฟล์ = ลายนิ้วมือเนื้อไฟล์ ส่งซ้ำได้ไฟล์เดิม
+export function confirmationPath(no: string, key: string): string {
   const safe = no.trim().replace(/[^A-Za-z0-9-]/g, '_') || 'job'
-  return `${safe}/${at.getTime()}.pdf`
+  return `${safe}/${key}.pdf`
 }
 
 export const MAX_PDF_BYTES = 20 * 1024 * 1024
@@ -101,7 +101,7 @@ export const MAX_PDF_BYTES = 20 * 1024 * 1024
 export function pdfProblem(file: { name: string; size: number; type: string } | null): string | null {
   if (!file) return 'ต้องแนบ PDF ใบยืนยันที่ลูกค้าเซ็นครบ'
   if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) return 'ไฟล์ต้องเป็น PDF'
-  if (file.size > MAX_PDF_BYTES) return `ไฟล์ใหญ่ ${(file.size / 1024 / 1024).toFixed(1)} MB เกิน 20 MB ให้ย่อไฟล์ก่อน หรือใช้ PDF ที่ฟอร์มสร้าง`
+  if (file.size > MAX_PDF_BYTES) return `ไฟล์ใหญ่ ${(Math.ceil(file.size / 104857.6) / 10).toFixed(1)} MB เกิน 20 MB ให้ย่อไฟล์ก่อน หรือใช้ PDF ที่ฟอร์มสร้าง`
   return null
 }
 

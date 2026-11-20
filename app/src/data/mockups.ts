@@ -1,12 +1,12 @@
 // bucket ไม่เปิดสาธารณะ (งานลูกค้า) → ขอลิงก์ชั่วคราวทีละชุด แล้วจำไว้ใช้ซ้ำจนใกล้หมดอายุ
-import { supabase } from '../lib/supabase'
 import type { Job } from '../proto/model'
+import { MAX_UPLOAD_BYTES, signFiles, uploadFile } from './files'
 import { withTimeout } from './live'
 
-export const MOCKUP_BUCKET = 'mockups'
-export const MAX_MOCKUP_BYTES = 5 * 1024 * 1024
-const SIGN_SECONDS = 12 * 60 * 60
-const RENEW_BEFORE_MS = 60 * 60 * 1000
+export const MAX_MOCKUP_BYTES = MAX_UPLOAD_BYTES
+// ลิงก์รูปอายุ 2 ชั่วโมง (Worker ไม่ออกนานกว่านี้) · บัญชีที่ถูกปิดขอลิงก์ใหม่ไม่ได้
+const SIGN_SECONDS = 2 * 60 * 60
+const RENEW_BEFORE_MS = 30 * 60 * 1000
 // ขอลิงก์รูปช้า ต้องไม่ทำให้ข้อมูลงานทั้งหน้าโหลดไม่ขึ้น (หน้าโหลดตัดที่ 30 วิ) → ตัดที่ 8 วิ แสดงกรอบว่างไปก่อน
 const SIGN_TIMEOUT_MS = 8_000
 
@@ -37,7 +37,7 @@ export function mockupExt(type: string): 'jpg' | 'png' | 'webp' | null {
 
 export function mockupProblem(file: { size: number; type: string }): string | null {
   if (!mockupExt(file.type)) return 'รูปต้องเป็น JPG / PNG / WEBP'
-  if (file.size > MAX_MOCKUP_BYTES) return `รูปใหญ่ ${(file.size / 1024 / 1024).toFixed(1)} MB เกิน 5 MB ให้ย่อรูปก่อน`
+  if (file.size > MAX_MOCKUP_BYTES) return `รูปใหญ่ ${(Math.ceil(file.size / 104857.6) / 10).toFixed(1)} MB เกิน 20 MB ให้ย่อรูปก่อน`
   return null
 }
 
@@ -68,13 +68,11 @@ export async function signMockups(paths: readonly string[], now = Date.now()): P
   // ลิงก์หมดอายุแล้วใช้ไม่ได้อยู่ดี → ทิ้ง (แท็บที่เปิดทิ้งไว้ทั้งสัปดาห์ไม่สะสมลิงก์ของงานเก่า)
   for (const [p, hit] of cache) if (hit.until <= now) cache.delete(p)
   const need = [...new Set(paths)].filter(p => (cache.get(p)?.until ?? 0) - now < RENEW_BEFORE_MS)
-  const client = supabase
-  if (need.length && client) {
+  if (need.length) {
     try {
-      const reply = await withTimeout(() => client.storage.from(MOCKUP_BUCKET).createSignedUrls(need, SIGN_SECONDS), SIGN_TIMEOUT_MS)
-      const data = reply.timedOut ? [] : reply.value.data
-      for (const row of data ?? []) {
-        if (row.path && row.signedUrl && !row.error) cache.set(row.path, { url: row.signedUrl, until: now + SIGN_SECONDS * 1000 })
+      const reply = await withTimeout(() => signFiles('mockups', need, SIGN_SECONDS), SIGN_TIMEOUT_MS)
+      if (!reply.timedOut && reply.value.ok) {
+        for (const [p, url] of reply.value.urls) cache.set(p, { url, until: now + SIGN_SECONDS * 1000 })
       }
     } catch { /* เน็ตสะดุด: แสดงกรอบว่างไปก่อน รอบโหลดถัดไปขอใหม่ */ }
   }
@@ -115,16 +113,9 @@ export async function shrinkImage(file: Blob, max = 1200): Promise<Blob> {
 
 // รูปเดิมของใบเดิมมีอยู่แล้ว = ใช้ไฟล์เดิม
 export async function uploadMockup(no: string, blob: Blob): Promise<{ ok: true; path: string } | { ok: false; reason: string }> {
-  if (!supabase) return { ok: false, reason: 'ยังไม่ได้ตั้งค่าระบบ' }
   const problem = mockupProblem(blob)
   if (problem) return { ok: false, reason: problem }
   const path = mockupPath(no, await contentKey(blob), mockupExt(blob.type) ?? 'jpg')
-  try {
-    const up = await supabase.storage.from(MOCKUP_BUCKET).upload(path, blob, { contentType: blob.type, upsert: false })
-    if (up.error && /exists|duplicate/i.test(up.error.message)) return { ok: true, path }
-    if (up.error) return { ok: false, reason: /bucket not found/i.test(up.error.message) ? 'ระบบยังไม่พร้อมรับรูป แจ้งเจ้าของระบบ' : 'อัปโหลดรูปไม่สำเร็จ ลองอีกครั้ง' }
-    return { ok: true, path }
-  } catch {
-    return { ok: false, reason: 'เชื่อมต่อระบบไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง' }
-  }
+  const up = await uploadFile('mockups', path, blob, blob.type)
+  return up.ok ? { ok: true, path } : up
 }

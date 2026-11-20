@@ -143,6 +143,10 @@ await sewingTests({ db, ok, as })
 
 const { storageTests } = await import('./storage.mjs')
 await storageTests({ db, ok, as })
+const { r2FileTests } = await import('./r2-files.mjs')
+await r2FileTests({ db, ok, as })
+const { r2EndToEndTests } = await import('./r2-e2e.mjs')
+await r2EndToEndTests({ db, ok, as })
 
 const { inboxTests } = await import('./inbox.mjs')
 await inboxTests({ db, ok, as })
