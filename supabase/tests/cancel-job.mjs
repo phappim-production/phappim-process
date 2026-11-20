@@ -85,7 +85,20 @@ export async function cancelJobTests({ db, ok, as }) {
   await pass('เจ้าของระบบยกเลิกได้', U.owner, `public.cancel_job('${byOwner}', 'ลูกค้ายกเลิก')`)
   ok('งานของเจ้าของระบบเป็นยกเลิก', await phase(byOwner) === 'cancelled')
 
-  const all = [queued, sewing, held, done, outside, byOwner].map(id => `'${id}'`).join(',')
+  const film = (await db.query(`
+    insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date,
+      route_code, confirmation_pdf_path, phase, dtf_film_ordered_at, dtf_film_eta)
+    values ('SC-CX-7','ลูกค้าเบี้ยว','งานฟิล์ม','tshirt',10,'ตัว','2026-12-31','dtf','x.pdf','materials', now(), '2026-12-01')
+    returning id`)).rows[0].id
+  const sheet = (await db.query(`insert into public.mockup_sheets (job_id, rev) values ('${film}', 1) returning id`)).rows[0].id
+  await pass('ผู้บริหารยกเลิกงานที่รอวัตถุดิบ (สั่งฟิล์มแล้ว มีม็อคอัพร่าง)', U.mgr, `public.cancel_job('${film}', 'ลูกค้ายกเลิก')`)
+  await reject('งานที่ยกเลิกแล้ว บันทึกได้รับฟิล์มไม่ได้', U.admin, `public.receive_film('${film}')`, /ถูกยกเลิกแล้ว/)
+  ok('ฟิล์มยังไม่ถูกบันทึกรับ', (await db.query(`select dtf_film_received_at from public.jobs where id = '${film}'`)).rows[0].dtf_film_received_at === null)
+  await reject('งานที่ยกเลิกแล้ว บันทึกม็อคอัพไม่ได้', U.admin, `public.save_mockup_draft('${sheet}', 1, '{"views":[],"specs":[],"callouts":[]}'::jsonb)`, /ถูกยกเลิกแล้ว/)
+  await reject('งานที่ยกเลิกแล้ว ส่งม็อคอัพให้อนุมัติไม่ได้', U.admin, `public.submit_mockup_sheet('${sheet}', 1)`, /ถูกยกเลิกแล้ว/)
+  await reject('งานที่ยกเลิกแล้ว ทิ้งม็อคอัพร่างไม่ได้', U.admin, `public.discard_mockup_draft('${sheet}')`, /ถูกยกเลิกแล้ว/)
+
+  const all = [queued, sewing, held, done, outside, byOwner, film].map(id => `'${id}'`).join(',')
   await db.exec(`alter table public.events disable trigger events_append_only;
     delete from public.inbox_messages where job_id in (${all});
     delete from public.jobs where id in (${all});

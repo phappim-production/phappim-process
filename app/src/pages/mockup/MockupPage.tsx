@@ -106,6 +106,9 @@ export default function MockupPage({ jobId, role, myStations }: { jobId: string;
             : <Pill tone="neutral">ยังไม่มีฉบับที่อนุมัติ</Pill>}
           {open && <Pill tone={SHEET_STATUS[open.status].tone} dot wrap>ฉบับ {open.rev}: {SHEET_STATUS[open.status].text}</Pill>}
         </div>
+        {data.job.phase === 'cancelled' && (
+          <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 font-medium text-danger">งานนี้ถูกผู้บริหารยกเลิกแล้ว · แก้ อนุมัติ หรือรับทราบม็อคอัพไม่ได้ ไม่ต้องทำต่อ</p>
+        )}
         {approved && open && (
           <p className="flex items-start gap-2 rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">
             <IconAlert className="mt-0.5 size-5 shrink-0" />มีฉบับแก้ไข {open.rev} {SHEET_STATUS[open.status].text} · ยังผลิตตามฉบับ {approved.rev} จนกว่าจะอนุมัติ

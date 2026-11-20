@@ -36,12 +36,21 @@ export function decideBoardJob(id: string, jobs: readonly Job[]):
   return job ? { status: 'found', job } : { status: 'fetch', id: key }
 }
 
+export function cancelledJobNotice(no: string): string {
+  return `งาน ${no} ถูกผู้บริหารยกเลิกแล้ว · ไม่ต้องทำต่อ ดูเหตุผลในข้อความยกเลิกงานที่กล่องจดหมาย`
+}
+
 export async function fetchBoardJob(id: string, signal: AbortSignal): Promise<Job | null> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
   const result = await supabase.from('job_live').select(JOB_COLUMNS)
     .eq('id', id).neq('phase', 'cancelled').abortSignal(signal).maybeSingle()
   if (result.error) throw new Error(result.error.message)
-  if (!result.data) return null
+  if (!result.data) {
+    const gone = await supabase.from('jobs').select('confirmation_no').eq('id', id).eq('phase', 'cancelled').abortSignal(signal).maybeSingle()
+    const no = (gone.data as { confirmation_no: string } | null)?.confirmation_no
+    if (no) throw new Error(cancelledJobNotice(no))
+    return null
+  }
   const row = result.data as JobRow
   const [products, reworks, sewEvents] = await Promise.all([
     supabase.from('product_types').select('code, name').eq('code', row.product_type_code).abortSignal(signal),

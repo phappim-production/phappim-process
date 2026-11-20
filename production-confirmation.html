@@ -1152,6 +1152,11 @@ function saveToSystem(){
   const first=state.imgs[0]&&state.imgs[0].src;
   if(readingImgs||(first&&!(thumb&&thumb.src===first))){ refreshThumb(); alert('กำลังเตรียมรูปม็อคอัพ รอ 1–2 วินาที แล้วกด "บันทึกเข้าระบบ" อีกครั้ง'); return; }
   const payload={ app:'phappim-confirm', v:1, ...state, imgs:[], summary:{ qty:totalQty() } };
+  // ช่องที่ถูกซ่อนเพราะเปลี่ยนตัวเลือก (เช่น ผ้าเช็ดหน้า ↔ ผ้าพันคอ) ไม่ส่งเข้าระบบ ไม่อย่างนั้นหน้างานเห็นสเปกที่ลูกค้าไม่ได้เลือก
+  const shown=scope('p'), part={...shown};
+  const keep=new Set(allFields().filter(f=>visible(f,shown)).map(f=>f.id));
+  allFields().forEach(f=>{ if(!keep.has(f.id)) delete part[f.id]; });
+  payload.p={...state.p, [state.product]:part};
   if(first&&thumb.data) payload.mockup=thumb.data;
   // รูปเดิมจากระบบใช้ได้เฉพาะใบเลขเดิม (เปลี่ยนเลขใบเพื่อทำใบใหม่ = ไม่เอารูปใบเดิมไป)
   if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()) delete payload.mockup_path;
