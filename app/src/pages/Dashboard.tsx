@@ -26,6 +26,7 @@ import { StationQueue } from './StationQueue'
 import { ReceiveJob } from './ReceiveJob'
 import { ConfirmationOutbox } from './ConfirmationOutbox'
 import { JobHistory } from './JobHistory'
+import { SpecPreview } from './mockup/SpecPreview'
 import { isStationCode } from '../proto/model'
 import type { EmployeeRole, FactoryView } from '../auth/access'
 import { IssuesView, MyHistoryView, QueueAllView, ReportIssueView, ReviewsView } from './RolePages'
@@ -623,10 +624,14 @@ function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Jo
 
         <div className="grid gap-4 p-4 text-sm">
           <div className="grid justify-items-center gap-1 rounded-2xl border border-line bg-card p-3 shadow-card">
-            {j.mockupUrl
-              ? <a href={j.mockupUrl} target="_blank" rel="noreferrer" className="w-full max-w-72" aria-label="เปิดรูปม็อคอัพเต็มจอ"><MockupThumb job={j} size="lg" /></a>
-              : <MockupThumb job={j} size="lg" />}
-            <span className="text-muted">{j.mockupUrl ? 'กดที่รูปเพื่อดูเต็มจอ' : 'ยังไม่มีรูปม็อคอัพ'}</span>
+            {j.specSheet
+              ? <SpecPreview jobId={j.id} sheetId={j.specSheet.id} rev={j.specSheet.rev} fallback={<MockupThumb job={j} size="lg" />} />
+              : <>
+                {j.mockupUrl
+                  ? <a href={j.mockupUrl} target="_blank" rel="noreferrer" className="w-full max-w-72" aria-label="เปิดรูปม็อคอัพเต็มจอ"><MockupThumb job={j} size="lg" /></a>
+                  : <MockupThumb job={j} size="lg" />}
+                <span className="text-muted">{j.mockupUrl ? 'กดที่รูปเพื่อดูเต็มจอ' : 'ยังไม่มีรูปม็อคอัพ'}</span>
+              </>}
           </div>
           {actions}
           <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
