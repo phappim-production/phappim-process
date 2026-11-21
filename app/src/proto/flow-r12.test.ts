@@ -34,7 +34,7 @@ describe('C14 ผลิตข้างนอกทั้งหมด', () => {
     expect(result.bottleneck).toBe('qc_pack')
   })
 
-  it('BUG: ของกลับวันอาทิตย์ต้องคาดว่า QC เสร็จเร็วสุดวันจันทร์', () => {
+  it('ของกลับวันอาทิตย์ต้องคาดว่า QC เสร็จเร็วสุดวันจันทร์', () => {
     const saturday = new Date(2026, 10, 21, 9)
     const sunday = new Date(2026, 10, 22, 9)
     const sent: Job = { ...job, status: 'out', out: {
@@ -87,7 +87,7 @@ describe('C14 ผลิตข้างนอกทั้งหมด', () => {
     }
   })
 
-  it('BUG: ช่องกำลังทำที่ outside ไม่ควรบอกให้กดเริ่มคิว 1', () => {
+  it('ช่องกำลังทำที่ outside ไม่ควรบอกให้กดเริ่มคิว 1', () => {
     const html = renderToStaticMarkup(createElement(StationQueue, {
       station: 'outside', jobs: [job], role: 'production', now,
       call: async () => ({ ok: true as const }), onOpen: () => {},
@@ -95,7 +95,7 @@ describe('C14 ผลิตข้างนอกทั้งหมด', () => {
     expect(html).not.toContain('กดเริ่มงานคิว 1')
   })
 
-  it('BUG: งานรอที่ outside ในต้องทำตอนนี้ไม่ควรขึ้นคำสั่งเริ่มสถานี', () => {
+  it('งานรอที่ outside ในต้องทำตอนนี้ไม่ควรขึ้นคำสั่งเริ่มสถานี', () => {
     expect(nextAction(job, now)?.text).not.toMatch(/^เริ่ม/)
   })
 

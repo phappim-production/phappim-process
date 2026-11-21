@@ -222,9 +222,11 @@ export function workdayToDate(days: number, now: Date) {
   return d
 }
 
+// ของถึงวันหยุด = ใช้ได้วันทำงานถัดไป
 export function workdaysUntil(date: Date, now: Date) {
   const d = startOfDay(now)
   const end = startOfDay(date)
+  while (end > d && !isWorkday(end)) end.setDate(end.getDate() + 1)
   let n = 0
   while (d < end) {
     d.setDate(d.getDate() + 1)

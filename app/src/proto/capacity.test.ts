@@ -29,7 +29,7 @@ describe('วันทำงานและวันส่ง', () => {
 
   it.each([
     [monday, saturday, 1],
-    [sunday, saturday, 0],
+    [sunday, saturday, 1],
     [friday, saturday, 0],
   ])('นับวันทำงานถึง %s จาก %s ได้ %s วัน', (end, start, expected) => {
     expect(workdaysUntil(end, start)).toBe(expected)

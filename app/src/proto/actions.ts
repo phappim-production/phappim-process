@@ -30,6 +30,7 @@ export function nextAction(j: Job, now: Date): NextAction | null {
   if (j.status === 'hold') return make(`แก้ปัญหา ${at}: ${j.holdReason ?? 'ไม่ระบุสาเหตุ'}`, 'danger', 0)
   if (j.station === 'dtf_press' && isWaitingFilm(j)) return make(`รอ${filmLabel(j.route)}ก่อนเริ่มรีด`, 'warn', 2)
   const prefix = j.phase === 'sample' ? 'ตัวอย่าง · ' : ''
+  if (j.status === 'queued' && j.station === 'outside') return make(`${prefix}แอดมินส่งออกบริษัทภายนอก`, 'neutral', 5)
   if (j.status === 'queued') return make(`${prefix}เริ่ม${spaced(at).trimEnd()}`, 'neutral', 5)
   // ให้เห็นเวลามาตรฐานจากรายการเลย ไม่ต้องเปิดทีละงาน
   if (j.sla === 'report') return make(`${at} เกินเวลามาตรฐาน · ส่งรายงานปัญหาก่อนกดเสร็จ`, 'danger', 1)
