@@ -381,7 +381,7 @@ const LABEL_SEC = { title:'ป้ายและอุปกรณ์', fields:[
   R('size_label','ป้ายไซซ์',['ไม่มี','ป้ายไซซ์ติดคอ','พิมพ์ไซซ์ในคอ']),
   C('other_labels','ป้ายอื่น',['ป้ายข้างตะเข็บ','ป้ายวิธีดูแล (Care label)','ป้ายแขวน (Hang tag)'],{ other:true }),
 ]};
-const FIT = C('fit','ทรง (เลือกได้หลายแบบ)',['ทรงตรง (ชาย/ยูนิเซ็กส์)','ทรงเข้ารูป (หญิง)','ทรงเด็ก'],{ req:true, other:true });
+const FIT = C('fit','ทรง (เลือกได้หลายแบบ)',['ทรงตรง (ชาย/ยูนิเซ็กส์)','ทรงเข้ารูป (หญิง)'],{ req:true, other:true });
 
 function garment(o){
   const unit=o.unit||'ตัว';
@@ -863,6 +863,8 @@ function scope(s){
   const v=state.p[state.product];
   if(typeof v.print_method==='string') v.print_method=[v.print_method]; // ข้อมูลรุ่นเก่าเลือกได้วิธีเดียว
   // ใบร่างก่อนแยกแพ็คเป็นถุงรายตัว + แพ็คใหญ่
+  // เด็กเลือกที่ชุดไซซ์ ไม่ใช่ทรง
+  if(Array.isArray(v.fit)) v.fit=v.fit.filter(x=>x!=='ทรงเด็ก');
   if(v.bag==='ถุงแยกตัว (1/1)') v.bag='แพ็ค 1/1 (ถุงแยกตัว)';
   if(v.bag==='ถุงรวมตามไซซ์'){ v.bag=''; v.outer_pack='แพ็คใส่ถุงใหญ่'; v.bigbag_split=['แยกถุงตามไซซ์']; }
   return v;
