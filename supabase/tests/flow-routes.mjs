@@ -42,7 +42,7 @@ export async function flowRouteTests({ db, ok }) {
       alter table public.jobs enable trigger jobs_guard_outsourced;
     `)
     const pmn = (await one(`select md5(string_agg(product_type_code||type_code||qty, '|' order by product_type_code, type_code)) m from public.product_machine_needs`)).m
-    ok('สูตรจักรในชุดนี้ตรงกับฐานจริง (19 พ.ย.)', pmn === '6522a755a7ef263d90b9d2a8fee28352', pmn)
+    ok('สูตรจักรในชุดนี้ตรงกับฐานจริง (19 พ.ย. + เสื้อเจอร์ซีย์)', pmn === '2afec8374fd3ab1f49f77a959c438c00', pmn)
     for (const [code, type] of [['SN-901', 'single'], ['SN-902', 'single'], ['SN-903', 'single'], ['OL4-901', 'ovl4'], ['OL4-902', 'ovl4'], ['CV-901', 'cover'], ['BT-901', 'button'], ['BH-901', 'buttonhole']]) {
       await db.query(`insert into public.sewing_machines (code, type_code) values ($1, $2) on conflict (code) do nothing`, [code, type])
     }
