@@ -97,6 +97,7 @@ table.ft tfoot td{font-weight:700;background:#f7f8f6}
 .imgs figure{margin:0;width:150px;border:1px solid var(--line);border-radius:8px;overflow:hidden;position:relative;background:#fff}
 .imgs img{width:100%;height:120px;object-fit:contain;background:#f7f8f6;display:block}
 .imgs figcaption{font-size:12px;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.imgs .cap{width:100%;border:0;border-top:1px solid var(--line);font:inherit;font-size:12px;padding:4px 6px}
 .imgs .btn.x{position:absolute;top:2px;right:2px;background:#fff;border-radius:6px}
 
 .field.missing .lab{color:var(--caution)}
@@ -244,6 +245,7 @@ div[data-co-part].co-box{cursor:move;touch-action:none}
 /* ตัวเลือกของฟอร์ม: แก้ตรงนี้เพื่อเพิ่ม/ลดตัวเลือก */
 const COMPANY = { name: 'ภาพพิมพ์ 142', logo: 'data:image/webp;base64,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' }; // โลโก้ต้นฉบับ: assets/logo.webp
 const OTHER = 'อื่นๆ';
+const needsAddress = d => d==='จัดส่งตามที่อยู่' || d==='รถบริษัทไปส่ง';
 const SAMPLE_YES = 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)';
 const sampleNote = () => state.h.sample===SAMPLE_YES ? 'ขึ้นตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง' : state.h.sample ? 'งานนี้ไม่ขึ้นตัวอย่าง ผลิตจริงตามใบนี้' : 'ยังไม่ได้เลือกว่าขึ้นตัวอย่างหรือไม่';
 const ADULT = ['SS','S','M','L','XL','2XL','3XL','4XL','5XL','6XL','7XL','8XL','9XL','10XL'];
@@ -251,11 +253,12 @@ const KIDS  = ['เด็ก SS','เด็ก S','เด็ก M','เด็ก
 
 const HEADER = [
   { title: 'ข้อมูลใบงาน', fields: [
-    { id:'doc_no', type:'text', label:'เลขที่ใบยืนยัน', req:true, ph:'เช่น SC691451' },
+    { id:'doc_no', type:'text', label:'เลขที่ใบยืนยัน', req:true, ph:'เช่น SC691451', hint:'ออเดอร์เดียวมีหลายสินค้า ให้ต่อท้ายเลขงาน เช่น SC690871-0001, SC690871-0002 (เลขซ้ำกันไม่ได้)' },
     { id:'rev', type:'number', label:'แก้ไขครั้งที่', hint:'ใบแรกเว้นว่าง · ถ้าแก้หลังลูกค้าเซ็นแล้ว ให้ใส่ 1, 2, ...' },
     { id:'job_name', type:'text', label:'ชื่องาน', req:true, ph:'เช่น เสื้อทีมกีฬาสี 2569', wide:true },
     { id:'issue_date', type:'date', label:'วันที่ออกใบ', req:true },
     { id:'admin', type:'text', label:'แอดมินผู้ดูแล', req:true },
+    { id:'admin_phone', type:'text', label:'เบอร์แอดมิน (ผู้ประสานงาน)' },
     // ขึ้นตัวอย่างเฉพาะงานที่ตกลงและลูกค้าจ่ายค่าตัวอย่าง · หน้ารับงานอ่านช่องนี้ไปตั้งค่างาน
     { id:'sample', type:'radio', label:'ขึ้นตัวอย่าง', options:[SAMPLE_YES,'ไม่ขึ้นตัวอย่าง'], req:true, hint:'ขึ้นตัวอย่างเฉพาะงานที่ตกลงกับลูกค้าแล้ว (มีค่าใช้จ่ายเพิ่ม)' },
     { id:'sample_date', type:'date', label:'วันนัดส่งตัวอย่าง', when:v=>v.sample===SAMPLE_YES },
@@ -265,8 +268,8 @@ const HEADER = [
     { id:'customer', type:'text', label:'ชื่อลูกค้า / บริษัท', req:true, wide:true },
     { id:'contact', type:'text', label:'ผู้ติดต่อ', req:true },
     { id:'phone', type:'text', label:'เบอร์โทร', req:true },
-    { id:'delivery', type:'radio', label:'การรับสินค้า', req:true, options:['ลูกค้ารับเองที่โรงงาน','จัดส่งตามที่อยู่'] },
-    { id:'address', type:'textarea', label:'ที่อยู่จัดส่ง', req:true, when:v=>v.delivery==='จัดส่งตามที่อยู่' },
+    { id:'delivery', type:'radio', label:'การรับสินค้า', req:true, options:['ลูกค้ารับเองที่โรงงาน','รถบริษัทไปส่ง','จัดส่งตามที่อยู่'] },
+    { id:'address', type:'textarea', label:'ที่อยู่จัดส่ง', req:true, when:v=>needsAddress(v.delivery) },
   ]},
 ];
 
@@ -333,7 +336,8 @@ const COLOR_MATCH = R('color_match','การเทียบสี',['ตาม
 /* ผ้าชนิดที่ 2 ขึ้นไปในงานเดียว: 1 แถว = ผ้า 1 ชนิด/สี · ผ้าหลักกรอกช่องด้านบน */
 const FABRICS_MORE = () => ({ id:'fabric_rows', type:'itemTable', label:'ผ้าเพิ่ม (งานที่ใช้ผ้ามากกว่า 1 ชนิด / สี)', none:'ใช้ผ้าชนิดเดียว', addLabel:'+ เพิ่มผ้า',
   hint:'ผ้าหลักกรอกด้านบน · แถวนี้สำหรับผ้าชนิดหรือสีที่ 2 ขึ้นไป เช่น ปก แขน ตัวหลัง ขอบ · ใช้ผ้าชนิดเดียว = เว้นว่าง',
-  cols:[ { c:'part', label:'ใช้ส่วนไหน', t:'text' }, { c:'fabric', label:'ชนิดผ้า (ถ้าต่าง)', t:'text', opt:true }, { c:'color', label:'สีผ้า', t:'text' } ] });
+  cols:[ { c:'part', label:'ใช้ส่วนไหน', t:'text' }, { c:'fabric', label:'ชนิดผ้า (ถ้าต่าง)', t:'text', opt:true }, { c:'color', label:'สีผ้า', t:'text' },
+    { c:'print', label:'พิมพ์สี / หมายเหตุ', t:'text', opt:true } ] });
 /* กระเป๋า: 1 แถว = 1 ใบ */
 const POCKET_SHIRT = ['อกซ้าย','อกขวา','อกทั้งสองข้าง','ล่างซ้าย','ล่างขวา','ล่างทั้งสองข้าง','หน้าท้อง (กระเป๋าจิงโจ้)','ข้างลำตัว (ซ่อนในตะเข็บ)','แขนซ้าย','แขนขวา','ด้านใน (ซับใน)'];
 const POCKET_PANTS = ['ข้างซ้าย','ข้างขวา','ข้างทั้งสองข้าง','หน้ากลาง','หลังซ้าย','หลังขวา','หลังทั้งสองข้าง','หลังกลาง','ข้างขาซ้าย (คาร์โก้)','ข้างขาขวา (คาร์โก้)'];
@@ -372,11 +376,17 @@ function printSec(methods, positions, x={}){
     COLOR_MATCH,
   ]};
 }
+const SIZE_OWN='กำหนดขนาดเอง (ตามตารางด้านล่าง)';
+const MEASURE_ROWS={ id:'measure_rows', type:'itemTable', label:'ขนาดสำเร็จแต่ละไซซ์ (นิ้ว)', addLabel:'+ เพิ่มไซซ์', printLabel:true, when:v=>v.size_chart===SIZE_OWN,
+  hint:'1 แถวต่อ 1 ไซซ์ · ช่องที่ไม่ใช้เว้นว่าง · คอลัมน์สุดท้ายใช้กับขนาดอื่น เช่น ความยาวซิป รอบเอว',
+  cols:[ { c:'size', label:'ไซซ์', t:'text' }, { c:'chest', label:'รอบอก', t:'text' }, { c:'length', label:'ความยาวตัว', t:'text', opt:true },
+    { c:'sleeve', label:'ความยาวแขน', t:'text', opt:true }, { c:'other', label:'อื่นๆ (ระบุ)', t:'text', opt:true } ] };
 function sizeSec(sets, unit, x={}){
   return { title:'ไซซ์และจำนวน', fields:[
     C('size_sets','ชุดไซซ์',sets,{ req:true, def:[sets[0]] }),
     { id:'sizes', type:'sizeTable', label:'จำนวนแยกตามไซซ์', req:true, chart:x.chart, rowLabel:x.rowLabel||'แบบ / สี', hint:'แยกบรรทัดตามแบบหรือสี ถ้ามีหลายแบบในงานเดียว' },
-    R('size_chart','ตารางไซซ์',['ตารางไซซ์มาตรฐานโรงงาน','ตารางไซซ์ของลูกค้า (แนบมา)']),
+    R('size_chart','ตารางไซซ์',['ตารางไซซ์มาตรฐานโรงงาน','ตารางไซซ์ของลูกค้า (แนบมา)',SIZE_OWN]),
+    MEASURE_ROWS,
     SPARE(unit),
   ]};
 }
@@ -404,11 +414,18 @@ const GARMENT_PACK = { title:'แพ็คกิ้ง', fields:[
   C('sort','การจัดเรียง',['แยกตามไซซ์','เรียงตามรายชื่อ','ติดสติ๊กเกอร์ไซซ์หน้าถุง']),
   T('box_note','หมายเหตุการแพ็ค / จัดส่ง',{ wide:true }),
 ]};
+const ATTACH_ROWS={ id:'attach_rows', type:'itemTable', label:'ของที่ต้องเย็บ / ติดบนตัวงาน (ป้าย โลโก้ยาง อาร์ม)', none:'ไม่มี', addLabel:'+ เพิ่มรายการ',
+  hint:'1 แถวต่อ 1 จุด · ระยะอ้างอิงเช่น "วัดจากชายเสื้อและข้างซ้าย 2 นิ้ว" · ไม่มี = เว้นว่าง',
+  cols:[ { c:'kind', label:'ชนิด', t:'select', options:['ป้ายไซซ์','ป้ายแบรนด์','โลโก้ยาง','อาร์ม / แพทช์','อื่นๆ'] },
+    { c:'pos', label:'ตำแหน่ง', t:'text' }, { c:'owner', label:'ของใคร', t:'select', options:['ของลูกค้า (ส่งมา)','โรงงานจัดหา'] },
+    { c:'note', label:'ระยะ / หมายเหตุ', t:'text', opt:true } ] };
 const LABEL_SEC = { title:'ป้ายและอุปกรณ์', fields:[
   R('neck_label','ป้ายคอ',['ไม่มี','พิมพ์ในคอ','ป้ายทอ','ป้ายของลูกค้า (ลูกค้าส่งมา)']),
   R('size_label','ป้ายไซซ์',['ไม่มี','ป้ายไซซ์ติดคอ','พิมพ์ไซซ์ในคอ']),
   C('other_labels','ป้ายอื่น',['ป้ายข้างตะเข็บ','ป้ายวิธีดูแล (Care label)','ป้ายแขวน (Hang tag)'],{ other:true }),
+  ATTACH_ROWS,
 ]};
+const PIPING = T('piping','กุ๊น / เส้นตัดต่อ',{ ph:'เช่น เย็บตัดต่อกุ๊นสีดำ · เส้นสีขาวเป็นกุ๊นทั้งหมด', wide:true });
 const FIT = C('fit','ทรง (เลือกได้หลายแบบ)',['ทรงตรง (ชาย/ยูนิเซ็กส์)','ทรงเข้ารูป (หญิง)'],{ req:true, other:true });
 
 function garment(o){
@@ -423,7 +440,7 @@ function garment(o){
     { title:'แบบและแพทเทิร์น', fields:[...o.style, ...(o.pockets===false?[]:[POCKETS(o.pockets||POCKET_SHIRT)]), ...(o.styleAfter||[])] },
     sizeSec(o.sizes||['ไซซ์ผู้ใหญ่','ไซซ์เด็ก'], unit, { rowLabel:o.rowLabel, chart:o.sizeChart }),
     printSec(o.methods||M_GARMENT, o.positions===null?null:(o.positions||POS_SHIRT), { extra:[...(o.personal===false?[]:PERSONAL), ...(o.printExtra||[])], hint:o.printHint, def:o.printDef }),
-    { title:'การเย็บ', fields:o.sew||[ R('hem','ชายเสื้อ',['ลา 1 เข็ม','ลา 2 เข็ม','โพ้งริม']), THREAD ] },
+    { title:'การเย็บ', fields:[...(o.sew||[ R('hem','ชายเสื้อ',['ลา 1 เข็ม','ลา 2 เข็ม','โพ้งริม']), THREAD ]), PIPING] },
     ...(o.labels===false?[]:[LABEL_SEC]),
     ...(o.extraSecs||[]),
     GARMENT_PACK,
@@ -460,10 +477,11 @@ const PRODUCTS = {
     printDef:['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)'],
   }),
   jersey: garment({ name:'เสื้อเจอร์ซีย์',
-    fabrics:['ไมโครเรียบ','ไมโครสปอร์ต','ผ้ารังผึ้ง','ผ้าเม็ดข้าวสาร','ผ้าจูติ'], fabricHint:'ขั้นต่ำ 10 ตัว · พิมพ์ซับลิเมชั่นเต็มตัว 360°',
+    fabrics:['ไมโครเรียบ','ไมโครสปอร์ต','ไมโครหนา','ผ้าตาข่าย','ผ้าริ้วเงา','ผ้ารังผึ้ง','ผ้าเม็ดข้าวสาร','ผ้าจูติ'], fabricHint:'ขั้นต่ำ 10 ตัว · พิมพ์ซับลิเมชั่นเต็มตัว 360° · ใช้หลายผ้า กรอกเพิ่มที่ "ผ้าเพิ่ม"',
     style:[ R('sleeve','แขน',['แขนสั้น','แขนยาว']),
       R('neck','คอเสื้อ',['คอกลม','คอวี','คอปก'],{ other:true }), FIT,
-      R('neck_fabric','ผ้าคอ',['ผ้าเดียวกับตัว (พิมพ์ลาย)','ผ้าริบสีพื้น']),
+      R('neck_fabric','ผ้าคอ',['ผ้าเดียวกับตัว (พิมพ์ลาย)','ผ้าริบสีพื้น','ซกคอสำเร็จ (ริบทอลาย)']),
+      T('neck_color','สีคอ / ลายริ้ว',{ ph:'เช่น ดำริ้วขาว · เว้นว่าง = สีเดียวกับตัว' }),
       R('sleeve_end','ปลายแขน',['ลาแขนปกติ','จั๊มปลายแขน (ริบ)']) ],
     printDef:['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)'],
   }),
@@ -510,12 +528,12 @@ const PRODUCTS = {
     printHint:'ปักตราโรงเรียน: ขึ้นบล็อกปัก 1 ครั้ง',
   }),
   jacket: garment({ name:'เสื้อวอร์ม / แจ็คเก็ต / ฮู้ด',
-    fabrics:['ผ้าวอร์ม 1 หน้า (Tricot)','ผ้าวอร์ม 2 หน้า (Interlock)','ผ้าร่ม (Nylon / Taffeta)','ผ้าสำลี (Fleece)'], fabricHint:'ขั้นต่ำ 10 ตัว',
+    fabrics:['ผ้าวอร์ม 1 หน้า (Tricot)','ผ้าวอร์ม 2 หน้า (Interlock)','ผ้าร่ม (Nylon / Taffeta)','ผ้าเวสปอยท์ (Westpoint)','ผ้าสำลี (Fleece)'], fabricHint:'ขั้นต่ำ 10 ตัว',
     style:[ R('cut','แบบ',['คอตั้ง ซิปหน้า','มีฮู้ด ซิปหน้า','ฮู้ดสวมหัว (ไม่มีซิป)'],{ other:true }), FIT,
       R('lining','ซับใน',['ไม่มีซับใน','ซับในตาข่าย','ซับในผ้า']),
-      C('details','รายละเอียด',['ขอบแขนจั๊ม','ชายเสื้อจั๊ม','เชือกรูดฮู้ด','รูนิ้วโป้งที่ปลายแขน'],{ other:true }),
+      C('details','รายละเอียด',['ขอบแขนจั๊ม','ชายเสื้อจั๊ม','ยางยืดปลายแขน','ยางยืดชายเสื้อ','ปกเสริมผ้ากาว (ให้อยู่ทรง)','เชือกรูดฮู้ด','รูนิ้วโป้งที่ปลายแขน'],{ other:true }),
       R('zip_type','ซิปหน้า',['ซิปพลาสติก (ฟันกระดูกงู)','ซิปไนลอน','ซิปโลหะ'],{ other:true, when:v=>/ซิป/.test(v.cut||'') }),
-      T('zip_color','สีซิป / หัวซิป',{ req:true, when:v=>/ซิป/.test(v.cut||'') }),
+      T('zip_color','สีซิป / หัวซิป / ยี่ห้อ',{ req:true, ph:'เช่น ดำ YKK', when:v=>/ซิป/.test(v.cut||'') }),
       R('set','ชุด',['เสื้ออย่างเดียว','เสื้อ + กางเกงวอร์ม']),
       T('pants_spec','สเปกกางเกงวอร์ม',{ req:true, wide:true, when:v=>v.set==='เสื้อ + กางเกงวอร์ม' }) ],
   }),
@@ -1000,7 +1018,7 @@ function fieldHTML(f,s,v){
       break; }
     case 'images':
       b=`<input type="file" accept="image/*" multiple data-img>`+
-        `<div class="imgs">${state.imgs.map((m,i)=>`<figure><img src="${m.src}" alt=""><figcaption>${esc(m.name)}</figcaption><button class="btn x" data-act="delimg" data-r="${i}" title="ลบภาพ">✕</button></figure>`).join('')}</div>`+coEditorHTML();
+        `<div class="imgs">${state.imgs.map((m,i)=>`<figure><img src="${m.src}" alt=""><input class="cap" data-imgcap="${i}" value="${esc(m.name)}" aria-label="ชื่อใต้รูป" placeholder="ชื่อใต้รูป เช่น ผ้าตาข่าย"><button class="btn x" data-act="delimg" data-r="${i}" title="ลบภาพ">✕</button></figure>`).join('')}</div>`+coEditorHTML();
       break;
   }
   const wide=f.wide||(WIDE.includes(f.type))||(f.type==='radio'&&(f.options.length>3||f.other));
@@ -1153,6 +1171,7 @@ function coAdd(e){
 form.addEventListener('input',e=>{
   const t=e.target, d=t.dataset;
   if(t.type==='radio'||t.type==='checkbox'||t.type==='file') return;
+  if(d.imgcap!==undefined){ const m=state.imgs[+d.imgcap]; if(m){ m.name=t.value; save(); } return; }
   if(d.co!==undefined){ const c=coList()[+d.co]; if(!c) return; c[d.cf]=t.value;
     const box=form.querySelector(`.co-box[data-co-i="${d.co}"]`); if(box) box.innerHTML=coBoxInner(c,+d.co,coRefs()); save(); return; }
   if(t.id==='psearch'){ const q=t.value.trim().toLowerCase();
@@ -1343,8 +1362,8 @@ function renderDoc(){
   const hk=(label,val,w)=>isNone(val)?'':`<div${w?' class="w"':''}><span>${label}</span><b>${esc(val)}</b></div>`;
   const hItems=[hk('ผู้ติดต่อ',h.contact), hk('เบอร์โทร',h.phone),
     hk('วันที่ออกใบ',h.issue_date?thDate(h.issue_date):''), hk('วันนัดส่งตัวอย่าง',h.sample_date?thDate(h.sample_date):''),
-    hk('การรับสินค้า',h.delivery), hk('แอดมินผู้ดูแล',h.admin),
-    h.delivery==='จัดส่งตามที่อยู่'?hk('ที่อยู่จัดส่ง',h.address,true):''].join('');
+    hk('การรับสินค้า',h.delivery), hk('แอดมินผู้ดูแล',[h.admin,h.admin_phone].filter(x=>!isNone(x)).join(' · ')),
+    needsAddress(h.delivery)?hk('ที่อยู่จัดส่ง',h.address,true):''].join('');
   let x=`<section class="ds">${hItems?`<div class="kv">${hItems}</div>`:''}
   <div class="d-prod"><span>จำนวนรวม <b>${qty}</b>${num(v.spare)>0?` (+ เผื่อเสีย ${esc(v.spare)} ${P.unit})`:''}</span></div></section>`;
 
@@ -1364,7 +1383,7 @@ function renderDoc(){
       }
       if(f.type==='itemTable'){
         const rs=rows(v,f.id,!!f.none).filter(r=>f.cols.some(c=>!isNone(r[c.c])));
-        const lab=f.none?`<div class="tlabel">${esc(f.label)}</div>`:'';
+        const lab=f.none||f.printLabel?`<div class="tlabel">${esc(f.label)}</div>`:'';
         // ไม่มีรายการ = ไม่พิมพ์หัวข้อนี้ · คอลัมน์ที่ว่างทุกแถวไม่แสดง ยกเว้นยอดรวม
         const cols=f.cols.filter(c=>c.sum||rs.some(r=>!isNone(r[c.c])));
         if(rs.length) body+=lab+`<table class="dt"><thead><tr><th>#</th>${cols.map(c=>`<th>${c.label}</th>`).join('')}</tr></thead><tbody>`+
