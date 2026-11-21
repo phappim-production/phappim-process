@@ -273,8 +273,22 @@ const SIZESETS = {
   'ไซซ์ตามรอบอก (นิ้ว)': ['อก 28','อก 30','อก 32','อก 34','อก 36','อก 38','อก 40','อก 42','อก 44','อก 46','อก 48'],
   'ไซซ์เด็กเล็ก': ['0–3 ด.','3–6 ด.','6–12 ด.','1–2 ปี','2–3 ปี','3–4 ปี'],
   'Free size': ['Free size'],
+  'FS (อก 42)': ['FS อก 42'],
+  'FS / PS': ['FS','PS'],
   'ไซซ์สัตว์เลี้ยง': ['สัตว์ XS','สัตว์ S','สัตว์ M','สัตว์ L','สัตว์ XL','สัตว์ 2XL'],
 };
+
+/* ขนาดสำเร็จของ FS (Free size) / PS (Plus size) หน่วยนิ้ว · แสดงใต้ตารางไซซ์และพิมพ์ใน PDF */
+const PAJAMA_TOP = { 'แขนสั้น':{ FS:'อก 42 ยาว 27 แขนยาว 10', PS:'อก 46 ยาว 28 แขนยาว 11' }, 'แขนยาว':{ FS:'อก 42 ยาว 27 แขนยาว 23', PS:'อก 46 ยาว 28 แขนยาว 24' } };
+const PAJAMA_BOTTOM = { 'ขาสั้น':{ FS:'เอว 26–30 สะโพก 42 ยาว 15', PS:'เอว 30–38 สะโพก 48 ยาว 18' }, 'ขายาว':{ FS:'เอว 26–30 สะโพก 42 ยาว 38', PS:'เอว 30–38 สะโพก 48 ยาว 39' } };
+function pajamaChart(v){
+  const m=/^แขน(สั้น|ยาว)-ขา(สั้น|ยาว)$/.exec(v.style||'');
+  if(!m&&/กระโปรง|สายเดี่ยว|Braless/.test(v.style||'')) return [];
+  const tops=m?['แขน'+m[1]]:Object.keys(PAJAMA_TOP), bottoms=m?['ขา'+m[2]]:Object.keys(PAJAMA_BOTTOM);
+  return ['FS','PS'].map(z=>`${z}: `+[...tops.map(t=>`เสื้อ${t} ${PAJAMA_TOP[t][z]}`), ...bottoms.map(b=>`กางเกง${b} ${PAJAMA_BOTTOM[b][z]}`)].join(' · ')+' นิ้ว');
+}
+const ELEPHANT_CHART = () => ['FS: เอว 26 ยืดได้ถึง 32 · สะโพก 46 · ยาว 39 นิ้ว', 'PS: เอว 30 ยืดได้ถึง 40 · สะโพก 50 · ยาว 40 นิ้ว'];
+const sizeChart = (f,v) => f.chart && sizeCols(v).some(c=>c==='FS'||c==='PS') ? f.chart(v) : [];
 
 const M_GARMENT = ['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)','ซับลิเมชั่น เฉพาะจุด','DTF (ฟิล์มรีดร้อน)','DTG','ซิลค์สกรีน','งานปัก','ไม่มีลาย'];
 const M_FLAT = ['ซับลิเมชั่น พิมพ์เต็มผืน','ดิจิทัลพริ้นท์','DTF (ฟิล์มรีดร้อน)','DTG','ซิลค์สกรีน','ไม่มีลาย'];
@@ -333,7 +347,7 @@ function printSec(methods, positions, x={}){
 function sizeSec(sets, unit, x={}){
   return { title:'ไซซ์และจำนวน', fields:[
     C('size_sets','ชุดไซซ์',sets,{ req:true, def:[sets[0]] }),
-    { id:'sizes', type:'sizeTable', label:'จำนวนแยกตามไซซ์', req:true, rowLabel:x.rowLabel||'แบบ / สี', hint:'แยกบรรทัดตามแบบหรือสี ถ้ามีหลายแบบในงานเดียว' },
+    { id:'sizes', type:'sizeTable', label:'จำนวนแยกตามไซซ์', req:true, chart:x.chart, rowLabel:x.rowLabel||'แบบ / สี', hint:'แยกบรรทัดตามแบบหรือสี ถ้ามีหลายแบบในงานเดียว' },
     R('size_chart','ตารางไซซ์',['ตารางไซซ์มาตรฐานโรงงาน','ตารางไซซ์ของลูกค้า (แนบมา)']),
     SPARE(unit),
   ]};
@@ -375,7 +389,7 @@ function garment(o){
       ...(o.fabricExtra||[]),
     ]},
     { title:'แบบและแพทเทิร์น', fields:[...o.style, ...(o.pockets===false?[]:[POCKETS(o.pockets||POCKET_SHIRT)]), ...(o.styleAfter||[])] },
-    sizeSec(o.sizes||['ไซซ์ผู้ใหญ่','ไซซ์เด็ก'], unit, { rowLabel:o.rowLabel }),
+    sizeSec(o.sizes||['ไซซ์ผู้ใหญ่','ไซซ์เด็ก'], unit, { rowLabel:o.rowLabel, chart:o.sizeChart }),
     printSec(o.methods||M_GARMENT, o.positions===null?null:(o.positions||POS_SHIRT), { extra:[...(o.personal===false?[]:PERSONAL), ...(o.printExtra||[])], hint:o.printHint, def:o.printDef }),
     { title:'การเย็บ', fields:o.sew||[ R('hem','ชายเสื้อ',['ลา 1 เข็ม','ลา 2 เข็ม','โพ้งริม']), THREAD ] },
     ...(o.labels===false?[]:[LABEL_SEC]),
@@ -441,6 +455,7 @@ const PRODUCTS = {
   worker: garment({ name:'เสื้อคนงาน / เสื้อปุ๋ย',
     fabrics:['TC','TK','โพลีเอสเตอร์ (ผ้าปุ๋ย)','คอตตอน'], fabricHint:'ขั้นต่ำ 12 ตัว',
     style:[ R('cut','แบบเสื้อ',['คอกลม','คอปก']), R('sleeve','แขน',['แขนสั้น','แขนยาว']), FIT ],
+    sizes:['ไซซ์ผู้ใหญ่','FS (อก 42)','ไซซ์เด็ก'],
     printDef:['ซิลค์สกรีน'],
   }),
   pe: garment({ name:'เสื้อพละ / ชุดพละนักเรียน',
@@ -508,7 +523,7 @@ const PRODUCTS = {
       R('collar','คอ',['คอปกเชิ้ต (ปกฮาวาย)','คอกลม','คอวี']),
       C('details','รายละเอียด',['ขลิบขอบสีตัดกัน','เอวยางยืด + เชือกผูก'],{ other:true }),
       T('piping_color','สีขลิบ',{ req:true, when:v=>(v.details||[]).includes('ขลิบขอบสีตัดกัน') }) ],
-    positions:[...POS_SHIRT,...POS_PANTS], sizes:['ไซซ์ผู้ใหญ่','ไซซ์เด็ก'],
+    positions:[...POS_SHIRT,...POS_PANTS], sizes:['ไซซ์ผู้ใหญ่','FS / PS','ไซซ์เด็ก'], sizeChart:pajamaChart,
     styleAfter:[ POCKETS(POCKET_PANTS,{ id:'pant_pocket_rows', label:'กระเป๋ากางเกง', when:v=>!/กระโปรง|สายเดี่ยว|Braless/.test(v.style||'') }) ],
   }),
   elephant: garment({ name:'กางเกงช้าง',
@@ -517,7 +532,7 @@ const PRODUCTS = {
       R('waist','เอว',['เอวยางยืด','เอวยางยืด + เชือกผูก']),
       R('pattern','ลายผ้า',['ลายผ้ามาตรฐานของโรงงาน','ลายพิมพ์เฉพาะ (Custom)']),
       T('pattern_code','รหัส / ชื่อลายมาตรฐาน',{ req:true, when:v=>v.pattern==='ลายผ้ามาตรฐานของโรงงาน' }) ],
-    sizes:['Free size','ไซซ์ผู้ใหญ่'], positions:POS_PANTS, personal:false, labels:false, pockets:POCKET_PANTS,
+    sizes:['FS / PS','Free size','ไซซ์ผู้ใหญ่'], sizeChart:ELEPHANT_CHART, positions:POS_PANTS, personal:false, labels:false, pockets:POCKET_PANTS,
     methods:['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)','DTF (ฟิล์มรีดร้อน)','งานปัก','ไม่มีลาย'], printDef:['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)'],
     sew:[ R('hem','ปลายขา',['ลาปลายขา','จั๊มปลายขา (ยางยืด)']), THREAD ],
   }),
@@ -917,7 +932,8 @@ function fieldHTML(f,s,v){
           cols.map(c=>`<td><input type="number" min="0" data-t="${f.id}" data-r="${i}" data-c="q:${esc(c)}" value="${esc(r.q[c])}"></td>`).join('')+
           `<td data-rt="${i}">0</td><td>${rs.length>1?`<button class="btn x" data-act="delrow" data-id="${f.id}" data-r="${i}" title="ลบแถว">✕</button>`:''}</td></tr>`).join('')+
         `</tbody><tfoot><tr><td>รวม</td>${cols.map(c=>`<td data-ct="${esc(c)}">0</td>`).join('')}<td data-gt>0</td><td></td></tr></tfoot></table></div>`+
-        `<div class="tbl-actions"><button class="btn small ghost" data-act="addrow" data-id="${f.id}">+ เพิ่มแบบ/สี</button></div>`;
+        `<div class="tbl-actions"><button class="btn small ghost" data-act="addrow" data-id="${f.id}">+ เพิ่มแบบ/สี</button></div>`+
+        sizeChart(f,v).map(l=>`<div class="hint">${esc(l)}</div>`).join('');
       break; }
     case 'itemTable': {
       const rs=rows(v,f.id,!!f.none);
@@ -1286,6 +1302,7 @@ function renderDoc(){
         if(rs.length) body+=`<table class="dt"><thead><tr><th>${esc(f.rowLabel||'แบบ / สี')}</th>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}<th>รวม</th></tr></thead><tbody>`+
           rs.map(r=>`<tr><td class="l">${esc(r.label)}</td>${cols.map(c=>`<td>${num(r.q[c])||''}</td>`).join('')}<td><b>${cols.reduce((a,c)=>a+num(r.q[c]),0)}</b></td></tr>`).join('')+
           `</tbody><tfoot><tr><td>รวม</td>${cols.map(c=>`<td>${rs.reduce((a,r)=>a+num(r.q[c]),0)}</td>`).join('')}<td>${totalQty()}</td></tr></tfoot></table>`;
+        const chart=sizeChart(f,v); if(rs.length&&chart.length) body+=`<div class="tlabel">ขนาดสำเร็จ</div>`+chart.map(l=>`<p>${esc(l)}</p>`).join('');
       }
       if(f.type==='itemTable'){
         const rs=rows(v,f.id,!!f.none).filter(r=>f.cols.some(c=>!isNone(r[c.c])));
