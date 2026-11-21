@@ -9,7 +9,7 @@
 <style>
 :root{
   --bg:#f4f5f2; --card:#fff; --ink:#1d2420; --muted:#5f6a63; --line:#dfe3dd;
-  --accent:#0f4a42; --accent-soft:#e3efec; --warn:#b4231b; --warn-soft:#fdecea; --gold:#c08a3e;
+  --accent:#0f4a42; --accent-soft:#e3efec; --warn:#b4231b; --warn-soft:#fdecea; --caution:#9a5b00; --caution-soft:#fff4e0; --gold:#c08a3e;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Sarabun",system-ui,sans-serif;font-size:15px;line-height:1.5}
@@ -41,6 +41,7 @@ body.preview main.layout{grid-template-columns:minmax(0,1fr)}
 #nav a.ok em{color:var(--accent)}
 .progress{font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--warn-soft);color:var(--warn);white-space:nowrap}
 .progress.done{background:var(--accent-soft);color:var(--accent)}
+.progress.soft{background:var(--caution-soft);color:var(--caution)}
 .card{scroll-margin-top:80px}
 .field{scroll-margin-top:90px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;z-index:10;opacity:0;transition:opacity .2s;pointer-events:none}
@@ -98,12 +99,18 @@ table.ft tfoot td{font-weight:700;background:#f7f8f6}
 .imgs figcaption{font-size:12px;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .imgs .btn.x{position:absolute;top:2px;right:2px;background:#fff;border-radius:6px}
 
-.field.missing .lab{color:var(--warn)}
-.field.missing input,.field.missing .tbl-wrap,.field.missing .opts .opt{border-color:#e6a49f}
+.field.missing .lab{color:var(--caution)}
+.field.missing input,.field.missing .tbl-wrap,.field.missing .opts .opt{border-color:#e9c27f}
+.field.missing.hard .lab{color:var(--warn)}
+.field.missing.hard input,.field.missing.hard .tbl-wrap,.field.missing.hard .opts .opt{border-color:#e6a49f}
 .alert{background:var(--warn-soft);border:1px solid #f0b9b4;color:var(--warn);border-radius:12px;padding:12px 16px;margin-bottom:14px}
 .alert b{display:block;margin-bottom:4px}
 .alert ul{margin:0;padding-left:20px}
 .alert a{color:var(--warn)}
+.alert.soft{background:var(--caution-soft);border-color:#f1d29c;color:var(--caution)}
+.alert.soft a{color:var(--caution)}
+.alert b+ul{margin-bottom:0}
+.alert small{display:block;font-weight:400;margin-top:-2px;margin-bottom:4px}
 
 #doc{display:none}
 body.preview #form,body.preview .edit-only{display:none}
@@ -1017,7 +1024,9 @@ function updateProgress(){
   m.forEach(x=>cnt[x.sec]=(cnt[x.sec]||0)+1);
   $('#nav').innerHTML=`<div class="nh">หัวข้อ</div>`+layout().map(sec=>{ const c=cnt[sec.no]||0;
     return `<a href="#sec_${sec.no}" class="${c?'':'ok'}"><span class="n">${sec.no}</span><span class="t">${esc(sec.title)}</span><em>${c?'ขาด '+c:'✓'}</em></a>`; }).join('');
-  const p=$('#progress'); p.textContent=m.length?`ยังขาด ${m.length} ช่อง`:'✓ ครบ พร้อมส่งออก'; p.classList.toggle('done',!m.length);
+  const hard=m.filter(x=>x.hard).length, p=$('#progress');
+  p.textContent=hard?`ต้องแก้ ${hard} ช่อง`:m.length?`ยังไม่กรอก ${m.length} ช่อง (ไม่บังคับ)`:'✓ ครบ พร้อมส่งออก';
+  p.classList.toggle('done',!m.length); p.classList.toggle('soft',!hard&&m.length>0);
   if($('#alert').innerHTML){ missing=m; showAlert(); form.querySelectorAll('.field.missing').forEach(el=>el.classList.remove('missing')); markMissing(); }
 }
 
@@ -1250,6 +1259,8 @@ form.addEventListener('keydown',e=>{ const t=e.target;
   const nx=els[els.indexOf(t)+1]; if(nx){ nx.focus(); nx.select?.(); } });
 document.addEventListener('wheel',e=>{ const t=e.target; if(t.type==='number'&&document.activeElement===t) t.blur(); },{passive:true});
 
+// ช่องที่ขาดแล้วเอกสารใช้ไม่ได้จริง (หัวทุกหน้า PDF + ระบบใช้หาใบ) · ช่องอื่นแค่เตือน เพราะบางงานไม่ต้องใส่
+const MUST_FILL=['doc_no','customer'];
 function validate(){
   const out=[];
   layout().filter(sec=>sec.fields).forEach(sec=>{ const s=sec.s, v=scope(s); sec.fields.forEach(f=>{
@@ -1279,15 +1290,18 @@ function validate(){
         break; }
       case 'images': bad=f.req&&!state.imgs.length; break;
     }
-    if(bad) out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why });
+    if(bad) out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why, hard:s==='h'&&MUST_FILL.includes(f.id) });
   }); });
-  if(state.h.issue_date&&state.h.due_date&&state.h.due_date<state.h.issue_date) out.push({id:'fld_h_due_date',sec:2,label:'ข้อมูลใบงาน › กำหนดส่งงาน',why:'อยู่ก่อนวันที่ออกใบ'});
-  if(state.h.sample_date&&state.h.due_date&&state.h.sample_date>state.h.due_date) out.push({id:'fld_h_sample_date',sec:2,label:'ข้อมูลใบงาน › วันนัดส่งตัวอย่าง',why:'อยู่หลังกำหนดส่งงาน'});
+  if(state.h.issue_date&&state.h.due_date&&state.h.due_date<state.h.issue_date) out.push({id:'fld_h_due_date',sec:2,label:'ข้อมูลใบงาน › กำหนดส่งงาน',why:'อยู่ก่อนวันที่ออกใบ',hard:true});
+  if(state.h.sample_date&&state.h.due_date&&state.h.sample_date>state.h.due_date) out.push({id:'fld_h_sample_date',sec:2,label:'ข้อมูลใบงาน › วันนัดส่งตัวอย่าง',why:'อยู่หลังกำหนดส่งงาน',hard:true});
   return out;
 }
-function markMissing(){ missing.forEach(m=>document.getElementById(m.id)?.classList.add('missing')); }
+function markMissing(){ missing.forEach(m=>{ const el=document.getElementById(m.id); el?.classList.add('missing'); if(m.hard) el?.classList.add('hard'); }); }
 function showAlert(){
-  $('#alert').innerHTML = missing.length ? `<div class="alert"><b>ยังกรอกไม่ครบ ${missing.length} รายการ (ส่งออก PDF ไม่ได้จนกว่าจะครบ)</b><ul>${missing.map(m=>`<li><a href="#${m.id}" data-goto="${m.id}">${esc(m.label)}</a>${m.why?` — ${esc(m.why)}`:''}</li>`).join('')}</ul></div>` : '';
+  const li=list=>`<ul>${list.map(m=>`<li><a href="#${m.id}" data-goto="${m.id}">${esc(m.label)}</a>${m.why?` — ${esc(m.why)}`:''}</li>`).join('')}</ul>`;
+  const hard=missing.filter(m=>m.hard), soft=missing.filter(m=>!m.hard);
+  $('#alert').innerHTML=(hard.length?`<div class="alert"><b>ต้องแก้ ${hard.length} รายการก่อนส่งออก PDF</b>${li(hard)}</div>`:'')+
+    (soft.length?`<div class="alert soft"><b>ยังไม่ได้กรอก ${soft.length} รายการ</b><small>ไม่บังคับ · ถ้างานนี้ไม่ต้องใช้ ส่งออก PDF ได้เลย</small>${li(soft)}</div>`:'');
 }
 $('#alert').addEventListener('click',e=>{ const a=e.target.closest('[data-goto]'); if(!a) return; e.preventDefault();
   if(document.body.classList.contains('preview')) togglePreview(false);
@@ -1426,7 +1440,10 @@ function docFontsReady(){
 docFontsReady();
 async function exportPdf(){
   missing=validate(); showAlert();
-  if(missing.length){ if(document.body.classList.contains('preview')) togglePreview(false); else rerender(); scrollTo(0,0); return; }
+  const hard=missing.filter(m=>m.hard).length, soft=missing.length-hard;
+  const back=()=>{ if(document.body.classList.contains('preview')) togglePreview(false); else rerender(); scrollTo(0,0); };
+  if(hard){ back(); return; }
+  if(soft&&!confirm(`ยังไม่ได้กรอก ${soft} ช่อง (ไม่บังคับ)\nช่องที่ว่างจะไม่พิมพ์ลง PDF\n\nกด "ตกลง" = ส่งออก PDF เลย · "ยกเลิก" = กลับไปดูช่องที่ว่าง`)){ back(); return; }
   renderDoc();
   await docFontsReady();
   const old=document.title;
