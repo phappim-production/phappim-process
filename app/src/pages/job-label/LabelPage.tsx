@@ -9,6 +9,7 @@ import { signMockups } from '../../data/mockups'
 import { supabase } from '../../lib/supabase'
 import { qrMatrix, qrSvgPath } from './qr'
 import { sampleText } from './sampleText'
+import { printWhenFontsReady } from '../../lib/printFonts'
 import './label.css'
 
 type LabelJob = Pick<JobRow, 'id' | 'confirmation_no' | 'customer_name' | 'job_name' | 'product_type_code' |
@@ -145,7 +146,7 @@ export default function LabelPage({ jobId }: { jobId: string }) {
       <button type="button" onClick={() => {
         setPrintedOn(day.format(new Date()))
         // ให้ React อัปเดตวันที่บนใบก่อนเปิดกล่องพิมพ์
-        requestAnimationFrame(() => window.print())
+        requestAnimationFrame(() => void printWhenFontsReady())
       }} className="inline-flex min-h-12 items-center justify-center gap-2 justify-self-end rounded-xl bg-brand px-5 font-semibold text-white hover:bg-brand-700">
         <IconClipboard /> พิมพ์
       </button>

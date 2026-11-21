@@ -4,6 +4,7 @@
 
 .artwork-sheet {
   position: relative;
+  font-family: "Noto Sans Thai", "Sarabun", sans-serif;
   display: grid;
   gap: 4mm;
   min-width: 260mm;
