@@ -42,6 +42,10 @@
   node tools/qa-r14/qa-part-b.mjs
   node tools/qa-r14/qa-part-c.mjs
   ```
+- ใบยืนยันครบทุกสินค้า (กรอกทุกช่องบังคับ + ตาราง + ตำแหน่ง + ม็อคอัพ 1 จุด แล้วพิมพ์ PDF + ข้อความ + `report.json`):
+  ```powershell
+  node tools/qa-r14/confirmation-all.mjs <โฟลเดอร์ผลลัพธ์> [tshirt,elephant]
+  ```
   ภาพและ PDF ลง `docs/qa/img/` · ตั้ง `$env:QA_IMG_DIR` เป็นโฟลเดอร์อื่นถ้าไม่อยากทับหลักฐานเดิม
 
 ## ข้อจำกัดของสภาพแวดล้อมจำลอง
