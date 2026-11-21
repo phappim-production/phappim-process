@@ -92,7 +92,7 @@ it('บอร์ดวางงานผลิตที่ขาดสถาน�
 it('แบ่งสถานีเป็น ก่อนผลิต / เฟส 1 / เฟส 2 ตามลำดับ · ตัดกลุ่มที่บทบาทนี้ไม่เห็นทิ้ง', () => {
   expect(groupColumns(COLUMNS).map(g => [g.name, g.columns.map(c => c.key)])).toEqual([
     ['ก่อนผลิต', ['sample', 'sample_review']],
-    ['เฟส 1', ['print', 'press', 'cut', 'dtf_press', 'emb']],
+    ['เฟส 1', ['print', 'press', 'cut', 'dtf_press', 'emb', 'outside']],
     ['เฟส 2', ['sew', 'qc_pack', 'done']],
   ])
   const qcOnly = COLUMNS.filter(c => c.key === 'qc_pack' || c.key === 'done')

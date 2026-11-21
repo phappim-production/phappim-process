@@ -1,15 +1,17 @@
 import { useEffect, useRef, type ComponentType } from 'react'
 import { STATION_NAME, type ColumnKey, type Job, type StationCode } from '../proto/model'
-import { IconCheck, IconFactory, IconFilm, IconFlame, IconPackage, IconPrinter, IconScissors, IconSewing, IconSparkles } from './icons'
+import { IconCheck, IconFactory, IconFilm, IconFlame, IconPackage, IconPrinter, IconScissors, IconSewing, IconSparkles, IconUsers } from './icons'
 
 const STATION_ORDER: StationCode[] = ['print', 'press', 'cut', 'dtf_press', 'emb', 'sew', 'qc_pack']
-const STATION_PHASE: Record<StationCode, 1 | 2> = { print: 1, press: 1, cut: 1, dtf_press: 1, emb: 1, sew: 2, qc_pack: 2 }
+// สั่งผลิตข้างนอกไม่มีคนในโรงงานทำ จึงไม่นับเลขสถานี 1–7 ที่คนหน้างานจำ
+const STATION_PHASE: Record<StationCode, 1 | 2> = { outside: 1, print: 1, press: 1, cut: 1, dtf_press: 1, emb: 1, sew: 2, qc_pack: 2 }
 
 const STATION_ICON: Record<StationCode, ComponentType<{ className?: string }>> = {
-  print: IconPrinter, press: IconFlame, cut: IconScissors, dtf_press: IconFilm, emb: IconSparkles, sew: IconSewing, qc_pack: IconPackage,
+  outside: IconUsers, print: IconPrinter, press: IconFlame, cut: IconScissors, dtf_press: IconFilm, emb: IconSparkles, sew: IconSewing, qc_pack: IconPackage,
 }
 
 const isStation = (key: ColumnKey | 'all'): key is StationCode => key !== 'all' && key in STATION_NAME
+const numbered = (key: ColumnKey | 'all'): key is StationCode => isStation(key) && STATION_ORDER.includes(key)
 
 export function StationRail({ columns, counts, urgent, station, onPick }: {
   columns: { key: ColumnKey; name: string }[]; counts: (key: ColumnKey | 'all') => number; urgent: (key: ColumnKey) => number
@@ -20,7 +22,7 @@ export function StationRail({ columns, counts, urgent, station, onPick }: {
     rail.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [station])
   const stations = STATION_ORDER.filter(s => columns.some(c => c.key === s))
-  const others = columns.filter(c => !isStation(c.key))
+  const others = columns.filter(c => !numbered(c.key))
   const chip = (key: ColumnKey | 'all', name: string) => {
     const on = station === key
     const Icon = isStation(key) ? STATION_ICON[key] : key === 'done' ? IconCheck : IconFactory
@@ -31,7 +33,7 @@ export function StationRail({ columns, counts, urgent, station, onPick }: {
         <button type="button" onClick={() => onPick(key)} aria-pressed={on}
           className={`flex min-h-16 min-w-20 flex-col items-center justify-center gap-0.5 rounded-xl border-2 px-2.5 py-1.5 text-center ${on ? 'border-brand bg-brand text-white' : 'border-line bg-card hover:border-brand'}`}>
           <span className="flex items-center gap-1 text-sm font-semibold">
-            {isStation(key) && <span className={`grid size-5 place-items-center rounded-full text-xs ${on ? 'bg-white text-brand' : 'bg-brand-soft text-brand'}`}>{STATION_ORDER.indexOf(key) + 1}</span>}
+            {numbered(key) && <span className={`grid size-5 place-items-center rounded-full text-xs ${on ? 'bg-white text-brand' : 'bg-brand-soft text-brand'}`}>{STATION_ORDER.indexOf(key) + 1}</span>}
             <Icon className="size-4" />
           </span>
           <span className="text-sm font-semibold whitespace-nowrap">{name}</span>
@@ -79,7 +81,7 @@ export function StationHeader({ station, jobs, stations, machines, onPick }: {
       <div className="flex items-center gap-3">
         <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand"><Icon className="size-8" /></span>
         <div className="min-w-0">
-          <p className="text-sm text-muted">สถานีที่ {STATION_ORDER.indexOf(station) + 1} จาก {STATION_ORDER.length} · เฟส {STATION_PHASE[station]}</p>
+          <p className="text-sm text-muted">{numbered(station) ? `สถานีที่ ${STATION_ORDER.indexOf(station) + 1} จาก ${STATION_ORDER.length} · เฟส ${STATION_PHASE[station]}` : 'โรงงานนอกทำ · แอดมินส่งออกและรับเข้า'}</p>
           <h2 className="truncate text-2xl font-bold">{STATION_NAME[station]}</h2>
         </div>
         {machines && (

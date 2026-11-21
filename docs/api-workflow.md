@@ -38,10 +38,10 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 | `note_queue_skip` | `p_job, p_reason` → `boolean` | production · qc (เฉพาะ QC+Packing) · owner | ตรวจ/บันทึกข้ามคิวอย่างเดียว (หน้าเว็บไม่ใช้แล้ว) |
 
 ## ส่งงานออกบริษัทภายนอก + แบ่งงาน (`20261120020000`)
-สถานีที่ส่งออกได้: พิมพ์ · รีด · ตัด · เย็บ · ปัก (ติดกันหลายสถานีในรอบเดียว) · งานข้างนอก `station_status = 'out'` · trigger `jobs_guard_outsourced` ห้ามปุ่มของโรงงานเปลี่ยนงานจนกว่าจะรับกลับ · ตาราง `vendors`, `outsource_runs` (อ่านได้ทุกคน · เขียนผ่านฟังก์ชันเท่านั้น)
+สถานีที่ส่งออกได้: พิมพ์ · รีด · ตัด · เย็บ · ปัก · สั่งผลิตข้างนอก (ติดกันหลายสถานีในรอบเดียว) · เส้นทาง `outside` (ผลิตข้างนอกทั้งหมด) = `outside` → `qc_pack` · สถานี `outside` กดเริ่มที่โรงงานไม่ได้ ต้องส่งออก (trigger `jobs_guard_outside_start`) · งานข้างนอก `station_status = 'out'` · trigger `jobs_guard_outsourced` ห้ามปุ่มของโรงงานเปลี่ยนงานจนกว่าจะรับกลับ · ตาราง `vendors`, `outsource_runs` (อ่านได้ทุกคน · เขียนผ่านฟังก์ชันเท่านั้น)
 | ฟังก์ชัน | อาร์กิวเมนต์ | ใครเรียก | ทำอะไร / ปฏิเสธเมื่อ |
 |---|---|---|---|
-| `add_vendor` | `p_name, p_stations text[], p_contact` → `bigint` | admin · owner | เพิ่ม/เปิดใช้บริษัท · ปฏิเสธ: ชื่อว่าง, งานที่รับไม่ใช่ 5 สถานี |
+| `add_vendor` | `p_name, p_stations text[], p_contact` → `bigint` | admin · owner | เพิ่ม/เปิดใช้บริษัท · ปฏิเสธ: ชื่อว่าง, งานที่รับไม่ใช่ 6 สถานีที่ส่งออกได้ |
 | `send_out` | `p_job, p_vendor, p_last_station, p_arrive_at, p_lead_days, p_back_at, p_note` → run id | admin · owner | งานรอเริ่ม (queued) ที่สถานีส่งออกได้ → บริษัททำถึง `p_last_station` · event `outsource_sent` · ปฏิเสธ: เริ่ม/พักแล้ว, อยู่ข้างนอกแล้ว, ข้ามสถานีที่ต้องทำในโรงงาน, ไม่อยู่ในเส้นทาง, กรอกกำหนดไม่ครบ / กลับก่อนถึง, งานแก้ส่งเกินสถานีต้นเหตุ |
 | `forward_out` | `p_run, p_vendor, p_last_station, …` → run id | admin · owner | บ.A เสร็จ → บ.B ทำสถานีถัดไปโดยไม่ผ่านโรงงาน · event `outsource_forwarded` · ปฏิเสธ: บริษัทเดิม, งานแก้, ถัดไปทำในโรงงาน |
 | `receive_back` | `p_run, p_note` | admin · owner | ของถึงโรงงาน → งานเข้าสถานีถัดไป (งานแก้ → QC) รอคิว · event `outsource_received` (`late`) |

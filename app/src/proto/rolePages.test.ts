@@ -44,7 +44,7 @@ it('คิวการผลิต: ทุกสถานีเรียงต�
   const press = rows.find(r => r.station === 'press')!
   expect(press.waiting.map(j => j.id)).toEqual([b.id, a.id])
   expect(press.doing.map(j => j.id)).toEqual([c.id])
-  expect(rows).toHaveLength(7)
+  expect(rows).toHaveLength(8)
 })
 
 it('สถานีของฉัน: QC = QC + Packing · พนักงาน = ที่จับคู่', () => {

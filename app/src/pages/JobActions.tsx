@@ -7,7 +7,7 @@ import { confirmationPath, pdfProblem } from '../data/confirmation'
 import { contentKey, mockupProblem, shrinkImage, uploadMockup } from '../data/mockups'
 import { signFiles, uploadFile } from '../data/files'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
-import { DEPT_NAME, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job, type StationCode, type Vendor } from '../proto/model'
+import { DEPT_NAME, OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job, type StationCode, type Vendor } from '../proto/model'
 import { OutsourcePanel } from './OutsourcePanel'
 import { FilePick } from '../components/FilePick'
 import { relDay, slaAmount, spaced } from '../proto/format'
@@ -453,7 +453,8 @@ function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act 
       <Section title={`${sample ? 'ขึ้นตัวอย่าง · ' : ''}${name}${j.rework ? ' · งานแก้' : ''}`}>
         {!canPress && !(canResume && j.status === 'hold') && <p className="mb-3 text-sm text-muted">{role === 'qc' ? 'ฝ่าย QC กดได้เฉพาะสถานี QC + Packing' : role === 'staff' ? 'งานนี้ไม่ได้อยู่สถานีของคุณ กดได้เฉพาะสถานีที่จับคู่ไว้' : 'บทบาทนี้ดูได้อย่างเดียว'}</p>}
 
-        {j.status === 'queued' && canPress && (
+        {j.status === 'queued' && canPress && st === 'outside' && <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">{OUTSIDE_START_BLOCK}</p>}
+        {j.status === 'queued' && canPress && st !== 'outside' && (
           <button type="button" disabled={busy || (st === 'dtf_press' && !j.film?.received)} className={`${primaryBtn} w-full`}
             title={st === 'dtf_press' && !j.film?.received ? `ยังไม่ได้รับ${filmLabel(j.route)}` : undefined}
             onClick={() => void act('start_station', {}, `เริ่ม${spaced(name)}แล้ว`)}>

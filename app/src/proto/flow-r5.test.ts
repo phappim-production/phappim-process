@@ -79,7 +79,7 @@ describe('R5 สถานะงานจาก job_live', () => {
     expect(jobs.map(j => queueNo(j, jobs) ?? null)).toEqual([1, 2, null, null, null, null, null, 1, null, 1, null, null, null, null, 3])
     const counts = Object.fromEntries(stationCounts(jobs, now).map(r => [r.key, [r.waiting, r.doing, r.hold, r.out]]))
     expect(counts).toEqual({
-      cut: [3, 1, 1, 1], print: [0, 0, 0, 1], press: [0, 0, 0, 1], emb: [0, 0, 0, 0],
+      cut: [3, 1, 1, 1], print: [0, 0, 0, 1], press: [0, 0, 0, 1], emb: [0, 0, 0, 0], outside: [0, 0, 0, 0],
       sew: [1, 1, 1, 0], dtf_press: [1, 0, 0, 0], qc_pack: [0, 1, 0, 0],
     })
   })

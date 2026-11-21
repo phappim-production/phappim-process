@@ -5,10 +5,10 @@ import { SECTION_LABELS, type EmployeeRole, type PageKey, type Section } from '.
 
 // ตรงกับ stations.section ในฐานข้อมูล
 export const STATION_SECTION: Record<StationCode, Section> = {
-  print: 1, press: 1, cut: 1, dtf_press: 1, emb: 1, sew: 2, qc_pack: 2,
+  outside: 1, print: 1, press: 1, cut: 1, dtf_press: 1, emb: 1, sew: 2, qc_pack: 2,
 }
 
-const ALL_STATIONS: StationCode[] = ['print', 'press', 'cut', 'dtf_press', 'emb', 'sew', 'qc_pack']
+const ALL_STATIONS: StationCode[] = ['print', 'press', 'cut', 'dtf_press', 'emb', 'outside', 'sew', 'qc_pack']
 
 export type BoardScope = {
   title: string

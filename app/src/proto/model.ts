@@ -1,12 +1,13 @@
 
-export type StationCode = 'print' | 'press' | 'cut' | 'dtf_press' | 'emb' | 'sew' | 'qc_pack'
-export type RouteCode = 'normal' | 'dtf' | 'dtg' | 'screen' | 'emb' | 'print_emb' | 'cut_only' | 'plain'
+export type StationCode = 'outside' | 'print' | 'press' | 'cut' | 'dtf_press' | 'emb' | 'sew' | 'qc_pack'
+export type RouteCode = 'outside' | 'normal' | 'dtf' | 'dtg' | 'screen' | 'emb' | 'print_emb' | 'cut_only' | 'plain'
 export type Dept = 'admin' | 'qc' | 'production'
 export type Phase = 'materials' | 'sample' | 'sample_review' | 'production' | 'done'
 // out = อยู่ที่บริษัทภายนอก (ส่งออก) · ปุ่มของโรงงานกดไม่ได้จนกว่าแอดมินรับของกลับ
 export type StationStatus = 'queued' | 'doing' | 'hold' | 'out'
 
 export const STATION_NAME: Record<StationCode, string> = {
+  outside: 'สั่งผลิตข้างนอก',
   print: 'พิมพ์งาน',
   press: 'รีดงาน',
   cut: 'ตัดงาน',
@@ -29,6 +30,7 @@ export const ROUTES: Record<RouteCode, { name: string; short: string; stations: 
   print_emb: { name: 'พิมพ์ + ปัก', short: 'พิมพ์+ปัก', stations: ['print', 'press', 'cut', 'emb', 'sew', 'qc_pack'] },
   cut_only: { name: 'ตัดงานลูกค้า', short: 'ตัดอย่างเดียว', stations: ['cut', 'qc_pack'] },
   plain: { name: 'ไม่มีงานพิมพ์', short: 'ไม่พิมพ์', stations: ['cut', 'sew', 'qc_pack'] },
+  outside: { name: 'ผลิตข้างนอกทั้งหมด', short: 'ผลิตข้างนอก', stations: ['outside', 'qc_pack'] },
 }
 
 // เส้นทางที่สั่งฟิล์มมารีด (ตรงกับ private.uses_film)
@@ -97,7 +99,8 @@ export function telHref(phone?: string): string | undefined {
   return `tel:${digits.length === 9 && !digits.startsWith('0') ? '0' + digits : digits}`
 }
 /** สถานีที่ส่งออกได้ (ตรงกับ private.outsourceable ในฐานข้อมูล) */
-export const OUTSOURCEABLE: StationCode[] = ['print', 'press', 'cut', 'sew', 'emb']
+export const OUTSOURCEABLE: StationCode[] = ['outside', 'print', 'press', 'cut', 'sew', 'emb']
+export const OUTSIDE_START_BLOCK = 'งานผลิตข้างนอกทั้งหมด เริ่มที่โรงงานไม่ได้ · แอดมินกด "ส่งออกบริษัทภายนอก" แล้วกด "รับเข้า" เมื่อของถึง'
 export const isOutLate = (j: Job, now: Date) => !!j.out && j.out.backAt.getTime() < now.getTime()
 
 export type ColumnKey = 'materials' | 'sample' | 'sample_review' | StationCode | 'done'
@@ -109,6 +112,7 @@ export const COLUMNS: { key: ColumnKey; name: string }[] = [
   { key: 'cut', name: 'ตัด' },
   { key: 'dtf_press', name: 'รีดฟิล์ม' },
   { key: 'emb', name: 'ส่งปัก' },
+  { key: 'outside', name: 'สั่งผลิตข้างนอก' },
   { key: 'sew', name: 'เย็บ' },
   { key: 'qc_pack', name: 'QC + Packing' },
   { key: 'done', name: 'เสร็จ' },
@@ -116,7 +120,7 @@ export const COLUMNS: { key: ColumnKey; name: string }[] = [
 
 export const STATION_GROUPS: { name: string; keys: ColumnKey[] }[] = [
   { name: 'ก่อนผลิต', keys: ['sample', 'sample_review'] },
-  { name: 'เฟส 1', keys: ['print', 'press', 'cut', 'dtf_press', 'emb'] },
+  { name: 'เฟส 1', keys: ['print', 'press', 'cut', 'dtf_press', 'emb', 'outside'] },
   { name: 'เฟส 2', keys: ['sew', 'qc_pack', 'done'] },
 ]
 

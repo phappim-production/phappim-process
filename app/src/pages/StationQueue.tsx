@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { SLA_LABEL, STATION_NAME, byQueue, filmLabel, isOutLate, isOverdue, waitingAt, type Job, type StationCode } from '../proto/model'
+import { OUTSIDE_START_BLOCK, SLA_LABEL, STATION_NAME, byQueue, filmLabel, isOutLate, isOverdue, waitingAt, type Job, type StationCode } from '../proto/model'
 import { spaced } from '../proto/format'
 import { DueLabel, MockupThumb, Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
@@ -249,7 +249,9 @@ function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run
 
   return (
     <div className="grid gap-2 sm:grid-cols-2">
-      {canStart && (full
+      {canStart && (station === 'outside'
+        ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2">{OUTSIDE_START_BLOCK}</p>
+        : full
         ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2">เริ่มไม่ได้ · {full}</p>
         : noFilm
         ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2">เริ่มไม่ได้ · ยังไม่ได้รับ{filmLabel(j.route)} (แอดมินบันทึกเมื่อได้รับ)</p>
