@@ -878,6 +878,12 @@ const PRODUCTS = {
     packSec(['ส่งคืนตามที่รับมา','พับใส่ถุง','ม้วน']),
   ]},
 };
+// แอดมินกับลูกค้ามักไม่รู้วิธีเย็บ จึงตั้งต้นเป็นมาตรฐานโรงงาน · ใบเก่าที่ไม่มีค่านี้ยังเห็นช่องเย็บเดิม
+const SEW_STD='เย็บตามมาตรฐานโรงงาน', SEW_CUSTOM='ลูกค้ากำหนดวิธีเย็บเอง';
+Object.values(PRODUCTS).forEach(P=>P.sections.filter(sec=>sec.title==='การเย็บ').forEach(sec=>{
+  sec.fields=[ R('sew_mode','วิธีเย็บ',[SEW_STD,SEW_CUSTOM],{ def:SEW_STD, hint:'ไม่รู้ว่าเย็บแบบไหน = เลือกมาตรฐานโรงงาน · กรอกละเอียดเฉพาะงานที่ลูกค้ากำหนดมา' }),
+    ...sec.fields.map(f=>f===PIPING?f:{ ...f, when:v=>v.sew_mode!==SEW_STD&&(!f.when||f.when(v)) }) ];
+}));
 
 const TAIL = [
   { title:'ไฟล์งานและหมายเหตุ', fields:[
