@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ใบยืนยันการผลิต</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#f4f5f2; --card:#fff; --ink:#1d2420; --muted:#5f6a63; --line:#dfe3dd;
@@ -108,7 +108,7 @@ table.ft tfoot td{font-weight:700;background:#f7f8f6}
 #doc{display:none}
 body.preview #form,body.preview .edit-only{display:none}
 body.preview #doc{display:block}
-.doc{width:210mm;min-height:297mm;margin:0 auto 24px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:10mm 10mm 14mm;font-size:12px;line-height:1.45;color:#111}
+.doc{width:210mm;min-height:297mm;margin:0 auto 24px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:10mm 10mm 14mm;font-size:12px;line-height:1.45;color:#111;font-family:"Noto Sans Thai","Sarabun",sans-serif}
 table.pg{width:100%;border-collapse:collapse}
 table.pg>thead>tr>td,table.pg>tbody>tr>td{padding:0;vertical-align:top}
 table.pg>thead>tr>td{padding-bottom:3mm}
@@ -1394,7 +1394,7 @@ function estimatePages(){
 function setPageStyle(){
   const h=state.h, q=t=>String(t||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/[\r\n]+/g,' ');
   const left=`${COMPANY.name} · ใบยืนยันการผลิต ${h.doc_no||''}${num(h.rev)>0?' แก้ไขครั้งที่ '+h.rev:''} · ${h.customer||''}`;
-  const box='font-family:"Sarabun",sans-serif;font-size:8.5pt;color:#555;';
+  const box='font-family:"Noto Sans Thai","Sarabun",sans-serif;font-size:8.5pt;color:#555;';
   let st=document.getElementById('pageStyle');
   if(!st){ st=document.createElement('style'); st.id='pageStyle'; document.head.appendChild(st); }
   st.textContent=`@page{size:A4;margin:10mm 10mm 13mm;`+
@@ -1409,10 +1409,18 @@ function togglePreview(force){
   if(!on) rerender();
   scrollTo(0,0);
 }
-function exportPdf(){
+// ฟอนต์เว็บโหลดเมื่อมีตัวอักษรใช้จริง · เอกสารซ่อนอยู่จนกดพิมพ์ จึงต้องรอให้โหลดก่อน ไม่งั้น PDF ออกเป็นฟอนต์สำรอง
+function docFontsReady(){
+  if(!document.fonts) return Promise.resolve();
+  const w=['400','500','600','700'].map(x=>document.fonts.load(`${x} 12px "Noto Sans Thai"`,'ใบยืนยัน'));
+  return Promise.race([Promise.all(w),new Promise(r=>setTimeout(r,4000))]);
+}
+docFontsReady();
+async function exportPdf(){
   missing=validate(); showAlert();
   if(missing.length){ if(document.body.classList.contains('preview')) togglePreview(false); else rerender(); scrollTo(0,0); return; }
   renderDoc();
+  await docFontsReady();
   const old=document.title;
   document.title=fileBase();
   window.print();
