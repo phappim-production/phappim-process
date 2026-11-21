@@ -103,3 +103,33 @@ describe('ข้อมูลติดต่อบริษัท', () => {
     expect(html).toContain('tel:0927826916')
   })
 })
+
+describe('เส้นทางผลิตข้างนอกทั้งหมด', () => {
+  const outside: Job = { ...base, route: 'outside', station: 'outside' }
+
+  it('ส่งออกได้แค่สั่งผลิตข้างนอก แล้วกลับมา QC + Packing ที่โรงงาน', () => {
+    expect(outSpan(outside, 'outside')).toEqual(['outside'])
+  })
+
+  it('แอดมินเห็นปุ่มส่งออกที่งานรอสั่งผลิตข้างนอก', () => {
+    const html = renderToStaticMarkup(createElement(OutsourcePanel, { job: outside, vendors: [], admin: true, now, refresh: async () => {} }))
+    expect(html).toContain('ส่งออกบริษัทภายนอก')
+  })
+
+  it('รับกลับแล้วบอกว่าไปรอที่ QC + Packing', () => {
+    const html = renderToStaticMarkup(createElement(OutsourcePanel, {
+      job: { ...outside, status: 'out', out: run({ stations: ['outside'] }) }, vendors: [], admin: true, now, refresh: async () => {},
+    }))
+    expect(html).toContain('ของถึงโรงงานแล้ว · รับเข้า')
+    expect(html).not.toContain('ส่งต่อบริษัทอื่น')
+  })
+
+  it('ประมาณวันเสร็จ: งานรอส่งออกหลายงานไม่ต่อคิวกัน และนับเวลาโรงงานนอกก่อนเข้า QC', () => {
+    const jobs = [outside, { ...outside, id: 'k', queue: 2 }]
+    const result = simulate(jobs, now)
+    const [a, b] = [result.finishDay.get('j')!, result.finishDay.get('k')!]
+    expect(a).toBeGreaterThanOrEqual(7)
+    expect(b - a).toBeLessThan(1)
+    expect(result.bottleneck).not.toBe('outside')
+  })
+})

@@ -75,6 +75,8 @@ export function earliestLineStart(earliest: number, days: number, needs: Need[],
 export const CAPACITY: Record<StationCode, number> = {
   print: 600, press: 600, cut: 800, dtf_press: 400, emb: 300, qc_pack: 800,  // ปักเป็นร้านนอก ยังไม่รู้กำลังจริง
   sew: SEW_LINE_RATE * SEW_MAX_LINES,
+  // โรงงานนอกรับหลายงานพร้อมกัน ไม่มีคิวร่วม · ใช้เวลาตาม LEAD.outside แทน
+  outside: Infinity,
 }
 // วันทำงานโดยประมาณก่อนเข้าผลิตจริง
 export const LEAD = {
@@ -83,6 +85,7 @@ export const LEAD = {
   sampleReview: 1,
   newJob: 3,         // ไม่รู้ว่าขึ้นตัวอย่างไหม: เผื่อขึ้นตัวอย่าง + ลูกค้ายืนยัน
   hold: 0.5,
+  outside: 7,        // ร่าง · ยังไม่ได้ส่งออก จึงยังไม่รู้วันกลับจริง
 }
 // เกณฑ์ตัดสิน "รับงานใหม่ได้ไหม" (จำนวนวันที่คิวสถานีที่แน่นที่สุดยาว)
 export const QUEUE_OK_DAYS = 3
@@ -163,6 +166,7 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
   const startOf = (r: Run) => {
     const s = r.stations[r.i]
     if (s === 'sew') return earliestLineStart(Math.max(r.ready, clock), r.firstQty / r.lineRate, r.needs, lines, floor.ready)
+    if (s === 'outside') return r.ready
     return Math.max(r.ready, free[s], s === 'dtf_press' ? r.filmDay : 0)
   }
   let pending = runs.filter(r => r.i < r.stations.length)
@@ -178,7 +182,7 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
     }
     const s = r.stations[r.i]
     if (r.isExtra && start - r.ready > longestWait) { longestWait = start - r.ready; extraWaitAt = s }
-    r.ready = start + r.firstQty / (s === 'sew' ? r.lineRate : CAPACITY[s])
+    r.ready = s === 'outside' ? start + LEAD.outside : start + r.firstQty / (s === 'sew' ? r.lineRate : CAPACITY[s])
     if (s === 'sew') lines.push({ start, end: r.ready, needs: r.needs })
     r.firstQty = r.qty
     free[s] = r.ready
