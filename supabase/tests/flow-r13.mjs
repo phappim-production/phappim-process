@@ -262,7 +262,7 @@ export async function flowR13Tests({ db, ok }) {
       assert.equal((await one('select status from public.mockup_sheets where id=$1', [sheet])).status, 'pending')
     })
 
-    await check('BUG: A5 คำขออนุมัติเวอร์ชันเก่าต้องไม่อนุมัติข้อมูลที่เพิ่งส่งกลับมาใหม่', async () => {
+    await check('A5 คำขออนุมัติเวอร์ชันเก่าต้องไม่อนุมัติข้อมูลที่เพิ่งส่งกลับมาใหม่', async () => {
       const label = 'STALE-APPROVAL'
       const id = await receive(label, 'plain')
       const { sheet, payload, pending } = await pendingMockup(id, label)
@@ -309,7 +309,7 @@ export async function flowR13Tests({ db, ok }) {
     assert.ok(relations.every(({ name }) => /^[a-z_]+$/.test(name)))
     for (const actor of ['anon', 'disabled']) {
       for (const { name } of relations) {
-        const test = actor === 'disabled' && ['vendors', 'outsource_runs'].includes(name) ? 'BUG: ' : ''
+        const test = ''
         await check(test + 'B1/B2 ' + actor + ' อ่านขอบเขต ' + name, async () => {
           let result
           try {
@@ -363,7 +363,7 @@ export async function flowR13Tests({ db, ok }) {
       }
     })
 
-    await check('A9 live-check ตรวจ 105 ข้อและย้อนกลับ', async () => {
+    await check('A9 live-check ตรวจ 106 ข้อและย้อนกลับ', async () => {
       const raw = await readFile(new URL('../scripts/live-check.sql', import.meta.url), 'utf8')
       const keys = { adm: 'admin', mgr: 'manager', prd: 'production', qcu: 'qc' }
       const script = raw.replace(/(adm|mgr|prd|qcu) uuid := '[0-9a-f-]+'/g,
@@ -375,7 +375,7 @@ export async function flowR13Tests({ db, ok }) {
       await assert.rejects(() => transactionPoint('r13_live', () => db.exec(script)), error => {
         assert.ok(error.message.startsWith('RESULTS'), error.message)
         const result = JSON.parse(error.message.slice('RESULTS'.length))
-        assert.equal(result.length, 105)
+        assert.equal(result.length, 106)
         assert.deepEqual(result.filter(row => !row.ok), [])
         return true
       })

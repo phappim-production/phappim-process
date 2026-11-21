@@ -385,7 +385,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
   }
   const decide = async (kind: 'approve' | 'return') => {
     setBusy(kind); setMsg(null)
-    const r = kind === 'approve' ? await approveSheet(sheet.id, decision.note) : await returnSheet(sheet.id, decision.reason)
+    const r = kind === 'approve' ? await approveSheet(sheet.id, decision.note, sheet.version) : await returnSheet(sheet.id, decision.reason)
     setBusy('')
     if (!r.ok) { fail(r.reason); return }
     await reload()
