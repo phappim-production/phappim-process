@@ -1,42 +1,45 @@
 // 1 การ์ด = 1 สิ่งที่ต้องทำต่อ
 import { DEPT_NAME, byQueue, filmLabel, isOutLate, isOverdue, isWaitingFilm, missingDepts, STATION_NAME, type Job } from './model.ts'
 import { spaced } from './format.ts'
+import { thai, word, type Word } from '../i18n/word.ts'
 
 export type ActionTone = 'danger' | 'warn' | 'info' | 'neutral'
-export type NextAction = { job: Job; text: string; tone: ActionTone; urgency: number }
+export type NextAction = { job: Job; text: string; word: Word; tone: ActionTone; urgency: number }
 
 export function nextAction(j: Job, now: Date): NextAction | null {
   const late = isOverdue(j, now)
   const at = j.station ? STATION_NAME[j.station] : ''
-  const make = (text: string, tone: ActionTone, urgency: number): NextAction =>
-    ({ job: j, text, tone: late && tone !== 'danger' ? 'danger' : tone, urgency: late ? Math.min(urgency, 1) : urgency })
+  const make = (w: Word, tone: ActionTone, urgency: number): NextAction =>
+    ({ job: j, text: thai(w), word: w, tone: late && tone !== 'danger' ? 'danger' : tone, urgency: late ? Math.min(urgency, 1) : urgency })
 
   switch (j.phase) {
     case 'done':
       return null
     case 'materials':
-      return make(`ติ๊กวัตถุดิบ: รอ ${missingDepts(j).map(d => DEPT_NAME[d]).join(', ')}`, 'warn', 3)
+      return make(word('ติ๊กวัตถุดิบ: รอ {depts}', { depts: missingDepts(j).map(d => DEPT_NAME[d]).join(', ') }), 'warn', 3)
     case 'sample_review':
-      return make(`แอดมินบันทึกผลตัวอย่างรอบ ${j.sampleRound}`, 'info', 4)
+      return make(word('แอดมินบันทึกผลตัวอย่างรอบ {n}', { n: j.sampleRound }), 'info', 4)
   }
   // อยู่บริษัทภายนอก: โรงงานกดอะไรไม่ได้ · สิ่งที่ต้องทำคือแอดมินตามของและรับกลับ
   if (j.status === 'out' && j.out) {
-    const back = j.out.backAt.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-    const what = j.out.stations.map(s => STATION_NAME[s]).join(' → ') + (j.out.rework ? ' (งานแก้)' : '')
+    const back = { at: j.out.backAt, time: true }
+    const path = word(j.out.stations.map((_, i) => `{s${i}}`).join(' → '), Object.fromEntries(j.out.stations.map((s, i) => [`s${i}`, { th: STATION_NAME[s] }])))
+    const what = word('{path}{rework}', { path, rework: j.out.rework ? { th: ' (งานแก้)' } : '' })
     return isOutLate(j, now)
-      ? make(`ของจาก ${j.out.vendor} เลยกำหนด (${back} น.) · โทรตามบริษัท แล้วรับของกลับ`, 'danger', 1)
-      : make(`อยู่ที่ ${j.out.vendor}: ${what} · รอรับของกลับ ${back} น.`, 'info', 6)
+      ? make(word('ของจาก {vendor} เลยกำหนด ({at} น.) · โทรตามบริษัท แล้วรับของกลับ', { vendor: j.out.vendor, at: back }), 'danger', 1)
+      : make(word('อยู่ที่ {vendor}: {what} · รอรับของกลับ {at} น.', { vendor: j.out.vendor, what, at: back }), 'info', 6)
   }
-  if (j.status === 'hold') return make(`แก้ปัญหา ${at}: ${j.holdReason ?? 'ไม่ระบุสาเหตุ'}`, 'danger', 0)
-  if (j.station === 'dtf_press' && isWaitingFilm(j)) return make(`รอ${filmLabel(j.route)}ก่อนเริ่มรีด`, 'warn', 2)
-  const prefix = j.phase === 'sample' ? 'ตัวอย่าง · ' : ''
-  if (j.status === 'queued' && j.station === 'outside') return make(`${prefix}แอดมินส่งออกบริษัทภายนอก`, 'neutral', 5)
-  if (j.status === 'queued') return make(`${prefix}เริ่ม${spaced(at).trimEnd()}`, 'neutral', 5)
+  const station = { th: spaced(at).trimEnd() }
+  if (j.status === 'hold') return make(word('แก้ปัญหา {station}: {reason}', { station: { th: at }, reason: j.holdReason ?? { th: 'ไม่ระบุสาเหตุ' } }), 'danger', 0)
+  if (j.station === 'dtf_press' && isWaitingFilm(j)) return make(word('รอ{film}ก่อนเริ่มรีด', { film: { th: filmLabel(j.route) } }), 'warn', 2)
+  const prefix = j.phase === 'sample' ? { th: 'ตัวอย่าง · ' } : ''
+  if (j.status === 'queued' && j.station === 'outside') return make(word('{prefix}แอดมินส่งออกบริษัทภายนอก', { prefix }), 'neutral', 5)
+  if (j.status === 'queued') return make(word('{prefix}เริ่ม{station}', { prefix, station }), 'neutral', 5)
   // ให้เห็นเวลามาตรฐานจากรายการเลย ไม่ต้องเปิดทีละงาน
-  if (j.sla === 'report') return make(`${at} เกินเวลามาตรฐาน · ส่งรายงานปัญหาก่อนกดเสร็จ`, 'danger', 1)
-  if (j.sla === 'over') return make(`${prefix}กำลังทำ${spaced(at).trimEnd()} · เกินเวลามาตรฐาน (รายงานแล้ว)`, 'danger', 2)
-  if (j.sla === 'warn') return make(`${prefix}กำลังทำ${spaced(at).trimEnd()} · ใกล้ครบเวลามาตรฐาน`, 'warn', 3)
-  return make(`${prefix}กำลังทำ${spaced(at).trimEnd()}`, 'info', 6)
+  if (j.sla === 'report') return make(word('{station} เกินเวลามาตรฐาน · ส่งรายงานปัญหาก่อนกดเสร็จ', { station: { th: at } }), 'danger', 1)
+  if (j.sla === 'over') return make(word('{prefix}กำลังทำ{station} · เกินเวลามาตรฐาน (รายงานแล้ว)', { prefix, station }), 'danger', 2)
+  if (j.sla === 'warn') return make(word('{prefix}กำลังทำ{station} · ใกล้ครบเวลามาตรฐาน', { prefix, station }), 'warn', 3)
+  return make(word('{prefix}กำลังทำ{station}', { prefix, station }), 'info', 6)
 }
 
 // เรียงตามคิวเสมอ · ความด่วนบอกด้วยสีของการ์ด ไม่ใช่ลำดับ

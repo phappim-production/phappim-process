@@ -1,9 +1,7 @@
 import { createContext, useContext, useSyncExternalStore } from 'react'
-import { MY } from './my'
+import { hasBurmese, translate, type Lang, type Vars } from './word.ts'
 
-export type Lang = 'th' | 'my'
-export type Word = { th: string; vars?: Vars }
-export type Vars = Record<string, string | number | Word | Word[]>
+export { hasBurmese, translate, word, type Lang, type Vars, type When, type Word } from './word.ts'
 
 const STORE_KEY = 'pp142-lang'
 const listeners = new Set<() => void>()
@@ -31,19 +29,6 @@ export function useLang(): Lang {
   const chosen = useSyncExternalStore(subscribe, snapshot, snapshot)
   return allowed ? chosen : 'th'
 }
-
-export function translate(lang: Lang, th: string, vars?: Vars): string {
-  // ชื่อสถานีที่เว้นวรรคไว้ต่อคำไทย ("QC + Packing ") ยังต้องหาคำแปลเจอ
-  const text = lang === 'my' ? MY[th] ?? MY[th.trim()] ?? th : th
-  return text.replace(/\{(\w+)\}/g, (_, key: string) => {
-    const v = vars?.[key]
-    if (v === undefined) return ''
-    if (Array.isArray(v)) return v.map(x => translate(lang, x.th, x.vars)).join(' · ')
-    return typeof v === 'object' ? translate(lang, v.th, v.vars) : String(v)
-  })
-}
-
-export const hasBurmese = (th: string) => th in MY || th.trim() in MY
 
 export function useT() {
   const lang = useLang()

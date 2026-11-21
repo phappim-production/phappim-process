@@ -2,7 +2,10 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
-import { corrections, eventLine, visitLines, type EventRow, type VisitRow } from '../data/history'
+import { corrections, eventWords, visitLines, type EventRow, type EventWords, type VisitRow } from '../data/history'
+import { Tr } from '../i18n/Tr'
+import { durationWord } from '../proto/format'
+import { useLang, useT, type Lang } from '../i18n/lang'
 import { STATION_NAME, type StationCode } from '../proto/model'
 import type { EmployeeRole } from '../auth/access'
 import { TONE } from '../components/tone'
@@ -21,7 +24,8 @@ type History = {
 }
 
 const SHOW = 30
-const when = (at: string) => new Date(at).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+// พม่าใช้ วัน/เดือน ตัวเลข ให้ตรงกับป้ายกำหนดส่งบนจอ
+const when = (at: string, lang: Lang = 'th') => new Date(at).toLocaleString(lang === 'my' ? 'en-GB' : 'th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: lang === 'my' ? 'numeric' : 'short', hour: '2-digit', minute: '2-digit' }).replace(',', '')
 
 async function load(jobId: string): Promise<History> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
@@ -67,12 +71,12 @@ export function JobHistory({ jobId, role, version, now, onChanged }: {
     return () => { alive = false }
   }, [jobId, version, reload])
 
-  if (state.status === 'loading') return <Box title="ประวัติงาน"><p role="status" className="text-muted">กำลังโหลดประวัติ…</p></Box>
+  if (state.status === 'loading') return <Box title="ประวัติงาน"><p role="status" className="text-muted"><Tr th="กำลังโหลดประวัติ…" /></p></Box>
   if (state.status === 'error') {
     return (
       <Box title="ประวัติงาน">
-        <p role="alert" className="text-danger">โหลดประวัติไม่สำเร็จ · {state.message}</p>
-        <button type="button" className={`${secondaryBtn} mt-2`} onClick={() => { setState({ status: 'loading' }); setReload(n => n + 1) }}>ลองอีกครั้ง</button>
+        <p role="alert" className="text-danger"><Tr th="โหลดประวัติไม่สำเร็จ · {reason}" vars={{ reason: { th: state.message } }} /></p>
+        <button type="button" className={`${secondaryBtn} mt-2`} onClick={() => { setState({ status: 'loading' }); setReload(n => n + 1) }}><Tr th="ลองอีกครั้ง" /></button>
       </Box>
     )
   }
@@ -81,12 +85,15 @@ export function JobHistory({ jobId, role, version, now, onChanged }: {
 
 function HistoryView({ data: h, role, now, jobId, onChanged }: { data: History; role: EmployeeRole; now: Date; jobId: string; onChanged: () => Promise<void> }) {
   const [all, setAll] = useState(false)
+  const t = useT()
+  const lang = useLang()
+  const at = (iso: string) => when(iso, lang)
   const stationName = (code: string) => STATION_NAME[code as StationCode] ?? h.stations.find(s => s.code === code)?.name ?? code
   const names = {
     station: stationName,
     step: (station: string, key: string) => h.stations.find(s => s.code === station)?.substeps.find(s => s.key === key)?.name ?? key,
   }
-  const who = (id: string | null) => (id ? h.names.get(id) ?? 'ไม่ทราบชื่อ' : 'ระบบ')
+  const who = (id: string | null) => (id ? h.names.get(id) ?? t('ไม่ทราบชื่อ') : t('ระบบ'))
   const fixed = corrections(h.events)
   const visits = visitLines(h.visits, names, now, h.events)
   const timeline = [...h.events].reverse()
@@ -102,12 +109,12 @@ function HistoryView({ data: h, role, now, jobId, onChanged }: { data: History; 
             {h.samples.map(s => (
               <li key={s.round} className="rounded-xl border border-line p-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold">รอบ {s.round}</span>
-                  <Pill tone={s.result === 'pass' ? 'ok' : 'danger'}>{s.result === 'pass' ? 'ผ่าน' : 'ไม่ผ่าน'}</Pill>
-                  <span className="ml-auto text-sm text-muted">{when(s.at)} · {who(s.by)}</span>
+                  <span className="font-semibold">{t('รอบ {n}', { n: s.round })}</span>
+                  <Pill tone={s.result === 'pass' ? 'ok' : 'danger'}>{t(s.result === 'pass' ? 'ผ่าน' : 'ไม่ผ่าน')}</Pill>
+                  <span className="ml-auto text-sm text-muted">{at(s.at)} · {who(s.by)}</span>
                 </div>
-                {s.note && <p className="mt-1 break-words">ต้องแก้: {s.note}</p>}
-                {s.customer_confirmed_at && <p className="text-sm text-muted">ลูกค้ายืนยันวันที่ {new Date(`${s.customer_confirmed_at}T12:00:00+07:00`).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' })}</p>}
+                {s.note && <p className="mt-1 break-words">{t('ต้องแก้: {note}', { note: s.note })}</p>}
+                {s.customer_confirmed_at && <p className="text-sm text-muted">{t('ลูกค้ายืนยันวันที่ {at}', { at: { at: new Date(`${s.customer_confirmed_at}T12:00:00+07:00`) } })}</p>}
               </li>
             ))}
           </ul>
@@ -119,12 +126,12 @@ function HistoryView({ data: h, role, now, jobId, onChanged }: { data: History; 
           <ul className="grid gap-2">
             {h.qc.map((q, i) => (
               <li key={i} className="flex flex-wrap items-center gap-2">
-                {q.passed > 0 && <Pill tone="ok">ผ่าน {q.passed.toLocaleString('th-TH')}</Pill>}
-                {q.failed > 0 && <Pill tone="danger">ส่งแก้ {q.failed.toLocaleString('th-TH')}</Pill>}
+                {q.passed > 0 && <Pill tone="ok">{t('ผ่าน {n}', { n: q.passed.toLocaleString('th-TH') })}</Pill>}
+                {q.failed > 0 && <Pill tone="danger">{t('ส่งแก้ {n}', { n: q.failed.toLocaleString('th-TH') })}</Pill>}
                 {q.failed > 0 && <span className="min-w-0 break-words">
-                  {q.source_station ? `ที่${stationName(q.source_station)}` : ''}{Array.isArray(q.reasons) && q.reasons.length ? ` · ${q.reasons.join(', ')}` : ''}
+                  {q.source_station ? t('ที่{station}', { station: { th: stationName(q.source_station) } }) : ''}{Array.isArray(q.reasons) && q.reasons.length ? ` · ${q.reasons.join(', ')}` : ''}
                 </span>}
-                <span className="ml-auto text-sm text-muted">{when(q.at)} · {who(q.by)}</span>
+                <span className="ml-auto text-sm text-muted">{at(q.at)} · {who(q.by)}</span>
               </li>
             ))}
           </ul>
@@ -136,12 +143,12 @@ function HistoryView({ data: h, role, now, jobId, onChanged }: { data: History; 
           <ul className="grid gap-2">
             {h.delays.map((d, i) => (
               <li key={i} className="rounded-xl border border-warn/40 p-3">
-                <p className="font-medium">{d.reasons.map(c => h.reasons.get(c) ?? c).join(' · ')}</p>
+                <p className="font-medium">{d.reasons.map(c => t(h.reasons.get(c) ?? c)).join(' · ')}</p>
                 <p className="break-words">{d.detail}</p>
                 <p className="text-sm text-muted">
-                  {d.station_code ? `${stationName(d.station_code)} · ` : ''}คาดว่าเสร็จ {when(d.new_eta)}{d.need_help ? ` · ต้องการความช่วยเหลือ: ${d.need_help}` : ''}
+                  {d.station_code ? `${t(stationName(d.station_code))} · ` : ''}{t('คาดว่าเสร็จ {at}', { at: at(d.new_eta) })}{d.need_help ? ` · ${t('ต้องการความช่วยเหลือ: {who}', { who: d.need_help })}` : ''}
                 </p>
-                <p className="text-sm text-muted">{when(d.at)} · {who(d.by)}</p>
+                <p className="text-sm text-muted">{at(d.at)} · {who(d.by)}</p>
               </li>
             ))}
           </ul>
@@ -153,27 +160,27 @@ function HistoryView({ data: h, role, now, jobId, onChanged }: { data: History; 
           <ul className="divide-y divide-line">
             {visits.map((v, i) => (
               <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-2">
-                <span className="min-w-0 flex-1 font-medium">{v.label}</span>
-                <span className={v.end ? 'tabular-nums' : 'font-semibold text-info tabular-nums'}>{v.span}</span>
-                <span className="w-full text-sm text-muted">เริ่ม {when(v.start.toISOString())}{v.end ? ` · เสร็จ ${when(v.end.toISOString())}` : ''}{v.paused ? ` · ไม่นับเวลาพัก ${v.paused}` : ''}</span>
+                <span className="min-w-0 flex-1 font-medium">{lang === 'my' ? t(stationName(v.station)) : v.label}</span>
+                <span className={v.end ? 'tabular-nums' : 'font-semibold text-info tabular-nums'}>{lang === 'my' ? t(v.end ? '{time}' : '{time} (ยังทำอยู่)', { time: durationWord(v.workedMs) }) : v.span}</span>
+                <span className="w-full text-sm text-muted">{[t('เริ่ม {at}', { at: at(v.start.toISOString()) }), v.end && t('เสร็จ {at}', { at: at(v.end.toISOString()) }), v.paused && t('ไม่นับเวลาพัก {time}', { time: lang === 'my' ? durationWord(v.pausedMs) : v.paused })].filter(Boolean).join(' · ')}</span>
               </li>
             ))}
           </ul>
         </Box>
       )}
 
-      <Box title={`ไทม์ไลน์ทุกการกด (${h.events.length})`}>
-        {h.events.length === 0 ? <p className="text-muted">ยังไม่มีการกดบันทึก</p> : (
+      <Box title="ไทม์ไลน์ทุกการกด ({n})" vars={{ n: h.events.length }}>
+        {h.events.length === 0 ? <p className="text-muted"><Tr th="ยังไม่มีการกดบันทึก" /></p> : (
           <ol className="grid gap-1">
             {shown.map(e => (
-              <TimelineItem key={e.id} e={e} line={eventLine(e, names, h.unit)} who={who(e.by)} fixedReason={fixed.get(e.id)}
+              <TimelineItem key={e.id} e={e} line={eventWords(e, names, h.unit)} at={at(e.at)} who={who(e.by)} fixedReason={fixed.get(e.id)}
                 canCorrect={canCorrect && e.type !== 'correction'} jobId={jobId} onChanged={onChanged} />
             ))}
           </ol>
         )}
         {timeline.length > SHOW && (
           <button type="button" className={`${secondaryBtn} mt-2 w-full`} onClick={() => setAll(a => !a)}>
-            {all ? 'ย่อ' : `ดูทั้งหมด ${timeline.length} รายการ`}
+            <Tr th={all ? 'ย่อ' : 'ดูทั้งหมด {n} รายการ'} vars={{ n: timeline.length }} />
           </button>
         )}
       </Box>
@@ -181,13 +188,14 @@ function HistoryView({ data: h, role, now, jobId, onChanged }: { data: History; 
   )
 }
 
-function TimelineItem({ e, line, who, fixedReason, canCorrect, jobId, onChanged }: {
-  e: EventRow; line: ReturnType<typeof eventLine>; who: string; fixedReason?: string
+function TimelineItem({ e, line, at, who, fixedReason, canCorrect, jobId, onChanged }: {
+  e: EventRow; line: EventWords; at: string; who: string; fixedReason?: string
   canCorrect: boolean; jobId: string; onChanged: () => Promise<void>
 }) {
   const [reason, setReason] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const t = useT()
 
   async function send() {
     if (!reason?.trim()) return
@@ -204,10 +212,10 @@ function TimelineItem({ e, line, who, fixedReason, canCorrect, jobId, onChanged 
     <li className="flex gap-3 rounded-xl px-1 py-1.5">
       <span className={`mt-2 size-2.5 shrink-0 rounded-full ${TONE[line.tone].dot}`} aria-hidden />
       <div className="min-w-0 flex-1">
-        <p className={`break-words text-base ${fixedReason !== undefined ? 'text-muted line-through' : 'font-medium'}`}>{line.title}</p>
-        {line.detail && <p className="break-words text-sm">{line.detail}</p>}
-        <p className="text-sm text-muted">{when(e.at)} · {who}</p>
-        {fixedReason !== undefined && <p className="text-sm font-medium text-warn">แจ้งว่ากดผิด: {fixedReason || 'ไม่ระบุเหตุผล'}</p>}
+        <p className={`break-words text-base ${fixedReason !== undefined ? 'text-muted line-through' : 'font-medium'}`}><Tr th={line.title.th} vars={line.title.vars} /></p>
+        {line.detail && <p className="break-words text-sm">{t(line.detail.th, line.detail.vars)}</p>}
+        <p className="text-sm text-muted">{at} · {who}</p>
+        {fixedReason !== undefined && <p className="text-sm font-medium text-warn">{t('แจ้งว่ากดผิด: {reason}', { reason: fixedReason || { th: 'ไม่ระบุเหตุผล' } })}</p>}
         {canCorrect && fixedReason === undefined && (reason === null
           ? <button type="button" className="min-h-12 text-sm font-medium text-muted underline" onClick={() => setReason('')}>แจ้งว่ากดผิด</button>
           : (
@@ -229,10 +237,10 @@ function TimelineItem({ e, line, who, fixedReason, canCorrect, jobId, onChanged 
   )
 }
 
-function Box({ title, children }: { title: string; children: ReactNode }) {
+function Box({ title, vars, children }: { title: string; vars?: Record<string, number>; children: ReactNode }) {
   return (
     <section className="rounded-2xl border border-line bg-card p-4 shadow-card">
-      <h3 className="mb-2 font-semibold">{title}</h3>
+      <h3 className="mb-2 font-semibold"><Tr inline th={title} vars={vars} /></h3>
       {children}
     </section>
   )

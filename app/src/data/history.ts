@@ -1,6 +1,7 @@
 // pure function ทั้งหมด จึงทดสอบได้โดยไม่ต้องต่อฐานข้อมูล
 import type { Tone } from '../components/tone.ts'
 import { spaced } from '../proto/format.ts'
+import { thai, word, type When, type Word } from '../i18n/word.ts'
 
 export type EventRow = {
   id: number
@@ -27,91 +28,132 @@ export type Names = {
 }
 
 export type EventLine = { title: string; detail?: string; tone: Tone }
+export type EventWords = { title: Word; detail?: Word; tone: Tone }
 
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '')
 const num = (v: unknown) => (typeof v === 'number' ? v.toLocaleString('th-TH') : str(v))
 const list = (v: unknown) => (Array.isArray(v) ? v.map(str).filter(Boolean).join(', ') : str(v))
-const thaiDate = (v: unknown) => {
+const date = (v: unknown): When | string => {
   const s = str(v)
   if (!s) return ''
-  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T12:00:00+07:00` : s)
-  if (Number.isNaN(d.getTime())) return s
-  const opts: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' }
-  if (s.length > 10) Object.assign(opts, { hour: '2-digit', minute: '2-digit' })
-  return d.toLocaleString('th-TH', opts)
+  const at = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T12:00:00+07:00` : s)
+  return Number.isNaN(at.getTime()) ? s : { at, time: s.length > 10 }
 }
 
-const stationNames = (v: unknown, n: Names) => (Array.isArray(v) ? v.map(x => n.station(str(x))).join(' → ') : '')
+const free = (text: string): Word | undefined => (text ? { th: text } : undefined)
+const joined = (...parts: (Word | false | '' | undefined)[]): Word | undefined => {
+  const kept = parts.filter((x): x is Word => !!x)
+  return kept.length ? { th: '{parts}', vars: { parts: kept } } : undefined
+}
+const stationPath = (v: unknown, n: Names): Word => {
+  const names: Word[] = Array.isArray(v) ? v.map(x => ({ th: n.station(str(x)) })) : []
+  return { th: names.map((_, i) => `{s${i}}`).join(' → '), vars: Object.fromEntries(names.map((x, i) => [`s${i}`, x])) }
+}
+
+export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLine {
+  const w = eventWords(e, n, unit)
+  return w.detail ? { title: thai(w.title), detail: thai(w.detail), tone: w.tone } : { title: thai(w.title), tone: w.tone }
+}
 
 // ชนิดที่ไม่รู้จักแสดงรหัสเดิม (ดีกว่าซ่อน)
-export function eventLine(e: EventRow, n: Names, unit = 'ชิ้น'): EventLine {
+export function eventWords(e: EventRow, n: Names, unit = 'ชิ้น'): EventWords {
   const p = e.payload ?? {}
-  const jobUnit = str(unit) || 'ชิ้น'
+  const u: Word = { th: str(unit) || 'ชิ้น' }
   const st = e.station_code ? n.station(e.station_code) : ''
-  const sample = e.phase === 'sample' ? ' (ตัวอย่าง)' : ''
-  const round = p.round !== undefined ? ` รอบ ${str(p.round)}` : ''
+  const sample: Word | string = e.phase === 'sample' ? { th: ' (ตัวอย่าง)' } : ''
+  const round: Word | string = p.round !== undefined ? { th: ' รอบ {n}', vars: { n: str(p.round) } } : ''
+  const at: Word | string = st ? { th: ' ที่{station}', vars: { station: { th: st } } } : ''
+  const reason = free(str(p.reason))
   switch (e.type) {
-    case 'received': {
-      const bits = [str(p.qty) && `${num(p.qty)} ${jobUnit}`, p.sample === false ? 'ไม่ขึ้นตัวอย่าง' : p.sample === true ? 'ขึ้นตัวอย่าง' : '', p.pdf === false ? 'ยังไม่มี PDF ที่ลูกค้าเซ็น' : ''].filter(Boolean)
-      return { title: 'รับงานเข้าโรงงาน', detail: bits.join(' · ') || undefined, tone: 'brand' }
-    }
-    case 'material_checked': return { title: `ติ๊กวัตถุดิบ: ${str(p.name)}`, tone: 'ok' }
-    case 'material_unchecked': return { title: `ยกเลิกติ๊กวัตถุดิบ: ${str(p.name)}`, tone: 'warn' }
+    case 'received':
+      return {
+        title: word('รับงานเข้าโรงงาน'), tone: 'brand',
+        detail: joined(!!str(p.qty) && word('{qty} {unit}', { qty: num(p.qty), unit: u }),
+          p.sample === false ? word('ไม่ขึ้นตัวอย่าง') : p.sample === true && word('ขึ้นตัวอย่าง'),
+          p.pdf === false && word('ยังไม่มี PDF ที่ลูกค้าเซ็น')),
+      }
+    case 'material_checked': return { title: word('ติ๊กวัตถุดิบ: {name}', { name: str(p.name) }), tone: 'ok' }
+    case 'material_unchecked': return { title: word('ยกเลิกติ๊กวัตถุดิบ: {name}', { name: str(p.name) }), tone: 'warn' }
     case 'released':
       return e.phase === 'production'
-        ? { title: 'เข้าผลิตจริงที่สถานีแรก', detail: 'งานนี้ไม่ขึ้นตัวอย่าง', tone: 'ok' }
-        : { title: `ไปขึ้นตัวอย่าง${round}`, tone: 'ok' }
-    case 'film_ordered': return { title: 'บันทึกสั่งฟิล์ม', detail: `คาดว่าได้รับ ${thaiDate(p.eta)}`, tone: 'neutral' }
-    case 'film_received': return { title: 'ได้รับฟิล์มแล้ว', tone: 'ok' }
+        ? { title: word('เข้าผลิตจริงที่สถานีแรก'), detail: word('งานนี้ไม่ขึ้นตัวอย่าง'), tone: 'ok' }
+        : { title: word('ไปขึ้นตัวอย่าง{round}', { round }), tone: 'ok' }
+    case 'film_ordered': return { title: word('บันทึกสั่งฟิล์ม'), detail: word('คาดว่าได้รับ {at}', { at: date(p.eta) }), tone: 'neutral' }
+    case 'film_received': return { title: word('ได้รับฟิล์มแล้ว'), tone: 'ok' }
     case 'station_start':
-      return { title: `เริ่ม${spaced(st).trimEnd()}${sample}`, detail: p.rework === true ? 'งานแก้' : undefined, tone: 'info' }
+      return { title: word('เริ่ม{station}{sample}', { station: { th: spaced(st).trimEnd() }, sample }), detail: p.rework === true ? word('งานแก้') : undefined, tone: 'info' }
     case 'substep_done': {
       const v = p.value
-      return { title: `ติ๊ก: ${e.station_code ? n.step(e.station_code, str(p.key)) : str(p.key)}`, detail: typeof v === 'number' ? `ค่า ${num(v)}` : undefined, tone: 'neutral' }
+      return {
+        title: word('ติ๊ก: {step}', { step: { th: e.station_code ? n.step(e.station_code, str(p.key)) : str(p.key) } }),
+        detail: typeof v === 'number' ? word('ค่า {n}', { n: num(v) }) : undefined, tone: 'neutral',
+      }
     }
-    case 'sew_count': return { title: `กรอกยอดเย็บ ${num(p.count)} จาก ${num(p.qty)}`, tone: 'neutral' }
+    case 'sew_count': return { title: word('กรอกยอดเย็บ {count} จาก {qty}', { count: num(p.count), qty: num(p.qty) }), tone: 'neutral' }
     case 'station_done':
-      return { title: `${spaced(st).trimStart()}เสร็จ${sample}`, detail: p.rework === true ? 'งานแก้' : undefined, tone: 'ok' }
-    case 'sample_sent': return { title: `ส่งตัวอย่างให้แอดมิน${round}`, tone: 'info' }
+      return { title: word('{station}เสร็จ{sample}', { station: { th: spaced(st).trimStart() }, sample }), detail: p.rework === true ? word('งานแก้') : undefined, tone: 'ok' }
+    case 'sample_sent': return { title: word('ส่งตัวอย่างให้แอดมิน{round}', { round }), tone: 'info' }
     case 'sample_result':
       return p.pass === true
-        ? { title: `ตัวอย่างผ่าน${round}`, tone: 'ok' }
-        : { title: `ตัวอย่างไม่ผ่าน${round}`, detail: str(p.note) ? `ต้องแก้: ${str(p.note)}` : undefined, tone: 'danger' }
-    case 'qc_result': return { title: `บันทึกผ่าน QC ${num(p.passed)} ${jobUnit}`, tone: 'ok' }
+        ? { title: word('ตัวอย่างผ่าน{round}', { round }), tone: 'ok' }
+        : { title: word('ตัวอย่างไม่ผ่าน{round}', { round }), detail: str(p.note) ? word('ต้องแก้: {note}', { note: str(p.note) }) : undefined, tone: 'danger' }
+    case 'qc_result': return { title: word('บันทึกผ่าน QC {qty} {unit}', { qty: num(p.passed), unit: u }), tone: 'ok' }
     case 'rework':
-      return { title: `QC ส่งกลับแก้ ${num(p.qty)} ${jobUnit}`, detail: [st && `ที่${st}`, str(p.reason) && `สาเหตุ: ${str(p.reason)}`].filter(Boolean).join(' · ') || undefined, tone: 'danger' }
-    case 'hold': return { title: `พักงาน${st ? ` ที่${st}` : ''}`, detail: str(p.reason) || undefined, tone: 'danger' }
-    case 'resume': return { title: 'แก้แล้ว ทำต่อ', detail: str(p.note) || undefined, tone: 'ok' }
+      return {
+        title: word('QC ส่งกลับแก้ {qty} {unit}', { qty: num(p.qty), unit: u }), tone: 'danger',
+        detail: joined(!!st && word('ที่{station}', { station: { th: st } }), !!reason && word('สาเหตุ: {reason}', { reason: str(p.reason) })),
+      }
+    case 'hold': return { title: word('พักงาน{at}', { at }), detail: reason, tone: 'danger' }
+    case 'resume': return { title: word('แก้แล้ว ทำต่อ'), detail: free(str(p.note)), tone: 'ok' }
     case 'delay_report':
-      return { title: 'ส่งรายงานปัญหา (เกินเวลามาตรฐาน)', detail: [list(p.reasons), str(p.new_eta) && `คาดว่าเสร็จ ${thaiDate(p.new_eta)}`].filter(Boolean).join(' · ') || undefined, tone: 'warn' }
-    case 'sewing_issue_reported': return { title: 'รายงานปัญหาที่สถานีเย็บ', detail: str(p.reason) || undefined, tone: 'warn' }
-    case 'machines_assigned': return { title: 'จ่ายจักร', detail: list(p.machines) || undefined, tone: 'neutral' }
+      return { title: word('ส่งรายงานปัญหา (เกินเวลามาตรฐาน)'), detail: joined(free(list(p.reasons)), !!str(p.new_eta) && word('คาดว่าเสร็จ {at}', { at: date(p.new_eta) })), tone: 'warn' }
+    case 'sewing_issue_reported': return { title: word('รายงานปัญหาที่สถานีเย็บ'), detail: reason, tone: 'warn' }
+    case 'machines_assigned': return { title: word('จ่ายจักร'), detail: free(list(p.machines)), tone: 'neutral' }
     // คืนเพราะจักรเสีย/ปิดใช้งาน ต้องเห็นสาเหตุและอาการ ไม่ใช่แค่รหัส
     case 'machines_released': {
       const why = str(p.reason) && `${str(p.reason)}${str(p.note) ? ` (${str(p.note)})` : ''}`
-      return { title: 'คืนจักร', detail: [list(p.machines), why].filter(Boolean).join(' · ') || undefined, tone: why ? 'warn' : 'neutral' }
+      return { title: word('คืนจักร'), detail: joined(free(list(p.machines)), free(why)), tone: why ? 'warn' : 'neutral' }
     }
     case 'machines_booked':
-      return { title: 'จองจักร', detail: [list(p.machines), str(p.starts_at) && `${thaiDate(p.starts_at)} – ${thaiDate(p.ends_at)}`].filter(Boolean).join(' · ') || undefined, tone: 'neutral' }
-    case 'booking_cancelled': return { title: 'ยกเลิกการจองจักร', tone: 'neutral' }
-    case 'job_cancelled': return { title: `ยกเลิกงาน${st ? ` (อยู่ที่${st})` : ''}`, detail: str(p.reason) || undefined, tone: 'danger' }
-    case 'outsource_sent': return { title: `ส่งออก ${str(p.vendor)}`, detail: [list(p.stations) && `ทำ ${stationNames(p.stations, n)}`, str(p.arrive_at) && `ถึงบริษัท ${thaiDate(p.arrive_at)}`, p.lead_days != null && `ใช้ ${num(p.lead_days)} วัน`, str(p.back_at) && `คาดว่าของกลับ ${thaiDate(p.back_at)}`, str(p.note)].filter(Boolean).join(' · ') || undefined, tone: 'info' }
-    case 'outsource_forwarded': return { title: `ส่งต่อจาก ${str(p.from_vendor)} ไป ${str(p.vendor)}`, detail: [list(p.stations) && `ทำ ${stationNames(p.stations, n)}`, str(p.arrive_at) && `ถึงบริษัท ${thaiDate(p.arrive_at)}`, p.lead_days != null && `ใช้ ${num(p.lead_days)} วัน`, str(p.back_at) && `คาดว่าเสร็จ ${thaiDate(p.back_at)}`].filter(Boolean).join(' · ') || undefined, tone: 'info' }
-    case 'outsource_received': return { title: `รับของกลับจาก ${str(p.vendor)}`, detail: [list(p.done_stations) && `ทำแล้ว ${stationNames(p.done_stations, n)}`, p.late === true && 'ช้ากว่ากำหนด', str(p.note)].filter(Boolean).join(' · ') || undefined, tone: p.late === true ? 'warn' : 'ok' }
-    case 'outsource_plan': return { title: 'แก้กำหนดงานข้างนอก', detail: [str(p.back_at) && `คาดว่าของถึง ${thaiDate(p.back_at)}`, str(p.old_back_at) && `(เดิม ${thaiDate(p.old_back_at)})`].filter(Boolean).join(' ') || undefined, tone: 'warn' }
-    case 'job_split': return { title: `แบ่งงาน ${num(p.qty)} ชิ้นเป็น ${str(p.child)}`, detail: `งานนี้เหลือ ${num(p.left)} ชิ้น`, tone: 'neutral' }
-    case 'job_split_from': return { title: `แบ่งมาจาก ${str(p.parent)}`, detail: `${num(p.qty)} ชิ้น`, tone: 'neutral' }
-    case 'queue_insert': return { title: `แทรกคิวงานด่วน (ก่อน ${str(p.before)})`, detail: str(p.reason) || undefined, tone: 'warn' }
-    case 'queue_skip': return { title: `เริ่มก่อนคิว${st ? ` ที่${st}` : ''}`, detail: [str(p.reason), list(p.ahead) && `ข้ามคิว ${list(p.ahead)}`].filter(Boolean).join(' · ') || undefined, tone: 'warn' }
-    case 'correction': return { title: 'แจ้งว่ารายการก่อนหน้ากดผิด', detail: str(p.reason) || undefined, tone: 'warn' }
-    case 'confirmation_pdf': return { title: p.replaced ? 'เปลี่ยน PDF ใบยืนยัน' : 'แนบ PDF ใบยืนยันที่ลูกค้าเซ็น', tone: 'ok' }
-    case 'mockup': return { title: p.replaced ? 'เปลี่ยนรูปม็อคอัพ' : 'เพิ่มรูปม็อคอัพ', tone: 'ok' }
-    case 'mockup_approved': return { title: `อนุมัติม็อคอัพกำกับสเปก ฉบับ ${num(p.rev)}`, detail: [p.replaced_rev != null && `แทนฉบับ ${num(p.replaced_rev)}`, str(p.note)].filter(Boolean).join(' · ') || undefined, tone: 'ok' }
-    case 'mockup_revision': return { title: `เริ่มแก้ม็อคอัพ ฉบับ ${num(p.rev)}`, detail: str(p.reason) || undefined, tone: 'warn' }
-    case 'done': return { title: 'งานเสร็จ · พร้อมส่ง', tone: 'ok' }
-    case 'delivered': return { title: 'จัดส่งให้ลูกค้าแล้ว', detail: str(p.note) || undefined, tone: 'ok' }
-    case 'delivery_undone': return { title: 'ยกเลิกการบันทึกจัดส่ง', detail: str(p.reason) || undefined, tone: 'warn' }
-    default: return { title: e.type, tone: 'neutral' }
+      return { title: word('จองจักร'), detail: joined(free(list(p.machines)), !!str(p.starts_at) && word('{from} – {to}', { from: date(p.starts_at), to: date(p.ends_at) })), tone: 'neutral' }
+    case 'booking_cancelled': return { title: word('ยกเลิกการจองจักร'), tone: 'neutral' }
+    case 'job_cancelled': return { title: st ? word('ยกเลิกงาน (อยู่ที่{station})', { station: { th: st } }) : word('ยกเลิกงาน'), detail: reason, tone: 'danger' }
+    case 'outsource_sent':
+      return {
+        title: word('ส่งออก {vendor}', { vendor: str(p.vendor) }), tone: 'info',
+        detail: joined(!!list(p.stations) && word('ทำ {stations}', { stations: stationPath(p.stations, n) }), !!str(p.arrive_at) && word('ถึงบริษัท {at}', { at: date(p.arrive_at) }),
+          p.lead_days != null && word('ใช้ {n} วัน', { n: num(p.lead_days) }), !!str(p.back_at) && word('คาดว่าของกลับ {at}', { at: date(p.back_at) }), free(str(p.note))),
+      }
+    case 'outsource_forwarded':
+      return {
+        title: word('ส่งต่อจาก {from} ไป {vendor}', { from: str(p.from_vendor), vendor: str(p.vendor) }), tone: 'info',
+        detail: joined(!!list(p.stations) && word('ทำ {stations}', { stations: stationPath(p.stations, n) }), !!str(p.arrive_at) && word('ถึงบริษัท {at}', { at: date(p.arrive_at) }),
+          p.lead_days != null && word('ใช้ {n} วัน', { n: num(p.lead_days) }), !!str(p.back_at) && word('คาดว่าเสร็จ {at}', { at: date(p.back_at) })),
+      }
+    case 'outsource_received':
+      return {
+        title: word('รับของกลับจาก {vendor}', { vendor: str(p.vendor) }), tone: p.late === true ? 'warn' : 'ok',
+        detail: joined(!!list(p.done_stations) && word('ทำแล้ว {stations}', { stations: stationPath(p.done_stations, n) }), p.late === true && word('ช้ากว่ากำหนด'), free(str(p.note))),
+      }
+    case 'outsource_plan': {
+      const back = str(p.back_at) ? word('คาดว่าของถึง {at}', { at: date(p.back_at) }) : undefined
+      const old = str(p.old_back_at) ? word('(เดิม {at})', { at: date(p.old_back_at) }) : undefined
+      return { title: word('แก้กำหนดงานข้างนอก'), detail: back && old ? { th: '{a} {b}', vars: { a: back, b: old } } : back ?? old, tone: 'warn' }
+    }
+    case 'job_split': return { title: word('แบ่งงาน {qty} ชิ้นเป็น {child}', { qty: num(p.qty), child: str(p.child) }), detail: word('งานนี้เหลือ {n} ชิ้น', { n: num(p.left) }), tone: 'neutral' }
+    case 'job_split_from': return { title: word('แบ่งมาจาก {parent}', { parent: str(p.parent) }), detail: word('{n} ชิ้น', { n: num(p.qty) }), tone: 'neutral' }
+    case 'queue_insert': return { title: word('แทรกคิวงานด่วน (ก่อน {no})', { no: str(p.before) }), detail: reason, tone: 'warn' }
+    case 'queue_skip': return { title: word('เริ่มก่อนคิว{at}', { at }), detail: joined(reason, !!list(p.ahead) && word('ข้ามคิว {jobs}', { jobs: list(p.ahead) })), tone: 'warn' }
+    case 'correction': return { title: word('แจ้งว่ารายการก่อนหน้ากดผิด'), detail: reason, tone: 'warn' }
+    case 'confirmation_pdf': return { title: p.replaced ? word('เปลี่ยน PDF ใบยืนยัน') : word('แนบ PDF ใบยืนยันที่ลูกค้าเซ็น'), tone: 'ok' }
+    case 'mockup': return { title: p.replaced ? word('เปลี่ยนรูปม็อคอัพ') : word('เพิ่มรูปม็อคอัพ'), tone: 'ok' }
+    case 'mockup_approved':
+      return { title: word('อนุมัติม็อคอัพกำกับสเปก ฉบับ {rev}', { rev: num(p.rev) }), detail: joined(p.replaced_rev != null && word('แทนฉบับ {rev}', { rev: num(p.replaced_rev) }), free(str(p.note))), tone: 'ok' }
+    case 'mockup_revision': return { title: word('เริ่มแก้ม็อคอัพ ฉบับ {rev}', { rev: num(p.rev) }), detail: reason, tone: 'warn' }
+    case 'done': return { title: word('งานเสร็จ · พร้อมส่ง'), tone: 'ok' }
+    case 'delivered': return { title: word('จัดส่งให้ลูกค้าแล้ว'), detail: free(str(p.note)), tone: 'ok' }
+    case 'delivery_undone': return { title: word('ยกเลิกการบันทึกจัดส่ง'), detail: reason, tone: 'warn' }
+    default: return { title: { th: e.type }, tone: 'neutral' }
   }
 }
 
@@ -136,7 +178,7 @@ export function spanText(ms: number): string {
   return `${fmt(h / 24, 1)} วัน`
 }
 
-export type VisitLine = { station: string; label: string; start: Date; end: Date | null; span: string; paused: string | null }
+export type VisitLine = { station: string; label: string; start: Date; end: Date | null; span: string; paused: string | null; workedMs: number; pausedMs: number }
 
 // ยังไม่ทำต่อ = พักถึงตอนนี้
 export function pauseRanges(events: Pick<EventRow, 'type' | 'at'>[], now: Date): { from: number; to: number }[] {
@@ -168,6 +210,7 @@ export function visitLines(rows: VisitRow[], n: Pick<Names, 'station'>, now: Dat
         start, end,
         span: `${spanText(to - start.getTime() - pausedMs)}${end ? '' : ' (ยังทำอยู่)'}`,
         paused: pausedMs >= 60_000 ? spanText(pausedMs) : null,
+        workedMs: to - start.getTime() - pausedMs, pausedMs,
       }
     })
 }

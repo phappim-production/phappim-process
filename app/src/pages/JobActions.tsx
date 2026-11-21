@@ -7,16 +7,18 @@ import { confirmationPath, pdfProblem } from '../data/confirmation'
 import { contentKey, mockupProblem, shrinkImage, uploadMockup } from '../data/mockups'
 import { signFiles, uploadFile } from '../data/files'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
-import { DEPT_NAME, OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job, type StationCode, type Vendor } from '../proto/model'
+import { DEPT_NAME, OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, stationNo, usesFilm, type Dept, type Job, type StationCode, type Vendor } from '../proto/model'
 import { OutsourcePanel } from './OutsourcePanel'
 import { FilePick } from '../components/FilePick'
-import { relDay, slaAmount, spaced, wholeCount } from '../proto/format'
+import { relDayWord, slaAmountWord, spaced, wholeCount } from '../proto/format'
 import { newRequestId } from '../data/requestId'
 import { bookingDay } from '../proto/sewing'
 import { canCancelJob, canCloseIssue, type EmployeeRole } from '../auth/access'
 import { Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
-import { IconAlert, IconCheck, IconClock, IconFilm, IconPackage, IconPause } from '../components/icons'
+import { IconAlert, IconCheck, IconClock, IconFilm, IconPackage, IconPause, IconPlay } from '../components/icons'
+import { Tr } from '../i18n/Tr'
+import { useT, type Word } from '../i18n/lang'
 
 type Material = { id: number; name: string; dept: Dept; key: string | null; checked_at: string | null }
 type Reason = { code: string; grp: string; name: string }
@@ -28,7 +30,7 @@ type Detail = {
   qcPassed: number; sla: Sla; filmOrdered: boolean; pdfPath: string | null
   materials: Material[]; steps: Substep[]; done: Map<string, unknown>; reasons: Reason[]
 }
-type Notice = { ok: boolean; text: string } | null
+type Notice = { ok: boolean; text: Word } | null
 
 async function loadDetail(job: Job): Promise<Detail> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
@@ -72,20 +74,20 @@ export function JobActions({ job: j, role, myStations = [], version, now, refres
   }, [shape, version, j])
 
   // ฟังก์ชันส่วนใหญ่รับ p_job · check_material รับ id ของรายการวัตถุดิบแทน
-  async function act(name: string, args: Record<string, unknown>, ok: string, withJob = true) {
+  async function act(name: string, args: Record<string, unknown>, ok: Word | string, withJob = true) {
     setBusy(true)
     setNotice(null)
     const r = await rpc(name, withJob ? { p_job: j.id, ...args } : args)
     if (r.ok) await refresh()
     setBusy(false)
-    setNotice(r.ok ? { ok: true, text: ok } : { ok: false, text: r.reason })
+    setNotice(r.ok ? { ok: true, text: typeof ok === 'string' ? { th: ok } : ok } : { ok: false, text: { th: r.reason } })
     return r.ok
   }
 
   const current = detail?.shape === shape ? detail : null
   const d = current?.data
-  if (current?.error && !d) return <Section title="สิ่งที่ต้องทำ"><p role="alert" className="text-danger">{current.error}</p></Section>
-  if (!d) return <Section title="สิ่งที่ต้องทำ"><p role="status" className="text-muted">กำลังโหลด…</p></Section>
+  if (current?.error && !d) return <Section title="สิ่งที่ต้องทำ"><p role="alert" className="text-danger"><Tr th={current.error} /></p></Section>
+  if (!d) return <Section title="สิ่งที่ต้องทำ"><p role="status" className="text-muted"><Tr th="กำลังโหลด…" /></p></Section>
 
   const owner = role === 'owner'
   const floor = role === 'production' || role === 'supervisor' || owner
@@ -99,10 +101,10 @@ export function JobActions({ job: j, role, myStations = [], version, now, refres
     <div className="grid gap-4 text-base">
       {d.pdfPath ? <OpenPdf path={d.pdfPath} />
         : admin ? <AttachPdf job={j} refresh={refresh} />
-        : <p className="text-muted">ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น (แอดมินแนบทีหลัง)</p>}
+        : <p className="text-muted"><Tr th="ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น (แอดมินแนบทีหลัง)" /></p>}
       {admin && <SetMockup job={j} refresh={refresh} />}
       {notice && (
-        <p role={notice.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>{notice.text}</p>
+        <p role={notice.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}><Tr th={notice.text.th} vars={notice.text.vars} /></p>
       )}
       <OutsourcePanel job={j} vendors={vendors} admin={admin} now={now} refresh={refresh} />
       {j.phase === 'done' && <Delivery job={j} admin={admin} busy={busy} now={now} act={act} />}
@@ -120,7 +122,7 @@ export function JobActions({ job: j, role, myStations = [], version, now, refres
       )}
       {inStation && st === 'sew' && (<>
         {(d.sla.station_over || d.sla.segment_over || d.sla.station_warn || d.sla.segment_warn) && <SlaBanner sla={d.sla} />}
-        <Section title="เย็บงาน"><p className="text-muted">เริ่มเย็บ จัดการจักร และเย็บเสร็จ กดที่แท็บ <b>จักรเย็บ</b> · เกินเวลามาตรฐานให้ส่งรายงานปัญหาด้านล่างก่อนกดเย็บเสร็จ</p></Section>
+        <Section title="เย็บงาน"><p className="text-muted"><Tr th="เริ่มเย็บ จัดการจักร และเย็บเสร็จ กดที่แท็บ จักรเย็บ · เกินเวลามาตรฐานให้ส่งรายงานปัญหาด้านล่างก่อนกดเย็บเสร็จ" /></p></Section>
         {j.phase === 'production' && canStation && <SlaReport sla={d.sla} reasons={d.reasons} busy={busy} now={now} act={act} />}
       </>)}
       {inStation && st !== 'sew' && (
@@ -221,22 +223,23 @@ function OpenPdf({ path }: { path: string }) {
   }
   return (
     <div className="grid gap-1">
-      <button type="button" className={secondaryBtn} onClick={() => void open()}>เปิด PDF ใบยืนยัน</button>
+      <button type="button" className={secondaryBtn} onClick={() => void open()}><Tr th="เปิด PDF ใบยืนยัน" /></button>
       {link && (
         <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-medium text-brand underline">
-          ถ้าไฟล์ไม่เปิดขึ้นมา กดที่นี่ (ลิงก์ใช้ได้ 5 นาที)
+          <Tr th="ถ้าไฟล์ไม่เปิดขึ้นมา กดที่นี่ (ลิงก์ใช้ได้ 5 นาที)" />
         </a>
       )}
-      {error && <p role="alert" className="text-danger">{error}</p>}
+      {error && <p role="alert" className="text-danger"><Tr th={error} /></p>}
     </div>
   )
 }
 
-function Section({ title, icon, children, tone, id }: { title: string; icon?: ReactNode; children: ReactNode; tone?: 'danger' | 'warn'; id?: string }) {
+function Section({ title, icon, children, tone, id }: { title: string | Word; icon?: ReactNode; children: ReactNode; tone?: 'danger' | 'warn'; id?: string }) {
+  const head = typeof title === 'string' ? { th: title } : title
   const border = tone === 'danger' ? 'border-danger/40' : tone === 'warn' ? 'border-warn/40' : 'border-line'
   return (
     <section id={id} className={`scroll-mt-52 rounded-2xl border bg-card p-4 shadow-card ${border}`}>
-      <h3 className="mb-3 flex items-center gap-2 font-semibold">{icon}{title}</h3>
+      <h3 className="mb-3 flex items-center gap-2 font-semibold">{icon}<span><Tr inline th={head.th} vars={head.vars} /></span></h3>
       {children}
     </section>
   )
@@ -281,11 +284,13 @@ function Film({ job: j, ordered, admin, busy, now, onOrder, onReceive }: {
   const [eta, setEta] = useState(j.film ? bookingDay(j.film.eta) : '')
   const late = j.film && bookingDay(j.film.eta) < bookingDay(now)
   const label = filmLabel(j.route)
+  const t = useT()
   return (
     <Section title={label} icon={<IconFilm className="size-5" />} tone={late ? 'danger' : 'warn'}>
       <p className={late ? 'font-medium text-danger' : 'text-muted'}>
-        {!ordered ? `ยังไม่ได้สั่ง${label}` : `สั่งแล้ว · คาดว่าได้รับ ${j.film ? j.film.eta.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : '-'}${late ? ' (เลยกำหนดแล้ว)' : ''}`}
-        {' · '}สถานีรีดฟิล์มเริ่มไม่ได้จนกว่าจะได้รับ{label}
+        {!ordered ? t('ยังไม่ได้สั่ง{film}', { film: { th: label } })
+          : t(late ? 'สั่งแล้ว · คาดว่าได้รับ {at} (เลยกำหนดแล้ว)' : 'สั่งแล้ว · คาดว่าได้รับ {at}', { at: j.film ? { at: j.film.eta } : '-' })}
+        {' · '}{t('สถานีรีดฟิล์มเริ่มไม่ได้จนกว่าจะได้รับ{film}', { film: { th: label } })}
       </p>
       {admin ? (
         <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
@@ -301,7 +306,7 @@ function Film({ job: j, ordered, admin, busy, now, onOrder, onReceive }: {
             </button>
           )}
         </div>
-      ) : <p className="mt-2 text-sm text-muted">แอดมินเป็นคนบันทึกสั่งและรับ{label}</p>}
+      ) : <p className="mt-2 text-sm text-muted">{t('แอดมินเป็นคนบันทึกสั่งและรับ{film}', { film: { th: label } })}</p>}
     </Section>
   )
 }
@@ -311,10 +316,10 @@ function Delivery({ job: j, admin, busy, now, act }: { job: Job; admin: boolean;
   const [reason, setReason] = useState('')
   const [confirm, setConfirm] = useState<'send' | 'undo' | null>(null)
   if (j.delivered) {
-    const at = `${relDay(j.delivered.at, now)} ${j.delivered.at.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })} น.`
+    const time = j.delivered.at.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })
     return (
       <Section title="จัดส่งให้ลูกค้าแล้ว" icon={<IconPackage className="size-5" />}>
-        <p className="font-medium text-ok">จัดส่งแล้ว {at}{j.delivered.note && ` · ${j.delivered.note}`}</p>
+        <p className="font-medium text-ok"><Tr th="จัดส่งแล้ว {day} {time} น." vars={{ day: relDayWord(j.delivered.at, now), time }} />{j.delivered.note && ` · ${j.delivered.note}`}</p>
         {admin && (confirm === 'undo' ? (
           <div className="mt-3 grid gap-2">
             <label className="grid gap-1 font-medium">เหตุผลที่ยกเลิก
@@ -329,7 +334,7 @@ function Delivery({ job: j, admin, busy, now, act }: { job: Job; admin: boolean;
       </Section>
     )
   }
-  if (!admin) return <Section title="รอจัดส่ง" icon={<IconPackage className="size-5" />}><p className="text-muted">งานเสร็จแล้ว · แอดมินเป็นคนบันทึกเมื่อส่งให้ลูกค้า</p></Section>
+  if (!admin) return <Section title="รอจัดส่ง" icon={<IconPackage className="size-5" />}><p className="text-muted"><Tr th="งานเสร็จแล้ว · แอดมินเป็นคนบันทึกเมื่อส่งให้ลูกค้า" /></p></Section>
   return (
     <Section title="จัดส่งให้ลูกค้า" icon={<IconPackage className="size-5" />} tone="warn">
       <div className="grid gap-3">
@@ -388,7 +393,7 @@ function SampleResult({ job: j, admin, busy, onSave }: {
   const [note, setNote] = useState('')
   const [day, setDay] = useState('')
   const [confirm, setConfirm] = useState<boolean | null>(null)
-  if (!admin) return <Section title={`รอผลตัวอย่าง (รอบ ${j.sampleRound})`}><p className="text-muted">แอดมินบันทึกผลหลังลูกค้ายืนยัน</p></Section>
+  if (!admin) return <Section title={{ th: 'รอผลตัวอย่าง (รอบ {n})', vars: { n: j.sampleRound } }}><p className="text-muted"><Tr th="แอดมินบันทึกผลหลังลูกค้ายืนยัน" /></p></Section>
   return (
     <Section title={`บันทึกผลตัวอย่าง (รอบ ${j.sampleRound})`}>
       <div className="grid gap-3">
@@ -415,25 +420,26 @@ function SampleResult({ job: j, admin, busy, onSave }: {
 }
 
 function Confirm({ text, busy, danger, yesLabel = 'ยืนยัน', noLabel = 'ยกเลิก', onYes, onNo }: {
-  text: string; busy: boolean; danger?: boolean; yesLabel?: string; noLabel?: string; onYes: () => void; onNo: () => void
+  text: string | Word; busy: boolean; danger?: boolean; yesLabel?: string; noLabel?: string; onYes: () => void; onNo: () => void
 }) {
   return (
     <div className="grid gap-2 rounded-xl bg-paper p-3">
-      <p className="font-semibold">{text}</p>
+      <p className="font-semibold">{typeof text === 'string' ? <Tr th={text} /> : <Tr th={text.th} vars={text.vars} />}</p>
       <div className="grid gap-2 sm:grid-cols-2">
-        <button type="button" disabled={busy} className={danger ? dangerBtn : okBtn} onClick={onYes}>{busy ? 'กำลังบันทึก…' : yesLabel}</button>
-        <button type="button" disabled={busy} className={secondaryBtn} onClick={onNo}>{noLabel}</button>
+        <button type="button" disabled={busy} className={danger ? dangerBtn : okBtn} onClick={onYes}>{busy ? <Tr th="กำลังบันทึก…" /> : <Tr th={yesLabel} />}</button>
+        <button type="button" disabled={busy} className={secondaryBtn} onClick={onNo}><Tr th={noLabel} /></button>
       </div>
     </div>
   )
 }
 
-type Act = (name: string, args: Record<string, unknown>, ok: string) => Promise<boolean>
+type Act = (name: string, args: Record<string, unknown>, ok: Word | string) => Promise<boolean>
 
 function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act }: {
   job: Job; detail: Detail; canPress: boolean; canResume: boolean; role: EmployeeRole; busy: boolean; now: Date; act: Act
 }) {
   const st = j.station!
+  const t = useT()
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [holdText, setHoldText] = useState<string | null>(null)
   const ctx = {
@@ -444,67 +450,75 @@ function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act 
   const s = d.sla
   const needReport = (s.station_over && !s.station_reported) || (s.segment_over && !s.segment_reported)
   const name = STATION_NAME[st]
+  const before: Word = { th: spaced(name).trimEnd() }
+  const after: Word = { th: spaced(name).trimStart() }
+  const film: Word = { th: filmLabel(j.route) }
   // ข้อความเดียวกับฐานข้อมูล (finish_station) · บอกสิ่งที่ต้องทำจริง ไม่ใช่ชื่อขั้นย่อย
-  const missingText = (m: Substep) => m.kind === 'lock' ? `รอแอดมินบันทึก "${m.name}"`
-    : m.key === 'inspect' ? `QC ตรวจผ่าน ${d.qcPassed}/${j.qty} ชิ้น ยังไม่ครบ (ชิ้นไม่ผ่านให้กด "ส่งแก้")` : m.name
-  const finishBlock = missing.length ? `ยังกดเสร็จไม่ได้: ${missing.map(missingText).join(' · ')}` : needReport ? 'เกินเวลามาตรฐาน ต้องส่งรายงานปัญหาก่อน' : null
+  const missingText = (m: Substep): Word => m.kind === 'lock' ? { th: 'รอแอดมินบันทึก "{step}"', vars: { step: { th: m.name } } }
+    : m.key === 'inspect' ? { th: 'QC ตรวจผ่าน {passed}/{qty} ชิ้น ยังไม่ครบ (ชิ้นไม่ผ่านให้กด "ส่งแก้")', vars: { passed: d.qcPassed, qty: j.qty } } : { th: m.name }
+  const finishBlock: Word | null = missing.length ? { th: 'ยังกดเสร็จไม่ได้: {list}', vars: { list: missing.map(missingText) } }
+    : needReport ? { th: 'เกินเวลามาตรฐาน ต้องส่งรายงานปัญหาก่อน' } : null
   const sample = j.phase === 'sample'
+  const noFilm = st === 'dtf_press' && !j.film?.received
+  const no = stationNo(st)
 
   return (
     <>
       {(s.station_over || s.segment_over || s.station_warn || s.segment_warn) && (
         <SlaBanner sla={s} />
       )}
-      <Section title={`${sample ? 'ขึ้นตัวอย่าง · ' : ''}${name}${j.rework ? ' · งานแก้' : ''}`}>
-        {!canPress && !(canResume && j.status === 'hold') && <p className="mb-3 text-sm text-muted">{role === 'qc' ? 'ฝ่าย QC กดได้เฉพาะสถานี QC + Packing' : role === 'staff' ? 'งานนี้ไม่ได้อยู่สถานีของคุณ กดได้เฉพาะสถานีที่จับคู่ไว้' : 'บทบาทนี้ดูได้อย่างเดียว'}</p>}
+      <Section title={{ th: '{sample}{station}{rework}', vars: { sample: sample ? { th: 'ขึ้นตัวอย่าง · ' } : '', station: { th: name }, rework: j.rework ? { th: ' · งานแก้' } : '' } }}>
+        {!canPress && !(canResume && j.status === 'hold') && <p className="mb-3 text-sm text-muted">{t(role === 'qc' ? 'ฝ่าย QC กดได้เฉพาะสถานี QC + Packing' : role === 'staff' ? 'งานนี้ไม่ได้อยู่สถานีของคุณ กดได้เฉพาะสถานีที่จับคู่ไว้' : 'บทบาทนี้ดูได้อย่างเดียว')}</p>}
 
-        {j.status === 'queued' && canPress && st === 'outside' && <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">{OUTSIDE_START_BLOCK}</p>}
+        {j.status === 'queued' && canPress && st === 'outside' && <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn"><Tr th={OUTSIDE_START_BLOCK} /></p>}
         {j.status === 'queued' && canPress && st !== 'outside' && (
-          <button type="button" disabled={busy || (st === 'dtf_press' && !j.film?.received)} className={`${primaryBtn} w-full`}
-            title={st === 'dtf_press' && !j.film?.received ? `ยังไม่ได้รับ${filmLabel(j.route)}` : undefined}
-            onClick={() => void act('start_station', {}, `เริ่ม${spaced(name)}แล้ว`)}>
-            {st === 'dtf_press' && !j.film?.received ? `เริ่มไม่ได้ · ยังไม่ได้รับ${filmLabel(j.route)}` : `เริ่ม${spaced(name).trimEnd()}`}
+          <button type="button" disabled={busy || noFilm} className={`${primaryBtn} w-full`}
+            title={noFilm ? t('ยังไม่ได้รับ{film}', { film }) : undefined}
+            onClick={() => void act('start_station', {}, { th: 'เริ่ม{station}แล้ว', vars: { station: before } })}>
+            {!noFilm && <IconPlay className="size-5 shrink-0" />}
+            {noFilm ? <Tr th="เริ่มไม่ได้ · ยังไม่ได้รับ{film} (แอดมินบันทึกเมื่อได้รับ)" vars={{ film }} />
+              : <Tr th={no ? '{no}. เริ่ม{station}' : 'เริ่ม{station}'} vars={{ no: no ?? '', station: before }} />}
           </button>
         )}
 
         {j.status === 'hold' && (
           <div className="grid gap-2">
-            <p className="font-medium text-danger">พักงาน · {j.holdReason}</p>
+            <p className="font-medium text-danger"><Tr th="พักงาน" /> · {j.holdReason}</p>
             {canResume
-              ? <button type="button" disabled={busy} className={primaryBtn} onClick={() => void act('close_issue', { p_note: null }, 'แก้แล้ว · กลับมาทำต่อได้')}>แก้แล้ว ทำต่อ</button>
-              : <p className="text-muted">รอผู้บริหารหรือฝ่ายผลิตกด "แก้แล้ว ทำต่อ"</p>}
+              ? <button type="button" disabled={busy} className={primaryBtn} onClick={() => void act('close_issue', { p_note: null }, 'แก้แล้ว · กลับมาทำต่อได้')}><IconPlay className="size-5 shrink-0" /><Tr th="แก้แล้ว ทำต่อ" /></button>
+              : <p className="text-muted"><Tr th={'รอผู้บริหารหรือฝ่ายผลิตกด "แก้แล้ว ทำต่อ"'} /></p>}
           </div>
         )}
 
         {j.status === 'doing' && (
           <div className="grid gap-3">
             {/* ไม่มีเช็คลิสต์ขั้นย่อย: คนหน้างานรู้ขั้นตอนเอง */}
-            {j.rework && st !== 'qc_pack' && <p className="text-muted">งานแก้ · แก้เสร็จกดเสร็จ งานกลับไป QC</p>}
+            {j.rework && st !== 'qc_pack' && <p className="text-muted"><Tr th="งานแก้ · แก้เสร็จกดเสร็จ งานกลับไป QC" /></p>}
             {st === 'qc_pack' && !sample && canPress && <QcPanel job={j} passed={d.qcPassed} busy={busy} act={act} />}
             {canPress && (confirmFinish
-              ? <Confirm text={`ยืนยัน${spaced(name)}เสร็จทั้งก้อน? งานจะส่งต่ออัตโนมัติ`} busy={busy}
-                  onYes={async () => { if (await act('finish_station', { p_station: st }, `${spaced(name).trimStart()}เสร็จ · ส่งต่อแล้ว`)) setConfirmFinish(false) }} onNo={() => setConfirmFinish(false)} />
+              ? <Confirm text={{ th: 'ยืนยัน{station}เสร็จทั้งก้อน? งานจะส่งต่ออัตโนมัติ', vars: { station: { th: spaced(name) } } }} busy={busy}
+                  onYes={async () => { if (await act('finish_station', { p_station: st }, { th: '{station}เสร็จ · ส่งต่อแล้ว', vars: { station: after } })) setConfirmFinish(false) }} onNo={() => setConfirmFinish(false)} />
               : <button type="button" disabled={busy || !!finishBlock} className={okBtn} onClick={() => setConfirmFinish(true)}>
-                  <IconCheck className="size-5" />{finishBlock ? 'ยังกดเสร็จไม่ได้' : `${spaced(name).trimStart()}เสร็จ`}
+                  <IconCheck className="size-5 shrink-0" />{finishBlock ? <Tr th="ยังกดเสร็จไม่ได้" /> : <Tr th="{station}เสร็จ" vars={{ station: after }} />}
                 </button>)}
-            {canPress && finishBlock && <p className="text-sm font-medium text-warn">{finishBlock}</p>}
+            {canPress && finishBlock && <p className="text-sm font-medium text-warn"><Tr th={finishBlock.th} vars={finishBlock.vars} /></p>}
           </div>
         )}
 
         {canPress && (j.status === 'queued' || j.status === 'doing') && (
           holdText === null
-            ? <button type="button" disabled={busy} className={`${secondaryBtn} mt-3 w-full`} onClick={() => setHoldText('')}><IconPause className="size-5" />พักงาน / ติดปัญหา</button>
+            ? <button type="button" disabled={busy} className={`${secondaryBtn} mt-3 w-full`} onClick={() => setHoldText('')}><IconPause className="size-5 shrink-0" /><Tr th="พักงาน / ติดปัญหา" /></button>
             : (
               <div className="mt-3 grid gap-2 rounded-xl bg-paper p-3">
-                <label className="grid gap-1 font-medium">สาเหตุที่พัก (ต้องกรอก)
-                  <input value={holdText} onChange={e => setHoldText(e.target.value)} placeholder="เช่น ผ้าไม่พอ รอของ" className={fieldClass} />
+                <label className="grid gap-1 font-medium"><Tr th="สาเหตุที่พัก (ต้องกรอก)" />
+                  <input value={holdText} onChange={e => setHoldText(e.target.value)} placeholder={t('เช่น ผ้าไม่พอ รอของ')} className={fieldClass} />
                 </label>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <button type="button" disabled={busy || !holdText.trim()} className={dangerBtn}
                     onClick={async () => { if (await act('open_issue', { p_reason: holdText.trim() }, 'พักงานแล้ว · เวลาที่พักไม่นับเป็นเวลาทำงาน')) setHoldText(null) }}>
-                    {holdText.trim() ? 'บันทึกพักงาน' : 'กรอกสาเหตุก่อน'}
+                    {holdText.trim() ? <><IconPause className="size-5 shrink-0" /><Tr th="บันทึกพักงาน" /></> : <Tr th="กรอกสาเหตุก่อน" />}
                   </button>
-                  <button type="button" className={secondaryBtn} onClick={() => setHoldText(null)}>ยกเลิก</button>
+                  <button type="button" className={secondaryBtn} onClick={() => setHoldText(null)}><Tr th="ยกเลิก" /></button>
                 </div>
               </div>
             )
@@ -532,58 +546,63 @@ function SlaReport({ sla: s, reasons, busy, now, act }: { sla: Sla; reasons: Rea
 }
 
 function SlaBanner({ sla: s }: { sla: Sla }) {
+  const t = useT()
   const over = s.station_over || s.segment_over
-  const lines = [
-    s.segment_name && s.segment_sla_days ? `ช่วง${s.segment_name}: ใช้ไป ${slaAmount(Number(s.segment_days ?? 0))} จาก ${slaAmount(Number(s.segment_sla_days))}` : '',
-    s.station_sla_days ? `สถานีนี้: ใช้ไป ${slaAmount(Number(s.station_days ?? 0))} จาก ${slaAmount(Number(s.station_sla_days))}` : '',
-  ].filter(Boolean)
+  const lines: Word[] = []
+  if (s.segment_name && s.segment_sla_days) lines.push({ th: 'ช่วง{name}: ใช้ไป {used} จาก {limit}', vars: { name: s.segment_name, used: slaAmountWord(Number(s.segment_days ?? 0)), limit: slaAmountWord(Number(s.segment_sla_days)) } })
+  if (s.station_sla_days) lines.push({ th: 'สถานีนี้: ใช้ไป {used} จาก {limit}', vars: { used: slaAmountWord(Number(s.station_days ?? 0)), limit: slaAmountWord(Number(s.station_sla_days)) } })
   return (
     <p role={over ? 'alert' : 'status'} className={`flex items-start gap-2 rounded-xl px-3 py-2 font-medium ${over ? 'bg-danger-soft text-danger' : 'bg-warn-soft text-warn'}`}>
       <IconAlert className="mt-0.5 size-5 shrink-0" />
-      <span>{over ? 'เกินเวลามาตรฐาน' : 'ใกล้ครบเวลามาตรฐาน'} · {lines.join(' · ')}</span>
+      <span className="grid gap-0.5">
+        <Tr th={over ? 'เกินเวลามาตรฐาน' : 'ใกล้ครบเวลามาตรฐาน'} />
+        {lines.map((l, i) => <span key={i} className="text-sm">{t(l.th, l.vars)}</span>)}
+      </span>
     </p>
   )
 }
 
 function QcPanel({ job: j, passed, busy, act }: { job: Job; passed: number; busy: boolean; act: Act }) {
+  const t = useT()
   const [pass, setPass] = useState('')
   const [request, setRequest] = useState(newRequestId)
   const passQty = wholeCount(pass) || null
   const [rework, setRework] = useState<{ qty: string; reason: string; source: string } | null>(null)
   const reworkQty = rework ? wholeCount(rework.qty) || null : null
   const sources = ROUTES[j.route].stations.filter(s => s !== 'qc_pack')
+  const unit: Word = { th: j.unit }
   return (
     <div className="grid gap-3 rounded-xl bg-paper p-3">
-      <p className="font-semibold">ผล QC · ผ่านแล้ว {passed.toLocaleString('th-TH')} จาก {j.qty.toLocaleString('th-TH')} {j.unit}</p>
+      <p className="font-semibold"><Tr th="ผล QC · ผ่านแล้ว {passed} จาก {qty} {unit}" vars={{ passed: passed.toLocaleString('th-TH'), qty: j.qty.toLocaleString('th-TH'), unit }} /></p>
       <div className="flex flex-wrap gap-2">
-        <input type="number" min={1} inputMode="numeric" value={pass} onChange={e => setPass(e.target.value)} aria-label="จำนวนที่ผ่าน" placeholder="จำนวนที่ผ่าน" className={`${fieldClass} w-36 flex-1`} />
+        <input type="number" min={1} inputMode="numeric" value={pass} onChange={e => setPass(e.target.value)} aria-label={t('จำนวนที่ผ่าน')} placeholder={t('จำนวนที่ผ่าน')} className={`${fieldClass} w-36 flex-1`} />
         <button type="button" disabled={busy || !passQty} className={okBtn}
-          onClick={async () => { if (passQty && await act('record_qc', { p_passed: passQty, p_request: request }, `บันทึกผ่าน QC ${passQty} ${j.unit}`)) { setPass(''); setRequest(newRequestId()) } }}>
-          {pass.trim() && !passQty ? 'ใส่จำนวนเต็ม' : 'บันทึกผ่าน'}</button>
+          onClick={async () => { if (passQty && await act('record_qc', { p_passed: passQty, p_request: request }, { th: 'บันทึกผ่าน QC {qty} {unit}', vars: { qty: passQty, unit } })) { setPass(''); setRequest(newRequestId()) } }}>
+          {pass.trim() && !passQty ? <Tr th="ใส่จำนวนเต็ม" /> : <><IconCheck className="size-5 shrink-0" /><Tr th="บันทึกผ่าน" /></>}</button>
       </div>
       {rework === null
-        ? <button type="button" disabled={busy} className={dangerBtn} onClick={() => setRework({ qty: '', reason: '', source: sources.includes('sew') ? 'sew' : sources[0] })}>ส่งกลับแก้</button>
+        ? <button type="button" disabled={busy} className={dangerBtn} onClick={() => setRework({ qty: '', reason: '', source: sources.includes('sew') ? 'sew' : sources[0] })}><Tr th="ส่งกลับแก้" /></button>
         : (
           <div className="grid gap-2">
-            <p className="font-semibold text-danger">ส่งกลับแก้ (ต้องมีจำนวน + สาเหตุ + สถานีต้นเหตุ)</p>
+            <p className="font-semibold text-danger"><Tr th="ส่งกลับแก้ (ต้องมีจำนวน + สาเหตุ + สถานีต้นเหตุ)" /></p>
             <div className="grid gap-2 sm:grid-cols-2">
-              <input type="number" min={1} inputMode="numeric" value={rework.qty} onChange={e => setRework({ ...rework, qty: e.target.value })} placeholder="จำนวนที่ไม่ผ่าน" aria-label="จำนวนที่ไม่ผ่าน" className={fieldClass} />
-              <select value={rework.source} onChange={e => setRework({ ...rework, source: e.target.value })} aria-label="สถานีต้นเหตุ" className={fieldClass}>
-                {sources.map(s => <option key={s} value={s}>{STATION_NAME[s]}</option>)}
+              <input type="number" min={1} inputMode="numeric" value={rework.qty} onChange={e => setRework({ ...rework, qty: e.target.value })} placeholder={t('จำนวนที่ไม่ผ่าน')} aria-label={t('จำนวนที่ไม่ผ่าน')} className={fieldClass} />
+              <select value={rework.source} onChange={e => setRework({ ...rework, source: e.target.value })} aria-label={t('สถานีต้นเหตุ')} className={fieldClass}>
+                {sources.map(s => <option key={s} value={s}>{stationNo(s) ? `${stationNo(s)}. ` : ''}{t(STATION_NAME[s])}</option>)}
               </select>
             </div>
-            <input value={rework.reason} onChange={e => setRework({ ...rework, reason: e.target.value })} placeholder="สาเหตุ เช่น ตะเข็บหลุด" aria-label="สาเหตุ" className={fieldClass} />
+            <input value={rework.reason} onChange={e => setRework({ ...rework, reason: e.target.value })} placeholder={t('สาเหตุ เช่น ตะเข็บหลุด')} aria-label={t('สาเหตุ')} className={fieldClass} />
             <div className="grid gap-2 sm:grid-cols-2">
               <button type="button" disabled={busy || !reworkQty || !rework.reason.trim()} className={dangerBtn}
                 onClick={async () => {
                   if (!reworkQty) return
                   const ok = await act('send_rework', { p_qty: reworkQty, p_reason: rework.reason.trim(), p_source_station: rework.source },
-                    `ส่งกลับแก้ ${reworkQty} ${j.unit} ที่${STATION_NAME[rework.source as keyof typeof STATION_NAME]}แล้ว`)
+                    { th: 'ส่งกลับแก้ {qty} {unit} ที่{station}แล้ว', vars: { qty: reworkQty, unit, station: { th: STATION_NAME[rework.source as keyof typeof STATION_NAME] } } })
                   if (ok) setRework(null)
                 }}>
-                {rework.qty.trim() && !reworkQty ? 'จำนวนต้องเป็นจำนวนเต็ม' : reworkQty && rework.reason.trim() ? 'ยืนยันส่งกลับแก้' : 'กรอกจำนวนและสาเหตุก่อน'}
+                <Tr th={rework.qty.trim() && !reworkQty ? 'จำนวนต้องเป็นจำนวนเต็ม' : reworkQty && rework.reason.trim() ? 'ยืนยันส่งกลับแก้' : 'กรอกจำนวนและสาเหตุก่อน'} />
               </button>
-              <button type="button" className={secondaryBtn} onClick={() => setRework(null)}>ยกเลิก</button>
+              <button type="button" className={secondaryBtn} onClick={() => setRework(null)}><Tr th="ยกเลิก" /></button>
             </div>
           </div>
         )}
@@ -595,6 +614,7 @@ function DelayReport({ reasons, busy, now, required, onSend }: {
   reasons: Reason[]; busy: boolean; now: Date; required: boolean
   onSend: (codes: string[], detail: string, eta: Date, help: string) => Promise<boolean>
 }) {
+  const t = useT()
   const [codes, setCodes] = useState<string[]>([])
   const [detail, setDetail] = useState('')
   const [day, setDay] = useState('')
@@ -607,32 +627,32 @@ function DelayReport({ reasons, busy, now, required, onSend }: {
       <div className="grid gap-3">
         {groups.map(g => (
           <fieldset key={g}>
-            <legend className="mb-1 text-sm font-semibold text-muted">{g}</legend>
+            <legend className="mb-1 text-sm font-semibold text-muted">{t(g)}</legend>
             <div className="flex flex-wrap gap-1.5">
               {reasons.filter(r => r.grp === g).map(r => {
                 const on = codes.includes(r.code)
                 return (
                   <button key={r.code} type="button" aria-pressed={on} onClick={() => setCodes(on ? codes.filter(c => c !== r.code) : [...codes, r.code])}
-                    className={`min-h-11 rounded-xl border px-3 text-sm ${on ? 'border-brand bg-brand-soft font-semibold text-brand' : 'border-line hover:bg-paper'}`}>
-                    {r.code} {r.name}
+                    className={`min-h-11 rounded-xl border px-3 text-left text-sm ${on ? 'border-brand bg-brand-soft font-semibold text-brand' : 'border-line hover:bg-paper'}`}>
+                    {r.code} <Tr inline th={r.name} />
                   </button>
                 )
               })}
             </div>
           </fieldset>
         ))}
-        <label className="grid gap-1 font-medium">อธิบายเพิ่ม (เกิดอะไรขึ้น กระทบกี่ชิ้น)
+        <label className="grid gap-1 font-medium"><Tr th="อธิบายเพิ่ม (เกิดอะไรขึ้น กระทบกี่ชิ้น)" />
           <textarea rows={2} value={detail} onChange={e => setDetail(e.target.value)} className="w-full rounded-xl border border-line px-3 py-2" />
         </label>
-        <label className="grid gap-1 font-medium">คาดว่าเสร็จใหม่ (วันที่)
+        <label className="grid gap-1 font-medium"><Tr th="คาดว่าเสร็จใหม่ (วันที่)" />
           <input type="date" value={day} min={bookingDay(now)} onChange={e => setDay(e.target.value)} className={fieldClass} />
         </label>
-        <label className="grid gap-1 font-medium">ต้องการความช่วยเหลือจากใคร (ถ้ามี)
-          <input value={help} onChange={e => setHelp(e.target.value)} placeholder="เช่น ช่างซ่อม แอดมินตามของ" className={fieldClass} />
+        <label className="grid gap-1 font-medium"><Tr th="ต้องการความช่วยเหลือจากใคร (ถ้ามี)" />
+          <input value={help} onChange={e => setHelp(e.target.value)} placeholder={t('เช่น ช่างซ่อม แอดมินตามของ')} className={fieldClass} />
         </label>
         <button type="button" disabled={busy || !!block} className={primaryBtn}
           onClick={async () => { if (eta && await onSend(codes, detail.trim(), eta, help.trim())) { setCodes([]); setDetail(''); setDay(''); setHelp('') } }}>
-          {block ?? 'ส่งรายงานปัญหา'}
+          <Tr th={block ?? 'ส่งรายงานปัญหา'} />
         </button>
       </div>
     </Section>

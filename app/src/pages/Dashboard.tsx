@@ -6,7 +6,7 @@ import {
   type ColumnKey, type Job, type RouteCode, type StationCode,
 } from '../proto/model'
 import { lateDays, sewFloorOf, simulate, workdayToDate } from '../proto/capacity'
-import { duration, relDay, shortDate } from '../proto/format'
+import { durationWord, relDayWord } from '../proto/format'
 import { Card, DueLabel, MockupThumb, Pill, StatTile, ViewSwitch, pillGroup, pillItem, pillOff, pillOn } from '../components/ui'
 import { thaiError } from '../data/live'
 import { Tr } from '../i18n/Tr'
@@ -560,32 +560,38 @@ const STRIPE: Record<Tone, string> = {
 const STATION_KEY = 'pp142.station'
 
 function CardStatus({ job: j, now }: { job: Job; now: Date }) {
+  const t = useT()
   const rows: ReactNode[] = []
+  const day = (at: Date) => ({ at })
 
   if (j.phase === 'materials') rows.push(<Pill key="m" tone="warn" dot>รอ {missingDepts(j).map(d => DEPT_NAME[d]).join(', ')}</Pill>)
   if ((j.phase === 'sample' || j.phase === 'production') && j.station && j.status) {
     const tone: Tone = j.status === 'doing' ? 'info' : j.status === 'hold' ? 'danger' : 'neutral'
-    rows.push(<Pill key="s" tone={tone} dot>{j.phase === 'sample' ? `${STATION_NAME[j.station]} · ` : ''}{STATUS_NAME[j.status]}</Pill>)
+    rows.push(<Pill key="s" tone={tone} dot>{j.phase === 'sample' ? `${t(STATION_NAME[j.station])} · ` : ''}{t(STATUS_NAME[j.status])}</Pill>)
   }
-  if (j.holdReason) rows.push(<span key="h" className="text-danger">สาเหตุ: {j.holdReason}</span>)
-  if (j.out) rows.push(<span key="o" className={isOutLate(j, now) ? 'font-semibold text-danger' : 'text-info'}>ที่ {j.out.vendor} · คาดว่าของถึง {shortDate(j.out.backAt)}{isOutLate(j, now) ? ' (เลยกำหนด)' : ''}</span>)
-  if (j.phase === 'sample_review') rows.push(<Pill key="r" tone="info" dot>รอลูกค้ายืนยัน (รอบ {j.sampleRound})</Pill>)
-  if (j.rework) rows.push(<span key="w" className="text-danger">แก้ {j.rework.qty} {j.unit} · {j.rework.reason}</span>)
+  if (j.holdReason) rows.push(<span key="h" className="text-danger">{t('สาเหตุ: {reason}', { reason: j.holdReason })}</span>)
+  if (j.out) {
+    const late = isOutLate(j, now)
+    rows.push(<span key="o" className={late ? 'font-semibold text-danger' : 'text-info'}>{t(late ? 'ที่ {vendor} · คาดว่าของถึง {at} (เลยกำหนด)' : 'ที่ {vendor} · คาดว่าของถึง {at}', { vendor: j.out.vendor, at: day(j.out.backAt) })}</span>)
+  }
+  if (j.phase === 'sample_review') rows.push(<Pill key="r" tone="info" dot>{t('รอลูกค้ายืนยัน (รอบ {n})', { n: j.sampleRound })}</Pill>)
+  if (j.rework) rows.push(<span key="w" className="text-danger">{t('แก้ {qty} {unit} · {reason}', { qty: j.rework.qty, unit: { th: j.unit }, reason: j.rework.reason })}</span>)
 
   if (isWaitingFilm(j)) {
     const late = isFilmLate(j, now)
-    rows.push(<Pill key="film" tone={late ? 'danger' : 'warn'}><IconFilm className="size-3" />รอฟิล์ม · ETA {shortDate(j.film!.eta)}{late && ' (เลยแล้ว)'}</Pill>)
+    rows.push(<Pill key="film" tone={late ? 'danger' : 'warn'}><IconFilm className="size-3" />{t(late ? 'รอฟิล์ม · ETA {at} (เลยแล้ว)' : 'รอฟิล์ม · ETA {at}', { at: day(j.film!.eta) })}</Pill>)
   }
-  if (j.phase === 'done' && j.doneAt) rows.push(<Pill key="d" tone="ok"><IconCheck className="size-3" />เสร็จ{relDay(j.doneAt, now)} {j.doneAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</Pill>)
+  if (j.phase === 'done' && j.doneAt) rows.push(<Pill key="d" tone="ok"><IconCheck className="size-3" />{t('เสร็จ{day} {time} น.', { day: relDayWord(j.doneAt, now), time: j.doneAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) })}</Pill>)
   if (j.phase === 'done') rows.push(j.delivered
-    ? <Pill key="dl" tone="ok" dot>จัดส่งแล้ว{relDay(j.delivered.at, now)}{j.delivered.note && ` · ${j.delivered.note}`}</Pill>
-    : <Pill key="dl" tone="warn" dot>รอจัดส่ง</Pill>)
+    ? <Pill key="dl" tone="ok" dot>{t('จัดส่งแล้ว{day}', { day: relDayWord(j.delivered.at, now) })}{j.delivered.note && ` · ${j.delivered.note}`}</Pill>
+    : <Pill key="dl" tone="warn" dot>{t('รอจัดส่ง')}</Pill>)
 
   if (!rows.length) return null
   return <div className="mt-2.5 flex flex-col items-start gap-1.5 border-t border-dashed border-line pt-2.5 text-xs">{rows}</div>
 }
 
 export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Job; now: Date; finish?: Date; onClose: () => void; actions?: ReactNode; history?: ReactNode }) {
+  const t = useT()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -595,48 +601,51 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
   const stations = ROUTES[j.route].stations
   const curIdx = j.station ? stations.indexOf(j.station) : -1
   const late = finish ? lateDays(finish, j.due) : 0
-  const steps: { label: string; state: StepState }[] = [
-    { label: 'รับงานเข้า', state: 'done' },
+  const since = durationWord(now.getTime() - j.since.getTime())
+  const steps: { label: Word; state: StepState }[] = [
+    { label: { th: 'รับงานเข้า' }, state: 'done' },
     ...(j.needsSample === false ? [] : [
-      { label: `ขึ้นตัวอย่าง${j.sampleRound > 1 ? ` (รอบ ${j.sampleRound})` : ''}`, state: (j.phase === 'materials' ? 'todo' : j.phase === 'sample' ? 'current' : 'done') as StepState },
-      { label: 'ลูกค้ายืนยันตัวอย่าง', state: (['materials', 'sample'].includes(j.phase) ? 'todo' : j.phase === 'sample_review' ? 'current' : 'done') as StepState },
+      { label: j.sampleRound > 1 ? { th: 'ขึ้นตัวอย่าง (รอบ {n})', vars: { n: j.sampleRound } } : { th: 'ขึ้นตัวอย่าง' }, state: (j.phase === 'materials' ? 'todo' : j.phase === 'sample' ? 'current' : 'done') as StepState },
+      { label: { th: 'ลูกค้ายืนยันตัวอย่าง' }, state: (['materials', 'sample'].includes(j.phase) ? 'todo' : j.phase === 'sample_review' ? 'current' : 'done') as StepState },
     ]),
     ...stations.map((s, i) => ({
-      label: STATION_NAME[s],
+      label: { th: STATION_NAME[s] },
       state: (j.phase === 'done' ? 'done' : j.phase !== 'production' ? 'todo' : i < curIdx ? 'done' : i === curIdx ? (j.status === 'hold' ? 'hold' : 'current') : 'todo') as StepState,
     })),
-    { label: 'เสร็จ / พร้อมส่ง', state: j.phase === 'done' ? 'done' : 'todo' },
-    { label: 'จัดส่งแล้ว', state: j.delivered ? 'done' : j.phase === 'done' ? 'current' : 'todo' },
+    { label: { th: 'เสร็จ / พร้อมส่ง' }, state: j.phase === 'done' ? 'done' : 'todo' },
+    { label: { th: 'จัดส่งแล้ว' }, state: j.delivered ? 'done' : j.phase === 'done' ? 'current' : 'todo' },
   ]
 
   return (
     <div className="fixed inset-0 z-30 flex animate-fade justify-end bg-ink/40" onClick={onClose}>
-      <aside onClick={e => e.stopPropagation()} role="dialog" aria-label={`รายละเอียดงาน ${j.no}`}
+      <aside onClick={e => e.stopPropagation()} role="dialog" aria-label={t('รายละเอียดงาน {no}', { no: j.no })}
         className="flex h-full w-full max-w-md animate-drawer flex-col overflow-y-auto border-l border-line bg-paper shadow-lift">
         <header className="sticky top-0 z-10 border-b border-line bg-card px-5 pt-5 pb-4">
           <div className="flex items-start gap-2">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold tracking-tight">{j.no}</h2>
-                <span className="rounded-full bg-brand-soft px-2 py-px text-xs font-bold text-brand">{ROUTES[j.route].short}</span>
+                <span className="rounded-full bg-brand-soft px-2 py-px text-xs font-bold text-brand">{t(ROUTES[j.route].short)}</span>
               </div>
               <p className="truncate text-muted">{j.customer}</p>
             </div>
-            <button onClick={onClose} className="ml-auto grid size-12 place-items-center rounded-full bg-paper transition hover:bg-line" aria-label="ปิด"><IconX className="size-4" /></button>
+            <button onClick={onClose} className="ml-auto grid size-12 place-items-center rounded-full bg-paper transition hover:bg-line" aria-label={t('ปิด')}><IconX className="size-4" /></button>
           </div>
-          <a href={'#/label?id=' + encodeURIComponent(j.id)}
-            className="mt-2 inline-flex min-h-12 items-center gap-2 rounded-xl border border-line px-3 font-semibold text-brand hover:bg-brand-soft">
-            <IconClipboard className="size-5" /> พิมพ์ใบปะงาน
-          </a>
-          <a href={'#/mockup?id=' + encodeURIComponent(j.id)}
-            className="mt-2 ml-2 inline-flex min-h-12 items-center gap-2 rounded-xl border border-line px-3 font-semibold text-brand hover:bg-brand-soft">
-            <IconImage className="size-5" /> ม็อคอัพกำกับสเปก
-          </a>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <a href={'#/label?id=' + encodeURIComponent(j.id)}
+              className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-line px-3 font-semibold text-brand hover:bg-brand-soft">
+              <IconClipboard className="size-5 shrink-0" /><Tr th="พิมพ์ใบปะงาน" />
+            </a>
+            <a href={'#/mockup?id=' + encodeURIComponent(j.id)}
+              className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-line px-3 font-semibold text-brand hover:bg-brand-soft">
+              <IconImage className="size-5 shrink-0" /><Tr th="ม็อคอัพกำกับสเปก" />
+            </a>
+          </div>
           {finish && (
-            <div className={`mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${late > 0 ? 'bg-danger-soft text-danger' : 'bg-ok-soft text-ok'}`}>
+            <div className={`mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl px-3 py-2 text-sm ${late > 0 ? 'bg-danger-soft text-danger' : 'bg-ok-soft text-ok'}`}>
               {late > 0 ? <IconAlert className="size-4" /> : <IconCheck className="size-4" />}
-              คาดว่าเสร็จ <b>{shortDate(finish)}</b>
-              <span className="ml-auto text-xs opacity-90">{late > 0 ? `ไม่ทันกำหนด ${late} วัน` : 'ทันกำหนดส่ง'}</span>
+              <span>{t('คาดว่าเสร็จ {at}', { at: { at: finish } })}</span>
+              <span className="ml-auto text-xs opacity-90">{late > 0 ? t('ไม่ทันกำหนด {n} วัน', { n: late }) : t('ทันกำหนดส่ง')}</span>
             </div>
           )}
         </header>
@@ -644,36 +653,38 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
         <div className="grid gap-4 p-4 text-sm">
           <div className="grid justify-items-center gap-1 rounded-2xl border border-line bg-card p-3 shadow-card">
             {j.specSheet
-              ? <a href={'#/mockup?id=' + encodeURIComponent(j.id)} className="w-full max-w-72" aria-label="เปิดม็อคอัพกำกับสเปก"><MockupThumb job={j} size="lg" /></a>
+              ? <a href={'#/mockup?id=' + encodeURIComponent(j.id)} className="w-full max-w-72" aria-label={t('เปิดม็อคอัพกำกับสเปก')}><MockupThumb job={j} size="lg" /></a>
               : j.mockupUrl
-                ? <a href={j.mockupUrl} target="_blank" rel="noreferrer" className="w-full max-w-72" aria-label="เปิดรูปม็อคอัพเต็มจอ"><MockupThumb job={j} size="lg" /></a>
+                ? <a href={j.mockupUrl} target="_blank" rel="noreferrer" className="w-full max-w-72" aria-label={t('เปิดรูปม็อคอัพเต็มจอ')}><MockupThumb job={j} size="lg" /></a>
                 : <MockupThumb job={j} size="lg" />}
-            <span className={j.specSheet ? 'font-semibold text-brand' : 'text-muted'}>
-              {j.specSheet ? `กดที่รูปเพื่อดูม็อคอัพกำกับสเปก ฉบับ ${j.specSheet.rev}` : j.mockupUrl ? 'กดที่รูปเพื่อดูเต็มจอ' : 'ยังไม่มีรูปม็อคอัพ'}
+            <span className={`text-center ${j.specSheet ? 'font-semibold text-brand' : 'text-muted'}`}>
+              {j.specSheet ? <Tr th="กดที่รูปเพื่อดูม็อคอัพกำกับสเปก ฉบับ {rev}" vars={{ rev: j.specSheet.rev }} />
+                : j.mockupUrl ? <Tr th="กดที่รูปเพื่อดูเต็มจอ" /> : <Tr th="ยังไม่มีรูปม็อคอัพ" />}
             </span>
           </div>
           {actions}
           <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
               <Info label="สินค้า">{j.product}</Info>
-              <Info label="จำนวน">{j.qty.toLocaleString('th-TH')} {j.unit}</Info>
+              <Info label="จำนวน">{j.qty.toLocaleString('th-TH')} {t(j.unit)}</Info>
               <Info label="กำหนดส่ง"><DueLabel job={j} now={now} long /></Info>
-              <Info label="เส้นทาง">{ROUTES[j.route].name}</Info>
-              <Info label="ตัวอย่าง">{j.needsSample === false ? 'ไม่ขึ้นตัวอย่าง' : `รอบที่ ${j.sampleRound}${j.phase === 'production' || j.phase === 'done' ? ' · ผ่านแล้ว' : ''}`}</Info>
-              <Info label="อยู่ในขั้นนี้">{j.phase === 'done' ? '—' : duration(now.getTime() - j.since.getTime())}</Info>
+              <Info label="เส้นทาง">{t(ROUTES[j.route].name)}</Info>
+              <Info label="ตัวอย่าง">{j.needsSample === false ? t('ไม่ขึ้นตัวอย่าง')
+                : t(j.phase === 'production' || j.phase === 'done' ? 'รอบที่ {n} · ผ่านแล้ว' : 'รอบที่ {n}', { n: j.sampleRound })}</Info>
+              <Info label="อยู่ในขั้นนี้">{j.phase === 'done' ? '—' : t(since.th, since.vars)}</Info>
             </dl>
             <CardStatus job={j} now={now} />
           </div>
 
           {!!j.sewingReports?.length && (
             <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
-              <h3 className="mb-2 font-semibold">รายงานปัญหาระหว่างเย็บ</h3>
+              <h3 className="mb-2 font-semibold"><Tr inline th="รายงานปัญหาระหว่างเย็บ" /></h3>
               <ul className="divide-y divide-line">
                 {j.sewingReports.map((report, index) => (
                   <li key={index} className="py-2">
                     <p className="break-words">{report.reason}</p>
                     <p className="text-sm text-muted">
-                      {report.at.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })}{report.paused ? ' · พักงาน' : ''}
+                      {report.at.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })}{report.paused ? ` · ${t('พักงาน')}` : ''}
                     </p>
                   </li>
                 ))}
@@ -682,14 +693,14 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
           )}
 
           <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
-            <h3 className="mb-3 font-semibold">ความคืบหน้า</h3>
+            <h3 className="mb-3 font-semibold"><Tr inline th="ความคืบหน้า" /></h3>
             <ol>{steps.map((s, i) => <Step key={i} label={s.label} state={s.state} last={i === steps.length - 1} />)}</ol>
           </div>
 
           {/* แสดงเฉพาะงานเก่าที่ยังค้างขั้นวัตถุดิบ (ยกเลิกขั้นนี้แล้ว) และสถานะฟิล์ม */}
           {(j.phase === 'materials' || j.film) && (
           <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
-            <h3 className="mb-2 font-semibold">{j.phase === 'materials' ? 'วัตถุดิบ' : filmLabel(j.route)}</h3>
+            <h3 className="mb-2 font-semibold">{j.phase === 'materials' ? 'วัตถุดิบ' : <Tr inline th={filmLabel(j.route)} />}</h3>
             <ul className="grid gap-2">
               {j.phase === 'materials' && (['admin', 'qc', 'production'] as const).map(d => (
                 <li key={d} className="flex items-center gap-2">
@@ -701,8 +712,8 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
               {j.film && (
                 <li className="flex items-center gap-2">
                   <IconFilm className={`size-4 ${j.film.received ? 'text-ok' : isFilmLate(j, now) ? 'text-danger' : 'text-warn'}`} />
-                  <span className="flex-1">{filmLabel(j.route)}</span>
-                  <Pill tone={j.film.received ? 'ok' : isFilmLate(j, now) ? 'danger' : 'warn'}>{j.film.received ? 'ได้รับแล้ว' : `ETA ${shortDate(j.film.eta)}`}</Pill>
+                  <span className="flex-1">{t(filmLabel(j.route))}</span>
+                  <Pill tone={j.film.received ? 'ok' : isFilmLate(j, now) ? 'danger' : 'warn'}>{j.film.received ? t('ได้รับแล้ว') : t('ETA {at}', { at: { at: j.film.eta } })}</Pill>
                 </li>
               )}
             </ul>
@@ -717,20 +728,20 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
 }
 
 function Info({ label, children }: { label: string; children: ReactNode }) {
-  return <div><dt className="text-xs text-muted">{label}</dt><dd className="font-medium">{children}</dd></div>
+  return <div><dt className="text-xs text-muted"><Tr th={label} /></dt><dd className="font-medium">{children}</dd></div>
 }
 
 type StepState = 'done' | 'current' | 'hold' | 'todo'
-function Step({ label, state, last }: { label: string; state: StepState; last: boolean }) {
+function Step({ label, state, last }: { label: Word; state: StepState; last: boolean }) {
   const dot = { done: 'bg-brand-700 text-white', current: 'bg-info text-white ring-4 ring-info/15', hold: 'bg-danger text-white ring-4 ring-danger/15', todo: 'border-2 border-line bg-card' }[state]
   const text = { done: 'text-muted', current: 'font-semibold', hold: 'font-semibold text-danger', todo: 'text-muted/70' }[state]
   return (
     <li className="relative flex gap-3 pb-3 last:pb-0">
       {!last && <span className={`absolute top-6 left-[11px] h-[calc(100%-18px)] w-0.5 ${state === 'done' ? 'bg-brand' : 'bg-line'}`} />}
       <span className={`relative grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold ${dot}`}>{state === 'done' ? '✓' : state === 'hold' ? '!' : ''}</span>
-      <span className={`pt-0.5 ${text}`}>{label}
-        {state === 'current' && <span className="ml-2"><Pill tone="info">ตอนนี้</Pill></span>}
-        {state === 'hold' && <span className="ml-2"><Pill tone="danger">ติดปัญหา</Pill></span>}
+      <span className={`flex flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 ${text}`}><Tr th={label.th} vars={label.vars} />
+        {state === 'current' && <Pill tone="info"><Tr th="ตอนนี้" /></Pill>}
+        {state === 'hold' && <Pill tone="danger"><Tr th="ติดปัญหา" /></Pill>}
       </span>
     </li>
   )
