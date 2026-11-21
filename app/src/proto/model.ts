@@ -17,6 +17,14 @@ export const STATION_NAME: Record<StationCode, string> = {
   qc_pack: 'QC + Packing',
 }
 
+export const STATION_ORDER: StationCode[] = ['print', 'press', 'cut', 'dtf_press', 'emb', 'sew', 'qc_pack']
+// เลข 1–7 ที่คนหน้างานใช้เรียกสถานี (ไทยและพม่าพูดตรงกัน) · ช่องที่ไม่ใช่สถานีในโรงงานไม่มีเลข
+export const stationNo = (key: string): number | null => {
+  const i = STATION_ORDER.indexOf(key as StationCode)
+  return i >= 0 ? i + 1 : null
+}
+
+
 export function isStationCode(value: unknown): value is StationCode {
   return typeof value === 'string' && Object.hasOwn(STATION_NAME, value)
 }

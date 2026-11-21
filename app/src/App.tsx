@@ -14,6 +14,7 @@ import { unreadBadge } from './pages/inbox/format'
 import { useInbox } from './pages/inbox/useInbox'
 import JobLabel from './pages/job-label'
 import AccountPage from './pages/AccountPage'
+import WordsPage from './pages/WordsPage'
 import { AuditPage, RolesPage, SystemOverviewPage } from './pages/admin'
 import { Card, CardHeader } from './components/ui'
 import { AppUpdate } from './components/AppUpdate'
@@ -22,7 +23,7 @@ import { DocumentLang, LangScope, LangToggle, Tr } from './i18n/Tr'
 import { useT } from './i18n/lang'
 import {
   IconChart, IconClipboard, IconClock, IconColumns, IconFactory, IconFlag, IconGauge, IconInbox, IconLayers, IconList, IconShield,
-  IconSliders, IconUser, IconUsers,
+  IconBook, IconSliders, IconUser, IconUsers,
 } from './components/icons'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -123,11 +124,16 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
 
   return (
     <div className="flex h-full">
-      <aside className="hidden w-64 shrink-0 flex-col bg-brand text-white lg:flex">
+      <aside className="hidden w-64 shrink-0 flex-col bg-brand text-white lg:flex print:hidden">
         <div className="mx-5 mt-6 mb-4 border-b border-white/15 pb-5">
           <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-12 w-auto rounded-lg ring-1 ring-white/25" />
           <p className="mt-3 text-sm font-semibold tracking-wide whitespace-nowrap text-white/75"><Tr th="ระบบติดตามการผลิต" /></p>
-          {translated && <LangToggle className="mt-3" />}
+          {translated && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <LangToggle />
+              <a href="#/words" className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-white/10 px-3 font-semibold hover:bg-white/15"><IconBook className="size-5" /><Tr th="คำศัพท์" /></a>
+            </div>
+          )}
         </div>
         <nav aria-label={t('เมนูหลัก')} className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-3 pb-3 [scrollbar-color:rgb(255_255_255/0.25)_transparent] [scrollbar-width:thin]">
           {menu.map(group => (
@@ -164,7 +170,7 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 bg-brand px-4 py-2 text-white lg:hidden">
+        <header className="flex items-center gap-3 bg-brand px-4 py-2 text-white lg:hidden print:hidden">
           <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-9 w-auto shrink-0 rounded-md ring-1 ring-white/25" />
           <span className="hidden text-sm font-semibold whitespace-nowrap text-white/75 sm:inline">{t('ระบบติดตามการผลิต')}</span>
           {/* แท็บเล็ตใช้ร่วมกันหลายคน ต้องเห็นตลอดว่าใครล็อกอินอยู่ เพราะทุกการกดบันทึกชื่อผู้กด */}
@@ -205,6 +211,7 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
               {page === 'roles' && <RolesPage />}
               {page === 'audit' && <AuditPage />}
               {page === 'label' && <JobLabel jobId={labelId} />}
+              {page === 'words' && <WordsPage />}
               {(page === 'mockup' || page === 'artwork') && (
                 <Suspense fallback={<p role="status" className="p-5">กำลังโหลด…</p>}>
                   {page === 'mockup'
@@ -230,7 +237,7 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
             })}
           </div>
         )}
-        <nav aria-label={t('เมนูหลัก')} className="flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <nav aria-label={t('เมนูหลัก')} className="flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden">
           {bar.shown.map(({ short, hash, icon }) => {
             const Icon = MENU_ICON[icon]
             const active = hash === path

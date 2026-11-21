@@ -10,7 +10,7 @@ export const ROLE_LABELS = {
 
 export type EmployeeRole = keyof typeof ROLE_LABELS
 export type PageKey = 'overview' | 'board' | 'reports' | 'settings' | 'system' | 'inbox' | 'label'
-  | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews' | 'sysOverview' | 'roles' | 'audit' | 'mockup' | 'artwork'
+  | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews' | 'sysOverview' | 'roles' | 'audit' | 'mockup' | 'artwork' | 'words'
 
 export type FactoryView = 'overview' | 'board' | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews'
 export const FACTORY_VIEWS: readonly PageKey[] = ['overview', 'board', 'issues', 'report', 'history', 'queueAll', 'dept', 'reviews']

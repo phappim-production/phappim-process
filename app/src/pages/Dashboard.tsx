@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
-  COLUMNS, DEPT_NAME, ROUTES, SLA_LABEL, byQueue, isOutLate, STATION_NAME, STATUS_NAME,
+  COLUMNS, DEPT_NAME, ROUTES, SLA_LABEL, byQueue, isOutLate, STATION_NAME, STATUS_NAME, stationNo,
   columnOf, filmLabel, savedStation, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
   type ColumnKey, type Job, type RouteCode, type StationCode,
 } from '../proto/model'
@@ -12,7 +12,7 @@ import { thaiError } from '../data/live'
 import { Tr } from '../i18n/Tr'
 import { useLang, useT, type Word } from '../i18n/lang'
 import type { Tone } from '../components/tone'
-import { IconAlert, IconCheck, IconClipboard, IconClock, IconFactory, IconFilm, IconImage, IconPackage, IconSearch, IconSewing, IconX } from '../components/icons'
+import { IconAlert, IconCheck, IconClipboard, IconClock, IconFactory, IconFilm, IconImage, IconPackage, IconPause, IconPlay, IconSearch, IconSewing, IconUsers, IconX } from '../components/icons'
 import { roleSummary, type SewingView, type SummaryIcon } from '../proto/summary'
 import Overview, { StationNow } from './Overview'
 import { DASH_TAB_NAME, FACTORY_SCOPE, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
@@ -446,7 +446,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
               {matchingColumns.map(c => (
                 <section key={c.key} className="min-w-0" aria-labelledby={`col-${c.key}`}>
                   <h2 id={`col-${c.key}`} className="mb-2 flex items-center gap-2 text-lg font-bold">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-sm text-white">{COLUMNS.findIndex(x => x.key === c.key) + 1}</span>
+                    {stationNo(c.key) && <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-sm text-white">{stationNo(c.key)}</span>}
                     <Tr inline th={c.name} />
                     <span className="text-base font-medium text-muted">{tx('{n} งาน', { n: byColumn.get(c.key)?.length ?? 0 })}</span>
                   </h2>
@@ -527,6 +527,7 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: Date; onOpen: () => v
     : j.phase === 'sample' && j.station ? tx(STATION_NAME[j.station])
     : j.status ? tx(STATUS_NAME[j.status]) : null
   const tone = stripe(j, now)
+  const StatusIcon = j.status === 'hold' ? IconPause : j.sla ? IconAlert : j.status === 'doing' ? IconPlay : j.status === 'out' ? IconUsers : j.phase === 'done' ? IconCheck : IconClock
   return (
     <button type="button" onClick={onOpen}
       className={`flex h-full w-full min-w-0 items-start gap-3 rounded-xl border border-line border-l-[6px] bg-card px-3 py-2.5 text-left shadow-card hover:border-brand ${STRIPE[tone]}`}>
@@ -541,7 +542,7 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: Date; onOpen: () => v
       {(label || j.rework) && (
         <span className="mt-0.5 flex flex-wrap gap-1">
           {/* ป้ายเวลามาตรฐานใช้สีของตัวเอง (ส้ม/แดง) ไม่ใช้สีแถบ ซึ่งอาจแดงเพราะเลยกำหนดส่ง */}
-          {label && <Pill tone={j.sla && label === tx(SLA_LABEL[j.sla].text) ? SLA_LABEL[j.sla].tone : tone} dot>{label}</Pill>}
+          {label && <Pill tone={j.sla && label === tx(SLA_LABEL[j.sla].text) ? SLA_LABEL[j.sla].tone : tone}><StatusIcon className="size-4" />{label}</Pill>}
           {j.rework && <Pill tone="danger">{tx('งานแก้')}</Pill>}
         </span>
       )}

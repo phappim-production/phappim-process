@@ -3,7 +3,7 @@ import { OUTSIDE_START_BLOCK, SLA_LABEL, STATION_NAME, byQueue, filmLabel, isOut
 import { spaced } from '../proto/format'
 import { DueLabel, MockupThumb, Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
-import { IconAlert, IconCheck, IconChevronRight } from '../components/icons'
+import { IconAlert, IconCheck, IconChevronRight, IconClock, IconPause, IconPlay, IconUsers } from '../components/icons'
 import { scrollToDelayReport } from './delayReport'
 import { canCloseIssue, type EmployeeRole } from '../auth/access'
 import { TONE } from '../components/tone'
@@ -74,8 +74,8 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
           <SectionHead id="q-working" title="กำลังทำ" count={[t('{n} งาน', { n: working.filter(j => j.status === 'doing').length }), working.some(j => j.status === 'hold') ? t('พักงาน {n} งาน', { n: working.filter(j => j.status === 'hold').length }) : ''].filter(Boolean).join(' · ')} />
           {working.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">{t(station === 'outside' ? 'สถานีนี้ไม่มีงานทำในโรงงาน · แอดมินส่งออกจากรายละเอียดงาน' : 'ยังไม่มีงานที่กำลังทำ · กดเริ่มงานคิว 1 ในคิวรอเริ่ม')}</p>}
           {working.map(j => (
-            <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger" dot>{t('พักงาน')}</Pill>
-              : j.sla ? <Pill tone={SLA_LABEL[j.sla].tone} dot>{t(SLA_LABEL[j.sla].text)}</Pill> : <Pill tone="info" dot>{t('กำลังทำ')}</Pill>}>
+            <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger"><IconPause className="size-4" />{t('พักงาน')}</Pill>
+              : j.sla ? <Pill tone={SLA_LABEL[j.sla].tone}><IconAlert className="size-4" />{t(SLA_LABEL[j.sla].text)}</Pill> : <Pill tone="info"><IconPlay className="size-4" />{t('กำลังทำ')}</Pill>}>
               {j.status === 'hold'
                 ? <HoldActions job={j} station={station} canResume={canCloseIssue(role, station)} busy={busy === j.id} run={run} />
                 : canPress && <WorkingActions job={j} station={station} busy={busy === j.id} run={run} onOpen={() => onOpen(j.id)} />}
@@ -88,7 +88,7 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
           {queue.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">{t('ไม่มีงานรอที่{station}', { station: { th: spaced(name).trimEnd() } })}</p>}
           {queue.map((j, i) => (
             <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} first={i === 0}
-              badge={<span className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${i === 0 ? 'bg-brand text-white' : 'bg-paper text-ink'}`}>{t('คิว {n}', { n: i + 1 })}</span>}>
+              badge={<span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-bold ${i === 0 ? 'bg-brand text-white' : 'bg-paper text-ink'}`}><IconClock className="size-4" />{t('คิว {n}', { n: i + 1 })}</span>}>
               <WaitingActions job={j} first={queue[0]} station={station} canPress={canPress}
               onSewStart={onSewStart}
               full={machines?.full ? { th: 'เครื่องเต็ม {used}/{total} ({jobs}) · รอให้งานเสร็จ หรือพักงานที่ติดปัญหาก่อน', vars: { used: machines.used.length, total: machines.total, jobs: machines.used.map(u => u.no).join(', ') } } : undefined} canInsert={canInsert && i > 0}
@@ -102,7 +102,7 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
             {outside.map(j => {
               const late = isOutLate(j, now)
               return (
-                <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={<Pill tone={late ? 'danger' : 'info'} dot>{t('ข้างนอก')}</Pill>}>
+                <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={<Pill tone={late ? 'danger' : 'info'}><IconUsers className="size-4" />{t('ข้างนอก')}</Pill>}>
                   <p className={`rounded-xl px-3 py-2 ${late ? 'bg-danger-soft font-semibold text-danger' : 'bg-info-soft text-info'}`}>
                     <Tr th="{vendor} · {stations} · คาดว่าของถึง {at} น." vars={{ vendor: j.out!.vendor, stations: j.out!.stations.map(s => t(STATION_NAME[s])).join(' → '), at: j.out!.backAt.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }} />{late ? t(' · เลยกำหนด') : ''}
                   </p>
@@ -151,7 +151,7 @@ function QueueCard({ job: j, now, badge, first, onOpen, children, station }: {
           <span>{j.product} · <span className="whitespace-nowrap"><b className="text-ink">{j.qty.toLocaleString('th-TH')}</b> {t(j.unit)}</span></span>
           <span className="ml-auto"><DueLabel job={j} now={now} /></span>
         </span>
-        {j.holdReason && <span className="text-base font-medium text-danger"><Tr inline th="สาเหตุ: {reason}" vars={{ reason: j.holdReason }} /></span>}
+        {j.holdReason && <span className="text-base font-medium text-danger"><Tr inline th="สาเหตุ" />: {j.holdReason}</span>}
         </span>
       </button>
       {children}
@@ -170,8 +170,8 @@ function HoldActions({ job: j, station, canResume, busy, run }: { job: Job; stat
     </p>
   }
   return station === 'sew'
-    ? <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['resume_sewing', {}]], w('{no} เย็บต่อแล้ว', { no: j.no }))}><Tr th="แก้แล้ว เย็บต่อ" /></button>
-    : <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['close_issue', { p_note: null }]], w('{no} แก้แล้ว · ถ้าเครื่องเต็ม งานกลับเข้าคิวรอเริ่ม', { no: j.no }))}><Tr th="แก้แล้ว ทำต่อ" /></button>
+    ? <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['resume_sewing', {}]], w('{no} เย็บต่อแล้ว', { no: j.no }))}><IconPlay className="size-5 shrink-0" /><Tr th="แก้แล้ว เย็บต่อ" /></button>
+    : <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['close_issue', { p_note: null }]], w('{no} แก้แล้ว · ถ้าเครื่องเต็ม งานกลับเข้าคิวรอเริ่ม', { no: j.no }))}><IconPlay className="size-5 shrink-0" /><Tr th="แก้แล้ว ทำต่อ" /></button>
 }
 
 function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; station: StationCode; busy: boolean; run: Run; onOpen: () => void }) {
@@ -205,7 +205,7 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
     return (
       <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
         <button type="button" className={primaryBtn} onClick={onOpen}><Tr th="บันทึกผล QC / Packing" /></button>
-        <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('hold')}><Tr th="พักงาน" /></button>
+        <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('hold')}><IconPause className="size-5 shrink-0" /><Tr th="พักงาน" /></button>
       </div>
     )
   }
@@ -223,8 +223,8 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
     <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
       {j.sla === 'report'
         ? <button type="button" disabled={busy} className={dangerBtn} onClick={() => { onOpen(); scrollToDelayReport() }}><IconAlert className="size-5" /><Tr th="เกินเวลา · ส่งรายงานปัญหาก่อนกดเสร็จ" /></button>
-        : <button type="button" disabled={busy} className={okBtn} onClick={() => setMode('finish')}><IconCheck className="size-5" /><Tr th="{station}เสร็จ" vars={{ station: { th: name } }} /></button>}
-      <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('hold')}><Tr th="พักงาน" /></button>
+        : <button type="button" disabled={busy} className={okBtn} onClick={() => setMode('finish')}><IconCheck className="size-5 shrink-0" /><Tr th="{station}เสร็จ" vars={{ station: { th: name } }} /></button>}
+      <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('hold')}><IconPause className="size-5 shrink-0" /><Tr th="พักงาน" /></button>
     </div>
   )
 }
@@ -281,10 +281,10 @@ function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run
         ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2"><Tr th="เริ่มไม่ได้ · ยังไม่ได้รับ{film} (แอดมินบันทึกเมื่อได้รับ)" vars={{ film: { th: filmLabel(j.route) } }} /></p>
         : isFirst
           ? sew
-            ? <button type="button" disabled={busy} className={`${primaryBtn} min-h-14 text-lg sm:col-span-2`} onClick={() => onSewStart?.(j.id)}><Tr th="เลือกจักรแล้วเริ่มเย็บ" /></button>
+            ? <button type="button" disabled={busy} className={`${primaryBtn} min-h-14 text-lg sm:col-span-2`} onClick={() => onSewStart?.(j.id)}><IconPlay className="size-6 shrink-0" /><Tr th="เลือกจักรแล้วเริ่มเย็บ" /></button>
             : <button type="button" disabled={busy} className={`${primaryBtn} min-h-14 text-lg sm:col-span-2`}
-              onClick={() => void run(j, [['start_in_queue', { p_reason: null }]], w('เริ่ม {no} แล้ว', { no: j.no }))}>{busy ? <Tr th="กำลังเริ่ม…" /> : <Tr th={startLabel.th} vars={startLabel.vars} />}</button>
-          : <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('skip')}><Tr th="เริ่มก่อนคิว" /></button>
+              onClick={() => void run(j, [['start_in_queue', { p_reason: null }]], w('เริ่ม {no} แล้ว', { no: j.no }))}><IconPlay className="size-6 shrink-0" />{busy ? <Tr th="กำลังเริ่ม…" /> : <Tr th={startLabel.th} vars={startLabel.vars} />}</button>
+          : <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('skip')}><IconPlay className="size-5 shrink-0" /><Tr th="เริ่มก่อนคิว" /></button>
       )}
       {canInsert && <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('insert')}><Tr th="แทรกเป็นคิวแรก (งานด่วน)" /></button>}
     </div>
