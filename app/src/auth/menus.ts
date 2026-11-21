@@ -36,6 +36,7 @@ export const ROUTES: Record<string, Route> = {
   '#/label': { page: 'label' },
   '#/mockup': { page: 'mockup' },
   '#/artwork': { page: 'artwork' },
+  '#/words': { page: 'words' },
 }
 
 export function routeOf(path: string): Route {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
-  COLUMNS, DEPT_NAME, ROUTES, SLA_LABEL, byQueue, isOutLate, STATION_NAME, STATUS_NAME,
+  COLUMNS, DEPT_NAME, ROUTES, SLA_LABEL, byQueue, isOutLate, STATION_NAME, STATUS_NAME, stationNo,
   columnOf, filmLabel, savedStation, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
   type ColumnKey, type Job, type RouteCode, type StationCode,
 } from '../proto/model'
@@ -9,8 +9,10 @@ import { lateDays, sewFloorOf, simulate, workdayToDate } from '../proto/capacity
 import { duration, relDay, shortDate } from '../proto/format'
 import { Card, DueLabel, MockupThumb, Pill, StatTile, ViewSwitch, pillGroup, pillItem, pillOff, pillOn } from '../components/ui'
 import { thaiError } from '../data/live'
+import { Tr } from '../i18n/Tr'
+import { useLang, useT, type Word } from '../i18n/lang'
 import type { Tone } from '../components/tone'
-import { IconAlert, IconCheck, IconClipboard, IconClock, IconFactory, IconFilm, IconImage, IconPackage, IconSearch, IconSewing, IconX } from '../components/icons'
+import { IconAlert, IconCheck, IconClipboard, IconClock, IconFactory, IconFilm, IconImage, IconPackage, IconPause, IconPlay, IconSearch, IconSewing, IconUsers, IconX } from '../components/icons'
 import { roleSummary, type SewingView, type SummaryIcon } from '../proto/summary'
 import Overview, { StationNow } from './Overview'
 import { DASH_TAB_NAME, FACTORY_SCOPE, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
@@ -46,15 +48,15 @@ export default function Dashboard({ view, routeKey, tab, overviewView, today, ro
 }) {
   const { state, live, refresh } = useFactoryData()
   if (state.status === 'loading') {
-    return <main className="flex-1 p-5"><p role="status" className="text-muted">กำลังโหลดข้อมูลงาน…</p></main>
+    return <main className="flex-1 p-5"><p role="status" className="text-muted"><Tr th="กำลังโหลดข้อมูลงาน…" /></p></main>
   }
   if (state.status === 'error') {
     return (
       <main className="flex-1 p-4 sm:p-6">
         <Card className="mx-auto grid max-w-lg gap-3 p-5">
-          <p role="alert" className="font-semibold text-danger">โหลดข้อมูลงานไม่สำเร็จ</p>
+          <p role="alert" className="font-semibold text-danger"><Tr th="โหลดข้อมูลงานไม่สำเร็จ" /></p>
           <p>{state.message}</p>
-          <button type="button" onClick={() => void refresh()} className="min-h-12 rounded-xl bg-brand px-5 font-semibold text-white">ลองอีกครั้ง</button>
+          <button type="button" onClick={() => void refresh()} className="min-h-12 rounded-xl bg-brand px-5 font-semibold text-white"><Tr th="ลองอีกครั้ง" /></button>
         </Card>
       </main>
     )
@@ -63,7 +65,7 @@ export default function Dashboard({ view, routeKey, tab, overviewView, today, ro
     <>
       {!live && (
         <p role="alert" className="border-b border-danger/30 bg-danger-soft px-4 py-1.5 text-sm font-medium text-danger sm:px-6">
-          ขาดการเชื่อมต่อ · ข้อมูลอาจไม่ใช่ล่าสุด (อัปเดตล่าสุด {state.loadedAt.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })} น.) · ระบบจะโหลดใหม่เองเมื่อเน็ตกลับมา
+          <OfflineText at={state.loadedAt.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })} />
         </p>
       )}
       <DashboardView key={routeKey} view={view} startTab={tab} overviewView={overviewView} today={today} role={role} myScope={scope} data={state.data} loadedAt={state.loadedAt} refresh={refresh} />
@@ -192,6 +194,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
     return () => window.removeEventListener('hashchange', on)
   }, [])
   const [closedNotice, setClosedNotice] = useState<string | null>(null)
+  const tx = useT()
   const setOpenId = (id: string | null) => {
     setLookup(null)
     setOpen(id ? { id, source: view } : null)
@@ -330,7 +333,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
     // ทั้งหน้าเลื่อนทีเดียว (ไม่ซ้อนกล่องเลื่อน) · แท็บหลักติดด้านบนให้สลับได้ทุกเมื่อ
     <div data-scroll="dashboard" className="min-h-0 flex-1 overflow-y-auto">
      <div className="mx-auto flex max-w-[1400px] flex-col gap-4 p-4 sm:p-6">
-      <PageHeader title={myScope.title} today={today} updated={loadedAt} />
+      <PageHeader title={myScope.titleT ?? myScope.title} today={today} updated={loadedAt} />
       {linkNotice}{doneNotice}
       {receiveBar}
       {!focusStation && <RoleSummary scope={myScope} jobs={allJobs} machines={machines} now={now}
@@ -342,11 +345,11 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
         }} />}
       {scope.tabs.length > 1 && (
         <div className="sticky top-0 z-20 -mx-4 bg-paper px-4 py-2 sm:-mx-6 sm:px-6">
-        <div role="tablist" aria-label="มุมมอง" className={`${pillGroup} flex-nowrap sm:inline-flex`}>
+        <div role="tablist" aria-label={tx('มุมมอง')} className={`${pillGroup} flex-nowrap sm:inline-flex`}>
           {scope.tabs.map(t => (
             <button key={t} role="tab" aria-selected={activeTab === t} onClick={() => setTab(t)}
               className={`${pillItem} px-2 ${activeTab === t ? pillOn : pillOff}`}>
-              {DASH_TAB_NAME[t]}
+              <Tr th={DASH_TAB_NAME[t]} />
             </button>
           ))}
         </div>
@@ -389,35 +392,35 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
           ) : (<>
           <Card className="grid gap-2 p-3 sm:p-4">
             <label className="relative min-w-0">
-              <span className="sr-only">ค้นหางาน</span>
+              <span className="sr-only">{tx('ค้นหางาน')}</span>
               <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted" />
-              <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาเลขที่ใบยืนยัน ลูกค้า หรือสินค้า"
+              <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder={tx('ค้นหาเลขที่ใบยืนยัน ลูกค้า หรือสินค้า')}
                 className={`${filterField} pl-10`} />
             </label>
             <details>
               <summary className="min-h-12 cursor-pointer rounded-xl px-3 py-3 font-medium text-brand hover:bg-paper">
-                {hasFilters ? 'ตัวกรองเพิ่มเติม · กำลังใช้ตัวกรอง' : 'ตัวกรองเพิ่มเติม'}
+                <Tr th={hasFilters ? 'ตัวกรองเพิ่มเติม · กำลังใช้ตัวกรอง' : 'ตัวกรองเพิ่มเติม'} />
               </summary>
               <div className="mt-2 grid gap-3 sm:grid-cols-2">
                 {scoped && myScope.allowFactory && (
                   <div className="sm:col-span-2">
-                    <ViewSwitch label="ขอบเขตงาน" value={wholeFactory ? 'all' : 'mine'} onChange={v => {
+                    <ViewSwitch label={tx('ขอบเขตงาน')} value={wholeFactory ? 'all' : 'mine'} onChange={v => {
                       setWholeFactory(v === 'all')
                       setStation('all')
                       setFilter('all')
-                    }} options={[['mine', 'งานของฉัน'], ['all', 'ทั้งโรงงาน']]} />
+                    }} options={[['mine', tx('งานของฉัน')], ['all', tx('ทั้งโรงงาน')]]} />
                   </div>
                 )}
-                <label className="grid gap-1 font-medium">สถานะ
+                <label className="grid gap-1 font-medium"><Tr th="สถานะ" />
                   <select value={filter} onChange={e => setFilter(e.target.value as Filter)} className={filterField}>
                     {STATUS_FILTERS.filter(([key]) => key !== 'film' || scope.showFilm).map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
+                      <option key={key} value={key}>{tx(label)}</option>
                     ))}
                   </select>
                 </label>
-                <label className="grid gap-1 font-medium">เส้นทาง
+                <label className="grid gap-1 font-medium"><Tr th="เส้นทาง" />
                   <select value={route} onChange={e => setRoute(e.target.value as RouteCode | 'all')} className={filterField}>
-                    <option value="all">ทุกเส้นทาง</option>
+                    <option value="all">{tx('ทุกเส้นทาง')}</option>
                     {Object.entries(ROUTES).map(([key, item]) => <option key={key} value={key}>{item.short}</option>)}
                   </select>
                 </label>
@@ -426,26 +429,26 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
           </Card>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-semibold" role="status">
-              {station === 'all' ? 'ทุกสถานี' : COLUMNS.find(c => c.key === station)?.name} · {visibleCount} งาน
+              {tx('{where} · {n} งาน', { where: { th: station === 'all' ? 'ทุกสถานี' : COLUMNS.find(c => c.key === station)?.name ?? '' }, n: visibleCount })}
             </p>
             {(hasFilters || query || station !== 'all') && (
               <button type="button" onClick={() => { setQuery(''); setStation('all'); setRoute('all'); setFilter('all'); setWholeFactory(false) }}
                 className="min-h-12 rounded-xl border border-line bg-card px-5 font-semibold text-brand hover:border-brand/50">
-                ล้างตัวกรอง
+                <Tr th="ล้างตัวกรอง" />
               </button>
             )}
           </div>
           {visibleCount === 0 ? (
-            <Card className="p-5 text-muted">ไม่พบงานตามที่เลือก</Card>
+            <Card className="p-5 text-muted"><Tr th="ไม่พบงานตามที่เลือก" /></Card>
           ) : (
             // สถานีเรียงบนลงล่างตามลำดับกระบวนการ อ่านต่อกันได้ ไม่กระโดดซ้าย-ขวาเหมือนตารางหลายคอลัมน์
             <div className="grid min-w-0 gap-5">
               {matchingColumns.map(c => (
                 <section key={c.key} className="min-w-0" aria-labelledby={`col-${c.key}`}>
                   <h2 id={`col-${c.key}`} className="mb-2 flex items-center gap-2 text-lg font-bold">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-sm text-white">{COLUMNS.findIndex(x => x.key === c.key) + 1}</span>
-                    {c.name}
-                    <span className="text-base font-medium text-muted">{byColumn.get(c.key)?.length ?? 0} งาน</span>
+                    {stationNo(c.key) && <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-sm text-white">{stationNo(c.key)}</span>}
+                    <Tr inline th={c.name} />
+                    <span className="text-base font-medium text-muted">{tx('{n} งาน', { n: byColumn.get(c.key)?.length ?? 0 })}</span>
                   </h2>
                   <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                     {byColumn.get(c.key)?.map(j => <li key={j.id} className="min-w-0"><JobCard job={j} now={now} onOpen={() => setOpenId(j.id)} /></li>)}
@@ -486,13 +489,21 @@ function RoleSummary({ scope, jobs, machines, now, onPick }: {
 }
 
 // เวลาอัปเดต = ตอนที่โหลดข้อมูลล่าสุดจากฐานข้อมูล (ไม่ใช่นาฬิกาเครื่อง) คนหน้างานจึงรู้ว่าข้อมูลสดแค่ไหน
-function PageHeader({ title, today, updated }: { title: string; today: string; updated: Date }) {
+function OfflineText({ at }: { at: string }) {
+  const t = useT()
+  return <>{t('ขาดการเชื่อมต่อ · ข้อมูลอาจไม่ใช่ล่าสุด (อัปเดตล่าสุด {at} น.) · ระบบจะโหลดใหม่เองเมื่อเน็ตกลับมา', { at })}</>
+}
+
+function PageHeader({ title, today, updated }: { title: string | Word; today: string; updated: Date }) {
+  const tx = useT()
+  const head = typeof title === 'string' ? { th: title } : title
   return (
     <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-      <h1 className="min-w-0 text-2xl font-bold">{title}</h1>
+      <h1 className="min-w-0 text-2xl font-bold"><Tr inline th={head.th} vars={head.vars} /></h1>
       <div className="text-sm text-muted">
-        <span className="hidden md:inline">{today} · </span>
-        <span>อัปเดต {updated.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit' })} น.</span>
+        {/* วันที่ยาวแบบไทย (วันเสาร์ที่ … พ.ศ.) คนพม่าอ่านไม่ออก แสดงเฉพาะเวลาอัปเดต */}
+        {useLang() === 'th' && <span className="hidden md:inline">{today} · </span>}
+        <span>{tx('อัปเดต {at} น.', { at: updated.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit' }) })}</span>
       </div>
     </header>
   )
@@ -507,14 +518,16 @@ function stripe(j: Job, now: Date): Tone {
 }
 
 function JobCard({ job: j, now, onOpen }: { job: Job; now: Date; onOpen: () => void }) {
-  const label = j.status === 'out' && j.out ? `ข้างนอก · ${j.out.vendor}`
-    : j.status === 'hold' ? 'พักงาน'
-    : j.sla ? SLA_LABEL[j.sla].text
-    : isWaitingFilm(j) ? 'รอฟิล์ม'
-    : j.phase === 'done' ? (j.delivered ? 'จัดส่งแล้ว' : 'เสร็จ · รอส่ง')
-    : j.phase === 'sample' && j.station ? STATION_NAME[j.station]
-    : j.status ? STATUS_NAME[j.status] : null
+  const tx = useT()
+  const label = j.status === 'out' && j.out ? `${tx('ข้างนอก')} · ${j.out.vendor}`
+    : j.status === 'hold' ? tx('พักงาน')
+    : j.sla ? tx(SLA_LABEL[j.sla].text)
+    : isWaitingFilm(j) ? tx('รอฟิล์ม')
+    : j.phase === 'done' ? tx(j.delivered ? 'จัดส่งแล้ว' : 'เสร็จ · รอส่ง')
+    : j.phase === 'sample' && j.station ? tx(STATION_NAME[j.station])
+    : j.status ? tx(STATUS_NAME[j.status]) : null
   const tone = stripe(j, now)
+  const StatusIcon = j.status === 'hold' ? IconPause : j.sla ? IconAlert : j.status === 'doing' ? IconPlay : j.status === 'out' ? IconUsers : j.phase === 'done' ? IconCheck : IconClock
   return (
     <button type="button" onClick={onOpen}
       className={`flex h-full w-full min-w-0 items-start gap-3 rounded-xl border border-line border-l-[6px] bg-card px-3 py-2.5 text-left shadow-card hover:border-brand ${STRIPE[tone]}`}>
@@ -525,12 +538,12 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: Date; onOpen: () => v
         <span className="ml-auto text-sm"><DueLabel job={j} now={now} /></span>
       </span>
       <span className="truncate">{j.customer}</span>
-      <span className="truncate text-sm text-muted">{j.product} · {j.qty.toLocaleString('th-TH')} {j.unit}</span>
+      <span className="truncate text-sm text-muted">{j.product} · {j.qty.toLocaleString('th-TH')} {tx(j.unit)}</span>
       {(label || j.rework) && (
         <span className="mt-0.5 flex flex-wrap gap-1">
           {/* ป้ายเวลามาตรฐานใช้สีของตัวเอง (ส้ม/แดง) ไม่ใช้สีแถบ ซึ่งอาจแดงเพราะเลยกำหนดส่ง */}
-          {label && <Pill tone={j.sla && label === SLA_LABEL[j.sla].text ? SLA_LABEL[j.sla].tone : tone} dot>{label}</Pill>}
-          {j.rework && <Pill tone="danger">งานแก้</Pill>}
+          {label && <Pill tone={j.sla && label === tx(SLA_LABEL[j.sla].text) ? SLA_LABEL[j.sla].tone : tone}><StatusIcon className="size-4" />{label}</Pill>}
+          {j.rework && <Pill tone="danger">{tx('งานแก้')}</Pill>}
         </span>
       )}
       </span>

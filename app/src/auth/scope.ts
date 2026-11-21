@@ -1,4 +1,5 @@
 // ไม่ได้ปิดบังข้อมูล แค่ไม่ให้คนหน้างานงง · ทุกบทบาทกดดูทั้งโรงงานได้ และสิทธิ์จริงบังคับที่ฐานข้อมูล
+import type { Word } from '../i18n/lang.ts'
 import { columnOf, STATION_NAME, type ColumnKey, type Dept, type Job, type StationCode } from '../proto/model.ts'
 import type { SummaryKind } from '../proto/summary.ts'
 import { SECTION_LABELS, type EmployeeRole, type PageKey, type Section } from './access.ts'
@@ -12,6 +13,7 @@ const ALL_STATIONS: StationCode[] = ['print', 'press', 'cut', 'dtf_press', 'emb'
 
 export type BoardScope = {
   title: string
+  titleT?: Word
   sub: string
   columns: ColumnKey[] | null   // null = ทุกคอลัมน์ (ทั้งโรงงาน)
   sampleStations?: StationCode[] // คอลัมน์ "ขึ้นตัวอย่าง" แสดงเฉพาะงานที่อยู่สถานีเหล่านี้
@@ -49,6 +51,7 @@ export function boardScope(role: EmployeeRole, section: Section | null, stations
       const mine = ALL_STATIONS.filter(s => stations.includes(s))
       return {
         title: mine.length ? `งานสถานี${mine.map(s => STATION_NAME[s]).join(' · ')}` : 'ยังไม่ได้จับคู่สถานี',
+        titleT: mine.length ? { th: 'งานสถานี{stations}', vars: { stations: mine.map(s => ({ th: STATION_NAME[s] })) } } : { th: 'ยังไม่ได้จับคู่สถานี' },
         sub: mine.length ? 'งานที่อยู่สถานีของคุณ · กดการ์ดเพื่อดูรายละเอียด' : 'ให้เจ้าของระบบจับคู่สถานีให้ที่เมนู Station Assignment',
         columns: mine,
         sampleStations: mine,

@@ -1,7 +1,8 @@
 import { ChangePasswordForm, SignOutButton } from '../auth/EmployeeLogin'
 import type { EmployeeRole } from '../auth/access'
 import { Card, CardHeader } from '../components/ui'
-import { IconAlert, IconCheck, IconLock, IconLogOut } from '../components/icons'
+import { IconAlert, IconBook, IconCheck, IconLock, IconLogOut } from '../components/icons'
+import { Tr } from '../i18n/Tr'
 
 // สิ่งที่แต่ละบทบาททำได้ในระบบ · ให้คนเพิ่งได้บัญชีรู้ทันทีว่าตัวเองมีหน้าที่อะไร (ฐานข้อมูลบังคับสิทธิ์จริงอีกชั้น)
 const ROLE_CAN: Record<EmployeeRole, string[]> = {
@@ -30,6 +31,11 @@ export default function AccountPage({ name, role, roleLabel, email }: { name: st
         </div>
 
         <div className="grid gap-4 p-5">
+          {(role === 'staff' || role === 'qc') && (
+            <a href="#/words" className="inline-flex min-h-14 items-center gap-3 rounded-xl border-2 border-brand bg-brand-soft px-4 font-semibold text-brand hover:bg-brand hover:text-white">
+              <IconBook className="size-6 shrink-0" /><Tr th="คำศัพท์หน้างาน ไทย – พม่า" />
+            </a>
+          )}
           <section aria-labelledby="role-can">
             <h2 id="role-can" className="mb-2 font-semibold text-muted">บัญชีนี้ทำอะไรได้</h2>
             <ul className="grid gap-2">
