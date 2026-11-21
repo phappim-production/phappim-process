@@ -1049,6 +1049,8 @@ const CO_MX=0.25, CO_MY=0.08, CO_MAX=30;
 const coClamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,Number.isFinite(v)?v:0));
 const coR4=v=>Math.round(v*10000)/10000;
 const coPct=(x,y)=>`left:${(x+CO_MX)/(1+2*CO_MX)*100}%;top:${(y+CO_MY)/(1+2*CO_MY)*100}%`;
+// เลื่อนกล่องตามตำแหน่งบนพื้นที่ภาพ ชิดซ้ายสุด = ขอบซ้ายกล่องอยู่ที่จุด ชิดขวาสุด = ขอบขวา กล่องจึงไม่ล้นออกนอกภาพ
+const coBoxPct=(x,y)=>{ const l=(x+CO_MX)/(1+2*CO_MX)*100, t=(y+CO_MY)/(1+2*CO_MY)*100; return `left:${l}%;top:${t}%;transform:translate(-${l}%,-${t}%)`; };
 function coList(){ if(!Array.isArray(state.callouts)) state.callouts=[]; return state.callouts; }
 function coRefs(){
   const v=scope('p'), out=[], ms=[].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m));
@@ -1069,7 +1071,7 @@ function coStageHTML(edit){
   const dots=cs.map((c,i)=>edit
     ?`<button type="button" class="co-dot" data-co-i="${i}" data-co-part="pt" style="${coPct(c.x,c.y)}" aria-label="จุด ${i+1}"></button>`
     :'').join('');
-  const boxes=cs.map((c,i)=>`<div class="co-box" ${edit?`data-co-i="${i}" data-co-part="box"`:''} style="${coPct(c.bx,c.by)}">${coBoxInner(c,i,refs)}</div>`).join('');
+  const boxes=cs.map((c,i)=>`<div class="co-box" ${edit?`data-co-i="${i}" data-co-part="box"`:''} style="${coBoxPct(c.bx,c.by)}">${coBoxInner(c,i,refs)}</div>`).join('');
   return `<div class="co-stage" ${edit?'data-co-stage':''} style="aspect-ratio:${W}/${H}">`+
     `<img src="${m.src}" alt="" ${edit?'data-co-img draggable="false"':''} style="left:${CO_MX/(1+2*CO_MX)*100}%;top:${CO_MY/(1+2*CO_MY)*100}%;width:${100/(1+2*CO_MX)}%;height:${100/(1+2*CO_MY)}%">`+
     `<svg viewBox="${-CO_MX*w} ${-CO_MY*h} ${W} ${H}" preserveAspectRatio="none">${lines}</svg>${dots}${boxes}</div>`;
@@ -1110,7 +1112,7 @@ document.addEventListener('pointermove',e=>{
   coDrag.moved=true;
   const p=coAt(e,coDrag.part,coDrag.stage), c=coList()[coDrag.i], sz=state.co_size||{w:4,h:3}; if(!c) return;
   if(coDrag.part==='pt'){ c.x=p.x; c.y=p.y; } else { c.bx=p.x; c.by=p.y; }
-  coDrag.el.style.cssText=coPct(p.x,p.y);
+  coDrag.el.style.cssText=coDrag.part==='pt'?coPct(p.x,p.y):coBoxPct(p.x,p.y);
   const ln=coDrag.stage.querySelector(`[data-co-line="${coDrag.i}"]`);
   if(ln){ ln.setAttribute(coDrag.part==='pt'?'x1':'x2',p.x*sz.w); ln.setAttribute(coDrag.part==='pt'?'y1':'y2',p.y*sz.h); }
 });
