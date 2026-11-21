@@ -292,7 +292,9 @@ function pajamaChart(v){
   const tops=m?['แขน'+m[1]]:Object.keys(PAJAMA_TOP), bottoms=m?['ขา'+m[2]]:Object.keys(PAJAMA_BOTTOM);
   return ['FS','PS'].map(z=>`${z}: `+[...tops.map(t=>`เสื้อ${t} ${PAJAMA_TOP[t][z]}`), ...bottoms.map(b=>`กางเกง${b} ${PAJAMA_BOTTOM[b][z]}`)].join(' · ')+' นิ้ว');
 }
-const ELEPHANT_CHART = () => ['FS: เอว 26 ยืดได้ถึง 32 · สะโพก 46 · ยาว 39 นิ้ว', 'PS: เอว 30 ยืดได้ถึง 40 · สะโพก 50 · ยาว 40 นิ้ว'];
+// ความยาวที่มีเป็นของขายาว · ขาสั้นยังไม่มีข้อมูล จึงไม่พิมพ์ความยาว
+const ELEPHANT_CHART = v => [['FS','เอว 26 ยืดได้ถึง 32 · สะโพก 46','39'], ['PS','เอว 30 ยืดได้ถึง 40 · สะโพก 50','40']]
+  .map(([z,body,len])=>`${z}: ${body}${v.cut==='ขาสั้น'?'':` · ยาว ${len}`} นิ้ว`);
 const sizeChart = (f,v) => f.chart && sizeCols(v).some(c=>c==='FS'||c==='PS') ? f.chart(v) : [];
 
 const M_GARMENT = ['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)','ซับลิเมชั่น เฉพาะจุด','DTF (ฟิล์มรีดร้อน)','DTG','ซิลค์สกรีน','งานปัก','ไม่มีลาย'];
@@ -563,7 +565,7 @@ const PRODUCTS = {
     fabrics:['ผ้าซาติน'], fabricHint:'ขั้นต่ำ 100 ตัว',
     style:[ R('cut','ทรง',['ทรงมวยไทยมาตรฐาน','ทรงสั้นพิเศษ']),
       T('waist_color','สีขอบเอว',{ req:true }),
-      R('side_slit','ผ่าข้าง',['ผ่าข้าง','ไม่ผ่าข้าง']),
+      R('side_slit','ข้างขา',['ผ่าข้าง','ไม่ผ่าข้าง']),
       R('trim','แต่งขอบขา',['ไม่แต่ง','แต่งขอบสีตัดกัน']),
       T('trim_color','สีขอบขา',{ req:true, when:v=>v.trim==='แต่งขอบสีตัดกัน' }) ],
     positions:['ขอบเอวด้านหน้า','ขาซ้าย','ขาขวา','ด้านหลัง'], personal:false, pockets:false,
@@ -808,7 +810,7 @@ const PRODUCTS = {
       R('sides','ด้านพิมพ์ / สลัก',['ด้านเดียว','2 ด้าน']) ]},
     itemsSec('เหรียญ',{ size:false, nameLabel:'ลาย / ชื่อรางวัล', title:'จำนวน' }),
     { title:'สายคล้อง', fields:[
-      R('ribbon','สายคล้อง',['มีสายคล้อง','ไม่มีสาย']),
+      R('ribbon','ใส่สาย',['มีสายคล้อง','ไม่มีสาย']),
       R('ribbon_w','ความกว้างสาย',['2 ซม.','2.5 ซม.'],{ when:v=>v.ribbon==='มีสายคล้อง' }),
       N('ribbon_len','ความยาวสาย','ซม.',{ hint:'มาตรฐาน 90 ซม.', when:v=>v.ribbon==='มีสายคล้อง' }),
       T('ribbon_design','ลาย / สีสาย',{ req:true, ph:'พิมพ์ลายซับลิเมชั่น หรือสีพื้น', when:v=>v.ribbon==='มีสายคล้อง' }) ]},
@@ -826,7 +828,7 @@ const PRODUCTS = {
   ]},
   premium: { cat:'other', name:'ของพรีเมียมอื่นๆ (แก้ว ปฏิทิน ร่ม สมุด ฯลฯ)', unit:'ชิ้น', route:'งานจัดหา/ของพรีเมียม: สั่งสินค้า → พิมพ์/สกรีน → QC+Packing', sections:[
     { title:'สินค้า', fields:[
-      R('item','สินค้า',['แก้วน้ำ / แก้วเปลี่ยนสี','ปฏิทิน','ร่ม','สมุด / หนังสือ','หน้ากากอนามัย','Power bank'],{ other:true }),
+      R('item','ชนิดสินค้า',['แก้วน้ำ / แก้วเปลี่ยนสี','ปฏิทิน','ร่ม','สมุด / หนังสือ','หน้ากากอนามัย','Power bank'],{ other:true }),
       A('spec','สเปกสินค้า',{ req:true, hint:'รุ่น ขนาด วัสดุ สี ความจุ จำนวนหน้า ฯลฯ' }) ]},
     itemsSec('ชิ้น',{ size:false, nameLabel:'แบบ / สี', title:'จำนวน' }),
     printSec(['ซิลค์สกรีน','พิมพ์ UV','ซับลิเมชั่น','สลักเลเซอร์','พิมพ์ออฟเซ็ท'],null,{
@@ -1293,7 +1295,11 @@ function valText(f,v){
     case 'number': return num(val)>0?`${val}${f.unit?' '+f.unit:''}`:'';
     case 'radio': return val&&!isNone(val)?o(val):'';
     case 'check': return (val||[]).filter(x=>!isNone(x)).map(o).join(', ');
-    case 'dims': { const ps=f.parts.map((p,i)=>[p,v[f.id+'_'+i]]).filter(([,x])=>num(x)>0); return ps.length?ps.map(([p,x])=>`${p} ${x}`).join(' × ')+(f.unit?' '+f.unit:''):''; }
+    case 'dims': {
+      // ช่องที่ใส่หน่วยในวงเล็บเอง เช่น "หนา (มม.)" แสดงหน่วยของตัวเองแยกจากหน่วยหลัก
+      const ps=f.parts.map((p,i)=>{ const m=/^(.*?)\s*\(([^)]+)\)$/.exec(p); return { name:m?m[1]:p, unit:m?m[2]:'', x:v[f.id+'_'+i] }; }).filter(p=>num(p.x)>0);
+      const main=ps.filter(p=>!p.unit), own=ps.filter(p=>p.unit);
+      return [main.length?main.map(p=>`${p.name} ${p.x}`).join(' × ')+(f.unit?' '+f.unit:''):'', ...own.map(p=>`${p.name} ${p.x} ${p.unit}`)].filter(Boolean).join(' · '); }
     default: { const t=String(val??'').trim(); return isNone(t)?'':t; }
   }
 }
