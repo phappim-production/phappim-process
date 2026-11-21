@@ -10,6 +10,8 @@
 -- 3. ปิดบัญชีทดสอบ @pp142.test (ไม่ลบ เพราะงานจริงอาจอ้างผู้ใช้เหล่านี้)
 -- ไม่แตะ: งานจริง (รวมงานวันทดลอง ส. 21 ที่ใช้เลขใบจริง · เลขคิวเดิมทุกแถว) · บริษัทภายนอก · จักร · ตั้งค่า
 -- ไฟล์ PDF ใน Storage ลบด้วย SQL ไม่ได้ → ตารางผลบอกชื่อไฟล์ที่ไม่มีงานใดใช้แล้ว ให้ลบเองที่ Storage → confirmations
+-- 4. ไฟล์ใน R2 ที่ไม่มีงาน/ใบร่าง/ม็อคอัพอ้างแล้ว (อัปโหลดเกิน 1 ชม. กันไฟล์ที่กำลังกรอกฟอร์มอยู่) → ลบแถวจาก private.file_objects
+--    แล้วตารางผลขั้น 7 ให้คำสั่ง wrangler ลบไฟล์จริงใน R2 (รันในเครื่องที่ล็อกอิน wrangler · ไม่ลบก็ได้ ไม่มีใครเปิดไฟล์นั้นได้แล้ว)
 
 begin;
 
@@ -25,6 +27,7 @@ declare
   n_drafts int;
   n_rpc int;
   n_users int;
+  n_files int;
 begin
   select count(*) into n_test from public.jobs where confirmation_no like 'TEST-%';
   select count(*) into n_real_before from public.jobs where confirmation_no not like 'TEST-%';
@@ -63,12 +66,29 @@ begin
     where u.id = p.user_id and u.email like '%@pp142.test' and p.active;
   get diagnostics n_users = row_count;
 
+  -- 4. ไฟล์ R2 ที่ไม่มีอะไรอ้าง
+  with gone as (
+    delete from private.file_objects f
+    where f.uploaded_at < now() - interval '1 hour'
+      and not (f.kind = 'confirmations' and exists (select 1 from public.jobs j where j.confirmation_pdf_path = f.path))
+      and not (f.kind = 'mockups' and (
+            exists (select 1 from public.jobs j where j.mockup_path = f.path)
+            or exists (select 1 from public.mockup_views v where v.image_path = f.path)
+            or exists (select 1 from public.confirmation_drafts d where d.data ->> 'mockup_path' = f.path)))
+    returning f.kind, f.path
+  )
+  insert into golive_summary
+  select 7, 'ลบไฟล์ใน R2 (คำสั่ง)', format('npx wrangler@4 r2 object delete "pp142-files/%s/%s" --remote', kind, path)
+  from gone;
+  get diagnostics n_files = row_count;
+
   insert into golive_summary values
     (1, 'ลบงานทดสอบ TEST- (งาน)', n_test::text),
     (1, 'งานจริงที่เหลือ (งาน)', n_real_before::text),
     (2, 'ลบใบร่างใบยืนยันทดสอบ (ใบ)', n_drafts::text),
     (2, 'ล้างบันทึกกันคำขอซ้ำ (แถว)', n_rpc::text),
     (4, 'ปิดบัญชี @pp142.test (บัญชี)', n_users::text),
+    (4, 'ลบรายการไฟล์ R2 ที่ไม่มีงานอ้าง (ไฟล์)', n_files::text),
     (5, 'trigger กันลบประวัติ (events)',
        case when exists (select 1 from pg_trigger
                          where tgname = 'events_append_only' and tgrelid = 'public.events'::regclass

@@ -40,7 +40,7 @@ declare
   prd uuid := '34d97810-626e-42c1-a961-ae0a1da8f1b9';
   qcu uuid := '088bd56e-1d95-42df-8bd9-a7667f545b72';
   spec jsonb := '{"app":"phappim-confirm","v":1,"product":"tshirt","p":{"tshirt":{"neck":"คอกลม","print_method":["DTF"],"placements":{"หน้าอกซ้าย":{"on":true,"size":"8 × 8"},"กลางหลัง":{"on":true,"tech":"ซับลิเมชั่น","size":"25"}}}}}';
-  j1 uuid; j2 uuid; s1 uuid; s2 uuid; v int; st text; folder text; payload jsonb; n int;
+  j1 uuid; j2 uuid; j3 uuid; s1 uuid; s2 uuid; s3 uuid; v int; st text; folder text; payload jsonb; n int;
   out json;
 begin
   -- บัญชีทดสอบปิดอยู่หลังเปิดใช้จริง · เปิดชั่วคราวในธุรกรรมนี้ ถูกย้อนกลับพร้อมทุกอย่างตอนจบ
@@ -179,6 +179,32 @@ begin
   perform pg_temp.chk('ไม่ผ่าน = ขึ้นตัวอย่างรอบ 2', (select phase='sample' and sample_round=2 from public.job_live where id=j2), (select phase||' รอบ '||sample_round from public.job_live where id=j2));
 
   perform pg_temp.err('งานที่ยังไม่เสร็จบันทึกจัดส่งไม่ได้', adm, format($$select public.mark_delivered(%L)$$, j2), 'ยังผลิตไม่เสร็จ');
+
+  -- งาน C: ยกเลิกงานระหว่างทำ (มีปัญหาค้าง · สั่งฟิล์มแล้วยังไม่ได้รับ · มีม็อคอัพร่าง)
+  j3 := pg_temp.ok('รับงาน C (DTF)', adm, $$select public.receive_job('TEST-LIVE-C','ลูกค้าทดสอบสด','งานยกเลิก','tshirt',10,'ตัว',current_date+7,'dtf','',0,0,'{}'::jsonb,false)::text$$)::uuid;
+  perform pg_temp.ok('งาน C: สั่งฟิล์ม', adm, format($$select public.order_film(%L,current_date+1)::text$$, j3));
+  perform pg_temp.ok('งาน C: เริ่มสถานีแรก', prd, format($$select public.start_in_queue(%L,'ทดสอบระบบสด')::text$$, j3));
+  perform pg_temp.ok('งาน C: พักงาน', prd, format($$select public.open_issue(%L,'ทดสอบก่อนยกเลิก')::text$$, j3));
+  s3 := pg_temp.ok('งาน C: แอดมินเริ่มม็อคอัพ', adm, format($$select public.start_mockup_sheet(%L)::text$$, j3))::uuid;
+  perform pg_temp.err('แอดมินยกเลิกงานไม่ได้', adm, format($$select public.cancel_job(%L,'ลูกค้ายกเลิก')$$, j3), 'บทบาท');
+  perform pg_temp.err('ฝ่ายผลิตยกเลิกงานไม่ได้', prd, format($$select public.cancel_job(%L,'ลูกค้ายกเลิก')$$, j3), 'บทบาท');
+  perform pg_temp.err('QC ยกเลิกงานไม่ได้', qcu, format($$select public.cancel_job(%L,'ลูกค้ายกเลิก')$$, j3), 'บทบาท');
+  perform pg_temp.err('ยกเลิกต้องใส่เหตุผล', mgr, format($$select public.cancel_job(%L,'  ')$$, j3), 'เหตุผล');
+  perform pg_temp.err('งานที่เสร็จแล้วยกเลิกไม่ได้', mgr, format($$select public.cancel_job(%L,'ลูกค้ายกเลิก')$$, j1), 'ผลิตเสร็จแล้ว');
+  perform pg_temp.chk('ถูกปฏิเสธแล้วงาน C ยังเดินอยู่', (select phase from public.jobs where id=j3)='production', (select phase from public.jobs where id=j3));
+  perform pg_temp.ok('ผู้บริหารยกเลิกงาน C', mgr, format($$select public.cancel_job(%L,'ทดสอบลูกค้ายกเลิก')::text$$, j3));
+  perform pg_temp.chk('งาน C เป็นยกเลิก ไม่อยู่สถานีไหน', (select phase='cancelled' and station_seq is null and station_status is null from public.jobs where id=j3),
+    (select phase||'/'||coalesce(station_status,'-') from public.jobs where id=j3));
+  perform pg_temp.chk('ลง events job_cancelled 1 แถว พร้อมเหตุผล', (select count(*)=1 and min(e.payload->>'reason')='ทดสอบลูกค้ายกเลิก' from public.events e where job_id=j3 and type='job_cancelled'),
+    (select count(*)::text from public.events where job_id=j3 and type='job_cancelled'));
+  perform pg_temp.chk('ปัญหาที่ค้างถูกปิด', not exists (select 1 from public.issues where job_id=j3 and closed_at is null), '');
+  perform pg_temp.chk('แจ้งกล่องจดหมายยกเลิกงาน', exists (select 1 from public.inbox_messages where job_id=j3 and kind='job_cancelled'), '');
+  perform pg_temp.chk('ไม่มี error แจ้งยกเลิกงาน', not exists (select 1 from public.inbox_errors where source='cancel_job' and at > now() - interval '1 minute'), '');
+  perform pg_temp.err('ยกเลิกซ้ำไม่ได้', mgr, format($$select public.cancel_job(%L,'ซ้ำ')$$, j3), 'ยกเลิกไปแล้ว');
+  perform pg_temp.err('งานที่ยกเลิกแล้วกดเริ่มไม่ได้', prd, format($$select public.start_in_queue(%L,'ทดสอบระบบสด')$$, j3), 'สถานะงานเปลี่ยน');
+  perform pg_temp.err('งานที่ยกเลิกแล้วบันทึกได้รับฟิล์มไม่ได้', adm, format($$select public.receive_film(%L)$$, j3), 'ยกเลิกแล้ว');
+  perform pg_temp.err('งานที่ยกเลิกแล้วแก้ม็อคอัพไม่ได้', adm, format($$select public.save_mockup_draft(%L,1,'{"views":[],"specs":[],"callouts":[]}'::jsonb)$$, s3), 'ยกเลิกแล้ว');
+  perform pg_temp.err('งานที่ยกเลิกแล้วบันทึกจัดส่งไม่ได้', adm, format($$select public.mark_delivered(%L)$$, j3), 'ยังผลิตไม่เสร็จ');
 
   out := (select json_agg(json_build_object('n', name, 'ok', pass, 'i', left(info, 140))) from pg_temp.res);
   raise exception 'RESULTS%', out;
