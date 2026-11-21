@@ -10,6 +10,7 @@ import { loadMockupJob, loadSheet, pickSheets, type MockupData, type SheetRow } 
 import { isJobId } from '../../data/useFactoryData'
 import { thaiError } from '../../data/live'
 import { AnnotationCanvas } from './AnnotationCanvas'
+import { printWhenFontsReady } from '../../lib/printFonts'
 import './artwork.css'
 
 type Paper = 'A4' | 'A3'
@@ -137,7 +138,7 @@ export default function ArtworkSheet({ jobId, role }: { jobId: string; role: Emp
               className={`min-h-12 rounded-lg px-5 font-semibold ${paper === p ? 'bg-brand text-white' : 'hover:bg-paper'}`}>{p} แนวนอน</button>
           ))}
         </span>
-        <button type="button" className={primaryBtn} onClick={() => { setPrintedOn(new Date().toISOString()); requestAnimationFrame(() => window.print()) }}><IconPrinter className="size-5" />พิมพ์ / บันทึก PDF</button>
+        <button type="button" className={primaryBtn} onClick={() => { setPrintedOn(new Date().toISOString()); requestAnimationFrame(() => void printWhenFontsReady()) }}><IconPrinter className="size-5" />พิมพ์ / บันทึก PDF</button>
       </div>
       <p className="text-sm text-muted">ในหน้าพิมพ์เลือก "บันทึกเป็น PDF" เพื่อได้ไฟล์ PDF · ตำแหน่งจุดตรงกับหน้าแก้ไขเพราะใช้สัดส่วนบนภาพชุดเดียวกัน</p>
       <div className="artwork-screen overflow-x-auto rounded-2xl border border-line bg-white shadow-card">{sheet}</div>
