@@ -281,6 +281,8 @@ const M_FLAT = ['ซับลิเมชั่น พิมพ์เต็ม�
 const POS_SHIRT = ['หน้าอกซ้าย','หน้าอกขวา','กลางอกหน้า','เต็มด้านหน้า','หลังคอ','กลางหลัง','เต็มด้านหลัง','แขนซ้าย','แขนขวา','ปกเสื้อ'];
 const POS_PANTS = ['ขาซ้ายด้านหน้า','ขาขวาด้านหน้า','ขอบเอว','ด้านหลัง','ปลายขา'];
 const ALLOVER = /ทั้งตัว|ทั้งใบ|เต็มผืน/;
+// ต้องมีคำว่า "ไม่มีลาย" เพราะหน้าเว็บ/ฐานข้อมูลใช้คำนี้ตัดสินว่าไม่มีงานพิมพ์
+const CUSTOMER_FABRIC = 'ลูกค้าส่งผ้ามาเอง (ไม่มีลายที่ต้องพิมพ์ · ตัด/เย็บอย่างเดียว)';
 const hasPrint = v => [].concat(v.print_method||[]).some(m=>!/ไม่มีลาย/.test(m));
 const spotPrint = v => [].concat(v.print_method||[]).some(m=>!/ไม่มีลาย/.test(m)&&!ALLOVER.test(m));
 
@@ -321,7 +323,7 @@ const SPARE = unit => N('spare','ผลิตเผื่อเสีย',unit,{
 
 function printSec(methods, positions, x={}){
   return { title: x.title||'งานพิมพ์ / ตกแต่ง', fields:[
-    C('print_method','เทคนิค (เลือกได้หลายแบบ)',methods,{ req:true, other:true, hint:x.hint, def:x.def }),
+    C('print_method','เทคนิค (เลือกได้หลายแบบ)',[...methods, CUSTOMER_FABRIC],{ req:true, other:true, hint:x.hint, def:x.def }),
     ...(positions?[{ id:'placements', type:'placements', label:'ตำแหน่ง เทคนิค และขนาดของแต่ละจุด', req:true, positions, hint:'ซ้าย/ขวา = ฝั่งของคนใส่ (มองเสื้อจากด้านหน้า อกซ้ายจะอยู่ทางขวามือของคนดู)', when:spotPrint }]:[]),
     ...(x.extra||[]),
     ...TECH_DETAIL.filter(t=>!(x.extra||[]).some(e=>e.id===t.id)),
