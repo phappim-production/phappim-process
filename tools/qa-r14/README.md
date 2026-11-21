@@ -32,6 +32,11 @@
   ```powershell
   Invoke-RestMethod -Method Post http://127.0.0.1:5214/__qa/reset
   ```
+- งานตัวอย่างที่สถานีตัด (ดูหน้าจอพนักงาน / ภาษาพม่า) · ล้างข้อมูลเดิมก่อน:
+  ```powershell
+  node tools/qa-r14/seed-station.mjs
+  ```
+  หรือเปิดผ่าน Claude ด้วย `.claude/launch.json` ชื่อ `qa-local` (build แบบ loopback ก่อน)
 - ทดสอบ Part 0 (หลังบ้าน PGlite + RLS + R2):
   ```powershell
   node --test tools/qa-r14/server.test.mjs
