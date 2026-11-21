@@ -1,4 +1,4 @@
-import { DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME, missingDepts, thaiDayDiff, type Job } from './model.ts'
+import { DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME, missingDepts, thaiDay, thaiDayDiff, type Job } from './model.ts'
 
 // ใส่ช่องว่างรอบชื่อที่ขึ้นต้น/ลงท้ายด้วยอังกฤษหรือตัวเลข เมื่อวางในประโยคไทย
 export function spaced(name: string): string {
@@ -50,4 +50,17 @@ export function stageSteps(j: Job) {
 export function slaAmount(days: number): string {
   if (days < 0.5) return `${(Math.round(days * 24 * 10) / 10).toLocaleString('th-TH')} ชม.`
   return `${(Math.round(days * 10) / 10).toLocaleString('th-TH')} วัน`
+}
+
+// แอดมินพิมพ์ปี พ.ศ. ในช่องวันที่ได้ (เช่น 2569) · เกิน 1 ปีจึงถือว่าพิมพ์ปีผิด
+export function dueDateWarning(due: string, now: Date): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) return null
+  const today = thaiDay(now)
+  if (due < today) return 'กำหนดส่งเป็นวันที่ผ่านมาแล้ว · งานจะขึ้นเลยกำหนดทันที ตรวจวันและปีอีกครั้ง'
+  if (Date.parse(due) - Date.parse(today) > 366 * 86_400_000) return 'กำหนดส่งเกิน 1 ปีจากวันนี้ · ตรวจว่าใส่ปี ค.ศ. ไม่ใช่ พ.ศ.'
+  return null
+}
+
+export function wholeCount(text: string): number | null {
+  return /^\s*\d+\s*$/.test(text) ? Number(text) : null
 }

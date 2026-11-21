@@ -22,6 +22,8 @@ it('Audit Log: หัวรายการบอกการกระทำ ต�
     .toBe('เพิ่มจับคู่พนักงานกับสถานี: สมชาย · cut')
   expect(auditTitle(row({ table_name: 'reason_codes', action: 'delete', row_key: 'R1', old_row: { code: 'R1', name: 'ผ้าขาด' } }), name))
     .toBe('ลบรหัสสาเหตุ: ผ้าขาด')
+  expect(auditTitle(row({ table_name: 'sewing_machines', action: 'insert', row_key: '41', new_row: { id: 41, code: 'SN-099' } }), name))
+    .toBe('เพิ่มจักรเย็บ: SN-099')
 })
 
 it('รายการรออนุมัติ: ตัดรายการที่ผู้บริหารรับทราบแล้ว · เก่าสุดขึ้นก่อน', () => {

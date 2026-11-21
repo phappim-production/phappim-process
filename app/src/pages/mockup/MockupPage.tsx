@@ -6,7 +6,7 @@ import { IconAlert, IconCheck, IconImage, IconPrinter } from '../../components/i
 import { canAckMockup, canApproveMockup, canEditMockup, canOpenPage, canSeeMockupDraft, type EmployeeRole } from '../../auth/access'
 import { STATION_NAME, type StationCode } from '../../proto/model'
 import {
-  SHEET_STATUS, VIEW_NAME, VIEW_ORDER, calloutLines, confirmationDraft, forStation, historyEdit, historyOf, redo, saveProblems, submitProblems,
+  SHEET_STATUS, VIEW_NAME, VIEW_ORDER, viewImage, calloutLines, confirmationDraft, forStation, historyEdit, historyOf, redo, saveProblems, submitProblems,
   toPayload, undo, type Callout, type Draft, type Edit, type History, type ViewKey,
 } from '../../proto/annotation'
 import {
@@ -329,19 +329,18 @@ function SheetWork({ data, sheet, approved, role, reload }: {
     edit({ type: 'set_view', view: { view: r.data.view, path: r.data.path, width: r.data.width, height: r.data.height } })
     setView(r.data.view)
     setUpload({ view: VIEW_ORDER.find(v => v !== r.data.view && !views.includes(v)) ?? 'detail', file: null, preview: '' })
-    setMsg({ ok: true, text: `เพิ่มภาพ${VIEW_NAME[r.data.view]}แล้ว · กดบันทึกร่างเพื่อเก็บ` })
+    setMsg({ ok: true, text: `เพิ่ม${viewImage(r.data.view)}แล้ว · กดบันทึกร่างเพื่อเก็บ` })
   }
   const save = async (): Promise<number | null> => {
     const problems = saveProblems(draft)
     if (problems.length) { fail(problems.join(' · ')); return null }
-    setBusy('save'); setMsg(null)
+    setMsg(null)
     const r = await saveDraft(sheet.id, sheet.version, toPayload(draft))
-    setBusy('')
     if (!r.ok) { fail(r.reason); return null }
     return r.data
   }
   const forget = () => { try { localStorage.removeItem(storeKey) } catch { /* ไม่มีอะไรให้ลบ */ } }
-  const saveAndReload = async () => { if (await save() !== null) { forget(); await reload() } }
+  const saveAndReload = async () => { setBusy('save'); if (await save() !== null) { forget(); await reload() } setBusy('') }
   const fromForm = draft.callouts.length === 0 ? confirmationDraft(data.job.spec, data.job.mockupPath) : null
   const applyForm = async () => {
     if (!fromForm) return
@@ -365,30 +364,26 @@ function SheetWork({ data, sheet, approved, role, reload }: {
     const revision = approved ? ' · ทุกสถานีต้องรับทราบสเปกใหม่' : ''
     if (!window.confirm(`อนุมัติฉบับ ${sheet.rev} ใช้ผลิต?
 อนุมัติแล้วแก้ไม่ได้ ถ้าต้องแก้ให้สร้างฉบับแก้ไขใหม่${revision}`)) return
-    const version = dirty ? await save() : sheet.version
-    if (version === null) return
     setBusy('approve')
+    const version = dirty ? await save() : sheet.version
+    if (version === null) { setBusy(''); return }
     const r = await approveSheet(sheet.id, '', version)
+    if (r.ok) forget(); else fail(r.reason)
+    if (r.ok || dirty) await reload()
     setBusy('')
-    if (!r.ok) { fail(r.reason); if (dirty) await reload(); return }
-    forget()
-    await reload()
   }
   const discard = async () => {
     if (!window.confirm(`ทิ้งฉบับร่าง ${sheet.rev} ทั้งหมด? ภาพที่อัปโหลดยังอยู่ แต่จุดและสเปกในร่างนี้จะหาย`)) return
     setBusy('discard')
     const r = await discardDraft(sheet.id)
+    if (r.ok) { forget(); await reload() } else fail(r.reason)
     setBusy('')
-    if (!r.ok) { fail(r.reason); return }
-    forget()
-    await reload()
   }
   const decide = async (kind: 'approve' | 'return') => {
     setBusy(kind); setMsg(null)
     const r = kind === 'approve' ? await approveSheet(sheet.id, decision.note, sheet.version) : await returnSheet(sheet.id, decision.reason)
+    if (r.ok) await reload(); else fail(r.reason)
     setBusy('')
-    if (!r.ok) { fail(r.reason); return }
-    await reload()
   }
 
   const approverBlocked = sheet.status === 'pending' && role === 'production' && !!approved && data.job.started
@@ -474,10 +469,10 @@ function SheetWork({ data, sheet, approved, role, reload }: {
               {upload.file && mockupProblem(upload.file) && <p role="alert" className="text-danger">{mockupProblem(upload.file)}</p>}
               {upload.preview && <img src={upload.preview} alt="ตัวอย่างภาพก่อนบันทึก" className="max-h-40 w-full rounded-lg bg-card-2 object-contain" />}
               <button type="button" className={primaryBtn} disabled={!upload.file || !!mockupProblem(upload.file) || !!busy} onClick={() => void doUpload()}>
-                {busy === 'upload' ? 'กำลังอัปโหลด…' : `ใช้เป็นภาพ${VIEW_NAME[upload.view]}`}
+                {busy === 'upload' ? 'กำลังอัปโหลด…' : `ใช้เป็น${viewImage(upload.view)}`}
               </button>
               <p className="text-sm text-muted">PNG / JPG / WEBP ไม่เกิน 20 MB · เก็บไฟล์ต้นฉบับไม่ย่อ · ม็อคอัพที่มีหน้า + หลังในภาพเดียว อัปโหลดเป็นภาพหลักภาพเดียวพอ แล้ววางจุดได้ทั้งสองตัว</p>
-              {shown && <button type="button" className={dangerBtn} onClick={() => edit({ type: 'remove_view', view: shown.view })}>ลบภาพ{VIEW_NAME[shown.view]}</button>}
+              {shown && <button type="button" className={dangerBtn} onClick={() => edit({ type: 'remove_view', view: shown.view })}>ลบ{viewImage(shown.view)}</button>}
             </div>
           )}
           <h2 className="font-bold">Callout ({draft.callouts.length})</h2>

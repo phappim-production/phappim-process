@@ -167,7 +167,7 @@ export function QueueAllView({ jobs, now, onOpen }: { jobs: Job[]; now: Date; on
             <CardHeader icon={IconLayers} title={r.name} sub={total ? `ทำอยู่ ${r.doing.length} · รอคิว ${r.waiting.length}${r.hold.length ? ` · ติดปัญหา ${r.hold.length}` : ''}${r.out.length ? ` · ข้างนอก ${r.out.length}` : ''}` : 'ว่าง'}
               right={<a href={`#/board?station=${r.station}`} className="text-sm font-semibold text-brand">เปิดคิว</a>} />
             {total > 0 && (
-              <ol className="grid gap-1 px-4 pb-4">
+              <ol className="grid grid-cols-[minmax(0,1fr)] gap-1 px-4 pb-4">
                 {[...r.doing, ...r.hold, ...r.waiting, ...r.out].map(j => {
                   const pos = r.waiting.indexOf(j)
                   return (

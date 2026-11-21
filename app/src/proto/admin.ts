@@ -33,7 +33,7 @@ export function auditTitle(row: AuditRow, name: (id: string) => string): string 
   const subject = row.new_row ?? row.old_row ?? {}
   const label = row.table_name === 'profiles' ? name(row.row_key)
     : row.table_name === 'staff_stations' ? `${name(String(subject.user_id ?? ''))} · ${String(subject.station_code ?? '')}`
-    : String(subject.name ?? row.row_key)
+    : String(subject.name ?? subject.code ?? row.row_key)
   return `${ACTION_LABEL[row.action]}${table}: ${label}`
 }
 

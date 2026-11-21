@@ -5,6 +5,7 @@ export const VIEW_ORDER: ViewKey[] = ['front', 'back', 'left', 'right', 'detail'
 export const VIEW_NAME: Record<ViewKey, string> = {
   front: 'ภาพหลัก', back: 'ด้านหลัง', left: 'ด้านซ้าย', right: 'ด้านขวา', detail: 'รายละเอียด',
 }
+export const viewImage = (v: ViewKey) => v === 'front' ? VIEW_NAME.front : `ภาพ${VIEW_NAME[v]}`
 
 export type SheetStatus = 'draft' | 'pending' | 'approved' | 'superseded'
 export const SHEET_STATUS: Record<SheetStatus, { text: string; tone: 'info' | 'warn' | 'ok' | 'neutral' }> = {

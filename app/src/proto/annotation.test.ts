@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   EMPTY_DRAFT, MARGIN_X, MARGIN_Y, applyEdit, blankSpec, clampBox, confirmationDraft, fromStage, onStage, stageSize, calloutLines, confirmationRefs, defaultBox, forStation, historyEdit, historyOf,
-  nextSpecCode, parseSize, redo, refLabel, refValue, saveProblems, submitProblems, toNormalized, toPayload, toPixels, undo, type Draft,
+  nextSpecCode, parseSize, redo, refLabel, refValue, saveProblems, submitProblems, toNormalized, toPayload, toPixels, undo, viewImage, type Draft,
 } from './annotation'
 
 const spec = {
@@ -261,4 +261,10 @@ describe('ช่องขนาดสเปก', () => {
     expect(parseSize('0')).toBeUndefined()
     expect(parseSize('-3')).toBeUndefined()
   })
+})
+
+it('ชื่อภาพแต่ละมุมไม่ซ้ำคำ "ภาพ"', () => {
+  expect(viewImage('front')).toBe('ภาพหลัก')
+  expect(viewImage('back')).toBe('ภาพด้านหลัง')
+  expect(`ใช้เป็น${viewImage('front')}`).toBe('ใช้เป็นภาพหลัก')
 })

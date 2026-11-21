@@ -191,6 +191,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
     window.addEventListener('hashchange', on)
     return () => window.removeEventListener('hashchange', on)
   }, [])
+  const [closedNotice, setClosedNotice] = useState<string | null>(null)
   const setOpenId = (id: string | null) => {
     setLookup(null)
     setOpen(id ? { id, source: view } : null)
@@ -249,13 +250,19 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
       {linkLoading ? 'กำลังโหลดรายละเอียดงาน…' : fetched?.error ?? 'ไม่พบงานนี้'}
     </p>
   )
+  const doneNotice = closedNotice && (
+    <p role="status" className="flex items-center justify-between gap-3 rounded-xl bg-ok-soft px-4 py-3 font-medium text-ok">
+      <span>{closedNotice}</span>
+      <button type="button" className="min-h-12 shrink-0 px-2 font-semibold" onClick={() => setClosedNotice(null)}>ปิด</button>
+    </p>
+  )
   const matchingColumns = columns.filter(c => station === 'all' ? (byColumn.get(c.key)?.length ?? 0) > 0 : c.key === station)
   const visibleCount = matchingColumns.reduce((sum, c) => sum + (byColumn.get(c.key)?.length ?? 0), 0)
   const hasFilters = filter !== 'all' || route !== 'all' || wholeFactory
   const openFinish = openJob && openJob.phase !== 'done' ? workdayToDate(forecast.finishDay.get(openJob.id) ?? 0, now) : undefined
   const drawer = openJob && (
     <JobDrawer job={openJob} now={now} finish={openFinish} onClose={() => setOpenId(null)}
-      actions={<JobActions job={openJob} role={role} myStations={myScope.pressStations} version={loadedAt.getTime()} now={now} refresh={refresh} vendors={data.vendors} />}
+      actions={<JobActions job={openJob} role={role} myStations={myScope.pressStations} version={loadedAt.getTime()} now={now} refresh={refresh} vendors={data.vendors} onCancelled={setClosedNotice} />}
       history={<JobHistory key={openJob.id} jobId={openJob.id} role={role} version={loadedAt.getTime()} now={now} onChanged={refresh} />} />
   )
   const receive = receiving && (
@@ -286,7 +293,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-4 p-4 sm:p-6">
           <PageHeader title={title} today={today} updated={loadedAt} />
-          {linkNotice}
+          {linkNotice}{doneNotice}
           {view === 'issues' && <IssuesView jobs={allJobs} now={now} role={role} stations={deptStations} call={call} onOpen={setOpenId} />}
           {view === 'report' && <ReportIssueView jobs={allJobs} now={now} stations={myStationsOf(role, myScope.pressStations)} call={call} onOpen={setOpenId} />}
           {view === 'reviews' && <ReviewsView jobs={allJobs} now={now} role={role} call={call} onOpen={setOpenId} />}
@@ -309,7 +316,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-5 p-4 sm:p-6">
           <PageHeader title="ภาพรวมการผลิต" today={today} updated={loadedAt} />
-          {linkNotice}
+          {linkNotice}{doneNotice}
           {receiveBar}
           <Overview initialView={overviewView} jobs={jobs} now={now} forecast={forecast} floor={floor} products={products} onOpen={setOpenId} />
         </div>
@@ -324,7 +331,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
     <div data-scroll="dashboard" className="min-h-0 flex-1 overflow-y-auto">
      <div className="mx-auto flex max-w-[1400px] flex-col gap-4 p-4 sm:p-6">
       <PageHeader title={myScope.title} today={today} updated={loadedAt} />
-      {linkNotice}
+      {linkNotice}{doneNotice}
       {receiveBar}
       {!focusStation && <RoleSummary scope={myScope} jobs={allJobs} machines={machines} now={now}
         onPick={(t, v) => {
@@ -357,7 +364,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
               onBook={myScope.canBook ? book : undefined} onCancel={myScope.canBook ? cancelBook : undefined} />} />
         </ErrorBoundary>
       ) : activeTab === 'todo' ? (
-        <div className="grid content-start gap-4">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-4">
           <ErrorBoundary key="todo"><TodoPanel jobs={jobs} now={now} onOpen={setOpenId} /></ErrorBoundary>
         </div>
       ) : (
