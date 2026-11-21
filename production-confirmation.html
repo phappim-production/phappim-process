@@ -146,7 +146,7 @@ table.dt tfoot td{font-weight:700;background:#f7f8f6}
 .d-imgs figcaption{font-size:10.5px;color:#555;text-align:center;margin-top:2px}
 .close{break-inside:avoid;page-break-inside:avoid;margin-top:12px}
 .d-note{border:1px solid #e3d3a8;background:#fbf7ec;border-radius:5px;padding:6px 10px;font-size:11.5px}
-.d-mock{color:var(--warn);text-align:center;font-weight:600;font-size:12px;margin-bottom:6px}
+.d-mock{color:var(--warn);text-align:center;font-weight:600;font-size:12px;margin:6px 0}
 .d-accept{background:#fff3a8;border:1px solid #e6cf4f;border-radius:5px;padding:6px 10px;margin:8px 0 6px;text-align:center;color:var(--warn);font-size:11px;font-weight:600}
 .d-accept b{display:block;font-size:13px}
 .d-terms{margin:0;padding-left:18px;font-size:10.5px;line-height:1.45}
@@ -1049,6 +1049,8 @@ const CO_MX=0.25, CO_MY=0.08, CO_MAX=30;
 const coClamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,Number.isFinite(v)?v:0));
 const coR4=v=>Math.round(v*10000)/10000;
 const coPct=(x,y)=>`left:${(x+CO_MX)/(1+2*CO_MX)*100}%;top:${(y+CO_MY)/(1+2*CO_MY)*100}%`;
+// เลื่อนกล่องตามตำแหน่งบนพื้นที่ภาพ ชิดซ้ายสุด = ขอบซ้ายกล่องอยู่ที่จุด ชิดขวาสุด = ขอบขวา กล่องจึงไม่ล้นออกนอกภาพ
+const coBoxPct=(x,y)=>{ const l=(x+CO_MX)/(1+2*CO_MX)*100, t=(y+CO_MY)/(1+2*CO_MY)*100; return `left:${l}%;top:${t}%;transform:translate(-${l}%,-${t}%)`; };
 function coList(){ if(!Array.isArray(state.callouts)) state.callouts=[]; return state.callouts; }
 function coRefs(){
   const v=scope('p'), out=[], ms=[].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m));
@@ -1069,7 +1071,7 @@ function coStageHTML(edit){
   const dots=cs.map((c,i)=>edit
     ?`<button type="button" class="co-dot" data-co-i="${i}" data-co-part="pt" style="${coPct(c.x,c.y)}" aria-label="จุด ${i+1}"></button>`
     :'').join('');
-  const boxes=cs.map((c,i)=>`<div class="co-box" ${edit?`data-co-i="${i}" data-co-part="box"`:''} style="${coPct(c.bx,c.by)}">${coBoxInner(c,i,refs)}</div>`).join('');
+  const boxes=cs.map((c,i)=>`<div class="co-box" ${edit?`data-co-i="${i}" data-co-part="box"`:''} style="${coBoxPct(c.bx,c.by)}">${coBoxInner(c,i,refs)}</div>`).join('');
   return `<div class="co-stage" ${edit?'data-co-stage':''} style="aspect-ratio:${W}/${H}">`+
     `<img src="${m.src}" alt="" ${edit?'data-co-img draggable="false"':''} style="left:${CO_MX/(1+2*CO_MX)*100}%;top:${CO_MY/(1+2*CO_MY)*100}%;width:${100/(1+2*CO_MX)}%;height:${100/(1+2*CO_MY)}%">`+
     `<svg viewBox="${-CO_MX*w} ${-CO_MY*h} ${W} ${H}" preserveAspectRatio="none">${lines}</svg>${dots}${boxes}</div>`;
@@ -1089,7 +1091,7 @@ function coEditorHTML(){
 function coDocHTML(){
   const cs=coList(); if(!state.imgs[0]||!cs.length) return '';
   const refs=coRefs();
-  return `<figure class="d-co">${coStageHTML(false)}<figcaption>${esc(state.imgs[0].name||'ภาพม็อคอัพ')} · จุดกำกับ ${cs.length} จุด</figcaption></figure>`+
+  return `<figure class="d-co">${coStageHTML(false)}<figcaption>${esc(state.imgs[0].name||'ภาพม็อคอัพ')} · จุดกำกับ ${cs.length} จุด</figcaption></figure><div class="d-mock">${esc(MOCKUP_NOTE)}</div>`+
     `<table class="dt"><thead><tr><th>#</th><th>จุด</th><th>รายละเอียด</th></tr></thead><tbody>`+
     cs.map((c,i)=>`<tr><td>${i+1}</td><td class="l">${esc(c.title)}</td><td class="l">${esc(coLabel(c,refs))}</td></tr>`).join('')+`</tbody></table>`;
 }
@@ -1110,7 +1112,7 @@ document.addEventListener('pointermove',e=>{
   coDrag.moved=true;
   const p=coAt(e,coDrag.part,coDrag.stage), c=coList()[coDrag.i], sz=state.co_size||{w:4,h:3}; if(!c) return;
   if(coDrag.part==='pt'){ c.x=p.x; c.y=p.y; } else { c.bx=p.x; c.by=p.y; }
-  coDrag.el.style.cssText=coPct(p.x,p.y);
+  coDrag.el.style.cssText=coDrag.part==='pt'?coPct(p.x,p.y):coBoxPct(p.x,p.y);
   const ln=coDrag.stage.querySelector(`[data-co-line="${coDrag.i}"]`);
   if(ln){ ln.setAttribute(coDrag.part==='pt'?'x1':'x2',p.x*sz.w); ln.setAttribute(coDrag.part==='pt'?'y1':'y2',p.y*sz.h); }
 });
@@ -1318,7 +1320,7 @@ function renderDoc(){
   let x=`<section class="ds">${hItems?`<div class="kv">${hItems}</div>`:''}
   <div class="d-prod"><span>จำนวนรวม <b>${qty}</b>${num(v.spare)>0?` (+ เผื่อเสีย ${esc(v.spare)} ${P.unit})`:''}</span></div></section>`;
 
-  let n=0;
+  let n=0, mockNoted=false;
   allSecs().forEach(sec=>{
     const fs=sec.fields.filter(f=>visible(f,v));
     const simple=fs.filter(f=>!['sizeTable','itemTable','placements','images'].includes(f.type)&&f.id!=='spare');
@@ -1353,11 +1355,12 @@ function renderDoc(){
       }
     });
     // ภาพแยกออกจากกล่องหัวข้อ เพื่อให้ตัดหน้าระหว่างภาพได้ ไม่ดันทั้งหัวข้อไปหน้าใหม่
+    if(imgs){ if(!imgs.includes('class="d-co"')) imgs+=`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`; mockNoted=true; }
     if(body||imgs) x+=`<section class="ds"><h3>${++n}. ${esc(sec.title)}</h3>${body}</section>${imgs}`;
   });
 
   const sig=t=>`<div><div class="t">${t}</div><div class="ln"></div>(.......................................)<br>วันที่ ....../....../......</div>`;
-  x+=`<div class="close"><div class="d-mock">${esc(MOCKUP_NOTE)}</div>
+  x+=`<div class="close">${mockNoted?'':`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`}
     <div class="d-accept"><b>${esc(ACCEPT_TITLE)}</b>${esc(ACCEPT_TEXT)}</div>
     <ol class="d-terms">${TERMS.map(t=>`<li>${esc(t)}</li>`).join('')}</ol>
     <div class="d-note"><b>ข้อตกลง:</b> ลูกค้าตรวจสอบรายละเอียดทั้งหมดในใบนี้แล้ว ${state.h.sample===SAMPLE_YES?'ฝ่ายผลิตจะผลิตตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง':'งานนี้ไม่ขึ้นตัวอย่าง ฝ่ายผลิตผลิตจริงตามใบนี้'}
