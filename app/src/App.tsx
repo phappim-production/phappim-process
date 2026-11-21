@@ -59,7 +59,7 @@ function AppContent() {
   }
   if (session === null) return <EmployeeLogin />
   if (!session || !result) {
-    return <AccountScreen title="กำลังตรวจสอบบัญชี"><p role="status">กรุณารอสักครู่</p></AccountScreen>
+    return <AccountScreen title="กำลังตรวจสอบบัญชี"><p role="status"><Tr th="กรุณารอสักครู่" /></p></AccountScreen>
   }
   if (result.status !== 'ready') {
     const messages = {
@@ -166,9 +166,9 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 bg-brand px-4 py-2 text-white lg:hidden">
           <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-9 w-auto shrink-0 rounded-md ring-1 ring-white/25" />
-          <span className="hidden text-sm font-semibold whitespace-nowrap text-white/75 sm:inline">ระบบติดตามการผลิต</span>
+          <span className="hidden text-sm font-semibold whitespace-nowrap text-white/75 sm:inline">{t('ระบบติดตามการผลิต')}</span>
           {/* แท็บเล็ตใช้ร่วมกันหลายคน ต้องเห็นตลอดว่าใครล็อกอินอยู่ เพราะทุกการกดบันทึกชื่อผู้กด */}
-          {translated && <LangToggle className="ml-auto border-white/40 bg-transparent text-white hover:border-white" />}
+          {translated && <LangToggle compact className="ml-auto text-white hover:bg-white/10" />}
           <span className={translated ? '' : 'ml-auto'}><InboxBell /></span>
           <a href="#/system" className="flex min-h-12 min-w-0 items-center gap-2 rounded-xl px-2 hover:bg-white/10">
             <span className="min-w-0 text-right leading-tight">

@@ -88,10 +88,10 @@ body {
 
 .scroll-thin { scrollbar-width: thin; scrollbar-color: #b9c4bf transparent; }
 
-/* อักษรพม่าสูงกว่าไทย ต้องเว้นบรรทัดมากขึ้นไม่ให้สระบน-ล่างชนกัน */
-.tr { display: inline-flex; flex-direction: column; align-items: inherit; line-height: 1.55; }
+/* อักษรพม่าตัวใหญ่และสูงกว่าไทย: ย่อลงเล็กน้อยให้น้ำหนักเท่ากัน และเว้นบรรทัดไม่ให้สระบน-ล่างชนกัน */
+.tr { display: inline-flex; flex-direction: column; align-items: inherit; line-height: 1.4; }
+.tr-my { font-family: "Noto Sans Myanmar", "Sarabun", sans-serif; font-size: 0.93em; line-height: 1.6; }
+.tr-th { font-size: 0.72em; font-weight: 500; opacity: 0.72; line-height: 1.35; }
 .tr-inline { display: inline; }
-.tr-my { font-family: "Noto Sans Myanmar", "Sarabun", sans-serif; line-height: 1.7; }
-.tr-th { font-size: 0.75em; font-weight: 500; opacity: 0.75; line-height: 1.4; }
-.tr-inline .tr-th::before { content: " · "; }
-html.lang-my { line-height: 1.7; }
+.tr-inline .tr-th { margin-inline-start: 0.45em; font-size: 0.7em; white-space: nowrap; }
+html.lang-my body { line-height: 1.65; }

@@ -71,8 +71,8 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
 
       <div className={`grid items-start gap-4 ${outside.length ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
         <section aria-labelledby="q-working" className="grid gap-2">
-          <h2 id="q-working" className="flex flex-wrap items-baseline gap-x-2 text-lg font-bold"><Tr th="กำลังทำ" /> <span className="font-medium text-muted"><Tr inline th="{n} งาน" vars={{ n: working.filter(j => j.status === 'doing').length }} />{working.some(j => j.status === 'hold') && <> · <Tr inline th="พักงาน {n} งาน" vars={{ n: working.filter(j => j.status === 'hold').length }} /></>}</span></h2>
-          {working.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted"><Tr th={station === 'outside' ? 'สถานีนี้ไม่มีงานทำในโรงงาน · แอดมินส่งออกจากรายละเอียดงาน' : 'ยังไม่มีงานที่กำลังทำ · กดเริ่มงานคิว 1 ในคิวรอเริ่ม'} /></p>}
+          <SectionHead id="q-working" title="กำลังทำ" count={[t('{n} งาน', { n: working.filter(j => j.status === 'doing').length }), working.some(j => j.status === 'hold') ? t('พักงาน {n} งาน', { n: working.filter(j => j.status === 'hold').length }) : ''].filter(Boolean).join(' · ')} />
+          {working.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">{t(station === 'outside' ? 'สถานีนี้ไม่มีงานทำในโรงงาน · แอดมินส่งออกจากรายละเอียดงาน' : 'ยังไม่มีงานที่กำลังทำ · กดเริ่มงานคิว 1 ในคิวรอเริ่ม')}</p>}
           {working.map(j => (
             <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger" dot>{t('พักงาน')}</Pill>
               : j.sla ? <Pill tone={SLA_LABEL[j.sla].tone} dot>{t(SLA_LABEL[j.sla].text)}</Pill> : <Pill tone="info" dot>{t('กำลังทำ')}</Pill>}>
@@ -84,8 +84,8 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
         </section>
 
         <section aria-labelledby="q-waiting" className="grid gap-2">
-          <h2 id="q-waiting" className="flex flex-wrap items-baseline gap-x-2 text-lg font-bold"><Tr th="คิวรอเริ่ม" /> <span className="font-medium text-muted"><Tr inline th="{n} งาน · เรียงตามคิว" vars={{ n: queue.length }} /></span></h2>
-          {queue.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted"><Tr th="ไม่มีงานรอที่{station}" vars={{ station: { th: spaced(name).trimEnd() } }} /></p>}
+          <SectionHead id="q-waiting" title="คิวรอเริ่ม" count={t('{n} งาน · เรียงตามคิว', { n: queue.length })} />
+          {queue.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">{t('ไม่มีงานรอที่{station}', { station: { th: spaced(name).trimEnd() } })}</p>}
           {queue.map((j, i) => (
             <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} first={i === 0}
               badge={<span className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${i === 0 ? 'bg-brand text-white' : 'bg-paper text-ink'}`}>{t('คิว {n}', { n: i + 1 })}</span>}>
@@ -98,7 +98,7 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
         </section>
         {outside.length > 0 && (
           <section aria-labelledby="q-outside" className="grid gap-2">
-            <h2 id="q-outside" className="flex flex-wrap items-baseline gap-x-2 text-lg font-bold"><Tr th="ส่งออกข้างนอก" /> <span className="font-medium text-muted"><Tr inline th="{n} งาน · แอดมินรับของกลับแล้วจะเข้าคิว" vars={{ n: outside.length }} /></span></h2>
+            <SectionHead id="q-outside" title="ส่งออกข้างนอก" count={t('{n} งาน · แอดมินรับของกลับแล้วจะเข้าคิว', { n: outside.length })} />
             {outside.map(j => {
               const late = isOutLate(j, now)
               return (
@@ -113,6 +113,15 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
         )}
 
       </div>
+    </div>
+  )
+}
+
+function SectionHead({ id, title, count }: { id: string; title: string; count: string }) {
+  return (
+    <div className="grid">
+      <h2 id={id} className="text-lg font-bold"><Tr inline th={title} /></h2>
+      <p className="text-sm text-muted">{count}</p>
     </div>
   )
 }
@@ -139,7 +148,7 @@ function QueueCard({ job: j, now, badge, first, onOpen, children, station }: {
         </span>
         <span className="truncate text-base">{j.customer}</span>
         <span className="flex flex-wrap items-baseline gap-x-3 text-base text-muted">
-          <span>{j.product} · <b className="text-ink">{j.qty.toLocaleString('th-TH')}</b> {t(j.unit)}</span>
+          <span>{j.product} · <span className="whitespace-nowrap"><b className="text-ink">{j.qty.toLocaleString('th-TH')}</b> {t(j.unit)}</span></span>
           <span className="ml-auto"><DueLabel job={j} now={now} /></span>
         </span>
         {j.holdReason && <span className="text-base font-medium text-danger"><Tr inline th="สาเหตุ: {reason}" vars={{ reason: j.holdReason }} /></span>}

@@ -10,7 +10,7 @@ import { duration, relDay, shortDate } from '../proto/format'
 import { Card, DueLabel, MockupThumb, Pill, StatTile, ViewSwitch, pillGroup, pillItem, pillOff, pillOn } from '../components/ui'
 import { thaiError } from '../data/live'
 import { Tr } from '../i18n/Tr'
-import { useT, type Word } from '../i18n/lang'
+import { useLang, useT, type Word } from '../i18n/lang'
 import type { Tone } from '../components/tone'
 import { IconAlert, IconCheck, IconClipboard, IconClock, IconFactory, IconFilm, IconImage, IconPackage, IconSearch, IconSewing, IconX } from '../components/icons'
 import { roleSummary, type SewingView, type SummaryIcon } from '../proto/summary'
@@ -65,7 +65,7 @@ export default function Dashboard({ view, routeKey, tab, overviewView, today, ro
     <>
       {!live && (
         <p role="alert" className="border-b border-danger/30 bg-danger-soft px-4 py-1.5 text-sm font-medium text-danger sm:px-6">
-          <Tr th="ขาดการเชื่อมต่อ · ข้อมูลอาจไม่ใช่ล่าสุด (อัปเดตล่าสุด {at} น.) · ระบบจะโหลดใหม่เองเมื่อเน็ตกลับมา" vars={{ at: state.loadedAt.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' }) }} />
+          <OfflineText at={state.loadedAt.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })} />
         </p>
       )}
       <DashboardView key={routeKey} view={view} startTab={tab} overviewView={overviewView} today={today} role={role} myScope={scope} data={state.data} loadedAt={state.loadedAt} refresh={refresh} />
@@ -447,7 +447,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
                 <section key={c.key} className="min-w-0" aria-labelledby={`col-${c.key}`}>
                   <h2 id={`col-${c.key}`} className="mb-2 flex items-center gap-2 text-lg font-bold">
                     <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-sm text-white">{COLUMNS.findIndex(x => x.key === c.key) + 1}</span>
-                    <Tr th={c.name} />
+                    <Tr inline th={c.name} />
                     <span className="text-base font-medium text-muted">{tx('{n} งาน', { n: byColumn.get(c.key)?.length ?? 0 })}</span>
                   </h2>
                   <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -489,14 +489,20 @@ function RoleSummary({ scope, jobs, machines, now, onPick }: {
 }
 
 // เวลาอัปเดต = ตอนที่โหลดข้อมูลล่าสุดจากฐานข้อมูล (ไม่ใช่นาฬิกาเครื่อง) คนหน้างานจึงรู้ว่าข้อมูลสดแค่ไหน
+function OfflineText({ at }: { at: string }) {
+  const t = useT()
+  return <>{t('ขาดการเชื่อมต่อ · ข้อมูลอาจไม่ใช่ล่าสุด (อัปเดตล่าสุด {at} น.) · ระบบจะโหลดใหม่เองเมื่อเน็ตกลับมา', { at })}</>
+}
+
 function PageHeader({ title, today, updated }: { title: string | Word; today: string; updated: Date }) {
   const tx = useT()
   const head = typeof title === 'string' ? { th: title } : title
   return (
     <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-      <h1 className="min-w-0 text-2xl font-bold"><Tr th={head.th} vars={head.vars} /></h1>
+      <h1 className="min-w-0 text-2xl font-bold"><Tr inline th={head.th} vars={head.vars} /></h1>
       <div className="text-sm text-muted">
-        <span className="hidden md:inline">{today} · </span>
+        {/* วันที่ยาวแบบไทย (วันเสาร์ที่ … พ.ศ.) คนพม่าอ่านไม่ออก แสดงเฉพาะเวลาอัปเดต */}
+        {useLang() === 'th' && <span className="hidden md:inline">{today} · </span>}
         <span>{tx('อัปเดต {at} น.', { at: updated.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit' }) })}</span>
       </div>
     </header>
