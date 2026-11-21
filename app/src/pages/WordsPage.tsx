@@ -29,7 +29,7 @@ export default function WordsPage() {
         </button>
       </header>
       <p className="rounded-xl bg-brand-soft px-4 py-3 text-base print:bg-transparent print:p-0">
-        เรียกสถานีด้วย <b>เลข 1–7</b> และดู <b>สีกับไอคอน</b> บนปุ่มเหมือนกันทุกจอ · <span className="tr-my" lang="my">ဌာနကို <b>နံပါတ် 1–7</b> ဖြင့် ခေါ်ပါ · ခလုတ်၏ <b>အရောင်နှင့် ပုံ</b> သည် စခရင်တိုင်းတွင် တူညီသည်</span>
+        เรียกสถานีด้วย <b>เลข 1–7</b> และดู <b>สีกับไอคอน</b> บนปุ่มเหมือนกันทุกจอ · <span className="tr-my" lang="my">ဌာနကို <b>နံပါတ် 1–7</b> နဲ့ ခေါ်တယ် · ခလုတ်ရဲ့ <b>အရောင်နဲ့ ပုံ</b> က စခရင်တိုင်းမှာ အတူတူပဲ</span>
       </p>
 
       <Section title="สถานี" my="ဌာန">

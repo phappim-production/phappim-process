@@ -33,7 +33,7 @@ export function LangToggle({ className = '', compact }: { className?: string; co
   const label = next === 'my' ? 'မြန်မာ' : 'ไทย'
   return (
     <button type="button" onClick={() => setLang(next)} lang={next}
-      aria-label={next === 'my' ? 'မြန်မာဘာသာသို့ ပြောင်းရန် (เปลี่ยนเป็นภาษาพม่า)' : 'เปลี่ยนเป็นภาษาไทย'}
+      aria-label={next === 'my' ? 'မြန်မာလို ပြောင်းမယ် (เปลี่ยนเป็นภาษาพม่า)' : 'เปลี่ยนเป็นภาษาไทย'}
       className={compact
         ? `grid size-12 shrink-0 place-items-center content-center gap-0.5 rounded-xl text-xs leading-none font-semibold ${className}`
         : `inline-flex min-h-12 shrink-0 items-center gap-2 rounded-xl border border-line bg-card px-3 font-semibold text-brand hover:border-brand ${className}`}>

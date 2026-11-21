@@ -23,7 +23,7 @@ export const GLOSSARY_STATUS: Entry[] = [
 
 export const GLOSSARY_WORDS: { th: string; note?: string }[] = [
   { th: 'งาน', note: 'เรียกด้วยเลขใบงาน เช่น SC690001' },
-  { th: 'คิว' },
+  { th: 'คิว', note: 'ลำดับงาน' },
   { th: 'สาเหตุ' },
   { th: 'กำหนดส่ง' },
   { th: 'ตัวอย่าง' },

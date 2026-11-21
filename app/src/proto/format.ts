@@ -1,4 +1,5 @@
 import { DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME, missingDepts, thaiDay, thaiDayDiff, type Job } from './model.ts'
+import { thai, word, type Word } from '../i18n/word.ts'
 
 // ใส่ช่องว่างรอบชื่อที่ขึ้นต้น/ลงท้ายด้วยอังกฤษหรือตัวเลข เมื่อวางในประโยคไทย
 export function spaced(name: string): string {
@@ -15,16 +16,24 @@ export function dayDiff(a: Date, b: Date) {
 }
 
 export function relDay(d: Date, now: Date) {
+  return thai(relDayWord(d, now))
+}
+
+export function relDayWord(d: Date, now: Date): Word {
   const diff = dayDiff(now, d)
-  return diff === 0 ? 'วันนี้' : diff === 1 ? 'เมื่อวาน' : shortDate(d)
+  return diff === 0 ? word('วันนี้') : diff === 1 ? word('เมื่อวาน') : { th: '{at}', vars: { at: { at: d } } }
 }
 
 export function duration(ms: number) {
+  return thai(durationWord(ms))
+}
+
+export function durationWord(ms: number): Word {
   const min = Math.max(0, Math.round(ms / 60_000))
-  if (min < 60) return `${min} นาที`
+  if (min < 60) return word('{n} นาที', { n: min })
   const h = Math.floor(min / 60)
-  if (h < 24) return `${h} ชม. ${min % 60 ? `${min % 60} นาที` : ''}`.trim()
-  return `${Math.floor(h / 24)} วัน ${h % 24 ? `${h % 24} ชม.` : ''}`.trim()
+  if (h < 24) return min % 60 ? word('{h} ชม. {m} นาที', { h, m: min % 60 }) : word('{n} ชม.', { n: h })
+  return h % 24 ? word('{d} วัน {h} ชม.', { d: Math.floor(h / 24), h: h % 24 }) : word('{n} วัน', { n: Math.floor(h / 24) })
 }
 
 export function stageText(j: Job) {
@@ -48,8 +57,12 @@ export function stageSteps(j: Job) {
 
 // 1 วันทำงานในฐานข้อมูล = 24 ชม. (private.work_days นับจันทร์–เสาร์) · ไม่ถึงครึ่งวันแสดงเป็นชั่วโมง
 export function slaAmount(days: number): string {
-  if (days < 0.5) return `${(Math.round(days * 24 * 10) / 10).toLocaleString('th-TH')} ชม.`
-  return `${(Math.round(days * 10) / 10).toLocaleString('th-TH')} วัน`
+  return thai(slaAmountWord(days))
+}
+
+export function slaAmountWord(days: number): Word {
+  if (days < 0.5) return word('{n} ชม.', { n: (Math.round(days * 24 * 10) / 10).toLocaleString('th-TH') })
+  return word('{n} วัน', { n: (Math.round(days * 10) / 10).toLocaleString('th-TH') })
 }
 
 // แอดมินพิมพ์ปี พ.ศ. ในช่องวันที่ได้ (เช่น 2569) · เกิน 1 ปีจึงถือว่าพิมพ์ปีผิด

@@ -73,8 +73,9 @@ export function Pill({ tone, children, dot, wrap }: { tone: Tone; children: Reac
 export const Tag = ({ tone, children }: { tone: Tone; children: ReactNode }) => <Pill tone={tone}>{children}</Pill>
 
 export function RouteBadge({ route }: { route: RouteCode }) {
+  const t = useT()
   const tone: Tone = usesFilm(route) ? 'dtf' : route === 'plain' || route === 'cut_only' ? 'neutral' : 'brand'
-  return <span className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${TONE[tone].soft}`}>{ROUTES[route].short}</span>
+  return <span className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${TONE[tone].soft}`}>{t(ROUTES[route].short)}</span>
 }
 
 export function DueLabel({ job: j, now, long }: { job: Job; now: Date; long?: boolean }) {
