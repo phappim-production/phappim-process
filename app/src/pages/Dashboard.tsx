@@ -26,7 +26,6 @@ import { StationQueue } from './StationQueue'
 import { ReceiveJob } from './ReceiveJob'
 import { ConfirmationOutbox } from './ConfirmationOutbox'
 import { JobHistory } from './JobHistory'
-import { SpecPreview } from './mockup/SpecPreview'
 import { isStationCode } from '../proto/model'
 import type { EmployeeRole, FactoryView } from '../auth/access'
 import { IssuesView, MyHistoryView, QueueAllView, ReportIssueView, ReviewsView } from './RolePages'
@@ -566,7 +565,7 @@ function CardStatus({ job: j, now }: { job: Job; now: Date }) {
   return <div className="mt-2.5 flex flex-col items-start gap-1.5 border-t border-dashed border-line pt-2.5 text-xs">{rows}</div>
 }
 
-function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Job; now: Date; finish?: Date; onClose: () => void; actions?: ReactNode; history?: ReactNode }) {
+export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Job; now: Date; finish?: Date; onClose: () => void; actions?: ReactNode; history?: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -625,13 +624,13 @@ function JobDrawer({ job: j, now, finish, onClose, actions, history }: { job: Jo
         <div className="grid gap-4 p-4 text-sm">
           <div className="grid justify-items-center gap-1 rounded-2xl border border-line bg-card p-3 shadow-card">
             {j.specSheet
-              ? <SpecPreview jobId={j.id} sheetId={j.specSheet.id} rev={j.specSheet.rev} fallback={<MockupThumb job={j} size="lg" />} />
-              : <>
-                {j.mockupUrl
-                  ? <a href={j.mockupUrl} target="_blank" rel="noreferrer" className="w-full max-w-72" aria-label="เปิดรูปม็อคอัพเต็มจอ"><MockupThumb job={j} size="lg" /></a>
-                  : <MockupThumb job={j} size="lg" />}
-                <span className="text-muted">{j.mockupUrl ? 'กดที่รูปเพื่อดูเต็มจอ' : 'ยังไม่มีรูปม็อคอัพ'}</span>
-              </>}
+              ? <a href={'#/mockup?id=' + encodeURIComponent(j.id)} className="w-full max-w-72" aria-label="เปิดม็อคอัพกำกับสเปก"><MockupThumb job={j} size="lg" /></a>
+              : j.mockupUrl
+                ? <a href={j.mockupUrl} target="_blank" rel="noreferrer" className="w-full max-w-72" aria-label="เปิดรูปม็อคอัพเต็มจอ"><MockupThumb job={j} size="lg" /></a>
+                : <MockupThumb job={j} size="lg" />}
+            <span className={j.specSheet ? 'font-semibold text-brand' : 'text-muted'}>
+              {j.specSheet ? `กดที่รูปเพื่อดูม็อคอัพกำกับสเปก ฉบับ ${j.specSheet.rev}` : j.mockupUrl ? 'กดที่รูปเพื่อดูเต็มจอ' : 'ยังไม่มีรูปม็อคอัพ'}
+            </span>
           </div>
           {actions}
           <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
