@@ -10,7 +10,7 @@ import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
 import { DEPT_NAME, OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, usesFilm, type Dept, type Job, type StationCode, type Vendor } from '../proto/model'
 import { OutsourcePanel } from './OutsourcePanel'
 import { FilePick } from '../components/FilePick'
-import { relDay, slaAmount, spaced } from '../proto/format'
+import { relDay, slaAmount, spaced, wholeCount } from '../proto/format'
 import { newRequestId } from '../data/requestId'
 import { bookingDay } from '../proto/sewing'
 import { canCancelJob, canCloseIssue, type EmployeeRole } from '../auth/access'
@@ -52,8 +52,9 @@ async function loadDetail(job: Job): Promise<Detail> {
   }
 }
 
-export function JobActions({ job: j, role, myStations = [], version, now, refresh, vendors = [] }: {
+export function JobActions({ job: j, role, myStations = [], version, now, refresh, vendors = [], onCancelled }: {
   job: Job; role: EmployeeRole; myStations?: StationCode[]; version: number; now: Date; refresh: () => Promise<void>; vendors?: Vendor[]
+  onCancelled?: (text: string) => void
 }) {
   const [detail, setDetail] = useState<{ shape: string; data?: Detail; error?: string } | null>(null)
   const [notice, setNotice] = useState<Notice>(null)
@@ -125,7 +126,7 @@ export function JobActions({ job: j, role, myStations = [], version, now, refres
       {inStation && st !== 'sew' && (
         <Station job={j} detail={d} canPress={canStation} canResume={canCloseIssue(role, st)} role={role} busy={busy} now={now} act={act} />
       )}
-      {canCancelJob(role) && j.phase !== 'done' && <CancelJob job={j} busy={busy} act={act} />}
+      {canCancelJob(role) && j.phase !== 'done' && <CancelJob job={j} busy={busy} act={act} onCancelled={onCancelled} />}
     </div>
   )
 }
@@ -345,7 +346,7 @@ function Delivery({ job: j, admin, busy, now, act }: { job: Job; admin: boolean;
   )
 }
 
-function CancelJob({ job: j, busy, act }: { job: Job; busy: boolean; act: Act }) {
+function CancelJob({ job: j, busy, act, onCancelled }: { job: Job; busy: boolean; act: Act; onCancelled?: (text: string) => void }) {
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
   if (j.status === 'out') {
@@ -365,7 +366,11 @@ function CancelJob({ job: j, busy, act }: { job: Job; busy: boolean; act: Act })
           </label>
           <Confirm text={`ยกเลิกงาน ${j.no} (${j.customer})? ทุกสถานีจะหยุดทำ งานหายจากบอร์ด และย้อนกลับไม่ได้`} busy={busy} danger
             yesLabel="ยืนยันยกเลิกงาน" noLabel="ไม่ยกเลิก กลับ"
-            onYes={async () => { if (!reason.trim()) return; if (await act('cancel_job', { p_reason: reason.trim() }, `ยกเลิกงาน ${j.no} แล้ว · แจ้งทุกฝ่ายในกล่องจดหมาย`)) { setOpen(false); setReason('') } }}
+            onYes={async () => {
+              if (!reason.trim()) return
+              const done = `ยกเลิกงาน ${j.no} (${j.customer}) แล้ว · แจ้งทุกฝ่ายในกล่องจดหมาย`
+              if (await act('cancel_job', { p_reason: reason.trim() }, done)) { setOpen(false); setReason(''); onCancelled?.(done) }
+            }}
             onNo={() => { setOpen(false); setReason('') }} />
           {!reason.trim() && <p className="text-sm text-warn">ใส่เหตุผลก่อนกดยืนยัน</p>}
         </div>
@@ -543,15 +548,18 @@ function SlaBanner({ sla: s }: { sla: Sla }) {
 function QcPanel({ job: j, passed, busy, act }: { job: Job; passed: number; busy: boolean; act: Act }) {
   const [pass, setPass] = useState('')
   const [request, setRequest] = useState(newRequestId)
+  const passQty = wholeCount(pass) || null
   const [rework, setRework] = useState<{ qty: string; reason: string; source: string } | null>(null)
+  const reworkQty = rework ? wholeCount(rework.qty) || null : null
   const sources = ROUTES[j.route].stations.filter(s => s !== 'qc_pack')
   return (
     <div className="grid gap-3 rounded-xl bg-paper p-3">
       <p className="font-semibold">ผล QC · ผ่านแล้ว {passed.toLocaleString('th-TH')} จาก {j.qty.toLocaleString('th-TH')} {j.unit}</p>
       <div className="flex flex-wrap gap-2">
         <input type="number" min={1} inputMode="numeric" value={pass} onChange={e => setPass(e.target.value)} aria-label="จำนวนที่ผ่าน" placeholder="จำนวนที่ผ่าน" className={`${fieldClass} w-36 flex-1`} />
-        <button type="button" disabled={busy || !(Number(pass) > 0)} className={okBtn}
-          onClick={async () => { if (await act('record_qc', { p_passed: Math.floor(Number(pass)), p_request: request }, `บันทึกผ่าน QC ${pass} ${j.unit}`)) { setPass(''); setRequest(newRequestId()) } }}>บันทึกผ่าน</button>
+        <button type="button" disabled={busy || !passQty} className={okBtn}
+          onClick={async () => { if (passQty && await act('record_qc', { p_passed: passQty, p_request: request }, `บันทึกผ่าน QC ${passQty} ${j.unit}`)) { setPass(''); setRequest(newRequestId()) } }}>
+          {pass.trim() && !passQty ? 'ใส่จำนวนเต็ม' : 'บันทึกผ่าน'}</button>
       </div>
       {rework === null
         ? <button type="button" disabled={busy} className={dangerBtn} onClick={() => setRework({ qty: '', reason: '', source: sources.includes('sew') ? 'sew' : sources[0] })}>ส่งกลับแก้</button>
@@ -566,13 +574,14 @@ function QcPanel({ job: j, passed, busy, act }: { job: Job; passed: number; busy
             </div>
             <input value={rework.reason} onChange={e => setRework({ ...rework, reason: e.target.value })} placeholder="สาเหตุ เช่น ตะเข็บหลุด" aria-label="สาเหตุ" className={fieldClass} />
             <div className="grid gap-2 sm:grid-cols-2">
-              <button type="button" disabled={busy || !(Number(rework.qty) > 0) || !rework.reason.trim()} className={dangerBtn}
+              <button type="button" disabled={busy || !reworkQty || !rework.reason.trim()} className={dangerBtn}
                 onClick={async () => {
-                  const ok = await act('send_rework', { p_qty: Math.floor(Number(rework.qty)), p_reason: rework.reason.trim(), p_source_station: rework.source },
-                    `ส่งกลับแก้ ${rework.qty} ${j.unit} ที่${STATION_NAME[rework.source as keyof typeof STATION_NAME]}แล้ว`)
+                  if (!reworkQty) return
+                  const ok = await act('send_rework', { p_qty: reworkQty, p_reason: rework.reason.trim(), p_source_station: rework.source },
+                    `ส่งกลับแก้ ${reworkQty} ${j.unit} ที่${STATION_NAME[rework.source as keyof typeof STATION_NAME]}แล้ว`)
                   if (ok) setRework(null)
                 }}>
-                {Number(rework.qty) > 0 && rework.reason.trim() ? 'ยืนยันส่งกลับแก้' : 'กรอกจำนวนและสาเหตุก่อน'}
+                {rework.qty.trim() && !reworkQty ? 'จำนวนต้องเป็นจำนวนเต็ม' : reworkQty && rework.reason.trim() ? 'ยืนยันส่งกลับแก้' : 'กรอกจำนวนและสาเหตุก่อน'}
               </button>
               <button type="button" className={secondaryBtn} onClick={() => setRework(null)}>ยกเลิก</button>
             </div>

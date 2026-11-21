@@ -9,7 +9,7 @@ import { ACCOUNTS } from './db.mjs'
 import { sessionFor } from './server.mjs'
 
 const CHROME_PATH = process.env.QA_CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe'
-const IMG_DIR = fileURLToPath(new URL('../../docs/qa/img/', import.meta.url))
+const IMG_DIR = process.env.QA_IMG_DIR ?? fileURLToPath(new URL('../../docs/qa/img/', import.meta.url))
 
 export async function waitFor(fn, label, ms = 8000) {
   const end = Date.now() + ms

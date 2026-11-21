@@ -157,7 +157,8 @@ async function runA1(ctx) {
       clickRadio('p', 'neck_label', 'ไม่มี')
       clickRadio('p', 'size_label', 'ไม่มี')
       clickRadio('p', 'fold', 'พับแยกตัว')
-      clickRadio('p', 'bag', 'ถุงแยกตัว (1/1)')
+      clickRadio('p', 'bag', 'แพ็ค 1/1 (ถุงแยกตัว)')
+      clickRadio('p', 'outer_pack', 'ไม่มีแพ็คใหญ่')
     })
     await t.fillInput('[data-s="p"][data-k="fabric_color"]', 'ขาว')
     await t.fillInput('input[data-t="sizes"][data-r="0"][data-c="label"]', 'สีขาว')
@@ -688,8 +689,8 @@ async function runA2(ctx) {
     await t.clickButton('เริ่มทำม็อคอัพกำกับสเปก')
     await t.waitText('อัปโหลดภาพหลักก่อน')
     await t.uploadFiles('input[type="file"][accept*="png"]', [fixtures.paths.frontPng])
-    await t.clickButton('ใช้เป็นภาพภาพหลัก')
-    await t.waitText('เพิ่มภาพภาพหลักแล้ว')
+    await t.clickButton('ใช้เป็นภาพหลัก')
+    await t.waitText('เพิ่มภาพหลักแล้ว')
     await waitFor(() => t.ev(() => {
       const img = document.querySelector('[data-testid="canvas-front"] img')
       if (!img?.complete || !img.naturalWidth) return false
@@ -783,8 +784,8 @@ async function runA3(ctx) {
     await t.clickButton('เริ่มทำม็อคอัพกำกับสเปก')
     await t.waitText('อัปโหลดภาพหลักก่อน')
     await t.uploadFiles('input[type="file"][accept*="png"]', [fixtures.paths.frontPng])
-    await t.clickButton('ใช้เป็นภาพภาพหลัก')
-    await t.waitText('เพิ่มภาพภาพหลักแล้ว')
+    await t.clickButton('ใช้เป็นภาพหลัก')
+    await t.waitText('เพิ่มภาพหลักแล้ว')
     await waitFor(() => t.ev(() => {
       const img = document.querySelector('[data-testid="canvas-front"] img')
       if (!img?.complete || !img.naturalWidth) return false

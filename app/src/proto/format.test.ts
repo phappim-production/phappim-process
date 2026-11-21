@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { dayDiff, duration, relDay, slaAmount, spaced, stageSteps, stageText } from './format'
+import { dayDiff, dueDateWarning, duration, relDay, slaAmount, spaced, stageSteps, stageText, wholeCount } from './format'
 import type { Job, Phase, RouteCode } from './model'
 
 const date = new Date('2026-11-17T00:00:00+07:00')
@@ -94,4 +94,23 @@ it('เวลามาตรฐานไม่ถึงครึ่งวัน�
   expect(slaAmount(0.25)).toBe('6 ชม.')
   expect(slaAmount(1)).toBe('1 วัน')
   expect(slaAmount(1.26)).toBe('1.3 วัน')
+})
+
+it('เตือนกำหนดส่งย้อนหลังหรือพิมพ์ปี พ.ศ. ตามวันไทย', () => {
+  const lateNight = new Date('2026-11-21T23:30:00+07:00')
+  expect(dueDateWarning('2026-11-20', lateNight)).toMatch(/ผ่านมาแล้ว/)
+  expect(dueDateWarning('2020-01-01', lateNight)).toMatch(/ผ่านมาแล้ว/)
+  expect(dueDateWarning('2026-11-21', lateNight)).toBeNull()
+  expect(dueDateWarning('2027-11-21', lateNight)).toBeNull()
+  expect(dueDateWarning('2569-11-30', lateNight)).toMatch(/พ\.ศ\./)
+  expect(dueDateWarning('', lateNight)).toBeNull()
+})
+
+it('ช่องจำนวนรับเฉพาะจำนวนเต็ม ไม่ปัดทศนิยมเงียบๆ', () => {
+  expect(wholeCount('12')).toBe(12)
+  expect(wholeCount(' 3 ')).toBe(3)
+  expect(wholeCount('1.5')).toBeNull()
+  expect(wholeCount('1e2')).toBeNull()
+  expect(wholeCount('-2')).toBeNull()
+  expect(wholeCount('')).toBeNull()
 })

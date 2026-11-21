@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { OUTSIDE_START_BLOCK, SLA_LABEL, STATION_NAME, byQueue, filmLabel, isOutLate, isOverdue, waitingAt, type Job, type StationCode } from '../proto/model'
 import { spaced } from '../proto/format'
 import { DueLabel, MockupThumb, Pill } from '../components/ui'
@@ -24,7 +24,15 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
   const [notice, setNotice] = useState<{ ok: boolean; text: string; jobId?: string } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
+  const running = useRef(false)
+
+  // กดรัวในเฟรมเดียวกันก่อนปุ่มถูกปิด ต้องกันด้วย ref ไม่ใช่ state
   async function run(job: Job, steps: [string, Record<string, unknown>][], ok: string) {
+    if (running.current) return false
+    running.current = true
+    try { return await runSteps(job, steps, ok) } finally { running.current = false }
+  }
+  async function runSteps(job: Job, steps: [string, Record<string, unknown>][], ok: string) {
     setBusy(job.id)
     setNotice(null)
     for (const [name, args] of steps) {

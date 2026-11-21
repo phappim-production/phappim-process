@@ -9,6 +9,7 @@ import { confirmationPath, draftFromConfirmation, pdfProblem, sewRecipeProblem, 
 import { draftLabel, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
 import { receiveForecast, type SewFloor } from '../proto/capacity'
+import { dueDateWarning } from '../proto/format'
 import { Dialog, fieldClass, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconInbox } from '../components/icons'
 import { FilePick } from '../components/FilePick'
@@ -85,6 +86,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
     ? receiveForecast(jobs, now, floor, { route: draft.route, qty: draft.qty, productCode: product.code, needsSample: draft.needsSample, due: draft.due })
     : null, [jobs, now, floor, product, draft.route, draft.qty, draft.needsSample, draft.due])
   const pdfIssue = pdfProblem(pdf)
+  const dueWarning = dueDateWarning(draft.due, now)
   const recipeIssue = product ? sewRecipeProblem(draft.route, floor.needsOf(product.code)) : null
   const missing = [
     !draft.no.trim() && 'เลขที่ใบยืนยัน', !draft.customer.trim() && 'ชื่อลูกค้า', !product && 'ประเภทสินค้า',
@@ -105,6 +107,9 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
 
   async function submit() {
     if (missing.length || !product || !supabase || !draft.route || draft.needsSample === null) return
+    if (dueWarning && !window.confirm(`${dueWarning}
+
+กำหนดส่ง ${draft.due} ถูกต้อง รับงานต่อ?`)) return
     setError('')
     let path: string | null = null
     if (pdf) {
@@ -180,7 +185,8 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
             <input type="number" min={0} inputMode="numeric" value={draft.spare || ''} placeholder="0" onChange={e => set('spare', Math.max(0, Math.floor(Number(e.target.value) || 0)))} className={fieldClass} />
           </label>
           <label className={label}>กำหนดส่ง
-            <input type="date" value={draft.due} onChange={e => set('due', e.target.value)} className={fieldClass} />
+            <input type="date" value={draft.due} onChange={e => set('due', e.target.value)} className={fieldClass} aria-describedby={dueWarning ? 'due-warning' : undefined} />
+            {dueWarning && <span id="due-warning" role="alert" className="text-sm font-medium text-warn">{dueWarning}</span>}
           </label>
           <label className={label}>เส้นทางผลิต
             <select value={draft.route ?? ''} onChange={e => set('route', (e.target.value || null) as RouteCode | null)} className={fieldClass}>

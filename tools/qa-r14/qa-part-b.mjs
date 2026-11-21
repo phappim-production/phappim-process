@@ -83,8 +83,8 @@ async function seedRichDataset(stack, t, fixtures) {
   await t.clickButton('เริ่มทำม็อคอัพกำกับสเปก')
   await t.waitText('อัปโหลดภาพหลักก่อน')
   await t.uploadFiles('input[type="file"][accept*="png"]', [fixtures.paths.frontPng])
-  await t.clickButton('ใช้เป็นภาพภาพหลัก')
-  await t.waitText('เพิ่มภาพภาพหลักแล้ว')
+  await t.clickButton('ใช้เป็นภาพหลัก')
+  await t.waitText('เพิ่มภาพหลักแล้ว')
   await waitFor(() => t.ev(() => {
     const img = document.querySelector('[data-testid="canvas-front"] img')
     if (!img?.complete || !img.naturalWidth) return false
@@ -99,6 +99,7 @@ async function seedRichDataset(stack, t, fixtures) {
 
   // ผูกรูปม็อคอัพบนการ์ดงานของ TEST-B-DOING
   await t.goto('admin1', `#/board?job=${doingId}`, 1440)
+  await waitFor(() => t.ev(() => Boolean(document.querySelector('input[type="file"][accept*="image/jpeg"]'))), 'ช่องอัปโหลดม็อคอัพบนการ์ดงาน')
   await t.uploadFiles('input[type="file"][accept*="image/jpeg"]', [fixtures.paths.frontPng])
   await t.clickButton('บันทึกรูปม็อคอัพ')
   await t.waitText('เพิ่มรูปม็อคอัพแล้ว')

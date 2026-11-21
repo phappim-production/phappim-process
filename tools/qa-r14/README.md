@@ -42,6 +42,7 @@
   node tools/qa-r14/qa-part-b.mjs
   node tools/qa-r14/qa-part-c.mjs
   ```
+  ภาพและ PDF ลง `docs/qa/img/` · ตั้ง `$env:QA_IMG_DIR` เป็นโฟลเดอร์อื่นถ้าไม่อยากทับหลักฐานเดิม
 
 ## ข้อจำกัดของสภาพแวดล้อมจำลอง
 

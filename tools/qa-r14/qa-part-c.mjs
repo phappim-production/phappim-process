@@ -142,8 +142,8 @@ async function main() {
       await t.clickButton('เริ่มทำม็อคอัพกำกับสเปก')
       await t.waitText('อัปโหลดภาพหลักก่อน')
       await t.uploadFiles('input[type="file"][accept*="png"]', [fixtures.paths.frontPng])
-      await t.clickButton('ใช้เป็นภาพภาพหลัก')
-      await t.waitText('เพิ่มภาพภาพหลักแล้ว')
+      await t.clickButton('ใช้เป็นภาพหลัก')
+      await t.waitText('เพิ่มภาพหลักแล้ว')
       await waitFor(() => t.ev(() => {
         const img = document.querySelector('[data-testid="canvas-front"] img')
         if (!img?.complete || !img.naturalWidth) return false
@@ -192,8 +192,10 @@ async function main() {
         rSel.value = 'cut_only'; rSel.dispatchEvent(new Event('change', { bubbles: true }))
         document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[1].click()
       })
+      const pastWarned = await t.ev(() => document.body.innerText.includes('กำหนดส่งเป็นวันที่ผ่านมาแล้ว'))
+      assert.equal(pastWarned, true)
       await t.clickButton(/^รับงาน$/, { exact: true, inside: '[role="dialog"]' })
-      await waitFor(() => t.ev(() => document.body.innerText.includes('ส่งงาน TEST-C-PAST เข้าโรงงานแล้ว') || Boolean(document.querySelector('[role="dialog"] [role="alert"]'))), 'ผลรับงานวันย้อนหลัง')
+      await waitFor(() => t.ev(() => document.body.innerText.includes('ส่งงาน TEST-C-PAST เข้าโรงงานแล้ว') || Boolean(document.querySelector('[role="dialog"] p[role="alert"]'))), 'ผลรับงานวันย้อนหลัง')
       const pastAccepted = await t.ev(() => document.body.innerText.includes('ส่งงาน TEST-C-PAST เข้าโรงงานแล้ว'))
       const pastId = await sql(stack, "select id from public.jobs where confirmation_no = 'TEST-C-PAST'").then(r => r.rows[0]?.id)
 
@@ -226,13 +228,14 @@ async function main() {
       const delayBlocked = await t.ev(() => [...document.querySelectorAll('#delay-report button')].at(-1)?.disabled)
       assert.equal(delayBlocked, true)
 
-      findings.push({ section: 'C2', pastDueDateAcceptedInIntake: pastAccepted, delayPastBlocked: delayBlocked })
-      return `กำหนดส่งย้อนหลังในรับงาน=${pastAccepted ? 'รับได้(ไม่ห้าม)' : 'ห้าม'}, ส่งออกกลับก่อนถึง=ห้าม, delay ย้อนหลัง=ห้าม`
+      findings.push({ section: 'C2', pastDueDateWarned: pastWarned, pastDueDateAcceptedInIntake: pastAccepted, delayPastBlocked: delayBlocked })
+      return `กำหนดส่งย้อนหลังในรับงาน=${pastAccepted ? 'เตือน+ถามยืนยันแล้วรับได้' : 'ห้าม'}, ส่งออกกลับก่อนถึง=ห้าม, delay ย้อนหลัง=ห้าม`
     })
 
     await check('C3', 'อัปโหลดไฟล์ผิดชนิด (.gif/.txt/ปลอม) / ไฟล์ 0 ไบต์ / ใหญ่เกิน 20 MB', async () => {
       const jid = await receiveBasic(t, stack, 'TEST-C-FILES', 'ลูกค้าไฟล์', 5, 'cut_only')
       await t.goto('admin1', `#/board?job=${jid}`, 1440)
+      await waitFor(() => t.ev(() => Boolean(document.querySelector('input[type="file"][accept*="pdf"]'))), 'ช่องแนบ PDF ใบยืนยัน')
 
       // PDF ปลอม / txt ในช่อง PDF
       await t.uploadFiles('input[type="file"][accept*="pdf"]', [fixtures.paths.txt])
@@ -251,10 +254,10 @@ async function main() {
       await t.clickButton('เริ่มทำม็อคอัพกำกับสเปก')
       await t.waitText('อัปโหลดภาพหลักก่อน')
       await t.uploadFiles('input[type="file"][accept*="png"]', [fixtures.paths.fakePng])
-      await t.clickButton('ใช้เป็นภาพภาพหลัก')
+      await t.clickButton('ใช้เป็นภาพหลัก')
       await t.waitText(/เปิดไฟล์รูปนี้ไม่ได้|ไฟล์อาจเสีย/)
       await t.uploadFiles('input[type="file"][accept*="png"]', [fixtures.paths.emptyPng])
-      await t.clickButton('ใช้เป็นภาพภาพหลัก')
+      await t.clickButton('ใช้เป็นภาพหลัก')
       await t.waitText(/เปิดไฟล์รูปนี้ไม่ได้|ไฟล์ว่างเปล่า/)
       await t.uploadFiles('input[type="file"][accept*="png"]', [fixtures.paths.hugeJpg])
       await t.waitText(/เกิน 20 MB/)
@@ -267,8 +270,8 @@ async function main() {
       await t.clickButton('เริ่มทำม็อคอัพกำกับสเปก')
       await t.waitText('อัปโหลดภาพหลักก่อน')
       await t.uploadFiles('input[type="file"][accept*="png"]', [fixtures.paths.frontPng])
-      await t.clickButton('ใช้เป็นภาพภาพหลัก')
-      await t.waitText('เพิ่มภาพภาพหลักแล้ว')
+      await t.clickButton('ใช้เป็นภาพหลัก')
+      await t.waitText('เพิ่มภาพหลักแล้ว')
       await waitFor(() => t.ev(() => {
         const img = document.querySelector('[data-testid="canvas-front"] img')
         if (!img?.complete || !img.naturalWidth) return false

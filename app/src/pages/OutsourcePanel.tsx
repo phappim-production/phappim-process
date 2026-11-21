@@ -3,6 +3,7 @@ import { rpc } from '../data/useFactoryData'
 import { newRequestId } from '../data/requestId'
 import { OUTSOURCEABLE, ROUTES, STATION_NAME, isOutLate, telHref, type Job, type StationCode, type Vendor } from '../proto/model'
 import { defaultBack, outSpan } from '../proto/outsource'
+import { wholeCount } from '../proto/format'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconAlert, IconCheck, IconPackage } from '../components/icons'
 
@@ -245,7 +246,7 @@ function ReceiveForm({ busy, next, onSave, onCancel }: { busy: boolean; next: st
 
 function SplitForm({ job: j, busy, onSave, onCancel }: { job: Job; busy: boolean; onSave: (qty: number) => Promise<boolean>; onCancel: () => void }) {
   const [qty, setQty] = useState('')
-  const n = Math.floor(Number(qty))
+  const n = wholeCount(qty) ?? 0
   const valid = n >= 1 && n < j.qty
   return (
     <div className="grid gap-2 rounded-xl bg-paper p-3">
