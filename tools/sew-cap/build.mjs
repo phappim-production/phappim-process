@@ -21,7 +21,7 @@ const MACHINES = [
   ['elastic', 'ยางยืด', 0], ['button', 'ติดกระดุม', 1], ['buttonhole', 'เจาะรังดุม', 1],
 ]
 // สินค้าที่เย็บในโรงงาน (มีสูตรจักรใน product_machine_needs)
-const SEWN = ['tshirt', 'sport', 'running', 'polo', 'worker', 'pe', 'jacket', 'hawaii', 'gown', 'scrub', 'student',
+const SEWN = ['tshirt', 'sport', 'jersey', 'running', 'polo', 'worker', 'pe', 'jacket', 'hawaii', 'gown', 'scrub', 'student',
   'mourning', 'kids', 'pajama', 'elephant', 'muaythai', 'pet', 'banner', 'yan', 'scarf', 'cheer', 'glasses',
   'blanket', 'apron', 'wristband', 'lanyard', 'bag', 'spunbond', 'foldable', 'sachet']
 // ส่วนที่ไม่เกี่ยวกับการเย็บ (ผ้า สี พิมพ์ ไซซ์ แพ็ค) ตัดออกให้ใบสั้นพอที่หน้างานจะกรอกจบ

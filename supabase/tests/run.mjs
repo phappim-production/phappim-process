@@ -39,7 +39,12 @@ const count = async t => (await db.query(`select count(*)::int n from public.${t
 ok('สถานี 9 สถานี', await count('stations') === 9)
 ok('เส้นทาง 9 เส้น', await count('routes') === 9)
 ok('ลำดับสถานีในเส้นทาง 34 แถว', await count('route_stations') === 34)
-ok('สินค้า 37 รายการ', await count('product_types') === 37)
+ok('สินค้า 38 รายการ', await count('product_types') === 38)
+{
+  const recipe = async code => (await db.query(`select type_code || ':' || qty r from public.product_machine_needs where product_type_code = $1 order by 1`, [code])).rows.map(x => x.r).join()
+  const jersey = await recipe('jersey')
+  ok('เสื้อเจอร์ซีย์มีสูตรจักรเหมือนเสื้อกีฬา', !!jersey && jersey === await recipe('sport'), jersey)
+}
 ok('แม่แบบวัตถุดิบ 8 รายการ', await count('material_templates') === 8)
 const r = await db.query(`select string_agg(s.name, ' → ' order by rs.seq) path from route_stations rs join stations s on s.code = rs.station_code where rs.route_code = 'dtf'`)
 ok('เส้นทาง DTF เรียงถูก', r.rows[0].path === 'ตัดงาน → รีดฟิล์ม (DTF / DTG / สกรีน) → เย็บงาน → QC + Packing', r.rows[0].path)
@@ -64,7 +69,7 @@ const n = async t => (await db.query(`select count(*)::int n from public.${t}`))
 
 ok('ผู้ใช้ที่ไม่มี profile อ่านสินค้าไม่ได้', await as(U.nobody, () => n('product_types')) === 0)
 ok('ผู้ใช้ที่ถูกปิด (active=false) อ่านงานไม่ได้', await as(U.off, () => n('jobs')) === 0)
-ok('ผู้ควบคุมงานอ่านสินค้าได้ 37', await as(U.sup, () => n('product_types')) === 37)
+ok('ผู้ควบคุมงานอ่านสินค้าได้ 38', await as(U.sup, () => n('product_types')) === 38)
 ok('ผู้ควบคุมงานเห็นงาน', await as(U.sup, () => n('jobs')) === 1)
 ok('ผู้ควบคุมงานเห็นแค่ profile ตัวเอง', await as(U.sup, () => n('profiles')) === 1)
 ok('owner เห็น profile ทุกคน', await as(U.owner, () => n('profiles')) === 3)
