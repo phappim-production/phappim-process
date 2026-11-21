@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   /* Sarabun เป็นตัวไทยมีหัว อ่านง่ายสำหรับคนหน้างานทุกวัย (แบบไม่มีหัวอ่านยากเมื่อตัวเล็ก) */
-  --font-sans: "Sarabun", system-ui, sans-serif;
+  --font-sans: "Sarabun", "Noto Sans Myanmar", system-ui, sans-serif;
 
   /* ขนาดตัวอักษรขั้นต่ำ 14 px · ข้อความรอง 16 px · ตัวหลัก 17 px ให้อ่านได้บนแท็บเล็ตที่วางห่างตัว */
   /* สระ+วรรณยุกต์ไทยซ้อนสูง 1.29 em และ ญู ฐุ ลงต่ำ 0.36 em → บรรทัดที่ชิดกว่า ~1.5 เท่าหัววรรณยุกต์ชนบรรทัดบน */
@@ -87,3 +87,11 @@ body {
 :focus-visible { outline: 3px solid var(--color-gold); outline-offset: 2px; }
 
 .scroll-thin { scrollbar-width: thin; scrollbar-color: #b9c4bf transparent; }
+
+/* อักษรพม่าสูงกว่าไทย ต้องเว้นบรรทัดมากขึ้นไม่ให้สระบน-ล่างชนกัน */
+.tr { display: inline-flex; flex-direction: column; align-items: inherit; line-height: 1.55; }
+.tr-inline { display: inline; }
+.tr-my { font-family: "Noto Sans Myanmar", "Sarabun", sans-serif; line-height: 1.7; }
+.tr-th { font-size: 0.75em; font-weight: 500; opacity: 0.75; line-height: 1.4; }
+.tr-inline .tr-th::before { content: " · "; }
+html.lang-my { line-height: 1.7; }

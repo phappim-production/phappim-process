@@ -3,6 +3,8 @@ import { Card } from '../components/ui'
 import { requiredThai } from '../components/forms'
 import { supabase } from '../lib/supabase'
 import { MIN_PASSWORD_LENGTH, newPasswordProblem, passwordChangeErrorMessage, signInErrorMessage } from './messages'
+import { DocumentLang, LangToggle, Tr } from '../i18n/Tr'
+import { useT } from '../i18n/lang'
 
 export const primaryButton = 'min-h-12 rounded-xl bg-brand px-5 py-2.5 font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60'
 export const secondaryButton = 'min-h-12 rounded-xl border border-line px-5 py-2.5 font-semibold text-brand hover:bg-brand-soft disabled:opacity-60'
@@ -11,10 +13,14 @@ const inputClass = 'min-h-12 w-full rounded-xl border border-line bg-card px-3 t
 export function AccountScreen({ title, children }: { title: string; children: ReactNode }) {
   return (
     <main className="grid min-h-dvh place-items-center px-4 py-8">
+      <DocumentLang />
       <Card className="w-full max-w-sm p-6 sm:p-8">
-        <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="mb-5 h-11 rounded-lg" />
-        <p className="mb-1 text-sm font-medium text-muted">ระบบติดตามการผลิต</p>
-        <h1 className="mb-4 text-2xl font-semibold tracking-tight">{title}</h1>
+        <div className="mb-5 flex items-start justify-between gap-3">
+          <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-11 rounded-lg" />
+          <LangToggle />
+        </div>
+        <p className="mb-1 text-sm font-medium text-muted"><Tr th="ระบบติดตามการผลิต" /></p>
+        <h1 className="mb-4 text-2xl font-semibold tracking-tight"><Tr th={title} /></h1>
         {children}
       </Card>
     </main>
@@ -30,16 +36,17 @@ function PasswordField({ label, name, autoComplete, minLength }: {
 }) {
   const [shown, setShown] = useState(false)
   const id = useId()
+  const t = useT()
   return (
     <div className="grid gap-1">
-      <label htmlFor={id} className="font-medium">{label}</label>
+      <label htmlFor={id} className="font-medium"><Tr th={label} /></label>
       <div className="flex gap-2">
         <input id={id} className={inputClass} type={shown ? 'text' : 'password'} name={name}
           autoComplete={autoComplete} minLength={minLength}
-          {...requiredThai(minLength ? `กรุณากรอกรหัสผ่านอย่างน้อย ${minLength} ตัวอักษร` : 'กรุณากรอกรหัสผ่าน')} />
+          {...requiredThai(minLength ? `กรุณากรอกรหัสผ่านอย่างน้อย ${minLength} ตัวอักษร` : t('กรุณากรอกรหัสผ่าน'))} />
         <button type="button" className="min-h-12 shrink-0 rounded-xl border border-line px-3 text-sm font-semibold text-brand hover:bg-brand-soft"
           aria-controls={id} aria-pressed={shown} onClick={() => setShown(value => !value)}>
-          {shown ? 'ซ่อน' : 'แสดง'}
+          <Tr th={shown ? 'ซ่อน' : 'แสดง'} />
         </button>
       </div>
     </div>
@@ -69,9 +76,9 @@ export function SignOutButton({ className = secondaryButton, children }: { class
   return (
     <>
       <button type="button" className={className} disabled={busy} onClick={signOut}>
-        {busy ? 'กำลังออกจากระบบ…' : children ?? 'ออกจากระบบ'}
+        {busy ? <Tr th="กำลังออกจากระบบ…" /> : children ?? <Tr th="ออกจากระบบ" />}
       </button>
-      {failed && <p role="alert" className="mt-2 text-danger">ออกจากระบบไม่สำเร็จ กรุณาลองอีกครั้ง</p>}
+      {failed && <p role="alert" className="mt-2 text-danger"><Tr th="ออกจากระบบไม่สำเร็จ กรุณาลองอีกครั้ง" /></p>}
     </>
   )
 }
@@ -124,6 +131,7 @@ export function ChangePasswordForm() {
 }
 
 export default function EmployeeLogin() {
+  const t = useT()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -151,16 +159,16 @@ export default function EmployeeLogin() {
     <AccountScreen title="เข้าสู่ระบบพนักงาน">
       <form onSubmit={submit} className="grid gap-4" aria-busy={busy}>
         <label className="grid gap-1 font-medium">
-          อีเมล
+          <Tr th="อีเมล" />
           <input className={inputClass} type="email" name="email" autoComplete="username" inputMode="email"
-            autoCapitalize="none" spellCheck={false} {...requiredThai('กรุณากรอกอีเมลของบัญชีพนักงานให้ถูกต้อง')} />
+            autoCapitalize="none" spellCheck={false} {...requiredThai(t('กรุณากรอกอีเมลของบัญชีพนักงานให้ถูกต้อง'))} />
         </label>
         <PasswordField label="รหัสผ่าน" name="password" autoComplete="current-password" />
-        {error && <p role="alert" className="text-danger">{error}</p>}
+        {error && <p role="alert" className="text-danger"><Tr th={error} /></p>}
         <button type="submit" disabled={busy} className={primaryButton}>
-          {busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}
+          <Tr th={busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'} />
         </button>
-        <p className="text-sm text-muted">หากยังไม่มีบัญชีหรือลืมรหัสผ่าน ให้ติดต่อเจ้าของระบบ</p>
+        <p className="text-sm text-muted"><Tr th="หากยังไม่มีบัญชีหรือลืมรหัสผ่าน ให้ติดต่อเจ้าของระบบ" /></p>
       </form>
     </AccountScreen>
   )

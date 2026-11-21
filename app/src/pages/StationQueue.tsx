@@ -7,6 +7,8 @@ import { IconAlert, IconCheck, IconChevronRight } from '../components/icons'
 import { scrollToDelayReport } from './delayReport'
 import { canCloseIssue, type EmployeeRole } from '../auth/access'
 import { TONE } from '../components/tone'
+import { Tr } from '../i18n/Tr'
+import { useT, type Vars, type Word } from '../i18n/lang'
 
 export type QueueCall = (name: string, args: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; reason: string }>
 
@@ -21,29 +23,30 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
   const queue = waitingAt(jobs, station)
   // งานที่บริษัทภายนอกกำลังทำสถานีนี้ (รวมงานที่ส่งออกหลายสถานีในรอบเดียว)
   const outside = jobs.filter(j => j.status === 'out' && j.out?.stations.includes(station)).sort((a, b) => a.out!.backAt.getTime() - b.out!.backAt.getTime())
-  const [notice, setNotice] = useState<{ ok: boolean; text: string; jobId?: string } | null>(null)
+  const [notice, setNotice] = useState<{ ok: boolean; text: Word; jobId?: string } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
   const running = useRef(false)
 
   // กดรัวในเฟรมเดียวกันก่อนปุ่มถูกปิด ต้องกันด้วย ref ไม่ใช่ state
-  async function run(job: Job, steps: [string, Record<string, unknown>][], ok: string) {
+  async function run(job: Job, steps: [string, Record<string, unknown>][], ok: Word) {
     if (running.current) return false
     running.current = true
     try { return await runSteps(job, steps, ok) } finally { running.current = false }
   }
-  async function runSteps(job: Job, steps: [string, Record<string, unknown>][], ok: string) {
+  async function runSteps(job: Job, steps: [string, Record<string, unknown>][], ok: Word) {
     setBusy(job.id)
     setNotice(null)
     for (const [name, args] of steps) {
       const r = await call(name, { p_job: job.id, ...args })
-      if (!r.ok) { setBusy(null); setNotice({ ok: false, text: `${job.no}: ${r.reason}`, jobId: job.id }); return false }
+      if (!r.ok) { setBusy(null); setNotice({ ok: false, text: { th: '{no}: {reason}', vars: { no: job.no, reason: { th: r.reason } } }, jobId: job.id }); return false }
     }
     setBusy(null)
     setNotice({ ok: true, text: ok })
     return true
   }
   const name = STATION_NAME[station]
+  const t = useT()
   // ผลสำเร็จหายเองใน 4 วินาที · ผิดพลาดค้างไว้จนกดปิด (คนหน้างานต้องเห็น)
   useEffect(() => {
     if (!notice?.ok) return
@@ -56,23 +59,23 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
       {/* มือถือ: ลอยเหนือเมนูล่างใกล้ปุ่มที่เพิ่งกด · ข้อความสำเร็จกดทะลุได้ ไม่บังปุ่มงานถัดไป */}
       {notice && (
         <div role={notice.ok ? 'status' : 'alert'} className={`fixed inset-x-4 bottom-24 z-30 grid gap-2 rounded-xl px-4 py-3 font-medium shadow-lift lg:static lg:shadow-none ${notice.ok ? 'pointer-events-none bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>
-          <p>{notice.text}</p>
+          <p><Tr th={notice.text.th} vars={notice.text.vars} /></p>
           <div className="flex flex-wrap gap-2">
             {!notice.ok && notice.jobId && (
-              <button type="button" className={secondaryBtn} onClick={() => onOpen(notice.jobId!)}>เปิดรายละเอียดงาน</button>
+              <button type="button" className={secondaryBtn} onClick={() => onOpen(notice.jobId!)}><Tr th="เปิดรายละเอียดงาน" /></button>
             )}
-            {!notice.ok && <button type="button" className={secondaryBtn} onClick={() => setNotice(null)}>ปิด</button>}
+            {!notice.ok && <button type="button" className={secondaryBtn} onClick={() => setNotice(null)}><Tr th="ปิด" /></button>}
           </div>
         </div>
       )}
 
       <div className={`grid items-start gap-4 ${outside.length ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
         <section aria-labelledby="q-working" className="grid gap-2">
-          <h2 id="q-working" className="text-lg font-bold">กำลังทำ <span className="font-medium text-muted">{working.filter(j => j.status === 'doing').length} งาน{working.some(j => j.status === 'hold') && ` · พักงาน ${working.filter(j => j.status === 'hold').length} งาน`}</span></h2>
-          {working.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">{station === 'outside' ? 'สถานีนี้ไม่มีงานทำในโรงงาน · แอดมินส่งออกจากรายละเอียดงาน' : 'ยังไม่มีงานที่กำลังทำ · กดเริ่มงานคิว 1 ในคิวรอเริ่ม'}</p>}
+          <h2 id="q-working" className="flex flex-wrap items-baseline gap-x-2 text-lg font-bold"><Tr th="กำลังทำ" /> <span className="font-medium text-muted"><Tr inline th="{n} งาน" vars={{ n: working.filter(j => j.status === 'doing').length }} />{working.some(j => j.status === 'hold') && <> · <Tr inline th="พักงาน {n} งาน" vars={{ n: working.filter(j => j.status === 'hold').length }} /></>}</span></h2>
+          {working.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted"><Tr th={station === 'outside' ? 'สถานีนี้ไม่มีงานทำในโรงงาน · แอดมินส่งออกจากรายละเอียดงาน' : 'ยังไม่มีงานที่กำลังทำ · กดเริ่มงานคิว 1 ในคิวรอเริ่ม'} /></p>}
           {working.map(j => (
-            <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger" dot>พักงาน</Pill>
-              : j.sla ? <Pill tone={SLA_LABEL[j.sla].tone} dot>{SLA_LABEL[j.sla].text}</Pill> : <Pill tone="info" dot>กำลังทำ</Pill>}>
+            <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger" dot>{t('พักงาน')}</Pill>
+              : j.sla ? <Pill tone={SLA_LABEL[j.sla].tone} dot>{t(SLA_LABEL[j.sla].text)}</Pill> : <Pill tone="info" dot>{t('กำลังทำ')}</Pill>}>
               {j.status === 'hold'
                 ? <HoldActions job={j} station={station} canResume={canCloseIssue(role, station)} busy={busy === j.id} run={run} />
                 : canPress && <WorkingActions job={j} station={station} busy={busy === j.id} run={run} onOpen={() => onOpen(j.id)} />}
@@ -81,27 +84,27 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
         </section>
 
         <section aria-labelledby="q-waiting" className="grid gap-2">
-          <h2 id="q-waiting" className="text-lg font-bold">คิวรอเริ่ม <span className="font-medium text-muted">{queue.length} งาน · เรียงตามคิว</span></h2>
-          {queue.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">ไม่มีงานรอที่{spaced(name).trimEnd()}</p>}
+          <h2 id="q-waiting" className="flex flex-wrap items-baseline gap-x-2 text-lg font-bold"><Tr th="คิวรอเริ่ม" /> <span className="font-medium text-muted"><Tr inline th="{n} งาน · เรียงตามคิว" vars={{ n: queue.length }} /></span></h2>
+          {queue.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted"><Tr th="ไม่มีงานรอที่{station}" vars={{ station: { th: spaced(name).trimEnd() } }} /></p>}
           {queue.map((j, i) => (
             <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} first={i === 0}
-              badge={<span className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${i === 0 ? 'bg-brand text-white' : 'bg-paper text-ink'}`}>คิว {i + 1}</span>}>
+              badge={<span className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${i === 0 ? 'bg-brand text-white' : 'bg-paper text-ink'}`}>{t('คิว {n}', { n: i + 1 })}</span>}>
               <WaitingActions job={j} first={queue[0]} station={station} canPress={canPress}
               onSewStart={onSewStart}
-              full={machines?.full ? `เครื่องเต็ม ${machines.used.length}/${machines.total} (${machines.used.map(u => u.no).join(', ')}) · รอให้งานเสร็จ หรือพักงานที่ติดปัญหาก่อน` : undefined} canInsert={canInsert && i > 0}
+              full={machines?.full ? { th: 'เครื่องเต็ม {used}/{total} ({jobs}) · รอให้งานเสร็จ หรือพักงานที่ติดปัญหาก่อน', vars: { used: machines.used.length, total: machines.total, jobs: machines.used.map(u => u.no).join(', ') } } : undefined} canInsert={canInsert && i > 0}
                 busy={busy === j.id} run={run} />
             </QueueCard>
           ))}
         </section>
         {outside.length > 0 && (
           <section aria-labelledby="q-outside" className="grid gap-2">
-            <h2 id="q-outside" className="text-lg font-bold">ส่งออกข้างนอก <span className="font-medium text-muted">{outside.length} งาน · แอดมินรับของกลับแล้วจะเข้าคิว</span></h2>
+            <h2 id="q-outside" className="flex flex-wrap items-baseline gap-x-2 text-lg font-bold"><Tr th="ส่งออกข้างนอก" /> <span className="font-medium text-muted"><Tr inline th="{n} งาน · แอดมินรับของกลับแล้วจะเข้าคิว" vars={{ n: outside.length }} /></span></h2>
             {outside.map(j => {
               const late = isOutLate(j, now)
               return (
-                <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={<Pill tone={late ? 'danger' : 'info'} dot>ข้างนอก</Pill>}>
+                <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={<Pill tone={late ? 'danger' : 'info'} dot>{t('ข้างนอก')}</Pill>}>
                   <p className={`rounded-xl px-3 py-2 ${late ? 'bg-danger-soft font-semibold text-danger' : 'bg-info-soft text-info'}`}>
-                    {j.out!.vendor} · {j.out!.stations.map(s => STATION_NAME[s]).join(' → ')} · คาดว่าของถึง {j.out!.backAt.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} น.{late ? ' · เลยกำหนด' : ''}
+                    <Tr th="{vendor} · {stations} · คาดว่าของถึง {at} น." vars={{ vendor: j.out!.vendor, stations: j.out!.stations.map(s => t(STATION_NAME[s])).join(' → '), at: j.out!.backAt.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }} />{late ? t(' · เลยกำหนด') : ''}
                   </p>
                 </QueueCard>
               )
@@ -119,26 +122,27 @@ function QueueCard({ job: j, now, badge, first, onOpen, children, station }: {
 }) {
   const spec = j.specSheet && station && !j.specSheet.acked.includes(station) ? j.specSheet : null
   const late = isOverdue(j, now)
+  const t = useT()
   return (
     <article className={`grid gap-3 rounded-2xl border-2 bg-card p-4 shadow-card ${first ? 'border-brand'
       : late || j.status === 'hold' || j.sla === 'over' || j.sla === 'report' ? 'border-danger/40' : j.sla === 'warn' ? 'border-warn/50' : 'border-line'}`}>
-      <button type="button" onClick={onOpen} className="flex min-w-0 items-start gap-3 text-left" aria-label={`ดูรายละเอียดงาน ${j.no}`}>
+      <button type="button" onClick={onOpen} className="flex min-w-0 items-start gap-3 text-left" aria-label={t('ดูรายละเอียดงาน {no}', { no: j.no })}>
         <MockupThumb job={j} size="md" />
         <span className="grid min-w-0 flex-1 gap-1">
         <span className="flex flex-wrap items-center gap-2">
           {badge}
           <b className="text-xl">{j.no}</b>
-          {j.phase === 'sample' && <Pill tone="info">ตัวอย่าง</Pill>}
-          {j.rework && <Pill tone="danger">งานแก้ {j.rework.qty} {j.unit}</Pill>}
-          {spec && <Pill tone={spec.rev > 1 ? 'danger' : 'warn'}>{spec.rev > 1 ? `สเปกเปลี่ยน ฉบับ ${spec.rev}` : 'มีสเปกกำกับ'} · ยังไม่รับทราบ</Pill>}
+          {j.phase === 'sample' && <Pill tone="info">{t('ตัวอย่าง')}</Pill>}
+          {j.rework && <Pill tone="danger">{t('งานแก้ {qty} {unit}', { qty: j.rework.qty, unit: { th: j.unit } })}</Pill>}
+          {spec && <Pill tone={spec.rev > 1 ? 'danger' : 'warn'}>{spec.rev > 1 ? t('สเปกเปลี่ยน ฉบับ {rev} · ยังไม่รับทราบ', { rev: spec.rev }) : t('มีสเปกกำกับ · ยังไม่รับทราบ')}</Pill>}
           <IconChevronRight className="ml-auto size-5 text-muted" />
         </span>
         <span className="truncate text-base">{j.customer}</span>
         <span className="flex flex-wrap items-baseline gap-x-3 text-base text-muted">
-          <span>{j.product} · <b className="text-ink">{j.qty.toLocaleString('th-TH')}</b> {j.unit}</span>
+          <span>{j.product} · <b className="text-ink">{j.qty.toLocaleString('th-TH')}</b> {t(j.unit)}</span>
           <span className="ml-auto"><DueLabel job={j} now={now} /></span>
         </span>
-        {j.holdReason && <span className="text-base font-medium text-danger">สาเหตุ: {j.holdReason}</span>}
+        {j.holdReason && <span className="text-base font-medium text-danger"><Tr inline th="สาเหตุ: {reason}" vars={{ reason: j.holdReason }} /></span>}
         </span>
       </button>
       {children}
@@ -146,23 +150,25 @@ function QueueCard({ job: j, now, badge, first, onOpen, children, station }: {
   )
 }
 
-type Run = (job: Job, steps: [string, Record<string, unknown>][], ok: string) => Promise<boolean>
+type Run = (job: Job, steps: [string, Record<string, unknown>][], ok: Word) => Promise<boolean>
+const w = (th: string, vars?: Vars): Word => ({ th, vars })
 
 // ปิดปัญหาได้เฉพาะฝ่ายผลิต / ผู้บริหาร · บทบาทอื่นเห็นว่าต้องรอใคร
 function HoldActions({ job: j, station, canResume, busy, run }: { job: Job; station: StationCode; canResume: boolean; busy: boolean; run: Run }) {
   if (!canResume) {
     return <p className={`rounded-xl px-3 py-2 font-medium ${TONE.warn.soft}`}>
-      {station === 'sew' ? 'รอฝ่ายผลิตกด "แก้แล้ว เย็บต่อ" (ต้องจ่ายจักร)' : 'รอผู้บริหารหรือฝ่ายผลิตกด "แก้แล้ว ทำต่อ"'}
+      <Tr th={station === 'sew' ? 'รอฝ่ายผลิตกด "แก้แล้ว เย็บต่อ" (ต้องจ่ายจักร)' : 'รอผู้บริหารหรือฝ่ายผลิตกด "แก้แล้ว ทำต่อ"'} />
     </p>
   }
   return station === 'sew'
-    ? <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['resume_sewing', {}]], `${j.no} เย็บต่อแล้ว`)}>แก้แล้ว เย็บต่อ</button>
-    : <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['close_issue', { p_note: null }]], `${j.no} แก้แล้ว · ถ้าเครื่องเต็ม งานกลับเข้าคิวรอเริ่ม`)}>แก้แล้ว ทำต่อ</button>
+    ? <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['resume_sewing', {}]], w('{no} เย็บต่อแล้ว', { no: j.no }))}><Tr th="แก้แล้ว เย็บต่อ" /></button>
+    : <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['close_issue', { p_note: null }]], w('{no} แก้แล้ว · ถ้าเครื่องเต็ม งานกลับเข้าคิวรอเริ่ม', { no: j.no }))}><Tr th="แก้แล้ว ทำต่อ" /></button>
 }
 
 function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; station: StationCode; busy: boolean; run: Run; onOpen: () => void }) {
   const [mode, setMode] = useState<'finish' | 'hold' | null>(null)
   const [reason, setReason] = useState('')
+  const t = useT()
   // ชื่อสถานีที่ลงท้ายอังกฤษ (QC + Packing) ต้องเว้นวรรคก่อนคำไทย
   const name = spaced(STATION_NAME[station]).trimStart()
   if (mode === 'hold') {
@@ -172,15 +178,15 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
       : [['open_issue', { p_reason: reason.trim() }]]
     return (
       <div className="grid gap-2 rounded-xl bg-danger-soft p-3">
-        <label className="grid gap-1 font-semibold text-danger">สาเหตุที่พัก (ต้องกรอก)
-          <input value={reason} onChange={e => setReason(e.target.value)} className={fieldClass} placeholder="เช่น ผ้าไม่พอ ใบมีดทื่อ" />
+        <label className="grid gap-1 font-semibold text-danger"><Tr th="สาเหตุที่พัก (ต้องกรอก)" />
+          <input value={reason} onChange={e => setReason(e.target.value)} className={fieldClass} placeholder={t('เช่น ผ้าไม่พอ ใบมีดทื่อ')} />
         </label>
         <div className="grid grid-cols-2 gap-2">
           <button type="button" disabled={busy || !reason.trim()} className={dangerBtn}
-            onClick={async () => { if (await run(j, steps, `${j.no} พักงานแล้ว · เวลาที่พักไม่นับเป็นเวลาทำงาน`)) { setMode(null); setReason('') } }}>
-            {reason.trim() ? 'บันทึกพักงาน' : 'กรอกสาเหตุก่อน'}
+            onClick={async () => { if (await run(j, steps, w('{no} พักงานแล้ว · เวลาที่พักไม่นับเป็นเวลาทำงาน', { no: j.no }))) { setMode(null); setReason('') } }}>
+            <Tr th={reason.trim() ? 'บันทึกพักงาน' : 'กรอกสาเหตุก่อน'} />
           </button>
-          <button type="button" disabled={busy} className={secondaryBtn} onClick={() => { setMode(null); setReason('') }}>ยกเลิก</button>
+          <button type="button" disabled={busy} className={secondaryBtn} onClick={() => { setMode(null); setReason('') }}><Tr th="ยกเลิก" /></button>
         </div>
       </div>
     )
@@ -189,41 +195,42 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
   if (station === 'qc_pack' && j.phase !== 'sample') {
     return (
       <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
-        <button type="button" className={primaryBtn} onClick={onOpen}>บันทึกผล QC / Packing</button>
-        <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('hold')}>พักงาน</button>
+        <button type="button" className={primaryBtn} onClick={onOpen}><Tr th="บันทึกผล QC / Packing" /></button>
+        <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('hold')}><Tr th="พักงาน" /></button>
       </div>
     )
   }
   const finishFn = station === 'sew' ? 'finish_sewing' : 'finish_station'
   return mode === 'finish' ? (
     <div className="grid gap-2 rounded-xl bg-paper p-3">
-      <p className="font-semibold">ยืนยัน {j.no} {name}เสร็จทั้งก้อน? งานจะส่งต่อสถานีถัดไป</p>
+      <p className="font-semibold"><Tr th="ยืนยัน {no} {station}เสร็จทั้งก้อน? งานจะส่งต่อสถานีถัดไป" vars={{ no: j.no, station: { th: name } }} /></p>
       <div className="grid grid-cols-2 gap-2">
         <button type="button" disabled={busy} className={okBtn}
-          onClick={async () => { if (await run(j, [[finishFn, finishFn === 'finish_station' ? { p_station: station } : {}]], `${j.no} ${name}เสร็จ · ส่งต่อแล้ว`)) setMode(null) }}>{busy ? 'กำลังบันทึก…' : 'ยืนยัน'}</button>
-        <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode(null)}>ยกเลิก</button>
+          onClick={async () => { if (await run(j, [[finishFn, finishFn === 'finish_station' ? { p_station: station } : {}]], w('{no} {station}เสร็จ · ส่งต่อแล้ว', { no: j.no, station: { th: name } }))) setMode(null) }}><Tr th={busy ? 'กำลังบันทึก…' : 'ยืนยัน'} /></button>
+        <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode(null)}><Tr th="ยกเลิก" /></button>
       </div>
     </div>
   ) : (
     <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
       {j.sla === 'report'
-        ? <button type="button" disabled={busy} className={dangerBtn} onClick={() => { onOpen(); scrollToDelayReport() }}><IconAlert className="size-5" />เกินเวลา · ส่งรายงานปัญหาก่อนกดเสร็จ</button>
-        : <button type="button" disabled={busy} className={okBtn} onClick={() => setMode('finish')}><IconCheck className="size-5" />{name}เสร็จ</button>}
-      <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('hold')}>พักงาน</button>
+        ? <button type="button" disabled={busy} className={dangerBtn} onClick={() => { onOpen(); scrollToDelayReport() }}><IconAlert className="size-5" /><Tr th="เกินเวลา · ส่งรายงานปัญหาก่อนกดเสร็จ" /></button>
+        : <button type="button" disabled={busy} className={okBtn} onClick={() => setMode('finish')}><IconCheck className="size-5" /><Tr th="{station}เสร็จ" vars={{ station: { th: name } }} /></button>}
+      <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('hold')}><Tr th="พักงาน" /></button>
     </div>
   )
 }
 
 function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run, full, onSewStart }: {
-  job: Job; first: Job; station: StationCode; canPress: boolean; canInsert: boolean; busy: boolean; run: Run; full?: string
+  job: Job; first: Job; station: StationCode; canPress: boolean; canInsert: boolean; busy: boolean; run: Run; full?: Word
   onSewStart?: (jobId: string, noted?: boolean) => void
 }) {
   const [mode, setMode] = useState<'skip' | 'insert' | null>(null)
   const [reason, setReason] = useState('')
   const isFirst = first.id === j.id
-  const name = spaced(STATION_NAME[station]).trimEnd()
+  const t = useT()
+  const st: Word = { th: spaced(STATION_NAME[station]).trimEnd() }
   const noFilm = station === 'dtf_press' && !j.film?.received
-  const startLabel = j.phase === 'sample' ? `เริ่ม${name} (ตัวอย่าง)` : `เริ่ม${name}`
+  const startLabel = j.phase === 'sample' ? w('เริ่ม{station} (ตัวอย่าง)', { station: st }) : w('เริ่ม{station}', { station: st })
   const sew = station === 'sew'
   const canStart = canPress && (!sew || !!onSewStart)
 
@@ -233,23 +240,23 @@ function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run
       <div className="grid gap-2 rounded-xl bg-warn-soft p-3">
         <p className="flex items-start gap-2 font-semibold text-warn">
           <IconAlert className="mt-0.5 size-5 shrink-0" />
-          {skip ? `งานนี้ยังไม่ถึงคิว (คิวแรกคือ ${first.no}) · ใส่เหตุผลที่ต้องเริ่มก่อน` : `แทรก ${j.no} เป็นคิวแรก ก่อน ${first.no} · ใส่เหตุผล`}
+          {skip ? <Tr th="งานนี้ยังไม่ถึงคิว (คิวแรกคือ {first}) · ใส่เหตุผลที่ต้องเริ่มก่อน" vars={{ first: first.no }} /> : <Tr th="แทรก {no} เป็นคิวแรก ก่อน {first} · ใส่เหตุผล" vars={{ no: j.no, first: first.no }} />}
         </p>
-        <input value={reason} onChange={e => setReason(e.target.value)} className={fieldClass} aria-label="เหตุผล"
-          placeholder={skip ? 'เช่น ผ้างานคิวแรกยังไม่มา' : 'เช่น ลูกค้าเลื่อนวันส่งเร็วขึ้น'} />
+        <input value={reason} onChange={e => setReason(e.target.value)} className={fieldClass} aria-label={t('เหตุผล')}
+          placeholder={t(skip ? 'เช่น ผ้างานคิวแรกยังไม่มา' : 'เช่น ลูกค้าเลื่อนวันส่งเร็วขึ้น')} />
         <div className="grid grid-cols-2 gap-2">
           <button type="button" disabled={busy || !reason.trim()} className={skip ? dangerBtn : primaryBtn}
             onClick={async () => {
               const ok = skip && sew
-                ? await run(j, [['note_queue_skip', { p_reason: reason.trim() }]], `บันทึกเหตุผลเริ่ม ${j.no} ก่อนคิวแล้ว · เลือกจักรต่อ`)
+                ? await run(j, [['note_queue_skip', { p_reason: reason.trim() }]], w('บันทึกเหตุผลเริ่ม {no} ก่อนคิวแล้ว · เลือกจักรต่อ', { no: j.no }))
                 : skip
-                ? await run(j, [['start_in_queue', { p_reason: reason.trim() }]], `เริ่ม ${j.no} ก่อนคิวแล้ว · บันทึกเหตุผลในประวัติงาน`)
-                : await run(j, [['move_job_ahead', { p_before: first.id, p_reason: reason.trim() }]], `แทรก ${j.no} เป็นคิวแรกแล้ว`)
+                ? await run(j, [['start_in_queue', { p_reason: reason.trim() }]], w('เริ่ม {no} ก่อนคิวแล้ว · บันทึกเหตุผลในประวัติงาน', { no: j.no }))
+                : await run(j, [['move_job_ahead', { p_before: first.id, p_reason: reason.trim() }]], w('แทรก {no} เป็นคิวแรกแล้ว', { no: j.no }))
               if (ok) { setMode(null); setReason(''); if (skip && sew) onSewStart?.(j.id, true) }
             }}>
-            {!reason.trim() ? 'ใส่เหตุผลก่อน' : skip ? (sew ? 'บันทึกแล้วเลือกจักร' : 'บันทึกและเริ่ม') : 'แทรกเป็นคิวแรก'}
+            <Tr th={!reason.trim() ? 'ใส่เหตุผลก่อน' : skip ? (sew ? 'บันทึกแล้วเลือกจักร' : 'บันทึกและเริ่ม') : 'แทรกเป็นคิวแรก'} />
           </button>
-          <button type="button" disabled={busy} className={secondaryBtn} onClick={() => { setMode(null); setReason('') }}>ยกเลิก</button>
+          <button type="button" disabled={busy} className={secondaryBtn} onClick={() => { setMode(null); setReason('') }}><Tr th="ยกเลิก" /></button>
         </div>
       </div>
     )
@@ -258,19 +265,19 @@ function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       {canStart && (station === 'outside'
-        ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2">{OUTSIDE_START_BLOCK}</p>
+        ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2"><Tr th={OUTSIDE_START_BLOCK} /></p>
         : full
-        ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2">เริ่มไม่ได้ · {full}</p>
+        ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2"><Tr th="เริ่มไม่ได้ · {why}" vars={{ why: full }} /></p>
         : noFilm
-        ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2">เริ่มไม่ได้ · ยังไม่ได้รับ{filmLabel(j.route)} (แอดมินบันทึกเมื่อได้รับ)</p>
+        ? <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn sm:col-span-2"><Tr th="เริ่มไม่ได้ · ยังไม่ได้รับ{film} (แอดมินบันทึกเมื่อได้รับ)" vars={{ film: { th: filmLabel(j.route) } }} /></p>
         : isFirst
           ? sew
-            ? <button type="button" disabled={busy} className={`${primaryBtn} min-h-14 text-lg sm:col-span-2`} onClick={() => onSewStart?.(j.id)}>เลือกจักรแล้วเริ่มเย็บ</button>
+            ? <button type="button" disabled={busy} className={`${primaryBtn} min-h-14 text-lg sm:col-span-2`} onClick={() => onSewStart?.(j.id)}><Tr th="เลือกจักรแล้วเริ่มเย็บ" /></button>
             : <button type="button" disabled={busy} className={`${primaryBtn} min-h-14 text-lg sm:col-span-2`}
-              onClick={() => void run(j, [['start_in_queue', { p_reason: null }]], `เริ่ม ${j.no} แล้ว`)}>{busy ? 'กำลังเริ่ม…' : startLabel}</button>
-          : <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('skip')}>เริ่มก่อนคิว</button>
+              onClick={() => void run(j, [['start_in_queue', { p_reason: null }]], w('เริ่ม {no} แล้ว', { no: j.no }))}>{busy ? <Tr th="กำลังเริ่ม…" /> : <Tr th={startLabel.th} vars={startLabel.vars} />}</button>
+          : <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('skip')}><Tr th="เริ่มก่อนคิว" /></button>
       )}
-      {canInsert && <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('insert')}>แทรกเป็นคิวแรก (งานด่วน)</button>}
+      {canInsert && <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('insert')}><Tr th="แทรกเป็นคิวแรก (งานด่วน)" /></button>}
     </div>
   )
 }

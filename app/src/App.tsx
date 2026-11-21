@@ -18,6 +18,8 @@ import { AuditPage, RolesPage, SystemOverviewPage } from './pages/admin'
 import { Card, CardHeader } from './components/ui'
 import { AppUpdate } from './components/AppUpdate'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { DocumentLang, LangScope, LangToggle, Tr } from './i18n/Tr'
+import { useT } from './i18n/lang'
 import {
   IconChart, IconClipboard, IconClock, IconColumns, IconFactory, IconFlag, IconGauge, IconInbox, IconLayers, IconList, IconShield,
   IconSliders, IconUser, IconUsers,
@@ -79,13 +81,29 @@ function AppContent() {
   return <Workspace key={session.user.id} path={path} route={route} labelId={labelId} profile={result.profile} email={session.user.email} />
 }
 
-function Workspace({ path: requestedPath, route: requested, labelId, profile, email }: {
+type WorkspaceProps = {
   path: string
   route: Route
   labelId: string
   profile: { name: string; role: EmployeeRole; section: Section | null; stations: StationCode[] }
   email?: string
-}) {
+}
+
+// แปลเฉพาะหน้าจอพนักงานสถานีและ QC · บทบาทอื่นเห็นไทยเสมอแม้เครื่องตั้งพม่าไว้
+const TRANSLATED_ROLES: EmployeeRole[] = ['staff', 'qc']
+
+function Workspace(props: WorkspaceProps) {
+  const translated = TRANSLATED_ROLES.includes(props.profile.role)
+  return (
+    <LangScope allowed={translated}>
+      <DocumentLang />
+      <WorkspaceBody {...props} translated={translated} />
+    </LangScope>
+  )
+}
+
+function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile, email, translated }: WorkspaceProps & { translated: boolean }) {
+  const t = useT()
   const [today] = useState(() => new Date().toLocaleDateString('th-TH', {
     timeZone: 'Asia/Bangkok', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   }))
@@ -99,7 +117,7 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
   const menu = roleMenu(profile.role)
   const bar = bottomBar(menu, path)
   const [moreOpen, setMoreOpen] = useState(false)
-  const roleLabel = labelFor(profile.role, profile.section)
+  const roleLabel = t(labelFor(profile.role, profile.section))
   const { unreadCount } = useInbox()
   const inboxBadge = unreadBadge(unreadCount)
 
@@ -108,9 +126,10 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
       <aside className="hidden w-64 shrink-0 flex-col bg-brand text-white lg:flex">
         <div className="mx-5 mt-6 mb-4 border-b border-white/15 pb-5">
           <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-12 w-auto rounded-lg ring-1 ring-white/25" />
-          <p className="mt-3 text-sm font-semibold tracking-wide whitespace-nowrap text-white/75">ระบบติดตามการผลิต</p>
+          <p className="mt-3 text-sm font-semibold tracking-wide whitespace-nowrap text-white/75"><Tr th="ระบบติดตามการผลิต" /></p>
+          {translated && <LangToggle className="mt-3" />}
         </div>
-        <nav aria-label="เมนูหลัก" className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-3 pb-3 [scrollbar-color:rgb(255_255_255/0.25)_transparent] [scrollbar-width:thin]">
+        <nav aria-label={t('เมนูหลัก')} className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-3 pb-3 [scrollbar-color:rgb(255_255_255/0.25)_transparent] [scrollbar-width:thin]">
           {menu.map(group => (
             <div key={group.title} className="grid gap-1">
               <p className="px-4 pb-1 text-xs font-semibold tracking-widest text-white/60">{group.title}</p>
@@ -120,10 +139,10 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
                 const badge = hash === '#/inbox' ? inboxBadge : null
                 return (
                   <a key={hash} href={hash} aria-current={active ? 'page' : undefined}
-                    aria-label={badge ? `${name} ยังไม่อ่าน ${unreadCount} รายการ` : undefined}
+                    aria-label={badge ? `${t(name)} ${t('ยังไม่อ่าน {n} รายการ', { n: unreadCount })}` : undefined}
                     className={`relative flex min-h-12 items-center gap-3 rounded-xl px-4 text-base font-semibold ${active ? 'bg-white text-brand' : 'text-white/90 hover:bg-white/10'}`}>
                     {active && <span aria-hidden className="absolute top-2 bottom-2 -left-3 w-1 rounded-r-full bg-gold" />}
-                    <Icon className="size-5 shrink-0" />{name}
+                    <Icon className="size-5 shrink-0" /><Tr th={name} />
                     {badge && (
                       <span aria-hidden className="ml-auto min-w-5 shrink-0 rounded-full bg-danger px-1.5 py-0.5 text-center text-xs leading-none font-bold text-white tabular-nums">
                         {badge}
@@ -149,7 +168,8 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
           <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-9 w-auto shrink-0 rounded-md ring-1 ring-white/25" />
           <span className="hidden text-sm font-semibold whitespace-nowrap text-white/75 sm:inline">ระบบติดตามการผลิต</span>
           {/* แท็บเล็ตใช้ร่วมกันหลายคน ต้องเห็นตลอดว่าใครล็อกอินอยู่ เพราะทุกการกดบันทึกชื่อผู้กด */}
-          <span className="ml-auto"><InboxBell /></span>
+          {translated && <LangToggle className="ml-auto border-white/40 bg-transparent text-white hover:border-white" />}
+          <span className={translated ? '' : 'ml-auto'}><InboxBell /></span>
           <a href="#/system" className="flex min-h-12 min-w-0 items-center gap-2 rounded-xl px-2 hover:bg-white/10">
             <span className="min-w-0 text-right leading-tight">
               <span className="block truncate font-semibold">{profile.name}</span>
@@ -204,13 +224,13 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
               return (
                 <a key={hash} href={hash} onClick={() => setMoreOpen(false)} aria-current={hash === path ? 'page' : undefined}
                   className={`flex min-h-12 items-center gap-3 rounded-xl px-4 text-base font-semibold ${hash === path ? 'bg-brand text-white' : 'hover:bg-brand-soft'}`}>
-                  <Icon className="size-5 shrink-0" />{name}
+                  <Icon className="size-5 shrink-0" /><Tr th={name} />
                 </a>
               )
             })}
           </div>
         )}
-        <nav aria-label="เมนูหลัก" className="flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <nav aria-label={t('เมนูหลัก')} className="flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
           {bar.shown.map(({ short, hash, icon }) => {
             const Icon = MENU_ICON[icon]
             const active = hash === path
@@ -218,7 +238,7 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
               <a key={hash} href={hash} aria-current={active ? 'page' : undefined} onClick={() => setMoreOpen(false)}
                 className={`flex min-h-14 min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 text-sm ${active ? 'font-bold text-brand' : 'text-muted'}`}>
                 <span className={`grid h-8 w-12 place-items-center rounded-full ${active ? 'bg-brand text-white' : ''}`}><Icon className="size-5" /></span>
-                <span className="max-w-full truncate px-0.5">{short}</span>
+                <span className="max-w-full truncate px-0.5">{t(short)}</span>
               </a>
             )
           })}
@@ -226,7 +246,7 @@ function Workspace({ path: requestedPath, route: requested, labelId, profile, em
             <button type="button" aria-expanded={moreOpen} aria-controls="more-menu" onClick={() => setMoreOpen(open => !open)}
               className={`flex min-h-14 min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 text-sm ${moreOpen ? 'font-bold text-brand' : 'text-muted'}`}>
               <span className={`grid h-8 w-12 place-items-center rounded-full ${moreOpen ? 'bg-brand text-white' : ''}`}><IconList className="size-5" /></span>
-              เพิ่มเติม
+              {t('เพิ่มเติม')}
             </button>
           )}
         </nav>

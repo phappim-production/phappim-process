@@ -3,6 +3,8 @@ import { ROUTES, isDueSoon, isOverdue, usesFilm, type Job, type RouteCode } from
 import { dayDiff, shortDate } from '../proto/format'
 import { TONE, type Tone } from './tone'
 import { IconImage } from './icons'
+import { useLang, useT } from '../i18n/lang'
+import { Tr } from '../i18n/Tr'
 export type { Tone }
 
 export function ViewSwitch<T extends string>({ label, value, onChange, options, variant = 'main' }: {
@@ -76,11 +78,15 @@ export function RouteBadge({ route }: { route: RouteCode }) {
 }
 
 export function DueLabel({ job: j, now, long }: { job: Job; now: Date; long?: boolean }) {
-  if (j.phase === 'done') return <span className="shrink-0">ส่ง {shortDate(j.due)}</span>
+  const t = useT()
+  // ชื่อเดือนย่อภาษาไทยคนพม่าอ่านไม่ออก ใช้วัน/เดือนเป็นตัวเลขแทน
+  const day = useLang() === 'my' ? (d: Date) => d.toLocaleDateString('en-GB', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'numeric' }) : shortDate
+  if (j.phase === 'done') return <span className="shrink-0">{t('ส่ง {date}', { date: day(j.due) })}</span>
   const days = dayDiff(j.due, now)
   const cls = isOverdue(j, now) ? 'font-semibold text-danger' : isDueSoon(j, now) ? 'font-semibold text-warn' : ''
-  const rel = days < 0 ? `เลย ${-days} วัน` : days === 0 ? 'วันนี้' : days === 1 ? 'พรุ่งนี้' : `อีก ${days} วัน`
-  return <span className={`shrink-0 ${cls}`}>{long ? `${shortDate(j.due)} (${rel})` : days <= 1 ? `ส่ง${rel}` : `ส่ง ${shortDate(j.due)}`}</span>
+  const rel = days < 0 ? t('เลย {n} วัน', { n: -days }) : days === 0 ? t('วันนี้') : days === 1 ? t('พรุ่งนี้') : t('อีก {n} วัน', { n: days })
+  const short = days < 0 ? t('ส่งเลย {n} วัน', { n: -days }) : days === 0 ? t('ส่งวันนี้') : days === 1 ? t('ส่งพรุ่งนี้') : t('ส่ง {date}', { date: day(j.due) })
+  return <span className={`shrink-0 ${cls}`}>{long ? `${day(j.due)} (${rel})` : short}</span>
 }
 
 export function StageDots({ steps, current, hold }: { steps: string[]; current: number; hold?: boolean }) {
@@ -103,10 +109,10 @@ export function StatTile({ icon: Icon, label, value, note, noteOnPhone, tone, ac
     <>
       <span className="flex w-full min-w-0 items-center gap-2">
         <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${t.soft}`}><Icon className="size-5" /></span>
-        <span className="min-w-0 text-sm leading-tight font-semibold text-muted">{label}</span>
+        <span className="min-w-0 text-sm leading-tight font-semibold text-muted"><Tr th={label} /></span>
       </span>
       <span className={`mt-1.5 block text-3xl leading-none font-bold tabular-nums ${value === 0 ? 'text-ink' : t.text}`}>{value}</span>
-      {note && <span className={`mt-1 text-sm leading-snug text-muted ${noteOnPhone ? 'block' : 'hidden sm:block'}`}>{note}</span>}
+      {note && <span className={`mt-1 text-sm leading-snug text-muted ${noteOnPhone ? 'block' : 'hidden sm:block'}`}><Tr th={note} /></span>}
     </>
   )
   const cls = `flex min-w-0 flex-col items-start rounded-2xl border bg-card p-3 text-left shadow-card sm:p-4 ${active ? 'border-brand ring-2 ring-brand/20' : 'border-line'}`
