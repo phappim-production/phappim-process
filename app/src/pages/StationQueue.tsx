@@ -61,7 +61,7 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
       <div className={`grid items-start gap-4 ${outside.length ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
         <section aria-labelledby="q-working" className="grid gap-2">
           <h2 id="q-working" className="text-lg font-bold">กำลังทำ <span className="font-medium text-muted">{working.filter(j => j.status === 'doing').length} งาน{working.some(j => j.status === 'hold') && ` · พักงาน ${working.filter(j => j.status === 'hold').length} งาน`}</span></h2>
-          {working.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">ยังไม่มีงานที่กำลังทำ · กดเริ่มงานคิว 1 ในคิวรอเริ่ม</p>}
+          {working.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">{station === 'outside' ? 'สถานีนี้ไม่มีงานทำในโรงงาน · แอดมินส่งออกจากรายละเอียดงาน' : 'ยังไม่มีงานที่กำลังทำ · กดเริ่มงานคิว 1 ในคิวรอเริ่ม'}</p>}
           {working.map(j => (
             <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger" dot>พักงาน</Pill>
               : j.sla ? <Pill tone={SLA_LABEL[j.sla].tone} dot>{SLA_LABEL[j.sla].text}</Pill> : <Pill tone="info" dot>กำลังทำ</Pill>}>
