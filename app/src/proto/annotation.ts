@@ -1,4 +1,5 @@
 import type { StationCode } from './model'
+import { thai, type Word } from '../i18n/word.ts'
 
 export type ViewKey = 'front' | 'back' | 'left' | 'right' | 'detail'
 export const VIEW_ORDER: ViewKey[] = ['front', 'back', 'left', 'right', 'detail']
@@ -229,9 +230,13 @@ export function confirmationRefs(spec: unknown): { ref: string; label: string; v
 }
 
 export function refLabel(ref: string): string {
-  if (ref.startsWith('placement:')) return `ตำแหน่ง ${ref.slice(10)}`
-  if (ref.startsWith('field:')) return FIELD_LABEL[ref.slice(6)] ?? ref.slice(6)
-  return ref
+  return thai(refLabelWord(ref))
+}
+
+export function refLabelWord(ref: string): Word {
+  if (ref.startsWith('placement:')) return { th: 'ตำแหน่ง {pos}', vars: { pos: { th: ref.slice(10) } } }
+  if (ref.startsWith('field:')) return { th: FIELD_LABEL[ref.slice(6)] ?? ref.slice(6) }
+  return { th: ref }
 }
 
 export function parseSize(input: string): number | null | undefined {
@@ -303,14 +308,20 @@ export function specLine(s: Spec): string {
 }
 
 export function calloutLines(c: Callout, d: Pick<Draft, 'specs'>, jobSpec?: unknown): string[] {
-  const out: string[] = []
+  return calloutWords(c, d, jobSpec).map(thai)
+}
+
+// ชื่อช่องแปลได้ · ค่าที่แอดมินกรอกแปลเฉพาะคำที่มีในตารางคำแปล
+export function calloutWords(c: Callout, d: Pick<Draft, 'specs'>, jobSpec?: unknown): Word[] {
+  const out: Word[] = []
   if (c.specRef) {
     const v = c.refValue !== undefined && c.refValue !== null ? c.refValue : refValue(jobSpec, c.specRef)
-    out.push(v ? `${refLabel(c.specRef)}: ${v}` : `${refLabel(c.specRef)}: (ใบยืนยันไม่มีข้อมูลแล้ว)`)
+    const label = refLabelWord(c.specRef)
+    out.push(v ? { th: '{label}: {value}', vars: { label, value: { th: v } } } : { th: '{label}: (ใบยืนยันไม่มีข้อมูลแล้ว)', vars: { label } })
   }
   const s = specOf(d, c)
-  if (s) out.push(`${s.code} ${s.name}${specLine(s) ? ` · ${specLine(s)}` : ''}`)
-  if (c.body.trim()) out.push(c.body.trim())
+  if (s) out.push({ th: `${s.code} ${s.name}${specLine(s) ? ` · ${specLine(s)}` : ''}` })
+  if (c.body.trim()) out.push({ th: c.body.trim() })
   return out
 }
 

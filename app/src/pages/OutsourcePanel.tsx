@@ -4,6 +4,8 @@ import { newRequestId } from '../data/requestId'
 import { OUTSOURCEABLE, ROUTES, STATION_NAME, isOutLate, telHref, type Job, type StationCode, type Vendor } from '../proto/model'
 import { defaultBack, outSpan } from '../proto/outsource'
 import { wholeCount } from '../proto/format'
+import { Tr } from '../i18n/Tr'
+import { useLang, useT, type Word } from '../i18n/lang'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconAlert, IconCheck, IconPackage } from '../components/icons'
 
@@ -13,8 +15,8 @@ const pad = (n: number) => String(n).padStart(2, '0')
 /** ค่า input datetime-local ตามเวลาเครื่อง */
 const toLocal = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 const fromLocal = (s: string) => (s ? new Date(s) : null)
-const when = (d: Date) => d.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' น.'
 const stationList = (s: StationCode[]) => s.map(x => STATION_NAME[x]).join(' → ')
+const stationWords = (s: StationCode[]): Word => ({ th: s.map((_, i) => `{s${i}}`).join(' → '), vars: Object.fromEntries(s.map((x, i) => [`s${i}`, { th: STATION_NAME[x] }])) })
 
 export function OutsourcePanel({ job: j, vendors, admin, now, refresh }: {
   job: Job; vendors: Vendor[]; admin: boolean; now: Date; refresh: () => Promise<void>
@@ -23,6 +25,8 @@ export function OutsourcePanel({ job: j, vendors, admin, now, refresh }: {
   const [splitRequest, setSplitRequest] = useState(newRequestId)
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  const t = useT()
+  const lang = useLang()
   async function act(name: string, args: Record<string, unknown>, ok: string) {
     setBusy(true); setNotice(null)
     const r = await rpc(name, args)
@@ -47,21 +51,21 @@ export function OutsourcePanel({ job: j, vendors, admin, now, refresh }: {
 
   return (
     <section className={`rounded-2xl border bg-card p-4 shadow-card ${late ? 'border-danger/50' : 'border-line'}`}>
-      <h3 className="mb-3 flex items-center gap-2 font-semibold"><IconPackage className="size-5" />{out ? 'อยู่ที่บริษัทภายนอก' : 'ส่งออกบริษัทภายนอก / แบ่งงาน'}</h3>
+      <h3 className="mb-3 flex items-center gap-2 font-semibold"><IconPackage className="size-5 shrink-0" /><Tr inline th={out ? 'อยู่ที่บริษัทภายนอก' : 'ส่งออกบริษัทภายนอก / แบ่งงาน'} /></h3>
       {notice && <p role={notice.ok ? 'status' : 'alert'} className={`mb-3 rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>{notice.text}</p>}
 
       {out && (
         <div className="grid gap-3">
           <dl className={`grid gap-1 rounded-xl px-3 py-2 ${late ? 'bg-danger-soft' : 'bg-info-soft'}`}>
-            <div className="flex flex-wrap gap-x-2"><dt className="text-muted">บริษัท</dt><dd className="font-bold">{out.vendor}</dd></div>
-            <div className="flex flex-wrap gap-x-2"><dt className="text-muted">ทำ</dt><dd className="font-semibold">{stationList(out.stations)}{out.rework ? ' (งานแก้)' : ''} · {out.qty.toLocaleString('th-TH')} {j.unit}</dd></div>
-            <div className="flex flex-wrap gap-x-2"><dt className="text-muted">ของถึงบริษัท</dt><dd>{when(out.arriveAt)} · ใช้ {out.leadDays} วัน</dd></div>
-            <div className="flex flex-wrap gap-x-2"><dt className="text-muted">คาดว่าของถึง{canForward ? 'ที่ต่อไป' : 'โรงงาน'}</dt>
-              <dd className={late ? 'font-bold text-danger' : 'font-semibold'}>{when(out.backAt)}{late ? ' · เลยกำหนดแล้ว ตามบริษัท' : ''}</dd></div>
-            {out.note && <div className="flex flex-wrap gap-x-2"><dt className="text-muted">หมายเหตุ</dt><dd>{out.note}</dd></div>}
+            <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t('บริษัท')}</dt><dd className="font-bold">{out.vendor}</dd></div>
+            <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t('ทำ')}</dt><dd className="font-semibold">{lang === 'my' ? t(stationWords(out.stations).th, stationWords(out.stations).vars) : stationList(out.stations)}{out.rework ? t(' (งานแก้)') : ''} · {out.qty.toLocaleString('th-TH')} {t(j.unit)}</dd></div>
+            <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t('ของถึงบริษัท')}</dt><dd>{t('{at} น. · ใช้ {n} วัน', { at: { at: out.arriveAt, time: true }, n: out.leadDays })}</dd></div>
+            <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t(canForward ? 'คาดว่าของถึงที่ต่อไป' : 'คาดว่าของถึงโรงงาน')}</dt>
+              <dd className={late ? 'font-bold text-danger' : 'font-semibold'}>{t(late ? '{at} น. · เลยกำหนดแล้ว ตามบริษัท' : '{at} น.', { at: { at: out.backAt, time: true } })}</dd></div>
+            {out.note && <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t('หมายเหตุ')}</dt><dd>{out.note}</dd></div>}
           </dl>
           <ContactLinks phone={out.phone} mapUrl={out.mapUrl} />
-          {!admin && <p className="text-muted">แอดมินเป็นคนบันทึกรับของกลับ · ระหว่างนี้กดเริ่มงานที่โรงงานไม่ได้</p>}
+          {!admin && <p className="text-muted"><Tr th="แอดมินเป็นคนบันทึกรับของกลับ · ระหว่างนี้กดเริ่มงานที่โรงงานไม่ได้" /></p>}
           {admin && mode === null && (
             <div className="grid gap-2 sm:grid-cols-2">
               <button type="button" className={`${okBtn} sm:col-span-2`} onClick={() => setMode('receive')}><IconCheck className="size-5" />ของถึงโรงงานแล้ว · รับเข้า</button>
