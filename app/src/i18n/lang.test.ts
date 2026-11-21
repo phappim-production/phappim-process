@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { translate } from './lang'
+import { hasBurmese, translate } from './lang'
+import { DB_ERRORS } from './dbErrors'
 import { MY } from './my'
 
 const THAI = /[ก-๛]/
@@ -51,4 +52,23 @@ it('ทุกข้อความที่ส่งเข้าตัวแป�
     for (const k of keys) if (THAI.test(k) && !(k in MY)) missing.add(k)
   }
   expect([...missing]).toEqual([])
+})
+
+describe('ข้อความจากฐานข้อมูล', () => {
+  it('ทุกแบบมีตัวแปรครบ ไม่มีไทยหลง และเป็นภาษาพูด', () => {
+    const formal = /(?<!ဖောက်)သည်|(?<!နာ)မည်|၏|သို့|၍|ယခု|ယနေ့/
+    for (const [th, my] of DB_ERRORS) {
+      const n = th.split('%').length - 1
+      const used = [...my.matchAll(/\{(\d)\}/g)].map(m => Number(m[1]))
+      expect(used.every(i => i >= 1 && i <= n), th).toBe(true)
+      expect(THAI.test(my) || formal.test(my), `${th} → ${my}`).toBe(false)
+    }
+  })
+
+  it('แปลข้อความที่มีค่าแทรก รวมถึงชื่อสถานีและข้อความซ้อน', () => {
+    expect(translate('my', 'งานนี้อยู่สถานีตัดงาน ซึ่งไม่ใช่สถานีของคุณ ให้เจ้าของระบบจับคู่สถานีให้ก่อน หรือให้ฝ่ายผลิตกด')).toContain('ညှပ်')
+    expect(translate('my', 'ยังกดเสร็จไม่ได้: QC ตรวจผ่าน 7/10 ชิ้น ยังไม่ครบ (ชิ้นไม่ผ่านให้กด "ส่งแก้")')).toBe('ပြီးပြီ နှိပ်လို့ မရသေးဘူး: QC အောင် 7/10 ပဲ ရှိသေးတယ် (မအောင်တာ "ပြန်ပြင်" နှိပ်ပါ)')
+    expect(translate('th', 'งานนี้ถูกยกเลิกแล้ว')).toBe('งานนี้ถูกยกเลิกแล้ว')
+    expect(hasBurmese('ข้อความจากฐานข้อมูลที่ไม่รู้จัก')).toBe(false)
+  })
 })

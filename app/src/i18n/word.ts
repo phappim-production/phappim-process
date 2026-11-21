@@ -1,4 +1,5 @@
 import { MY } from './my.ts'
+import { DB_ERRORS } from './dbErrors.ts'
 
 export type Lang = 'th' | 'my'
 export type When = { at: Date; time?: boolean }
@@ -16,9 +17,27 @@ function when(lang: Lang, { at, time }: When): string {
     : at.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', ...clock })
 }
 
+const PATTERNS = DB_ERRORS.map(([th, my]) => ({
+  re: new RegExp('^' + th.split('%').map(x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('(.+?)') + '$'),
+  my,
+}))
+
+// ข้อความจากฐานข้อมูลมีค่าแทรก (เลขงาน ชื่อสถานี) จึงจับด้วยแบบ แล้วแปลค่าที่แทรกด้วยถ้ามีคำแปล
+function fromPattern(th: string): string | undefined {
+  for (const p of PATTERNS) {
+    const m = p.re.exec(th.trim())
+    if (m) return p.my.replace(/\{(\d)\}/g, (_, i: string) => { const v = m[Number(i)] ?? ''; return lookup(v) ?? v })
+  }
+  return undefined
+}
+
+function lookup(th: string): string | undefined {
+  return MY[th] ?? MY[th.trim()] ?? fromPattern(th)
+}
+
 export function translate(lang: Lang, th: string, vars?: Vars): string {
   // ชื่อสถานีที่เว้นวรรคไว้ต่อคำไทย ("QC + Packing ") ยังต้องหาคำแปลเจอ
-  const text = lang === 'my' ? MY[th] ?? MY[th.trim()] ?? th : th
+  const text = lang === 'my' ? lookup(th) ?? th : th
   return text.replace(/\{(\w+)\}/g, (_, key: string) => {
     const v = vars?.[key]
     if (v === undefined) return ''
@@ -30,4 +49,4 @@ export function translate(lang: Lang, th: string, vars?: Vars): string {
 
 export const thai = (w: Word) => translate('th', w.th, w.vars)
 
-export const hasBurmese = (th: string) => th in MY || th.trim() in MY
+export const hasBurmese = (th: string) => lookup(th) !== undefined

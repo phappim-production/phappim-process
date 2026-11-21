@@ -1,14 +1,16 @@
 import { unreadBadge } from './format'
 import { useInbox } from './useInbox'
+import { useT } from '../../i18n/lang'
 
 export function InboxBell() {
   const { unreadCount } = useInbox()
   const badge = unreadBadge(unreadCount)
+  const t = useT()
 
   return (
     <a
       href="#/inbox"
-      aria-label={unreadCount > 0 ? `กล่องจดหมาย ยังไม่อ่าน ${unreadCount} รายการ` : 'กล่องจดหมาย'}
+      aria-label={unreadCount > 0 ? t('กล่องจดหมาย ยังไม่อ่าน {n} รายการ', { n: unreadCount }) : t('กล่องจดหมาย')}
       className="relative grid size-12 shrink-0 place-items-center rounded-xl hover:bg-white/10"
     >
       <svg

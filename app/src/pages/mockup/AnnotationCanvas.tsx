@@ -1,4 +1,6 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { Tr } from '../../i18n/Tr'
+import { useT } from '../../i18n/lang'
 import { MARGIN_X, MARGIN_Y, clampBox, fromStage, onStage, stageSize, type Callout, type MockView } from '../../proto/annotation'
 
 type Drag = { key: string; part: 'point' | 'box'; x: number; y: number; moved: boolean; startX: number; startY: number }
@@ -12,6 +14,7 @@ export function AnnotationCanvas({ view, url, callouts, labels, selected, editab
 }) {
   const stage = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<Drag | null>(null)
+  const t = useT()
 
   const at = (e: { clientX: number; clientY: number }, part: Drag['part']) => {
     const rect = stage.current?.getBoundingClientRect()
@@ -57,7 +60,7 @@ export function AnnotationCanvas({ view, url, callouts, labels, selected, editab
       {url
         ? <img src={url} alt="" draggable={false} className={`absolute object-contain ${editable ? 'cursor-crosshair' : ''}`}
           style={{ left: `${img.left * 100}%`, top: `${img.top * 100}%`, width: `${100 / (1 + 2 * MARGIN_X)}%`, height: `${100 / (1 + 2 * MARGIN_Y)}%` }} />
-        : <div className="absolute inset-0 grid place-items-center rounded-xl bg-card-2 text-muted">กำลังโหลดภาพ…</div>}
+        : <div className="absolute inset-0 grid place-items-center rounded-xl bg-card-2 text-muted"><Tr th="กำลังโหลดภาพ…" /></div>}
       <svg className="pointer-events-none absolute inset-0 size-full" viewBox={`${-MARGIN_X * w} ${-MARGIN_Y * h} ${full.width} ${full.height}`} preserveAspectRatio="none" aria-hidden>
         {callouts.map(c => {
           const p = pos(c)
@@ -76,12 +79,12 @@ export function AnnotationCanvas({ view, url, callouts, labels, selected, editab
               onPointerDown={down(c, 'point')} onPointerMove={move} onPointerUp={up} onPointerCancel={() => setDrag(null)}
               className={`absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-transparent ${editable ? `cursor-grab touch-none border-2 ${on ? 'z-30 border-brand' : 'z-20 border-gold'}` : 'z-20'}`}
               style={at100(p.x, p.y)} />}
-            <div role="button" tabIndex={0} aria-label={`กล่องข้อความ Callout ${c.no}`}
+            <div role="button" tabIndex={0} aria-label={t('กล่องข้อความ Callout {n}', { n: c.no })}
               onPointerDown={down(c, 'box')} onPointerMove={move} onPointerUp={up} onPointerCancel={() => setDrag(null)}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onSelect?.(c.key) }}
               className={`absolute w-max -translate-x-1/2 -translate-y-1/2 rounded-md border bg-card px-1.5 py-0.5 leading-snug text-ink shadow-card ${print ? 'max-w-[22%] text-[7.5pt]' : 'max-w-[24%] text-xs'} ${on ? 'z-30 border-brand ring-1 ring-brand' : 'z-10 border-gold'} ${editable ? 'cursor-move touch-none' : 'cursor-pointer'}`}
               style={at100(p.boxX, p.boxY)}>
-              <p className="font-bold"><span className="text-brand">{c.no}</span> {c.title || <span className="text-muted">(ยังไม่ตั้งชื่อ)</span>}</p>
+              <p className="font-bold"><span className="text-brand">{c.no}</span> {c.title || <span className="text-muted">{t('(ยังไม่ตั้งชื่อ)')}</span>}</p>
               {lines.map((l, i) => <p key={i} className="break-words">{l}</p>)}
             </div>
           </div>

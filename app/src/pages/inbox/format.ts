@@ -1,4 +1,5 @@
 import type { Tone } from '../../components/tone.ts'
+import { thai, type Word } from '../../i18n/word.ts'
 
 export type InboxKind =
   | 'hold'
@@ -82,28 +83,23 @@ function thaiTime(d: Date): string {
 }
 
 export function relativeTime(at: Date, now: Date): string {
+  return thai(relativeWord(at, now))
+}
+
+export function relativeWord(at: Date, now: Date): Word {
   const diffMs = Math.max(0, now.getTime() - at.getTime())
   const mins = Math.floor(diffMs / 60_000)
-  if (mins < 1) return 'เมื่อสักครู่'
-  if (mins < 60) return `${mins} นาทีก่อน`
+  if (mins < 1) return { th: 'เมื่อสักครู่' }
+  if (mins < 60) return { th: '{n} นาทีก่อน', vars: { n: mins } }
 
   const atDay = thaiDayKey(at)
   const nowDay = thaiDayKey(now)
-  if (atDay === nowDay) {
-    return `${Math.floor(mins / 60)} ชม.ก่อน`
-  }
+  if (atDay === nowDay) return { th: '{n} ชม.ก่อน', vars: { n: Math.floor(mins / 60) } }
 
   const yesterday = thaiDayKey(new Date(now.getTime() - 86_400_000))
-  if (atDay === yesterday) {
-    return `เมื่อวาน ${thaiTime(at)}`
-  }
+  if (atDay === yesterday) return { th: 'เมื่อวาน {time}', vars: { time: thaiTime(at) } }
 
-  const datePart = at.toLocaleDateString('th-TH', {
-    timeZone: 'Asia/Bangkok',
-    day: 'numeric',
-    month: 'short',
-  })
-  return `${datePart} ${thaiTime(at)}`
+  return { th: '{day} {time}', vars: { day: { at }, time: thaiTime(at) } }
 }
 
 export type InboxGroup = {

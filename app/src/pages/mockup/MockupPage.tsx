@@ -6,7 +6,7 @@ import { IconAlert, IconCheck, IconImage, IconPrinter } from '../../components/i
 import { canAckMockup, canApproveMockup, canEditMockup, canOpenPage, canSeeMockupDraft, type EmployeeRole } from '../../auth/access'
 import { STATION_NAME, type StationCode } from '../../proto/model'
 import {
-  SHEET_STATUS, VIEW_NAME, VIEW_ORDER, viewImage, calloutLines, confirmationDraft, forStation, historyEdit, historyOf, redo, saveProblems, submitProblems,
+  SHEET_STATUS, VIEW_NAME, VIEW_ORDER, viewImage, calloutLines, calloutWords, confirmationDraft, forStation, historyEdit, historyOf, redo, saveProblems, submitProblems,
   toPayload, undo, type Callout, type Draft, type Edit, type History, type ViewKey,
 } from '../../proto/annotation'
 import {
@@ -18,9 +18,12 @@ import { isJobId } from '../../data/useFactoryData'
 import { thaiError } from '../../data/live'
 import { AnnotationCanvas } from './AnnotationCanvas'
 import { SpecPanel } from './SpecPanel'
+import { Tr } from '../../i18n/Tr'
+import { useLang, useT, type Lang } from '../../i18n/lang'
 
-const when = (iso: string | null) => iso
-  ? new Date(iso).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+// พม่าใช้ วัน/เดือน ตัวเลข ให้ตรงกับป้ายกำหนดส่งบนจอ
+const when = (iso: string | null, lang: Lang = 'th') => iso
+  ? new Date(iso).toLocaleString(lang === 'my' ? 'en-GB' : 'th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: lang === 'my' ? 'numeric' : 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '')
   : '—'
 const ZOOMS = [0.5, 0.75, 1, 1.5, 2, 3]
 type Msg = { ok: boolean; text: string } | null
@@ -39,7 +42,7 @@ function useWide() {
 
 function Note({ msg }: { msg: Msg }) {
   if (!msg) return null
-  return <p role={msg.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${msg.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>{msg.text}</p>
+  return <p role={msg.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${msg.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}><Tr th={msg.text} /></p>
 }
 
 type PageState = { status: 'loading' } | { status: 'missing' } | { status: 'error'; message: string } | { status: 'ready'; data: MockupData }
@@ -57,6 +60,8 @@ export default function MockupPage({ jobId, role, myStations }: { jobId: string;
   const [state, setState] = useState<PageState>(
     () => (isJobId(jobId) ? { status: 'loading' } : { status: 'missing' }))
   const [tab, setTab] = useState<'view' | 'work' | null>(null)
+  const t = useT()
+  const lang = useLang()
   const reload = useCallback(async () => { if (isJobId(jobId)) setState(await fetchPage(jobId)) }, [jobId])
   useEffect(() => {
     if (!isJobId(jobId)) return
@@ -69,12 +74,12 @@ export default function MockupPage({ jobId, role, myStations }: { jobId: string;
     return (
       <div className="mx-auto max-w-xl p-4 sm:p-6">
         <Card className="grid grid-cols-[minmax(0,1fr)] gap-2 p-5">
-          <h1 className="text-xl font-bold">ม็อคอัพกำกับสเปก</h1>
-          {state.status === 'loading' && <p role="status" className="text-muted">กำลังโหลด…</p>}
-          {state.status === 'missing' && <p role="alert" className="text-danger">ไม่พบงานนี้ · เปิดจากรายละเอียดงานอีกครั้ง</p>}
+          <h1 className="text-xl font-bold"><Tr inline th="ม็อคอัพกำกับสเปก" /></h1>
+          {state.status === 'loading' && <p role="status" className="text-muted"><Tr th="กำลังโหลด…" /></p>}
+          {state.status === 'missing' && <p role="alert" className="text-danger"><Tr th="ไม่พบงานนี้ · เปิดจากรายละเอียดงานอีกครั้ง" /></p>}
           {state.status === 'error' && <>
-            <p role="alert" className="text-danger">โหลดไม่สำเร็จ · {state.message}</p>
-            <button type="button" className={secondaryBtn} onClick={() => void reload()}>ลองอีกครั้ง</button>
+            <p role="alert" className="text-danger"><Tr th="โหลดไม่สำเร็จ · {reason}" vars={{ reason: { th: state.message } }} /></p>
+            <button type="button" className={secondaryBtn} onClick={() => void reload()}><Tr th="ลองอีกครั้ง" /></button>
           </>}
         </Card>
       </div>
@@ -94,24 +99,24 @@ export default function MockupPage({ jobId, role, myStations }: { jobId: string;
         <div className="flex flex-wrap items-start gap-3">
           <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand"><IconImage className="size-6" /></span>
           <div className="min-w-[12rem] flex-1">
-            <p className="text-sm text-muted">ม็อคอัพกำกับสเปก</p>
+            <p className="text-sm text-muted"><Tr inline th="ม็อคอัพกำกับสเปก" /></p>
             <h1 className="text-2xl font-bold [overflow-wrap:anywhere]">{data.job.no} <span className="font-medium text-muted">· {data.job.customer}</span></h1>
-            <p className="text-muted">{data.job.jobName} · {data.job.qty.toLocaleString('th-TH')} {data.job.unit}</p>
+            <p className="text-muted">{data.job.jobName} · {data.job.qty.toLocaleString('th-TH')} {t(data.job.unit)}</p>
           </div>
-          <a href={`#/board?job=${encodeURIComponent(data.job.id)}`} className={secondaryBtn}>กลับไปที่งาน</a>
+          <a href={`#/board?job=${encodeURIComponent(data.job.id)}`} className={secondaryBtn}><Tr th="กลับไปที่งาน" /></a>
         </div>
         <div className="flex flex-wrap gap-2">
           {approved
-            ? <Pill tone="ok" dot wrap>ใช้ผลิต: ฉบับ {approved.rev} · อนุมัติ {when(approved.approved_at)} โดย {data.names.get(approved.approved_by ?? '') ?? '—'}</Pill>
-            : <Pill tone="neutral">ยังไม่มีฉบับที่อนุมัติ</Pill>}
-          {open && <Pill tone={SHEET_STATUS[open.status].tone} dot wrap>ฉบับ {open.rev}: {SHEET_STATUS[open.status].text}</Pill>}
+            ? <Pill tone="ok" dot wrap>{t('ใช้ผลิต: ฉบับ {rev} · อนุมัติ {at} โดย {who}', { rev: approved.rev, at: when(approved.approved_at, lang), who: data.names.get(approved.approved_by ?? '') ?? '—' })}</Pill>
+            : <Pill tone="neutral">{t('ยังไม่มีฉบับที่อนุมัติ')}</Pill>}
+          {open && <Pill tone={SHEET_STATUS[open.status].tone} dot wrap>{t('ฉบับ {rev}: {status}', { rev: open.rev, status: { th: SHEET_STATUS[open.status].text } })}</Pill>}
         </div>
         {data.job.phase === 'cancelled' && (
-          <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 font-medium text-danger">งานนี้ถูกผู้บริหารยกเลิกแล้ว · แก้ อนุมัติ หรือรับทราบม็อคอัพไม่ได้ ไม่ต้องทำต่อ</p>
+          <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 font-medium text-danger"><Tr th="งานนี้ถูกผู้บริหารยกเลิกแล้ว · แก้ อนุมัติ หรือรับทราบม็อคอัพไม่ได้ ไม่ต้องทำต่อ" /></p>
         )}
         {approved && open && (
           <p className="flex items-start gap-2 rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">
-            <IconAlert className="mt-0.5 size-5 shrink-0" />มีฉบับแก้ไข {open.rev} {SHEET_STATUS[open.status].text} · ยังผลิตตามฉบับ {approved.rev} จนกว่าจะอนุมัติ
+            <IconAlert className="mt-0.5 size-5 shrink-0" /><span><Tr th="มีฉบับแก้ไข {rev} {status} · ยังผลิตตามฉบับ {current} จนกว่าจะอนุมัติ" vars={{ rev: open.rev, status: { th: SHEET_STATUS[open.status].text }, current: approved.rev }} /></span>
           </p>
         )}
         {(approved && seeOpen) && (
@@ -129,18 +134,18 @@ export default function MockupPage({ jobId, role, myStations }: { jobId: string;
       {current === 'work' && open && seeOpen && <SheetWork key={`${open.id}:${open.version}`} data={data} sheet={open} approved={approved} role={role} reload={reload} />}
       {current === 'view' && approved && <SheetViewer key={approved.id} data={data} sheet={approved} role={role} myStations={myStations} reload={reload} />}
       {!approved && open && !seeOpen && (
-        <Card className="p-5"><p className="text-muted">ม็อคอัพของงานนี้ยังไม่อนุมัติ · รอฝ่ายผลิตหรือผู้บริหารอนุมัติก่อนจึงจะใช้ผลิตได้</p></Card>
+        <Card className="p-5"><p className="text-muted"><Tr th="ม็อคอัพของงานนี้ยังไม่อนุมัติ · รอฝ่ายผลิตหรือผู้บริหารอนุมัติก่อนจึงจะใช้ผลิตได้" /></p></Card>
       )}
 
       {history.length > 0 && (
         <Card className="grid grid-cols-[minmax(0,1fr)] gap-2 p-4">
-          <h2 className="font-bold">ประวัติฉบับ</h2>
+          <h2 className="font-bold"><Tr inline th="ประวัติฉบับ" /></h2>
           <ul className="grid gap-1">
             {history.map(s => (
               <li key={s.id} className="flex flex-wrap items-center gap-2 text-sm">
-                <Pill tone={SHEET_STATUS[s.status].tone}>ฉบับ {s.rev} · {SHEET_STATUS[s.status].text}</Pill>
-                <span>อนุมัติ {when(s.approved_at)} โดย {data.names.get(s.approved_by ?? '') ?? '—'}</span>
-                {s.change_reason && <span className="text-muted">· แก้เพราะ {s.change_reason}</span>}
+                <Pill tone={SHEET_STATUS[s.status].tone}>{t('ฉบับ {rev} · {status}', { rev: s.rev, status: { th: SHEET_STATUS[s.status].text } })}</Pill>
+                <span>{t('อนุมัติ {at} โดย {who}', { at: when(s.approved_at, lang), who: data.names.get(s.approved_by ?? '') ?? '—' })}</span>
+                {s.change_reason && <span className="text-muted">· {t('แก้เพราะ {reason}', { reason: s.change_reason })}</span>}
                 {canOpenPage(role, 'artwork') && <a className="font-semibold text-brand underline" href={`#/artwork?id=${data.job.id}&sheet=${s.id}`}>พิมพ์ฉบับนี้</a>}
               </li>
             ))}
@@ -156,7 +161,7 @@ function StartSheet({ data, role, reload, revision }: { data: MockupData; role: 
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<Msg>(null)
   if (!canEditMockup(role)) {
-    return <Card className="p-5"><p className="text-muted">งานนี้ยังไม่มีม็อคอัพกำกับสเปก · แอดมินเป็นคนทำ</p></Card>
+    return <Card className="p-5"><p className="text-muted"><Tr th="งานนี้ยังไม่มีม็อคอัพกำกับสเปก · แอดมินเป็นคนทำ" /></p></Card>
   }
   const start = async () => {
     setBusy(true)
@@ -187,12 +192,13 @@ function StartSheet({ data, role, reload, revision }: { data: MockupData; role: 
 }
 
 function ViewTabs({ views, value, onChange, counts }: { views: ViewKey[]; value: ViewKey; onChange: (v: ViewKey) => void; counts: (v: ViewKey) => number }) {
+  const t = useT()
   return (
-    <div className="flex flex-wrap gap-1" role="tablist" aria-label="มุมภาพ">
+    <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('มุมภาพ')}>
       {views.map(v => (
         <button key={v} type="button" role="tab" aria-selected={value === v} onClick={() => onChange(v)}
           className={`min-h-12 rounded-xl border px-4 font-semibold ${value === v ? 'border-brand bg-brand text-white' : 'border-line bg-card hover:border-brand'}`}>
-          {VIEW_NAME[v]} <span className="opacity-80">({counts(v)})</span>
+          {t(VIEW_NAME[v])} <span className="opacity-80">({counts(v)})</span>
         </button>
       ))}
     </div>
@@ -201,11 +207,12 @@ function ViewTabs({ views, value, onChange, counts }: { views: ViewKey[]; value:
 
 function Zoom({ zoom, setZoom }: { zoom: number; setZoom: (z: number) => void }) {
   const i = ZOOMS.indexOf(zoom)
+  const t = useT()
   return (
-    <div className="flex items-center gap-1" aria-label="ซูม">
-      <button type="button" className={`${secondaryBtn} px-4`} disabled={i <= 0} onClick={() => setZoom(ZOOMS[i - 1]!)} aria-label="ย่อ">−</button>
-      <button type="button" className="min-h-12 min-w-16 rounded-xl px-2 font-semibold tabular-nums hover:bg-paper" onClick={() => setZoom(1)} aria-label="พอดีจอ">{Math.round(zoom * 100)}%</button>
-      <button type="button" className={`${secondaryBtn} px-4`} disabled={i >= ZOOMS.length - 1} onClick={() => setZoom(ZOOMS[i + 1]!)} aria-label="ขยาย">+</button>
+    <div className="flex items-center gap-1" aria-label={t('ซูม')}>
+      <button type="button" className={`${secondaryBtn} px-4`} disabled={i <= 0} onClick={() => setZoom(ZOOMS[i - 1]!)} aria-label={t('ย่อ')}>−</button>
+      <button type="button" className="min-h-12 min-w-16 rounded-xl px-2 font-semibold tabular-nums hover:bg-paper" onClick={() => setZoom(1)} aria-label={t('พอดีจอ')}>{Math.round(zoom * 100)}%</button>
+      <button type="button" className={`${secondaryBtn} px-4`} disabled={i >= ZOOMS.length - 1} onClick={() => setZoom(ZOOMS[i + 1]!)} aria-label={t('ขยาย')}>+</button>
     </div>
   )
 }
@@ -214,7 +221,8 @@ function CalloutList({ draft, selected, onSelect, edit, jobSpec }: {
   draft: Draft; selected: string | null; onSelect: (c: Callout) => void; edit?: (e: Edit) => void; jobSpec: unknown
 }) {
   const list = [...draft.callouts].sort((a, b) => a.no - b.no)
-  if (!list.length) return <p className="text-muted">ยังไม่มี Callout</p>
+  const t = useT()
+  if (!list.length) return <p className="text-muted"><Tr th="ยังไม่มี Callout" /></p>
   return (
     <ol className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1">
       {list.map(c => {
@@ -224,9 +232,9 @@ function CalloutList({ draft, selected, onSelect, edit, jobSpec }: {
             <button type="button" onClick={() => onSelect(c)} className="flex min-h-12 min-w-0 flex-1 items-center gap-2 px-2 text-left">
               <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand text-sm font-bold text-white">{c.no}</span>
               <span className="min-w-0">
-                <span className="block truncate font-semibold">{c.title || '(ยังไม่ตั้งชื่อ)'}</span>
+                <span className="block truncate font-semibold">{c.title || t('(ยังไม่ตั้งชื่อ)')}</span>
                 <span className={`block truncate text-sm ${ok ? 'text-muted' : 'text-warn'}`}>
-                  {ok ? `${VIEW_NAME[c.view]} · ${calloutLines(c, draft, jobSpec)[0] ?? ''}` : `${VIEW_NAME[c.view]} · ยังไม่มีสเปก`}
+                  {t(VIEW_NAME[c.view])} · {ok ? (first => first ? t(first.th, first.vars) : '')(calloutWords(c, draft, jobSpec)[0]) : t('ยังไม่มีสเปก')}
                 </span>
               </span>
               {ok ? <IconCheck className="size-5 shrink-0 text-ok" /> : <IconAlert className="size-5 shrink-0 text-warn" />}
@@ -525,6 +533,8 @@ function SheetViewer({ data, sheet, role, myStations, reload }: {
   const [zoom, setZoom] = useState(1)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<Msg>(null)
+  const t = useT()
+  const lang = useLang()
 
   useEffect(() => {
     let live = true
@@ -536,8 +546,8 @@ function SheetViewer({ data, sheet, role, myStations, reload }: {
     return () => { live = false }
   }, [sheet.id])
 
-  if (loaded.status === 'loading') return <Card className="p-5"><p role="status" className="text-muted">กำลังโหลดฉบับ {sheet.rev}…</p></Card>
-  if (loaded.status === 'error') return <Card className="p-5"><p role="alert" className="text-danger">โหลดสเปกไม่สำเร็จ · {loaded.message}</p></Card>
+  if (loaded.status === 'loading') return <Card className="p-5"><p role="status" className="text-muted"><Tr th="กำลังโหลดฉบับ {rev}…" vars={{ rev: sheet.rev }} /></p></Card>
+  if (loaded.status === 'error') return <Card className="p-5"><p role="alert" className="text-danger"><Tr th="โหลดสเปกไม่สำเร็จ · {reason}" vars={{ reason: { th: loaded.message } }} /></p></Card>
 
   const { draft, urls } = loaded
   const callouts = forStation(draft.callouts, station)
@@ -558,11 +568,11 @@ function SheetViewer({ data, sheet, role, myStations, reload }: {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       <Card className="grid grid-cols-[minmax(0,1fr)] gap-3 p-3">
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 font-semibold">ดูเฉพาะสถานี
+          <label className="flex flex-wrap items-center gap-2 font-semibold"><Tr th="ดูเฉพาะสถานี" />
             <select value={station ?? ''} onChange={e => setStation((e.target.value || null) as StationCode | null)} className={`${fieldClass} w-auto font-normal`}
               disabled={locked && ackStations.length <= 1}>
-              {!locked && <option value="">ทุกสถานี</option>}
-              {(locked ? ackStations : data.job.stations).map(s => <option key={s} value={s}>{STATION_NAME[s]}</option>)}
+              {!locked && <option value="">{t('ทุกสถานี')}</option>}
+              {(locked ? ackStations : data.job.stations).map(s => <option key={s} value={s}>{t(STATION_NAME[s])}</option>)}
             </select>
           </label>
           <span className="ml-auto flex flex-wrap items-center gap-2">
@@ -570,18 +580,18 @@ function SheetViewer({ data, sheet, role, myStations, reload }: {
             {canOpenPage(role, 'artwork') && <a href={`#/artwork?id=${data.job.id}&sheet=${sheet.id}`} className={secondaryBtn}><IconPrinter className="size-5" />พิมพ์ / PDF</a>}
           </span>
         </div>
-        {sheet.approve_note && <p className="text-muted">หมายเหตุผู้อนุมัติ: {sheet.approve_note}</p>}
+        {sheet.approve_note && <p className="text-muted">{t('หมายเหตุผู้อนุมัติ: {note}', { note: sheet.approve_note })}</p>}
         {sheet.confirmation_rev !== null && sheet.confirmation_rev !== data.job.confirmationRev && (
-          <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">ใบยืนยันถูกแก้ (ฉบับ {data.job.confirmationRev}) หลังอนุมัติม็อคอัพนี้ (ใช้ใบฉบับ {sheet.confirmation_rev}) · แจ้งแอดมินตรวจ</p>
+          <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn"><Tr th="ใบยืนยันถูกแก้ (ฉบับ {now}) หลังอนุมัติม็อคอัพนี้ (ใช้ใบฉบับ {old}) · แจ้งแอดมินตรวจ" vars={{ now: data.job.confirmationRev ?? '—', old: sheet.confirmation_rev }} /></p>
         )}
         {canAckMockup(role) && station && ackStations.includes(station) && (
           ackedHere
-            ? <p className="flex items-center gap-2 rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok"><IconCheck className="size-5" />สถานี{STATION_NAME[station]}รับทราบสเปกฉบับ {sheet.rev} แล้ว</p>
+            ? <p className="flex items-center gap-2 rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok"><IconCheck className="size-5 shrink-0" /><span><Tr th="สถานี{station}รับทราบสเปกฉบับ {rev} แล้ว" vars={{ station: { th: STATION_NAME[station] }, rev: sheet.rev }} /></span></p>
             : <button type="button" className={okBtn} disabled={busy} onClick={() => void ack()}>
-              <IconCheck className="size-5" />{busy ? 'กำลังบันทึก…' : `รับทราบสเปกฉบับ ${sheet.rev} · สถานี${STATION_NAME[station]}`}
+              <IconCheck className="size-5 shrink-0" />{busy ? <Tr th="กำลังบันทึก…" /> : <Tr th="รับทราบสเปกฉบับ {rev} · สถานี{station}" vars={{ rev: sheet.rev, station: { th: STATION_NAME[station] } }} />}
             </button>
         )}
-        {canAckMockup(role) && !station && <p className="text-sm text-muted">เลือกสถานีเพื่อกดรับทราบสเปก</p>}
+        {canAckMockup(role) && !station && <p className="text-sm text-muted">{t('เลือกสถานีเพื่อกดรับทราบสเปก')}</p>}
         <Note msg={msg} />
       </Card>
 
@@ -591,18 +601,18 @@ function SheetViewer({ data, sheet, role, myStations, reload }: {
           {shown
             ? <div className="max-h-[78vh] overflow-auto rounded-xl bg-card-2 p-2">
               <AnnotationCanvas view={shown} url={urls.get(shown.path)} callouts={callouts.filter(c => c.view === shown.view)} zoom={zoom} selected={selected}
-                labels={c => calloutLines(c, draft).slice(0, 1)} onSelect={setSelected} />
+                labels={c => calloutWords(c, draft).slice(0, 1).map(w => t(w.th, w.vars))} onSelect={setSelected} />
             </div>
-            : <p className="p-6 text-muted">ฉบับนี้ไม่มีภาพ</p>}
+            : <p className="p-6 text-muted"><Tr th="ฉบับนี้ไม่มีภาพ" /></p>}
         </Card>
         <Card className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 p-3">
           <SpecPanel draft={draft} callout={callout} jobSpec={data.job.spec} stations={data.job.stations} edit={() => undefined} editable={false} />
-          <h2 className="font-bold">ทุกจุด{station ? `ของ${STATION_NAME[station]}` : ''} ({callouts.length})</h2>
+          <h2 className="font-bold"><Tr inline th={station ? 'ทุกจุดของ{station} ({n})' : 'ทุกจุด ({n})'} vars={{ station: { th: station ? STATION_NAME[station] : '' }, n: callouts.length }} /></h2>
           <CalloutList draft={{ ...draft, callouts }} selected={selected} jobSpec={data.job.spec} onSelect={c => { setSelected(c.key); setView(c.view) }} />
-          <h2 className="font-bold">รับทราบแล้ว</h2>
+          <h2 className="font-bold"><Tr inline th="รับทราบแล้ว" /></h2>
           {acks.length
-            ? <ul className="grid gap-1 text-sm">{acks.map(a => <li key={`${a.station_code}:${a.user_id}`}>{STATION_NAME[a.station_code]} · {data.names.get(a.user_id ?? '') ?? '—'} · {when(a.at)}</li>)}</ul>
-            : <p className="text-sm text-muted">ยังไม่มีสถานีกดรับทราบ</p>}
+            ? <ul className="grid gap-1 text-sm">{acks.map(a => <li key={`${a.station_code}:${a.user_id}`}>{t(STATION_NAME[a.station_code])} · {data.names.get(a.user_id ?? '') ?? '—'} · {when(a.at, lang)}</li>)}</ul>
+            : <p className="text-sm text-muted">{t('ยังไม่มีสถานีกดรับทราบ')}</p>}
         </Card>
       </div>
     </div>

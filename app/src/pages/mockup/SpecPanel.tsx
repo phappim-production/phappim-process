@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { fieldClass, dangerBtn, secondaryBtn } from '../../components/Dialog'
 import { STATION_NAME, type StationCode } from '../../proto/model'
 import {
-  SPEC_KIND_NAME, UNIT_NAME, blankSpec, calloutLines, confirmationRefs, parseSize, refLabel, refValue, specLine, specOf,
+  SPEC_KIND_NAME, UNIT_NAME, blankSpec, calloutWords, confirmationRefs, parseSize, refLabel, refValue, specLine, specOf,
   type Callout, type Draft, type Edit, type Spec, type SpecKind, type Unit,
 } from '../../proto/annotation'
 import { newKey } from '../../data/mockupSheets'
+import { Tr } from '../../i18n/Tr'
+import { useT } from '../../i18n/lang'
 
 const label = 'grid gap-1 text-sm font-semibold text-muted'
 
@@ -115,9 +117,10 @@ function SpecEditor({ spec, used, stations, edit, disabled }: {
 export function SpecPanel({ draft, callout, jobSpec, stations, edit, editable }: {
   draft: Draft; callout: Callout | null; jobSpec: unknown; stations: StationCode[]; edit: Edit2; editable: boolean
 }) {
+  const t = useT()
   if (!callout) {
     return <p className="rounded-xl border border-dashed border-line p-4 text-muted">
-      {editable ? 'กดบนภาพเพื่อเพิ่มจุด · กดจุดหรือกล่องข้อความเพื่อแก้รายละเอียดที่นี่' : 'กดจุดบนภาพเพื่ออ่านสเปก'}
+      {editable ? 'กดบนภาพเพื่อเพิ่มจุด · กดจุดหรือกล่องข้อความเพื่อแก้รายละเอียดที่นี่' : <Tr th="กดจุดบนภาพเพื่ออ่านสเปก" />}
     </p>
   }
   const c = callout
@@ -130,14 +133,14 @@ export function SpecPanel({ draft, callout, jobSpec, stations, edit, editable }:
     return (
       <section className="grid grid-cols-[minmax(0,1fr)] gap-3" aria-label={`รายละเอียด Callout ${c.no}`}>
         <h3 className="text-xl font-bold"><span className="text-brand">{c.no}</span> {c.title}</h3>
-        {calloutLines(c, draft, jobSpec).map((l, i) => <p key={i} className="rounded-xl bg-paper px-3 py-2">{l}</p>)}
+        {calloutWords(c, draft, jobSpec).map((l, i) => <p key={i} className="rounded-xl bg-paper px-3 py-2 break-words">{t(l.th, l.vars)}</p>)}
         {spec && (
           <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-xl border border-line p-3">
-            {([['ประเภท', SPEC_KIND_NAME[spec.kind]], ['ตำแหน่ง', spec.position], ['รายละเอียด', specLine(spec)], ['ไฟล์ Artwork', spec.artworkRef], ['หมายเหตุ', spec.note]] as const)
-              .filter(([, v]) => v).map(([k, v]) => <div key={k} className="contents"><dt className="text-muted">{k}</dt><dd className="break-all">{v}</dd></div>)}
+            {([['ประเภท', t(SPEC_KIND_NAME[spec.kind])], ['ตำแหน่ง', spec.position], ['รายละเอียด', specLine(spec)], ['ไฟล์ Artwork', spec.artworkRef], ['หมายเหตุ', spec.note]] as const)
+              .filter(([, v]) => v).map(([k, v]) => <div key={k} className="contents"><dt className="text-muted">{t(k)}</dt><dd className="break-all">{v}</dd></div>)}
           </dl>
         )}
-        <p className="text-sm text-muted">สถานี: {c.stations.length ? c.stations.map(s => STATION_NAME[s]).join(' · ') : 'ทุกสถานี'}</p>
+        <p className="text-sm text-muted">{t('สถานี: {list}', { list: c.stations.length ? c.stations.map(s => ({ th: STATION_NAME[s] })) : [{ th: 'ทุกสถานี' }] })}</p>
       </section>
     )
   }
