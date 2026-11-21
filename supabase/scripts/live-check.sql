@@ -83,7 +83,9 @@ begin
   perform pg_temp.ok('ฝ่ายผลิตส่งกลับ', prd, format($$select public.return_mockup_sheet(%L,'ทดสอบส่งกลับ')::text$$, s1));
   v := (select version from public.mockup_sheets where id = s1);
   perform pg_temp.ok('แอดมินส่งอนุมัติอีกครั้ง', adm, format($$select public.submit_mockup_sheet(%L,%s)::text$$, s1, v));
-  perform pg_temp.ok('ฝ่ายผลิตอนุมัติ', prd, format($$select public.approve_mockup_sheet(%L,'ทดสอบสด')::text$$, s1));
+  perform pg_temp.err('อนุมัติฉบับรออนุมัติโดยไม่ส่งเลขฉบับไม่ได้', prd, format($$select public.approve_mockup_sheet(%L,'ทดสอบสด')$$, s1), 'โหลดใหม่');
+  v := (select version from public.mockup_sheets where id = s1);
+  perform pg_temp.ok('ฝ่ายผลิตอนุมัติ', prd, format($$select public.approve_mockup_sheet(%L,'ทดสอบสด',%s)::text$$, s1, v));
   perform pg_temp.chk('อนุมัติแล้ว + แช่ค่าใบยืนยัน + snapshot', (select status from public.mockup_sheets where id=s1)='approved'
     and (select ref_value from public.mockup_callouts where sheet_id=s1 and no=2)='DTF · 8 × 8 ซม.'
     and exists (select 1 from public.mockup_snapshots where sheet_id=s1), (select ref_value from public.mockup_callouts where sheet_id=s1 and no=2));
@@ -141,7 +143,8 @@ begin
     and (select count(*) from public.mockup_specs where sheet_id=s2)=1 and (select count(*) from public.mockup_views where sheet_id=s2)=2, '');
   perform pg_temp.ok('ส่งฉบับ 2', adm, format($$select public.submit_mockup_sheet(%L,1)::text$$, s2));
   perform pg_temp.err('เริ่มผลิตแล้ว ฝ่ายผลิตอนุมัติฉบับแก้ไขไม่ได้', prd, format($$select public.approve_mockup_sheet(%L)$$, s2), 'แอดมิน ผู้บริหาร หรือเจ้าของ');
-  perform pg_temp.ok('ผู้บริหารอนุมัติฉบับ 2', mgr, format($$select public.approve_mockup_sheet(%L)::text$$, s2));
+  v := (select version from public.mockup_sheets where id = s2);
+  perform pg_temp.ok('ผู้บริหารอนุมัติฉบับ 2', mgr, format($$select public.approve_mockup_sheet(%L,null,%s)::text$$, s2, v));
   perform pg_temp.chk('ฉบับ 1 ถูกแทนที่ · ฉบับ 2 ใช้ผลิต', (select status from public.mockup_sheets where id=s1)='superseded' and (select status from public.mockup_sheets where id=s2)='approved', '');
   s2 := pg_temp.ok('สร้างฉบับ 3 (แอดมินอนุมัติเอง)', adm, format($$select public.start_mockup_sheet(%L,'ทดสอบแอดมินอนุมัติเอง')::text$$, j1))::uuid;
   v := (select version from public.mockup_sheets where id = s2);
