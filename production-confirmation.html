@@ -275,7 +275,7 @@ const HEADER = [
     { id:'contact', type:'text', label:'ผู้ติดต่อ', req:true },
     { id:'phone', type:'text', label:'เบอร์โทร', req:true },
     { id:'delivery', type:'radio', label:'การรับสินค้า', req:true, options:['ลูกค้ารับเองที่โรงงาน','รถบริษัทไปส่ง','จัดส่งตามที่อยู่'] },
-    { id:'address', type:'textarea', label:'ที่อยู่จัดส่ง', req:true, when:v=>needsAddress(v.delivery), hint:'ลูกค้าเปลี่ยนที่อยู่หลังรับงาน: เปิดงานในระบบ → "ลูกค้าขอแก้ใบยืนยัน" → แก้ที่นี่แล้วส่งออก PDF ใหม่' },
+    { id:'address', type:'textarea', label:'ที่อยู่จัดส่ง', req:true, when:v=>needsAddress(v.delivery), hint:'ลูกค้าเปลี่ยนที่อยู่หลังรับงาน: เปิดงานในระบบ → "ส่งออก PDF ใบยืนยันอีกครั้ง / แก้ใบ" → แก้ที่นี่แล้วส่งออก PDF ใหม่' },
   ]},
 ];
 
@@ -1281,7 +1281,7 @@ const OUTBOX='pp142.confirmation.outbox', INBOX='pp142.confirmation.inbox';
 function saveToSystem(){
   if(location.protocol==='file:'){ alert('บันทึกเข้าระบบได้เมื่อเปิดฟอร์มจากเว็บระบบ (pp142.pages.dev/confirmation)\nตอนนี้เปิดจากไฟล์ในเครื่อง ให้ใช้ "บันทึกไฟล์" แทน'); return; }
   if(!String(state.h.doc_no||'').trim()){ alert('ใส่เลขที่ใบยืนยันก่อนบันทึกเข้าระบบ'); $('[data-k="doc_no"]')?.focus(); return; }
-  if(state.job_no&&state.job_no===String(state.h.doc_no).trim()){ alert('ใบ '+state.job_no+' รับงานเข้าโรงงานแล้ว ไม่ต้องบันทึกเข้าระบบ\nกด "ส่งออก PDF" ให้ลูกค้าเซ็น แล้วแนบ PDF ใบใหม่ที่รายละเอียดงาน → "ลูกค้าขอแก้ใบยืนยัน"'); return; }
+  if(state.job_no&&state.job_no===String(state.h.doc_no).trim()){ alert('ใบ '+state.job_no+' รับงานเข้าโรงงานแล้ว ไม่ต้องบันทึกเข้าระบบ\nกด "ส่งออก PDF" ให้ลูกค้าเซ็น แล้วแนบ PDF ใบใหม่ที่รายละเอียดงาน → "ส่งออก PDF ใบยืนยันอีกครั้ง / แก้ใบ"'); return; }
   // รูปที่เพิ่งเลือกยังอ่าน/ย่อไม่เสร็จ = ไม่ส่ง ไม่อย่างนั้นใบไปถึงระบบโดยไม่มีรูป
   const first=state.imgs[0]&&state.imgs[0].src;
   if(readingImgs||(first&&!(thumb&&thumb.src===first))){ refreshThumb(); alert('กำลังเตรียมรูปม็อคอัพ รอ 1–2 วินาที แล้วกด "บันทึกเข้าระบบ" อีกครั้ง'); return; }
