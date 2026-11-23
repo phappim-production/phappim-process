@@ -123,4 +123,26 @@ export async function reviseSpecTests({ db, ok, as }) {
   ok('ปิดแจ้งเตือนแล้วยังบันทึกได้', (await call(U.admin, args(off, spec('SC-RV-6', { h: { rev: 1 }, p: { fabric_color: 'แดง' } })))).changed === true
     && (await inbox(off)).length === 0 && (await events(off)).length === 1)
   await db.exec(`update public.inbox_settings set enabled = true where kind = 'spec_revised'`)
+
+  const parent = await jobOf('SC-RV-7', 'production', false)
+  const child = await call(U.admin, `public.split_job('${parent}', 30)`)
+  const grandchild = await call(U.admin, `public.split_job('${child}', 10)`)
+  const s7 = (o = {}) => spec('SC-RV-7', { h: { rev: 1, address: 'ส่งที่ใหม่' }, p: { fabric_color: 'ดำ' }, ...o })
+  await reject('งานที่แบ่งแล้ว เปลี่ยนจำนวนในใบแก้ไม่ได้ (บอกยอดรวมทุกส่วน)', U.admin, args(parent, s7(), { qty: 120, sample: false }),
+    /ถูกแบ่งเป็น SC-RV-7, SC-RV-7-2, SC-RV-7-2-2 แล้ว \(รวม 100 ชิ้น\)/)
+  ok('ถูกปฏิเสธแล้วจำนวนทุกส่วนไม่เปลี่ยน', (await jobRow(parent)).qty === 70 && (await jobRow(child)).qty === 20 && (await jobRow(grandchild)).qty === 10)
+  const rs = await call(U.admin, args(parent, s7(), { qty: 100, sample: false, due: '2026-12-22', changes: ['ที่อยู่จัดส่ง'] }))
+  ok('งานที่แบ่งแล้ว ใบแก้ยอดรวมเดิมบันทึกได้', rs.changed === true && JSON.stringify(rs.parts) === '["SC-RV-7","SC-RV-7-2","SC-RV-7-2-2"]', JSON.stringify(rs))
+  const [p7, c7, g7] = [await jobRow(parent), await jobRow(child), await jobRow(grandchild)]
+  ok('งานแม่คงจำนวนหลังแบ่ง ไม่นับซ้ำกับส่วนที่แบ่ง', p7.qty === 70 && c7.qty === 20 && g7.qty === 10, `${p7.qty} ${c7.qty} ${g7.qty}`)
+  ok('สเปก กำหนดส่ง ครั้งที่แก้ เปลี่ยนทุกส่วนที่แบ่ง', [p7, c7, g7].every(x => x.spec.p.tshirt.fabric_color === 'ดำ'
+    && x.confirmation_rev === 1 && new Date(x.due_date).toISOString().startsWith('2026-12-2')))
+  ok('เผื่อเสียอยู่ที่งานแม่ ส่วนที่แบ่งยังเป็น 0', p7.spare_qty === 2 && c7.spare_qty === 0 && g7.spare_qty === 0)
+  ok('ทุกส่วนที่แบ่งลง events แก้ใบ', (await events(child)).length === 1 && (await events(grandchild)).length === 1 && (await events(parent)).length === 1)
+  ok('ข้อความแจ้งบอกว่าใช้กับทุกส่วน', /ใช้กับทุกส่วนที่แบ่ง: SC-RV-7, SC-RV-7-2, SC-RV-7-2-2/.test((await inbox(parent))[0]?.body ?? ''))
+  await reject('ส่วนที่แบ่งรับใบแก้ตรงไม่ได้ (เลขที่ใบเป็นของงานแม่)', U.admin, args(child, s7(), { qty: 100, sample: false }), /ไม่ตรงกับงาน SC-RV-7-2/)
+
+  const other = await jobOf('SC-RV-7-0002', 'production', false)
+  const r8 = await call(U.admin, args(parent, spec('SC-RV-7', { h: { rev: 2 } }), { rev: 2, qty: 100, sample: false, due: '2026-12-22' }))
+  ok('ใบอีกสินค้าในออเดอร์เดียวกัน (-0002) ไม่ถูกนับเป็นส่วนที่แบ่ง', r8.parts.length === 3 && (await jobRow(other)).confirmation_rev === 0, JSON.stringify(r8))
 }
