@@ -141,11 +141,13 @@ function AttachPdf({ job, refresh, replace = false }: { job: Job; refresh: () =>
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [replaced, setReplaced] = useState(false)
   const problem = pdfProblem(file)
   async function attach() {
     if (!file || problem) return
     setBusy(true)
     setError('')
+    setReplaced(false)
     const path = confirmationPath(job.no, await contentKey(file))
     const up = await uploadFile('confirmations', path, file, 'application/pdf')
     if (!up.ok) { setBusy(false); setError(up.reason); return }
@@ -153,6 +155,7 @@ function AttachPdf({ job, refresh, replace = false }: { job: Job; refresh: () =>
     setBusy(false)
     if (!r.ok) { setError(r.reason); return }
     setFile(null)
+    if (replace) setReplaced(true)
     await refresh()
   }
   const verb = replace ? 'เปลี่ยนเป็น PDF ใบใหม่' : 'แนบ PDF ใบยืนยัน'
@@ -166,7 +169,13 @@ function AttachPdf({ job, refresh, replace = false }: { job: Job; refresh: () =>
       </button>
     </>
   )
-  if (replace) return <div className="grid gap-2">{pick}{error && <p role="alert" className="text-danger">{error}</p>}</div>
+  if (replace) return (
+    <div className="grid gap-2">
+      {pick}
+      {replaced && <p role="status" className="rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">เปลี่ยน PDF ใบยืนยันแล้ว · ปุ่มเปิด PDF ด้านบนเปิดใบใหม่</p>}
+      {error && <p role="alert" className="text-danger">{error}</p>}
+    </div>
+  )
   return (
     <div className="grid gap-2 rounded-xl border border-warn/30 bg-warn-soft p-3">
       <p className="font-medium text-warn">ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น</p>

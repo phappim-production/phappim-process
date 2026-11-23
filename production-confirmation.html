@@ -390,8 +390,14 @@ const MEASURE_TOP=[ { c:'chest', label:'รอบอก', t:'text', opt:true }, 
 const MEASURE_PANTS=[ { c:'waist', label:'รอบเอว', t:'text', opt:true }, { c:'hip', label:'รอบสะโพก', t:'text', opt:true }, { c:'leg', label:'ความยาวขา', t:'text', opt:true } ];
 const MEASURE_COLS = { top:[{ ...MEASURE_TOP[0], opt:false }, ...MEASURE_TOP.slice(1)], pants:MEASURE_PANTS, set:[...MEASURE_TOP,...MEASURE_PANTS] };
 // คอลัมน์ขึ้นกับว่างานมีเสื้อ กางเกง หรือทั้งสอง จึงทำไว้ 3 ตาราง id เดียวกัน แสดงทีละตาราง
+// ค่าที่กรอกไว้แล้ว (ใบเก่า / เปลี่ยนชุดทีหลัง) ต้องไม่หายจากจอและ PDF
+const filledIn = (v,cols) => (Array.isArray(v.measure_rows)?v.measure_rows:[]).some(r=>cols.some(c=>String(r[c.c]??'').trim()));
+function measureKind(v,kindOf){
+  const k=(typeof kindOf==='function'?kindOf(v):kindOf)||'top';
+  return k==='set' || (k==='top'&&filledIn(v,MEASURE_PANTS)) || (k==='pants'&&filledIn(v,MEASURE_TOP)) ? 'set' : k;
+}
 const measureRows = kindOf => Object.entries(MEASURE_COLS).map(([kind,cols])=>({ id:'measure_rows', type:'itemTable', label:'ขนาดสำเร็จแต่ละไซซ์ (นิ้ว)', addLabel:'+ เพิ่มไซซ์', printLabel:true,
-  when:v=>v.size_chart===SIZE_OWN && (typeof kindOf==='function'?kindOf(v):kindOf||'top')===kind,
+  when:v=>v.size_chart===SIZE_OWN && measureKind(v,kindOf)===kind,
   hint:'1 แถวต่อ 1 ไซซ์ · ช่องที่ไม่ใช้เว้นว่าง · คอลัมน์สุดท้ายใช้กับขนาดอื่น เช่น ความยาวซิป ปลายขา',
   cols:[ { c:'size', label:'ไซซ์', t:'text' }, ...cols, { c:'other', label:'อื่นๆ (ระบุ)', t:'text', opt:true } ] }));
 function sizeSec(sets, unit, x={}){
@@ -1261,6 +1267,7 @@ function loadData(d, label){
   if(!d||!d.h||!d.p||!PRODUCTS[d.product]) return false;
   state={ h:d.h, product:d.product, pickOpen:false, p:d.p, imgs:Array.isArray(d.imgs)?d.imgs:[], callouts:Array.isArray(d.callouts)?d.callouts:[], co_size:d.co_size||null }; missing=[];
   if(typeof d.mockup_path==='string'&&d.mockup_path){ state.mockup_path=d.mockup_path; state.mockup_no=String(d.h.doc_no||'').trim(); } $('#alert').innerHTML='';
+  if(d.from_job) state.job_no=String(d.h.doc_no||'').trim();
   if(document.body.classList.contains('preview')) togglePreview(false); rerender(); scrollTo(0,0); save(); toast(label);
   return true;
 }
@@ -1274,6 +1281,7 @@ const OUTBOX='pp142.confirmation.outbox', INBOX='pp142.confirmation.inbox';
 function saveToSystem(){
   if(location.protocol==='file:'){ alert('บันทึกเข้าระบบได้เมื่อเปิดฟอร์มจากเว็บระบบ (pp142.pages.dev/confirmation)\nตอนนี้เปิดจากไฟล์ในเครื่อง ให้ใช้ "บันทึกไฟล์" แทน'); return; }
   if(!String(state.h.doc_no||'').trim()){ alert('ใส่เลขที่ใบยืนยันก่อนบันทึกเข้าระบบ'); $('[data-k="doc_no"]')?.focus(); return; }
+  if(state.job_no&&state.job_no===String(state.h.doc_no).trim()){ alert('ใบ '+state.job_no+' รับงานเข้าโรงงานแล้ว ไม่ต้องบันทึกเข้าระบบ\nกด "ส่งออก PDF" ให้ลูกค้าเซ็น แล้วแนบ PDF ใบใหม่ที่รายละเอียดงาน → "ลูกค้าขอแก้ใบยืนยัน"'); return; }
   // รูปที่เพิ่งเลือกยังอ่าน/ย่อไม่เสร็จ = ไม่ส่ง ไม่อย่างนั้นใบไปถึงระบบโดยไม่มีรูป
   const first=state.imgs[0]&&state.imgs[0].src;
   if(readingImgs||(first&&!(thumb&&thumb.src===first))){ refreshThumb(); alert('กำลังเตรียมรูปม็อคอัพ รอ 1–2 วินาที แล้วกด "บันทึกเข้าระบบ" อีกครั้ง'); return; }
@@ -1286,7 +1294,7 @@ function saveToSystem(){
   if(first&&thumb.data) payload.mockup=thumb.data;
   // รูปเดิมจากระบบใช้ได้เฉพาะใบเลขเดิม (เปลี่ยนเลขใบเพื่อทำใบใหม่ = ไม่เอารูปใบเดิมไป)
   if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()) delete payload.mockup_path;
-  delete payload.mockup_no;
+  delete payload.mockup_no; delete payload.job_no;
   try{ localStorage.setItem(OUTBOX, JSON.stringify(payload)); }catch(e){ alert('บันทึกไม่สำเร็จ (พื้นที่เบราว์เซอร์เต็ม) ให้ใช้ "บันทึกไฟล์" แทน'); return; }
   const url='/#/board?confirmation=save';
   const w=window.open(url,'pp142-system');
