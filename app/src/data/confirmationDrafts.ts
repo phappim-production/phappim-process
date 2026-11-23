@@ -52,3 +52,14 @@ export function draftLabel(d: Pick<DraftRow, 'confirmation_no' | 'customer_name'
   const day = new Date(d.updated_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' })
   return [d.confirmation_no, d.customer_name, `บันทึก ${day}`].filter(Boolean).join(' · ')
 }
+
+// งานที่รับแล้วหลุดจากรายการใบร่าง จึงเปิดฟอร์มจากข้อมูลบนงาน · รูปเป็นลิงก์ชั่วคราว ฟอร์มคงรูปในระบบด้วย mockup_path
+export function formDataFromJob(spec: unknown, mockupPath: string | null, mockupUrl: string | null): Record<string, unknown> | null {
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return null
+  const s = spec as Record<string, unknown>
+  if (!s.h || typeof s.h !== 'object' || !s.p || typeof s.p !== 'object' || typeof s.product !== 'string') return null
+  const out: Record<string, unknown> = { ...s, imgs: mockupUrl ? [{ name: 'ม็อคอัพจากระบบ', src: mockupUrl }] : [], from_job: true }
+  delete out.mockup
+  if (mockupPath) out.mockup_path = mockupPath
+  return out
+}
