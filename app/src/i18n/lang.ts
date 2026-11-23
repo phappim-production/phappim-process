@@ -21,6 +21,23 @@ export function setLang(lang: Lang) {
 // แท็บเล็ตใช้ร่วมกัน: เครื่องจำภาษาพม่าไว้ แต่บทบาทที่ไม่ได้แปลยังเห็นไทยเสมอ
 export const LangAllowed = createContext(true)
 
+// ภาษาของหน้าที่เปิดอยู่ ให้ส่วนที่อยู่นอกหน้า (แถบรุ่นใหม่) ใช้ภาษาเดียวกับหน้า · null = ยังไม่มีหน้า
+let screen: Lang | null = null
+const screenListeners = new Set<() => void>()
+
+export function setScreenLang(lang: Lang | null) {
+  screen = lang
+  screenListeners.forEach(fn => fn())
+}
+
+export function useScreenLang(): Lang | null {
+  return useSyncExternalStore(
+    fn => { screenListeners.add(fn); return () => { screenListeners.delete(fn) } },
+    () => screen,
+    () => screen,
+  )
+}
+
 const subscribe = (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn) } }
 const snapshot = () => current
 

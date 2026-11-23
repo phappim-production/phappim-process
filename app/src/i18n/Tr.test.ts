@@ -1,10 +1,10 @@
 import { createElement as h } from 'react'
 import { renderToString } from 'react-dom/server'
 import { afterEach, expect, it } from 'vitest'
-import { setLang } from './lang'
+import { setLang, setScreenLang, useScreenLang } from './lang'
 import { LangScope, Tr } from './Tr'
 
-afterEach(() => setLang('th'))
+afterEach(() => { setLang('th'); setScreenLang(null) })
 
 it('ภาษาไทย: แสดงไทยอย่างเดียว', () => {
   setLang('th')
@@ -27,4 +27,16 @@ it('บทบาทที่ไม่ได้แปลเห็นไทยเ�
 it('ไม่มีคำแปล: แสดงไทย ไม่ขึ้นช่องว่าง', () => {
   setLang('my')
   expect(renderToString(h(LangScope, { allowed: true, children: h(Tr, { th: 'ข้อความใหม่ที่ยังไม่แปล' }) }))).toBe('ข้อความใหม่ที่ยังไม่แปล')
+})
+
+it('ส่วนนอกหน้า (แถบรุ่นใหม่) ใช้ภาษาของหน้า: แอดมินบนเครื่องที่จำพม่าไว้เห็นไทย', () => {
+  const Banner = () => h(LangScope, { allowed: useScreenLang() !== 'th', children: h(Tr, { th: 'โหลดรุ่นใหม่' }) })
+  setLang('my')
+  setScreenLang('th')
+  expect(renderToString(h(Banner))).toBe('โหลดรุ่นใหม่')
+  setScreenLang('my')
+  expect(renderToString(h(Banner))).toContain('โหลดรุ่นใหม่')
+  expect(renderToString(h(Banner))).not.toBe('โหลดรุ่นใหม่')
+  setScreenLang(null)
+  expect(renderToString(h(Banner))).not.toBe('โหลดรุ่นใหม่')
 })

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { Tr } from '../i18n/Tr'
+import { LangScope, Tr } from '../i18n/Tr'
+import { useScreenLang } from '../i18n/lang'
 import {
   AUTO_UPDATE_POLL_MS,
   UPDATE_CHECK_INTERVAL_MS,
@@ -17,6 +18,7 @@ export function AppUpdate() {
 }
 
 function AppUpdateLive() {
+  const screenLang = useScreenLang()
   const [registration, setRegistration] = useState<ServiceWorkerRegistration>()
   const [updating, setUpdating] = useState(false)
   const detectedAtRef = useRef<number | null>(null)
@@ -95,18 +97,20 @@ function AppUpdateLive() {
   if (!needRefresh) return null
 
   return (
-    <aside aria-live="polite" className="shrink-0 border-t border-white/20 bg-brand px-4 py-2 text-white">
-      <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3">
-        <p className="text-base font-medium"><Tr th="มีระบบรุ่นใหม่ · กดเพื่อโหลด" /></p>
-        <button
-          type="button"
-          disabled={updating}
-          onClick={() => void reloadNow()}
-          className="min-h-12 shrink-0 rounded-xl bg-gold px-4 py-2 text-base font-bold text-brand-700 transition hover:opacity-90 disabled:opacity-60"
-        >
-          <Tr th={updating ? 'กำลังโหลดรุ่นใหม่…' : 'โหลดรุ่นใหม่'} />
-        </button>
-      </div>
-    </aside>
+    <LangScope allowed={screenLang !== 'th'}>
+      <aside aria-live="polite" className="shrink-0 border-t border-white/20 bg-brand px-4 py-2 text-white">
+        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3">
+          <p className="text-base font-medium"><Tr th="มีระบบรุ่นใหม่ · กดเพื่อโหลด" /></p>
+          <button
+            type="button"
+            disabled={updating}
+            onClick={() => void reloadNow()}
+            className="min-h-12 shrink-0 rounded-xl bg-gold px-4 py-2 text-base font-bold text-brand-700 transition hover:opacity-90 disabled:opacity-60"
+          >
+            <Tr th={updating ? 'กำลังโหลดรุ่นใหม่…' : 'โหลดรุ่นใหม่'} />
+          </button>
+        </div>
+      </aside>
+    </LangScope>
   )
 }
