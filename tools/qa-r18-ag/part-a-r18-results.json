@@ -1,0 +1,61 @@
+{
+  "externalAttempts": [],
+  "blockedFontRequests": [
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap",
+    "https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap"
+  ],
+  "results": [
+    {
+      "id": "A-PR185-1",
+      "title": "แก้ใบหลังรับงานแบบระบบจำ + ม็อคอัพเตือนค่าเก่า + แก้ซ้ำ + 2 แท็บ",
+      "pass": false,
+      "error": "หมดเวลารอ ปุ่ม \"/^รับงาน$/\""
+    },
+    {
+      "id": "A-PR185-2",
+      "title": "ปุ่ม ไม่ใช้กับงานนี้ (ซ่อนคำเตือน ไม่พิมพ์ ไม่ส่ง · ช่องตั้งค่ากดไม่ได้ · ยกเลิกได้)",
+      "pass": true,
+      "detail": "naCount=16, coreHasNa=false"
+    },
+    {
+      "id": "A-PR187-3",
+      "title": "แบ่งงาน 100→70+30 + แก้ใบจากงานแม่ + ยอดไม่ตรงปฏิเสธ + แบ่งซ้ำ + หลายสินค้า",
+      "pass": true,
+      "detail": "parent=70, child=30, siblingUntouched=true, splitTailAndReceive=true"
+    },
+    {
+      "id": "A-PR189-4",
+      "title": "ป้าย ล่าช้า X วัน บนบอร์ด/การ์ด/ภาพรวม/รายละเอียด/รายงาน + โหมดพม่า",
+      "pass": true,
+      "detail": "board=ล่าช้า 4 วัน, detail=ล่าช้า 4 วัน, overviewCard=\"SC69-LATE1 เลยกำหนดส่ง ลูกค้างานล่าช้า · กำหนดส่ง 19 พ.ย.\", reports=ล่าช้า\n\n7 วัน, myLate=true"
+    },
+    {
+      "id": "A-PR177-5",
+      "title": "ใบยืนยัน PR 177-184: เลขติดลบบล็อก PDF + ช่วง 28-34 + กุ๊น/มาตรฐาน + ถุงพับ",
+      "pass": true,
+      "detail": "negHard=1, range28_34_ok=true, extra={\"hasStd\":false,\"hasFoldPiping\":true}"
+    },
+    {
+      "id": "A-PR181-6",
+      "title": "ม็อคอัพ PR 181: จุดชี้ใกล้ขอบไม่ตัด + จอแคบ 375px + /confirmation?test=1",
+      "pass": false,
+      "error": "หมดเวลารอ ช่อง \"input[placeholder*=\"คอเสื้อ\"]\""
+    }
+  ]
+}

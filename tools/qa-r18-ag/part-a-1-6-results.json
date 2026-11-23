@@ -1,0 +1,16 @@
+{
+  "results": [
+    {
+      "id": "A-PR185-1",
+      "title": "แก้ใบหลังรับงานแบบระบบจำ + ม็อคอัพเตือนค่าเก่า + แก้ซ้ำ + 2 แท็บ",
+      "pass": true,
+      "detail": "staleWarn=true, jobNameShown=false, hist=true, blocked={\"prodDisabledOrHidden\":false,\"sampleDisabled\":false}, backRevStatus=403"
+    },
+    {
+      "id": "A-PR181-6",
+      "title": "ม็อคอัพ PR 181: จุดชี้ใกล้ขอบไม่ตัด + จอแคบ 375px + /confirmation?test=1",
+      "pass": true,
+      "detail": "boxCheck=[{\"w\":0,\"clippedLeft\":true,\"clippedRight\":false,\"clippedTop\":true},{\"w\":128,\"clippedLeft\":false,\"clippedRight\":false,\"clippedTop\":false}]"
+    }
+  ]
+}
