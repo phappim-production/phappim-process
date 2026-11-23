@@ -204,6 +204,8 @@ table.dt tfoot td{font-weight:700;background:#f7f8f6}
 }
 .co{margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--card)}
 .co-hint{font-size:13px;color:var(--muted);margin:0 0 6px}
+.co-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.co-tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 .co-stage{position:relative;width:100%;user-select:none;-webkit-user-select:none;background:#f7f8f6;border-radius:8px;overflow:hidden}
 .co-stage img{position:absolute;object-fit:contain}
 .co-stage img[data-co-img]{cursor:crosshair}
@@ -216,8 +218,11 @@ div[data-co-part].co-box{cursor:move;touch-action:none}
 .co-box small{display:block;color:var(--muted);font-size:11px}
 .co-list{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:6px}
 .co-list li{display:grid;grid-template-columns:26px minmax(0,1.1fr) minmax(0,1.5fr) minmax(0,1.5fr) auto;gap:6px;align-items:center}
+.co-list li.has-img{grid-template-columns:26px auto minmax(0,1.1fr) minmax(0,1.4fr) minmax(0,1.4fr) auto}
+.co-list li.on{background:var(--accent-soft);border-radius:8px;padding:4px}
+.co-list li select[data-cf="img"]{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:13px}
 .co-n{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:12px;display:grid;place-items:center}
-@media (max-width:640px){.co-list li{grid-template-columns:26px minmax(0,1fr) auto}.co-list li select,.co-list li input[data-cf="body"]{grid-column:2/3}}
+@media (max-width:640px){.co-list li{grid-template-columns:26px minmax(0,1fr) auto}.co-list li select[data-cf="ref"],.co-list li input[data-cf="body"]{grid-column:2/3}.co-list li.has-img{grid-template-columns:26px auto minmax(0,1fr) auto}.co-list li.has-img input[data-cf="title"]{grid-column:3/4}.co-list li.has-img select[data-cf="ref"],.co-list li.has-img input[data-cf="body"]{grid-column:2/4}}
 .d-co{margin:6px 0 0;border:1px solid #ccc;border-radius:4px;padding:4px;break-inside:avoid;page-break-inside:avoid}
 .d-co .co-box{font-size:7.5pt;max-width:23%}
 .d-co .co-box small{font-size:7pt}
@@ -962,6 +967,7 @@ const $ = s => document.querySelector(s);
 const form = $('#form');
 let state = load() || fresh();
 let missing = [];
+let coTab = 0;
 
 const ORDER_KEEP=['issue_date','due_date','admin','admin_phone','customer','contact','phone','delivery','address'];
 const nextDocNo = no => { const s=String(no||'').trim(), m=/^(.*-)(\d+)$/.exec(s); return m ? m[1]+String(+m[2]+1).padStart(m[2].length,'0') : s ? s+'-0002' : ''; };
@@ -978,7 +984,7 @@ function showAfterSave(no, revise){
 }
 function startOver(keepOrder){
   const h=state.h, no=h.doc_no;
-  state=fresh();
+  state=fresh(); coTab=0;
   if(keepOrder){ ORDER_KEEP.forEach(k=>{ if(h[k]!==undefined) state.h[k]=h[k]; if(h[k+'__na']) state.h[k+'__na']=true; }); state.h.doc_no=nextDocNo(no); }
   missing=[]; $('#alert').innerHTML=''; $('#afterSave').innerHTML='';
   if(document.body.classList.contains('preview')) togglePreview(false);
@@ -986,9 +992,9 @@ function startOver(keepOrder){
   toast(keepOrder ? 'เริ่มสินค้าถัดไป · ข้อมูลลูกค้าเดิมยังอยู่ · ตรวจเลขที่ใบแล้วเลือกสินค้า' : 'ล้างฟอร์มแล้ว');
   if(keepOrder) setTimeout(()=>$('[data-k="doc_no"]')?.focus(),0);
 }
-function fresh(){ return { h:{ issue_date: today() }, product:'tshirt', pickOpen:true, p:{}, imgs:[], callouts:[], co_size:null }; }
+function fresh(){ return { h:{ issue_date: today() }, product:'tshirt', pickOpen:true, p:{}, imgs:[], callouts:[], co_size:null, co_sizes:[] }; }
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function load(){ try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.h&&s.p&&PRODUCTS[s.product]){ s.pickOpen=false; s.imgs=Array.isArray(s.imgs)?s.imgs:[]; s.callouts=Array.isArray(s.callouts)?s.callouts:[]; return s; } }catch(e){} return null; }
+function load(){ try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.h&&s.p&&PRODUCTS[s.product]){ s.pickOpen=false; s.imgs=Array.isArray(s.imgs)?s.imgs:[]; s.callouts=Array.isArray(s.callouts)?s.callouts:[]; s.co_sizes=Array.isArray(s.co_sizes)?s.co_sizes:[]; return s; } }catch(e){} return null; }
 let warnedQuota=false;
 function save(){
   try{ localStorage.setItem(LS, JSON.stringify(state)); }
@@ -1081,13 +1087,16 @@ function shiftImgRefs(removed){
 }
 function moveImgToFirst(idx){
   if(idx<=0||idx>=state.imgs.length) return;
-  if(coList().length&&!confirm(`ภาพแรกมีจุดกำกับ ${coList().length} จุด เปลี่ยนรูปหลักแล้วจุดจะหายด้วย ทำต่อ?`)) return;
-  if(coList().length){ state.callouts=[]; state.co_size=null; }
   const [picked]=state.imgs.splice(idx,1); state.imgs.unshift(picked);
+  if(Array.isArray(state.co_sizes)&&state.co_sizes.length>idx){
+    const [sz]=state.co_sizes.splice(idx,1); state.co_sizes.unshift(sz);
+  }
+  state.co_size=(Array.isArray(state.co_sizes)&&state.co_sizes[0])||(picked?.w>0&&picked?.h>0?{w:picked.w,h:picked.h}:state.co_size);
+  coList().forEach(c=>{ const raw=Number(c&&c.img), n=Number.isInteger(raw)&&raw>=0?raw:0; if(n===idx) c.img=0; else if(n>=0&&n<idx) c.img=n+1; });
   const v=scope('p');
   allFields().filter(f=>f.type==='itemTable'||f.type==='sizeTable').forEach(f=>{ (Array.isArray(v[f.id])?v[f.id]:[]).forEach(r=>{
     const n=+r.img||0; if(n===idx+1) r.img='1'; else if(n>=1&&n<=idx) r.img=String(n+1); }); });
-  state.co_size=null;
+  if(typeof coTab!=='undefined') coTab=0;
   rerender();
 }
 const sampleLocked=(f,s)=>s==='h'&&f.id==='sample'&&revising()&&!!jobBase()?.h?.sample;
@@ -1200,7 +1209,7 @@ function compress(file){ return new Promise(res=>{ const fr=new FileReader();
     img.onload=()=>{ const k=Math.min(1,1600/Math.max(img.width,img.height)), c=document.createElement('canvas');
       c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); const g=c.getContext('2d');
       g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0,c.width,c.height);
-      res({ name:file.name, src:c.toDataURL('image/jpeg',0.85) }); };
+      res({ name:file.name, src:c.toDataURL('image/jpeg',0.85), w:c.width, h:c.height }); };
     img.onerror=()=>res(null); img.src=fr.result; };
   fr.onerror=()=>res(null); fr.readAsDataURL(file); }); }
 let readingImgs=0;
@@ -1209,27 +1218,57 @@ function rerender(){ const y=scrollY; renderForm(); scrollTo(0,y); save(); refre
 const sysPath=(m,i)=>/^data:/.test(m.src||'')?'':m.path||(i===0?state.mockup_path||'':'');
 // ทุกรูปย่อด้านยาว 1000px (~150 KB) เพราะส่งเข้าระบบผ่าน localStorage ที่พื้นที่น้อย · ค่า null = ย่อไม่ได้
 const shrunk=new Map();
-let measured='';
+const measured=new Map();
+function syncCoSizes(){
+  const next=state.imgs.map((m,i)=>{
+    const cur=Array.isArray(state.co_sizes)?state.co_sizes[i]:null;
+    const hit=m?.src?measured.get(m.src):null;
+    if(hit&&hit.w>0&&hit.h>0) return hit;
+    if(m&&m.w>0&&m.h>0) return { w:m.w, h:m.h };
+    if(cur&&cur.w>0&&cur.h>0) return cur;
+    return null;
+  });
+  state.co_sizes=next;
+  if(next[0]) state.co_size=next[0];
+  else if(!state.imgs.length) state.co_size=null;
+}
 function refreshThumb(){
-  const src=state.imgs[0]&&state.imgs[0].src;
-  if(src&&measured!==src){ measured=src; const img=new Image();
-    img.onload=()=>{ if(state.imgs[0]?.src!==src||(state.co_size&&state.co_size.w===img.width&&state.co_size.h===img.height)) return;
-      state.co_size={ w:img.width, h:img.height };
-      const st=form.querySelector('[data-co-stage]'); if(st) st.outerHTML=coStageHTML(true);
-      save(); };
-    img.src=src; }
-  state.imgs.forEach((m,i)=>{ if(!m.src||sysPath(m,i)||shrunk.has(m.src)) return;
-    shrunk.set(m.src,undefined); const img=new Image();
+  syncCoSizes();
+  state.imgs.forEach((m,i)=>{
+    const src=m&&m.src;
+    if(!src) return;
+    if(m.w>0&&m.h>0&&!measured.has(src)) measured.set(src,{ w:m.w, h:m.h });
+    if(!measured.has(src)){
+      measured.set(src,null);
+      const img=new Image();
+      img.onload=()=>{
+        const sz={ w:img.width, h:img.height };
+        if(!(sz.w>0&&sz.h>0)) return;
+        measured.set(src,sz);
+        if(state.imgs[i]?.src!==src) return;
+        const prev=Array.isArray(state.co_sizes)&&state.co_sizes[i];
+        if(prev&&prev.w===sz.w&&prev.h===sz.h&&(i!==0||(state.co_size?.w===sz.w&&state.co_size?.h===sz.h))) return;
+        if(!Array.isArray(state.co_sizes)) state.co_sizes=[];
+        state.co_sizes[i]=sz;
+        if(i===0) state.co_size=sz;
+        const st=form.querySelector('[data-co-stage]');
+        if(st&&coActiveImg()===i) st.outerHTML=coStageHTML(true,i);
+        save();
+      };
+      img.src=src;
+    }
+    if(sysPath(m,i)||shrunk.has(src)) return;
+    shrunk.set(src,undefined); const img=new Image();
     img.onload=()=>{ const k=Math.min(1,1000/Math.max(img.width,img.height)), c=document.createElement('canvas');
       c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); const g=c.getContext('2d');
       g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0,c.width,c.height);
       let data=null; try{ data=c.toDataURL('image/jpeg',0.8); }catch(e){}
-      shrunk.set(m.src,data); };
-    img.onerror=()=>shrunk.set(m.src,null);
-    img.src=m.src; });
+      shrunk.set(src,data); };
+    img.onerror=()=>shrunk.set(src,null);
+    img.src=src; });
 }
 
-/* จุดกำกับ (Callout) บนภาพแรก · พิกัดเป็นสัดส่วนของภาพ (0–1) กล่องข้อความวางในขอบว่างรอบภาพได้
+/* จุดกำกับ (Callout) บนภาพม็อคอัพ · พิกัดเป็นสัดส่วนของภาพ (0–1) กล่องข้อความวางในขอบว่างรอบภาพได้
    CO_MX / CO_MY ต้องตรงกับ MARGIN_X / MARGIN_Y ใน app/src/proto/annotation.ts เพราะระบบนำจุดชุดนี้ไปสร้างม็อคอัพกำกับสเปก */
 const CO_MX=0.25, CO_MY=0.08, CO_MAX=30;
 const coClamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,Number.isFinite(v)?v:0));
@@ -1238,6 +1277,17 @@ const coPct=(x,y)=>`left:${(x+CO_MX)/(1+2*CO_MX)*100}%;top:${(y+CO_MY)/(1+2*CO_M
 // เลื่อนกล่องตามตำแหน่งบนพื้นที่ภาพ ชิดซ้ายสุด = ขอบซ้ายกล่องอยู่ที่จุด ชิดขวาสุด = ขอบขวา กล่องจึงไม่ล้นออกนอกภาพ
 const coBoxPct=(x,y)=>{ const l=coClamp((x+CO_MX)/(1+2*CO_MX),0,1)*100, t=coClamp((y+CO_MY)/(1+2*CO_MY),0,1)*100; return `left:${l}%;top:${t}%;transform:translate(-${l}%,-${t}%)`; };
 function coList(){ if(!Array.isArray(state.callouts)) state.callouts=[]; return state.callouts; }
+const coImg=c=>{ const n=Number(c&&c.img); return Number.isInteger(n)&&n>=0?n:0; };
+const coImgAt=c=>state.imgs.length?Math.min(coImg(c),state.imgs.length-1):0;
+function coActiveImg(){ if(!state.imgs.length) return (coTab=0); if(coTab<0||coTab>=state.imgs.length) coTab=0; return coTab; }
+function coSizeOf(idx=0){
+  const s=Array.isArray(state.co_sizes)&&state.co_sizes[idx];
+  if(s&&s.w>0&&s.h>0) return s;
+  const m=state.imgs[idx];
+  if(m&&m.w>0&&m.h>0) return { w:m.w, h:m.h };
+  if(state.co_size&&state.co_size.w>0&&state.co_size.h>0) return state.co_size;
+  return { w:4, h:3 };
+}
 const CO_FIELDS=[
   ['fit','ทรง'],['neck','คอเสื้อ'],['neck_fabric','ผ้าคอ'],['neck_color','สีคอ'],['sleeve','แขน'],['sleeve_end','ปลายแขน'],
   ['fabric','ชนิดผ้า'],['fabric_color','สีผ้าพื้น'],['gsm','น้ำหนักผ้า'],['fabric_width','หน้าผ้า'],['print_method','เทคนิคพิมพ์'],
@@ -1269,36 +1319,59 @@ function syncCalloutUI(){
 }
 function coLabel(c,refs){ const r=refs.find(x=>x.ref===c.ref); return [r?`${r.label}: ${r.val}`:'', c.body].filter(Boolean).join(' · '); }
 function coBoxInner(c,i,refs){ const sub=coLabel(c,refs); return `<b>${i+1}</b> ${esc(c.title||'(ยังไม่ตั้งชื่อ)')}${sub?`<small>${esc(sub)}</small>`:''}`; }
-function coStageHTML(edit){
-  const m=state.imgs[0], sz=state.co_size||{w:4,h:3}, w=sz.w, h=sz.h, refs=coRefs(), cs=coList();
+function coStageHTML(edit, idx=coActiveImg()){
+  const m=state.imgs[idx]; if(!m) return '';
+  const sz=coSizeOf(idx), w=sz.w, h=sz.h, refs=coRefs(), cs=coList();
+  const onImg=cs.map((c,i)=>({c,i})).filter(({c})=>coImgAt(c)===idx);
   const W=w*(1+2*CO_MX), H=h*(1+2*CO_MY);
-  const lines=cs.map((c,i)=>`<line data-co-line="${i}" x1="${c.x*w}" y1="${c.y*h}" x2="${c.bx*w}" y2="${c.by*h}" stroke="#c08a3e" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`).join('');
-  const dots=cs.map((c,i)=>edit
+  const lines=onImg.map(({c,i})=>`<line data-co-line="${i}" x1="${c.x*w}" y1="${c.y*h}" x2="${c.bx*w}" y2="${c.by*h}" stroke="#c08a3e" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`).join('');
+  const dots=onImg.map(({c,i})=>edit
     ?`<button type="button" class="co-dot" data-co-i="${i}" data-co-part="pt" style="${coPct(c.x,c.y)}" aria-label="จุด ${i+1}"></button>`
     :'').join('');
-  const boxes=cs.map((c,i)=>`<div class="co-box" ${edit?`data-co-i="${i}" data-co-part="box"`:''} style="${coBoxPct(c.bx,c.by)}">${coBoxInner(c,i,refs)}</div>`).join('');
-  return `<div class="co-stage" ${edit?'data-co-stage':''} style="aspect-ratio:${W}/${H}">`+
-    `<img src="${m.src}" alt="" ${edit?'data-co-img draggable="false"':''} style="left:${CO_MX/(1+2*CO_MX)*100}%;top:${CO_MY/(1+2*CO_MY)*100}%;width:${100/(1+2*CO_MX)}%;height:${100/(1+2*CO_MY)}%">`+
+  const boxes=onImg.map(({c,i})=>`<div class="co-box" ${edit?`data-co-i="${i}" data-co-part="box"`:''} style="${coBoxPct(c.bx,c.by)}">${coBoxInner(c,i,refs)}</div>`).join('');
+  return `<div class="co-stage" ${edit?`data-co-stage="${idx}"`:''} style="aspect-ratio:${W}/${H}">`+
+    `<img src="${m.src}" alt="" ${edit?`data-co-img="${idx}" draggable="false"`:''} style="left:${CO_MX/(1+2*CO_MX)*100}%;top:${CO_MY/(1+2*CO_MY)*100}%;width:${100/(1+2*CO_MX)}%;height:${100/(1+2*CO_MY)}%">`+
     `<svg viewBox="${-CO_MX*w} ${-CO_MY*h} ${W} ${H}" preserveAspectRatio="none">${lines}</svg>${dots}${boxes}</div>`;
 }
+function switchCoTab(idx){
+  if(idx<0||idx>=state.imgs.length||idx===coTab) return;
+  coTab=idx;
+  const st=form.querySelector('[data-co-stage]'); if(st) st.outerHTML=coStageHTML(true,coTab);
+  form.querySelectorAll('.co-tab').forEach(b=>b.setAttribute('aria-selected',String(+b.dataset.r===coTab)));
+  form.querySelectorAll('.co-list li').forEach(li=>{
+    const sel=li.querySelector('[data-co]');
+    const c=sel&&coList()[+sel.dataset.co];
+    li.classList.toggle('on',!!c&&state.imgs.length>1&&coImgAt(c)===coTab);
+  });
+}
 function coEditorHTML(){
-  if(!state.imgs[0]) return '';
-  const refs=coRefs(), cs=coList();
-  return `<div class="co"><p class="co-hint"><b>ชี้จุดบนภาพแรก (Callout)</b> · กดบนภาพ = เพิ่มจุด · ลากวงแหวนปลายเส้นหรือกล่องข้อความเพื่อย้าย (วางกล่องในขอบว่างรอบภาพ ไม่ให้บังลาย · ใน PDF เหลือแค่เส้นชี้) · จุดชุดนี้ไปขึ้นในระบบตอนรับงาน ไม่ต้องทำซ้ำ</p>`+
-    coStageHTML(true)+
-    (cs.length?`<ol class="co-list">`+cs.map((c,i)=>`<li><span class="co-n">${i+1}</span>`+
+  if(!state.imgs.length) return '';
+  const refs=coRefs(), cs=coList(), idx=coActiveImg(), multi=state.imgs.length>1;
+  const tabs=multi?`<div class="co-tabs" role="tablist" aria-label="เลือกรูปที่จะชี้จุด">`+state.imgs.map((_,j)=>{
+    const cnt=cs.filter(c=>coImgAt(c)===j).length;
+    return `<button type="button" role="tab" class="btn small co-tab" data-act="cotab" data-r="${j}" aria-selected="${j===idx}">${esc(imgName(j+1))}${cnt?` (${cnt})`:''}</button>`;
+  }).join('')+`</div>`:'';
+  return `<div class="co"><p class="co-hint"><b>ชี้จุดบนภาพม็อคอัพ / ชี้จุดบนภาพแรก (Callout)</b> · ${multi?'เลือกรูปด้านล่างแล้วกดบนภาพ = เพิ่มจุดบนรูปนั้น':'กดบนภาพ = เพิ่มจุด'} · ลากวงแหวนปลายเส้นหรือกล่องข้อความเพื่อย้าย (วางกล่องในขอบว่างรอบภาพ ไม่ให้บังลาย · ใน PDF เหลือแค่เส้นชี้) · จุดชุดนี้ไปขึ้นในระบบตอนรับงาน ไม่ต้องทำซ้ำ</p>`+
+    tabs+coStageHTML(true,idx)+
+    (cs.length?`<ol class="co-list">`+cs.map((c,i)=>{ const imgIdx=coImgAt(c);
+      return `<li class="${multi?'has-img'+(imgIdx===idx?' on':''):''}"><span class="co-n">${i+1}</span>`+
+      (multi?`<select data-co="${i}" data-cf="img" aria-label="รูปของจุด ${i+1}">${state.imgs.map((_,j)=>`<option value="${j}" ${imgIdx===j?'selected':''}>รูป ${j+1}</option>`).join('')}</select>`:'')+
       `<input type="text" data-co="${i}" data-cf="title" value="${esc(c.title)}" placeholder="ชื่อจุด เช่น อกซ้าย (หน้า)">`+
       `<select data-co="${i}" data-cf="ref"><option value="">— อ้างตำแหน่ง / ช่องในใบนี้ —</option>${refs.map(r=>`<option value="${esc(r.ref)}" ${r.ref===c.ref?'selected':''}>${esc(r.label)}${r.val?': '+esc(r.val):''}</option>`).join('')}</select>`+
       `<input type="text" data-co="${i}" data-cf="body" value="${esc(c.body)}" placeholder="รายละเอียดเพิ่ม เช่น ขอบคอกว้าง 2 ซม.">`+
-      `<button type="button" class="btn x" data-act="delco" data-r="${i}" title="ลบจุด">✕</button></li>`).join('')+`</ol>`:'')+
+      `<button type="button" class="btn x" data-act="delco" data-r="${i}" title="ลบจุด">✕</button></li>`; }).join('')+`</ol>`:'')+
     `</div>`;
 }
 function coDocHTML(){
-  const cs=coList(); if(!state.imgs[0]||!cs.length) return '';
-  const refs=coRefs();
-  return `<figure class="d-co">${coStageHTML(false)}<figcaption>${esc(imgName(1))} · จุดกำกับ ${cs.length} จุด</figcaption></figure><div class="d-mock">${esc(MOCKUP_NOTE)}</div>`+
-    `<table class="dt"><thead><tr><th>#</th><th>จุด</th><th>รายละเอียด</th></tr></thead><tbody>`+
-    cs.map((c,i)=>`<tr><td>${i+1}</td><td class="l">${esc(c.title)}</td><td class="l">${esc(coLabel(c,refs))}</td></tr>`).join('')+`</tbody></table>`;
+  const cs=coList(); if(!state.imgs.length||!cs.length) return '';
+  const refs=coRefs(), withCo=state.imgs.map((_,i)=>i).filter(i=>cs.some(c=>coImgAt(c)===i));
+  if(!withCo.length) return '';
+  const multi=state.imgs.length>1;
+  return withCo.map(i=>{ const n=cs.filter(c=>coImgAt(c)===i).length;
+    return `<figure class="d-co">${coStageHTML(false,i)}<figcaption>${esc(imgName(i+1))} · จุดกำกับ ${n} จุด</figcaption></figure>`; }).join('')+
+    `<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`+
+    `<table class="dt"><thead><tr><th>#</th>${multi?'<th>รูป</th>':''}<th>จุด</th><th>รายละเอียด</th></tr></thead><tbody>`+
+    cs.map((c,i)=>`<tr><td>${i+1}</td>${multi?`<td>รูป ${coImgAt(c)+1}</td>`:''}<td class="l">${esc(c.title)}</td><td class="l">${esc(coLabel(c,refs))}</td></tr>`).join('')+`</tbody></table>`;
 }
 let coDrag=null;
 function coAt(e,part,stage){
@@ -1315,7 +1388,8 @@ document.addEventListener('pointermove',e=>{
   if(!coDrag) return;
   if(!coDrag.moved&&Math.hypot(e.clientX-coDrag.sx,e.clientY-coDrag.sy)<4) return;
   coDrag.moved=true;
-  const p=coAt(e,coDrag.part,coDrag.stage), c=coList()[coDrag.i], sz=state.co_size||{w:4,h:3}; if(!c) return;
+  const p=coAt(e,coDrag.part,coDrag.stage), c=coList()[coDrag.i]; if(!c) return;
+  const sz=coSizeOf(coImgAt(c));
   if(coDrag.part==='pt'){ c.x=p.x; c.y=p.y; } else { c.bx=p.x; c.by=p.y; }
   coDrag.el.style.cssText=coDrag.part==='pt'?coPct(p.x,p.y):coBoxPct(p.x,p.y);
   const ln=coDrag.stage.querySelector(`[data-co-line="${coDrag.i}"]`);
@@ -1330,8 +1404,10 @@ document.addEventListener('pointerup',()=>{
 document.addEventListener('pointercancel',()=>{ coDrag=null; });
 function coAdd(e){
   const cs=coList(); if(cs.length>=CO_MAX){ alert(`ใส่จุดได้ไม่เกิน ${CO_MAX} จุดต่อใบ`); return; }
-  const p=coAt(e,'pt',e.target.closest('[data-co-stage]'));
-  cs.push({ x:p.x, y:p.y, bx:coR4(p.x<0.5?-CO_MX/2:1+CO_MX/2), by:coR4(coClamp(p.y,-CO_MY,1+CO_MY)), title:'', ref:'', body:'' });
+  const stage=e.target.closest('[data-co-stage]');
+  const idx=+(stage?.dataset.coStage??coActiveImg())||0;
+  const p=coAt(e,'pt',stage);
+  cs.push({ img:idx, x:p.x, y:p.y, bx:coR4(p.x<0.5?-CO_MX/2:1+CO_MX/2), by:coR4(coClamp(p.y,-CO_MY,1+CO_MY)), title:'', ref:'', body:'' });
   rerender();
   form.querySelector(`[data-co="${cs.length-1}"][data-cf="title"]`)?.focus();
 }
@@ -1339,8 +1415,10 @@ function coAdd(e){
 form.addEventListener('input',e=>{
   const t=e.target, d=t.dataset;
   if(t.type==='radio'||t.type==='checkbox'||t.type==='file'||t.tagName==='SELECT') return;
-  if(d.imgcap!==undefined){ const m=state.imgs[+d.imgcap]; if(m){ m.name=t.value;
-    form.querySelectorAll(`select[data-c="img"] option[value="${+d.imgcap+1}"]`).forEach(o=>{ o.textContent=imgName(+d.imgcap+1); });
+  if(d.imgcap!==undefined){ const i=+d.imgcap, m=state.imgs[i]; if(m){ m.name=t.value;
+    form.querySelectorAll(`select[data-c="img"] option[value="${i+1}"]`).forEach(o=>{ o.textContent=imgName(i+1); });
+    const tab=form.querySelector(`.co-tab[data-r="${i}"]`);
+    if(tab){ const cnt=coList().filter(c=>coImgAt(c)===i).length; tab.textContent=imgName(i+1)+(cnt?` (${cnt})`:''); }
     save(); } return; }
   if(d.co!==undefined){ const c=coList()[+d.co]; if(!c) return; c[d.cf]=t.value;
     const box=form.querySelector(`.co-box[data-co-i="${d.co}"]`); if(box) box.innerHTML=coBoxInner(c,+d.co,coRefs()); save(); return; }
@@ -1359,7 +1437,9 @@ form.addEventListener('change',e=>{
   if(d.product!==undefined){ state.product=t.value; state.pickOpen=false; scope('p'); return rerender(); }
   if(d.t){ const r=scope('p')[d.t][+d.r]; if(d.c.startsWith('q:')) r.q[d.c.slice(2)]=t.value; else r[d.c]=t.value;
     if(d.c==='img') return rerender(); updateTotals(); save(); return; }
-  if(d.co!==undefined){ const c=coList()[+d.co]; if(!c) return; c[d.cf]=t.value;
+  if(d.co!==undefined){ const c=coList()[+d.co]; if(!c) return;
+    if(d.cf==='img'){ c.img=+t.value||0; coTab=c.img; return rerender(); }
+    c[d.cf]=t.value;
     const box=form.querySelector(`.co-box[data-co-i="${d.co}"]`); if(box) box.innerHTML=coBoxInner(c,+d.co,coRefs()); save(); return; }
   if(t.type==='radio'&&d.k){ scope(d.s)[d.k]=t.value; return rerender(); }
   if(t.type==='checkbox'&&d.k){ const v=scope(d.s); const arr=new Set(v[d.k]||[]); t.checked?arr.add(t.value):arr.delete(t.value); v[d.k]=[...arr]; return rerender(); }
@@ -1376,6 +1456,10 @@ form.addEventListener('change',e=>{
     });
   }
 });
+form.addEventListener('focusin',e=>{
+  const d=e.target?.dataset; if(!d||d.co===undefined) return;
+  const c=coList()[+d.co]; if(c) switchCoTab(coImgAt(c));
+});
 document.addEventListener('click',e=>{
   if(e.target.matches&&e.target.matches('[data-co-img]')){ coAdd(e); return; }
   const b=e.target.closest('[data-act]'); if(!b) return;
@@ -1383,6 +1467,7 @@ document.addEventListener('click',e=>{
   if(act==='pick'){ state.pickOpen=true; rerender(); setTimeout(()=>$('#psearch')?.focus(),0); }
   if(act==='pickimg'){ const inp=form.querySelector('input[type="file"][data-img]'); if(inp){ inp.scrollIntoView({behavior:'smooth',block:'center'}); inp.click(); } }
   if(act==='mainimg'){ moveImgToFirst(+b.dataset.r); }
+  if(act==='cotab'){ switchCoTab(+b.dataset.r); }
   if(act==='bumprev'){ state.h.rev=num(jobBase()?.h?.rev)+1; rerender(); }
   if(act==='fillsizes'){
     const cols=sizeCols(v), sRows=Array.isArray(v.sizes)?v.sizes:[];
@@ -1397,10 +1482,13 @@ document.addEventListener('click',e=>{
   }
   if(act==='addrow'){ v[b.dataset.id].push(b.dataset.id==='sizes'?{q:{}}:{}); rerender(); }
   if(act==='delrow'){ v[b.dataset.id].splice(+b.dataset.r,1); rerender(); }
-  if(act==='delimg'){ const r=+b.dataset.r;
-    if(r===0&&coList().length&&!confirm(`ภาพแรกมีจุดกำกับ ${coList().length} จุด ลบภาพแล้วจุดจะหายด้วย ลบต่อ?`)) return;
-    if(r===0){ state.callouts=[]; state.co_size=null; }
-    shiftImgRefs(r); state.imgs.splice(r,1); rerender(); }
+  if(act==='delimg'){ const r=+b.dataset.r, onImg=coList().filter(c=>coImgAt(c)===r).length;
+    if(onImg&&!confirm(`${r===0?'ภาพแรก':'รูปที่ '+(r+1)}มีจุดกำกับ ${onImg} จุด ลบภาพแล้วจุดของรูปนี้จะหายด้วย ลบต่อ?`)) return;
+    state.callouts=coList().filter(c=>coImgAt(c)!==r).map(c=>coImg(c)>r?{...c,img:coImg(c)-1}:c);
+    if(Array.isArray(state.co_sizes)) state.co_sizes.splice(r,1);
+    shiftImgRefs(r); state.imgs.splice(r,1);
+    state.co_size=(Array.isArray(state.co_sizes)&&state.co_sizes[0])||(state.imgs[0]?.w>0?{w:state.imgs[0].w,h:state.imgs[0].h}:null);
+    coActiveImg(); rerender(); }
   if(act==='delco'){ coList().splice(+b.dataset.r,1); rerender(); }
   if(act==='unit'){ scope(b.dataset.s)[b.dataset.uk+'__unit']=b.dataset.u; return rerender(); }
   if(act==='na'){ const sc=scope(b.dataset.s), k=b.dataset.nk+'__na'; if(sc[k]) delete sc[k]; else sc[k]=true; rerender(); }
@@ -1419,7 +1507,7 @@ document.addEventListener('click',e=>{
 const imgSnap=()=>JSON.stringify(state.imgs.map(m=>[m.path||m.src, String(m.name||'').trim()]));
 function loadData(d, label){
   if(!d||!d.h||!d.p||!PRODUCTS[d.product]) return false;
-  state={ h:d.h, product:d.product, pickOpen:false, p:d.p, imgs:Array.isArray(d.imgs)?d.imgs:[], callouts:Array.isArray(d.callouts)?d.callouts:[], co_size:d.co_size||null }; missing=[];
+  state={ h:d.h, product:d.product, pickOpen:false, p:d.p, imgs:Array.isArray(d.imgs)?d.imgs:[], callouts:Array.isArray(d.callouts)?d.callouts:[], co_size:d.co_size||null, co_sizes:Array.isArray(d.co_sizes)?d.co_sizes:[] }; coTab=0; missing=[];
   if(typeof d.mockup_path==='string'&&d.mockup_path) state.mockup_path=d.mockup_path;
   if((typeof d.mockup_path==='string'&&d.mockup_path)||state.imgs.some(m=>m.path)) state.mockup_no=String(d.h.doc_no||'').trim();
   $('#alert').innerHTML='';
@@ -1659,9 +1747,9 @@ function renderDoc(){
           on.map(([k,p])=>`<tr><td class="l">${esc(k)}</td><td class="l">${esc(p.tech||(ms.length===1?ms[0]:''))}</td><td>${esc(p.size)}</td><td class="l">${esc(p.note)}</td></tr>`).join('')+`</tbody></table>`;
       }
       if(f.type==='images'&&state.imgs.length){
-        const co=coDocHTML(), rest=co?state.imgs.slice(1):state.imgs;
-        const first=co?2:1;
-        imgs=co+(rest.length?`<div class="d-imgs">${rest.map((m,i)=>`<figure><img src="${m.src}" alt=""><figcaption>${esc(imgName(i+first))}</figcaption></figure>`).join('')}</div>`:'');
+        const co=coDocHTML();
+        const plain=state.imgs.map((m,i)=>({m,i})).filter(({i})=>!co||!coList().some(c=>coImgAt(c)===i));
+        imgs=co+(plain.length?`<div class="d-imgs">${plain.map(({m,i})=>`<figure><img src="${m.src}" alt=""><figcaption>${esc(imgName(i+1))}</figcaption></figure>`).join('')}</div>`:'');
       }
     });
     // ภาพแยกออกจากกล่องหัวข้อ เพื่อให้ตัดหน้าระหว่างภาพได้ ไม่ดันทั้งหัวข้อไปหน้าใหม่

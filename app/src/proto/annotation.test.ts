@@ -261,6 +261,28 @@ describe('จุดจากใบยืนยัน', () => {
     expect(confirmationDraft({ ...form, callouts: [] }, 'x.jpg')).toBeNull()
     expect(confirmationDraft({ ...form, co_size: null }, 'x.jpg')).toBeNull()
   })
+
+  it('ม็อคอัพหลายรูป: สร้างมุมภาพตามรูปที่ชี้จุดและตั้งขนาดแต่ละรูป', () => {
+    const multi = {
+      product: 'tshirt',
+      co_size: { w: 800, h: 400 },
+      co_sizes: [{ w: 800, h: 400 }, { w: 600, h: 900 }],
+      mockups: [{ name: 'ด้านหน้า', path: 'SC-2/front.jpg' }, { name: 'ด้านหลัง', path: 'SC-2/back.jpg' }],
+      callouts: [
+        { img: 0, x: 0.3, y: 0.2, bx: -0.12, by: 0.2, title: 'อกซ้าย', ref: '', body: 'ปัก' },
+        { img: 1, x: 0.5, y: 0.4, bx: 1.12, by: 0.4, title: 'กลางหลัง', ref: '', body: 'พิมพ์ใหญ่' },
+      ],
+    }
+    const d = confirmationDraft(multi, 'SC-2/front.jpg')!
+    expect(d.views).toEqual([
+      { view: 'front', path: 'SC-2/front.jpg', width: 800, height: 400 },
+      { view: 'back', path: 'SC-2/back.jpg', width: 600, height: 900 },
+    ])
+    expect(d.callouts.map(c => [c.no, c.view, c.title])).toEqual([
+      [1, 'front', 'อกซ้าย'],
+      [2, 'back', 'กลางหลัง'],
+    ])
+  })
 })
 
 describe('ช่องขนาดสเปก', () => {

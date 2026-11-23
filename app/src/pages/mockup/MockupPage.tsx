@@ -354,7 +354,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
     if (!fromForm) return
     const missing = fromForm.views.map(v => v.path).filter(p => !urls.has(p))
     if (missing.length) { const signed = await signMockups(missing); setUrls(m => new Map([...m, ...signed])) }
-    setHist(h => historyEdit(h, { type: 'set_view', view: fromForm.views[0]! }))
+    for (const v of fromForm.views) setHist(h => historyEdit(h, { type: 'set_view', view: v }))
     setHist(h => ({ past: [...h.past, h.present], present: { ...h.present, callouts: fromForm.callouts }, future: [] }))
     setView('front')
   }
