@@ -85,8 +85,8 @@ export function DueLabel({ job: j, now, long }: { job: Job; now: Date; long?: bo
   if (j.phase === 'done') return <span className="shrink-0">{t('ส่ง {date}', { date: day(j.due) })}</span>
   const days = dayDiff(j.due, now)
   const cls = isOverdue(j, now) ? 'font-semibold text-danger' : isDueSoon(j, now) ? 'font-semibold text-warn' : ''
-  const rel = days < 0 ? t('เลย {n} วัน', { n: -days }) : days === 0 ? t('วันนี้') : days === 1 ? t('พรุ่งนี้') : t('อีก {n} วัน', { n: days })
-  const short = days < 0 ? t('ส่งเลย {n} วัน', { n: -days }) : days === 0 ? t('ส่งวันนี้') : days === 1 ? t('ส่งพรุ่งนี้') : t('ส่ง {date}', { date: day(j.due) })
+  const rel = days < 0 ? t('ล่าช้า {n} วัน', { n: -days }) : days === 0 ? t('วันนี้') : days === 1 ? t('พรุ่งนี้') : t('อีก {n} วัน', { n: days })
+  const short = days < 0 ? t('ล่าช้า {n} วัน', { n: -days }) : days === 0 ? t('ส่งวันนี้') : days === 1 ? t('ส่งพรุ่งนี้') : t('ส่ง {date}', { date: day(j.due) })
   return <span className={`shrink-0 ${cls}`}>{long ? `${day(j.due)} (${rel})` : short}</span>
 }
 
