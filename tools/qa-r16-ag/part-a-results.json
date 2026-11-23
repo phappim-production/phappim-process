@@ -1,0 +1,36 @@
+{
+  "externalAttempts": [],
+  "blockedFontCount": 13,
+  "results": [
+    {
+      "id": "A1",
+      "title": "ลูกค้าเปลี่ยนที่อยู่จัดส่งหลังรับงาน (1440 + 768 + 375 px)",
+      "pass": true,
+      "detail": "events=6, hasReplaced=true, v2PdfSize=206067, hasDeliv=true"
+    },
+    {
+      "id": "A2",
+      "title": "กระเป๋าเสื้อโปโล: กุ๊น + ขนาดมาตรฐาน + กำหนดขนาดเอง + PDF",
+      "pass": true,
+      "detail": "3 pocket rows + PDF (211705 B), hasStd=true, hasPiping=true"
+    },
+    {
+      "id": "A3",
+      "title": "กางเกงขนาดลูกค้ากำหนด (กางเกงช้าง + ชุดนอน)",
+      "pass": true,
+      "detail": "elPdf=214525B (factoryHidden=true), pjPdf=210477B (hasTopPants=true)"
+    },
+    {
+      "id": "A4",
+      "title": "ถุงพับได้ / ถุงผ้า: สายผ้ากุ๊นขอบ + กุ๊นปากถุง + เย็บมาตรฐานโรงงาน",
+      "pass": true,
+      "detail": "foldPdf=207355B (hasBind=true), bagPdf=202051B (hasBind=true)"
+    },
+    {
+      "id": "A5",
+      "title": "ฟอร์มใบยืนยันบนมือถือ 375 px: ตารางเลื่อนได้ ติ๊กมาตรฐานกดง่าย ไม่ล้นจอ",
+      "pass": true,
+      "detail": "{\"docOverflow\":0,\"scrollable\":true,\"wrapClass\":\"\",\"stdRect\":{\"w\":73,\"h\":20}}"
+    }
+  ]
+}
