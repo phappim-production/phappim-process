@@ -388,16 +388,18 @@ const SIZE_OWN='กำหนดขนาดเอง (ตามตาราง�
 const SIZE_STD='ตารางไซซ์มาตรฐานโรงงาน';
 const MEASURE_TOP=[ { c:'chest', label:'รอบอก', t:'text', opt:true }, { c:'length', label:'ความยาวตัว', t:'text', opt:true }, { c:'sleeve', label:'ความยาวแขน', t:'text', opt:true } ];
 const MEASURE_PANTS=[ { c:'waist', label:'รอบเอว', t:'text', opt:true }, { c:'hip', label:'รอบสะโพก', t:'text', opt:true }, { c:'leg', label:'ความยาวขา', t:'text', opt:true } ];
-const measureRows = kind => ({ id:'measure_rows', type:'itemTable', label:'ขนาดสำเร็จแต่ละไซซ์ (นิ้ว)', addLabel:'+ เพิ่มไซซ์', printLabel:true, when:v=>v.size_chart===SIZE_OWN,
+const MEASURE_COLS = { top:[{ ...MEASURE_TOP[0], opt:false }, ...MEASURE_TOP.slice(1)], pants:MEASURE_PANTS, set:[...MEASURE_TOP,...MEASURE_PANTS] };
+// คอลัมน์ขึ้นกับว่างานมีเสื้อ กางเกง หรือทั้งสอง จึงทำไว้ 3 ตาราง id เดียวกัน แสดงทีละตาราง
+const measureRows = kindOf => Object.entries(MEASURE_COLS).map(([kind,cols])=>({ id:'measure_rows', type:'itemTable', label:'ขนาดสำเร็จแต่ละไซซ์ (นิ้ว)', addLabel:'+ เพิ่มไซซ์', printLabel:true,
+  when:v=>v.size_chart===SIZE_OWN && (typeof kindOf==='function'?kindOf(v):kindOf||'top')===kind,
   hint:'1 แถวต่อ 1 ไซซ์ · ช่องที่ไม่ใช้เว้นว่าง · คอลัมน์สุดท้ายใช้กับขนาดอื่น เช่น ความยาวซิป ปลายขา',
-  cols:[ { c:'size', label:'ไซซ์', t:'text' }, ...(kind==='pants'?MEASURE_PANTS:kind==='set'?[...MEASURE_TOP,...MEASURE_PANTS]:[{ ...MEASURE_TOP[0], opt:false }, ...MEASURE_TOP.slice(1)]),
-    { c:'other', label:'อื่นๆ (ระบุ)', t:'text', opt:true } ] });
+  cols:[ { c:'size', label:'ไซซ์', t:'text' }, ...cols, { c:'other', label:'อื่นๆ (ระบุ)', t:'text', opt:true } ] }));
 function sizeSec(sets, unit, x={}){
   return { title:'ไซซ์และจำนวน', fields:[
     C('size_sets','ชุดไซซ์',sets,{ req:true, def:[sets[0]] }),
     { id:'sizes', type:'sizeTable', label:'จำนวนแยกตามไซซ์', req:true, chart:x.chart, rowLabel:x.rowLabel||'แบบ / สี', hint:'แยกบรรทัดตามแบบหรือสี ถ้ามีหลายแบบในงานเดียว' },
     R('size_chart','ตารางไซซ์',[SIZE_STD,'ตารางไซซ์ของลูกค้า (แนบมา)',SIZE_OWN]),
-    measureRows(x.measure),
+    ...measureRows(x.measure),
     SPARE(unit),
   ]};
 }
@@ -484,7 +486,7 @@ const PRODUCTS = {
     ],
     sew:[ R('side_seam','ตะเข็บข้าง',['โพ้งปกติ','โพ้ง + ลาทับ']), R('hem','ชายเสื้อ',['ลา 1 เข็ม','ลา 2 เข็ม','โพ้งริม']), THREAD ],
   }),
-  sport: garment({ name:'เสื้อกีฬา / เสื้อองค์กรพิมพ์ลาย',
+  sport: garment({ name:'เสื้อกีฬา / เสื้อองค์กรพิมพ์ลาย', measure:v=>v.set==='เสื้อ + กางเกง'?'set':'top',
     fabrics:['ไมโครเรียบ','ไมโครสปอร์ต','ผ้าเม็ดข้าวสาร','ผ้าจูติ','ผ้ารังผึ้ง'], fabricHint:'ขั้นต่ำ 10 ตัว · พิมพ์ซับลิเมชั่นเต็มตัว 360°',
     style:[ R('cut','แบบเสื้อ',['คอกลม แขนสั้น','คอวี แขนสั้น','คอปก แขนสั้น','แขนกุด','เสื้อกล้ามวิ่ง','แขนยาว'],{ other:true }), FIT,
       R('neck_fabric','ผ้าคอ',['ผ้าเดียวกับตัว (พิมพ์ลาย)','ผ้าริบสีพื้น']),
@@ -532,7 +534,7 @@ const PRODUCTS = {
     sizes:['ไซซ์ผู้ใหญ่','FS (อก 42)','ไซซ์เด็ก'],
     printDef:['ซิลค์สกรีน'],
   }),
-  pe: garment({ name:'เสื้อพละ / ชุดพละนักเรียน',
+  pe: garment({ name:'เสื้อพละ / ชุดพละนักเรียน', measure:v=>v.set==='เสื้อ + กางเกงพละ'?'set':'top',
     fabrics:['ผ้าโทเร','ผ้าจูติ','ไมโครเรียบ'],
     style:[ R('pe_style','แบบ',['สีเดียวทั้งตัว','2 สี (แต่งสีที่แขนและปก)','2 สี (แต่งสีที่สาบและปก)'],{ other:true }),
       T('trim_color','สีที่แต่ง',{ req:true, when:v=>v.pe_style&&v.pe_style!=='สีเดียวทั้งตัว' }),
@@ -573,7 +575,7 @@ const PRODUCTS = {
       R('cut','คอเสื้อ',['คอวี'],{ other:true, when:v=>v.set!=='กางเกงอย่างเดียว' }),
       R('pants','กางเกง',['เอวยางยืด + เชือกปรับ ทรงตรง'],{ other:true, when:v=>v.set!=='เสื้ออย่างเดียว' }) ],
     styleAfter:[ POCKETS(POCKET_PANTS,{ id:'pant_pocket_rows', label:'กระเป๋ากางเกง', when:v=>v.set!=='เสื้ออย่างเดียว' }) ],
-    methods:['งานปัก','ซิลค์สกรีน','DTF (ฟิล์มรีดร้อน)','ไม่มีลาย'], printDef:['งานปัก'], sizes:['ไซซ์ผู้ใหญ่'], measure:'set',
+    methods:['งานปัก','ซิลค์สกรีน','DTF (ฟิล์มรีดร้อน)','ไม่มีลาย'], printDef:['งานปัก'], sizes:['ไซซ์ผู้ใหญ่'], measure:v=>v.set==='กางเกงอย่างเดียว'?'pants':v.set==='เสื้ออย่างเดียว'?'top':'set',
   }),
   student: garment({ name:'เสื้อนักศึกษา',
     fabrics:['ผ้าโทเร','ผ้าวาเลนติโน่','ผ้า TC','ผ้าคอตตอน','ไมโครเรียบ (พิมพ์ลาย)'],
@@ -585,7 +587,7 @@ const PRODUCTS = {
     style:[ R('cut','แบบเสื้อ',['เสื้อยืดคอกลม','เสื้อยืดคอวี','เสื้อโปโล']), FIT, R('sleeve','แขน',['แขนสั้น','แขนยาว']) ],
     printDef:['ไม่มีลาย'],
   }),
-  kids: garment({ name:'ชุดเด็ก / เสื้อผ้าเด็กอ่อน',
+  kids: garment({ name:'ชุดเด็ก / เสื้อผ้าเด็กอ่อน', measure:v=>/กางเกง|ชุดนอน/.test(v.item||'')?'set':'top',
     fabrics:['คอตตอน 100%','คอตตอนสแปนเด็กซ์','ไมโครเรียบ'],
     style:[ R('item','ชนิดชุด',['เสื้อยืด','บอดี้สูท','ชุดเซ็ตเสื้อ + กางเกง','ชุดนอน','เดรส'],{ other:true }),
       C('closure','การปิด / เปิด',['กระดุมแป๊ก','ซิป','ยางยืด'],{ other:true }) ],
@@ -597,7 +599,7 @@ const PRODUCTS = {
       R('collar','คอ',['คอปกเชิ้ต (ปกฮาวาย)','คอกลม','คอวี']),
       C('details','รายละเอียด',['ขลิบขอบสีตัดกัน','เอวยางยืด + เชือกผูก'],{ other:true }),
       T('piping_color','สีขลิบ',{ req:true, when:v=>(v.details||[]).includes('ขลิบขอบสีตัดกัน') }) ],
-    positions:[...POS_SHIRT,...POS_PANTS], sizes:['ไซซ์ผู้ใหญ่','FS / PS','ไซซ์เด็ก'], sizeChart:pajamaChart, measure:'set',
+    positions:[...POS_SHIRT,...POS_PANTS], sizes:['ไซซ์ผู้ใหญ่','FS / PS','ไซซ์เด็ก'], sizeChart:pajamaChart, measure:v=>/กระโปรง|สายเดี่ยว|Braless/.test(v.style||'')?'top':'set',
     styleAfter:[ POCKETS(POCKET_PANTS,{ id:'pant_pocket_rows', label:'กระเป๋ากางเกง', when:v=>!/กระโปรง|สายเดี่ยว|Braless/.test(v.style||'') }) ],
   }),
   elephant: garment({ name:'กางเกงช้าง',
