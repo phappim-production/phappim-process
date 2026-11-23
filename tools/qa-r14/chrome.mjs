@@ -277,7 +277,7 @@ function makeHelper(tab, origin) {
     return waitFor(
       () => ev((pat, flags) => {
         const text = document.body.innerText
-        return flags !== null ? new RegExp(pat, flags).test(text) : text.includes(pat)
+        return flags !== null ? new RegExp(pat, flags).test(text) : text.includes(pat) || text.replace(/\s+/g, ' ').includes(pat)
       }, isRe ? needle.source : needle, isRe ? needle.flags : null),
       `ข้อความ "${needle}"`,
       ms,

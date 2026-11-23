@@ -29,6 +29,11 @@ function makeTracker(chrome) {
       const msg = clean(err.message)
       results.push({ id, title, pass: false, error: msg })
       console.log(`FAIL [${id}] ${title} · ${msg}`)
+      for (const t of tabs) {
+        const seen = await t.ev(() => ({ url: location.href, dialog: (document.querySelector('[role=dialog]')?.innerText ?? '').replace(/s+/g, ' ').slice(0, 1500), buttons: [...document.querySelectorAll('button')].filter(b => b.getClientRects().length).map(b => (b.disabled ? '[x] ' : '') + b.textContent.replace(/\s+/g, ' ').trim()).slice(0, 40) })).catch(() => null)
+        console.log(`  ที่หน้า ${JSON.stringify(seen)}`)
+        await t.screenshot(`fail-${id}`).catch(() => {})
+      }
     }
   }
 
@@ -362,7 +367,7 @@ async function runA1(ctx) {
     await openJobDirect(t, 'prod1', jid)
     await t.clickButton('เริ่มตัดงาน')
     await t.clickButton('ตัดงานเสร็จ')
-    await t.clickButton('ยืนยัน')
+    await t.clickButton('ยืนยัน', { exact: true })
     await t.waitText('ส่งต่อแล้ว')
     await openJobDirect(t, 'prod1', jid)
     const disabledBefore = await t.ev(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('เริ่มไม่ได้ · ยังไม่ได้รับฟิล์ม DTF'))?.disabled)
@@ -448,10 +453,10 @@ async function runA1(ctx) {
     const sampId = await jobIdByNo(stack, 'TEST-A1-SAMPLE')
     await openJobDirect(t, 'prod1', sampId)
     await t.clickButton('เริ่มตัดงาน')
-    await t.clickButton('ตัดงานเสร็จ'); await t.clickButton('ยืนยัน')
+    await t.clickButton('ตัดงานเสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
     await t.waitText('เริ่ม QC + Packing')
     await t.clickButton('เริ่ม QC + Packing')
-    await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน')
+    await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
 
     await openJobDirect(t, 'admin1', sampId)
     await t.waitText('บันทึกผลตัวอย่าง (รอบ 1)')
@@ -461,15 +466,15 @@ async function runA1(ctx) {
       ta.dispatchEvent(new Event('input', { bubbles: true }))
     })
     await t.clickButton('ไม่ผ่าน · ขึ้นตัวอย่างใหม่')
-    await t.clickButton('ยืนยัน')
+    await t.clickButton('ยืนยัน', { exact: true })
     await t.waitText('ขึ้นตัวอย่างรอบ 2')
 
     await openJobDirect(t, 'prod1', sampId)
-    await t.clickButton('เริ่มตัดงาน'); await t.clickButton('ตัดงานเสร็จ'); await t.clickButton('ยืนยัน')
-    await t.clickButton('เริ่ม QC + Packing'); await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน')
+    await t.clickButton('เริ่มตัดงาน'); await t.clickButton('ตัดงานเสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
+    await t.clickButton('เริ่ม QC + Packing'); await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
     await openJobDirect(t, 'admin1', sampId)
     await t.waitText('บันทึกผลตัวอย่าง (รอบ 2)')
-    await t.clickButton('ตัวอย่างผ่าน'); await t.clickButton('ยืนยัน')
+    await t.clickButton('ตัวอย่างผ่าน'); await t.clickButton('ยืนยัน', { exact: true })
     await t.waitText('งานไปผลิตจริงที่สถานีแรก')
 
     const outsideId = await jobIdByNo(stack, 'TEST-A1-OUTSIDE')
@@ -478,16 +483,16 @@ async function runA1(ctx) {
     await t.fillInput('input[aria-label="จำนวนที่ผ่าน"]', '15')
     await t.clickButton('บันทึกผ่าน')
     await t.waitText('ผ่านแล้ว 15 จาก 15')
-    await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน')
+    await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
     await t.waitText('รอจัดส่ง')
 
     await openJobDirect(t, 'admin1', outsideId)
     await t.fillInput('input[placeholder*="Kerry"]', 'KEX-R14-001')
-    await t.clickButton('จัดส่งให้ลูกค้าแล้ว'); await t.clickButton('ยืนยัน')
+    await t.clickButton('จัดส่งให้ลูกค้าแล้ว'); await t.clickButton('ยืนยัน', { exact: true })
     await t.waitText('จัดส่งแล้ว')
     await t.clickButton('บันทึกผิด · ยกเลิกการจัดส่ง')
     await t.fillInput('input[placeholder*="กดผิดงาน"]', 'ส่งผิดสาขา')
-    await t.clickButton('ยืนยัน')
+    await t.clickButton('ยืนยัน', { exact: true })
     await t.waitText('ยกเลิกการบันทึกจัดส่งแล้ว')
     return 'ตัวอย่าง 2 รอบ + จัดส่ง + ยกเลิกจัดส่ง ผ่าน'
   })
@@ -546,7 +551,7 @@ async function runA2(ctx) {
       await t.waitText(no)
       await t.clickButton('เริ่มพิมพ์งาน')
       await t.waitText('กำลังทำ 1 งาน')
-      await t.clickButton('พิมพ์งานเสร็จ'); await t.clickButton('ยืนยัน')
+      await t.clickButton('พิมพ์งานเสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
       await t.waitText('ส่งต่อแล้ว')
     }
 
@@ -572,10 +577,10 @@ async function runA2(ctx) {
     await t.clickButton('แก้แล้ว ทำต่อ')
     await t.waitText('กลับเข้าคิวรอเริ่ม')
 
-    await peer.clickButton('รีดงานเสร็จ'); await peer.clickButton('ยืนยัน')
+    await peer.clickButton('รีดงานเสร็จ'); await peer.clickButton('ยืนยัน', { exact: true })
     await peer.waitText('ส่งต่อแล้ว')
     await t.goto('prod1', '#/board?station=press', 1440)
-    await t.clickButton('เริ่มรีดงาน'); await t.clickButton('รีดงานเสร็จ'); await t.clickButton('ยืนยัน')
+    await t.clickButton('เริ่มรีดงาน'); await t.clickButton('รีดงานเสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
     await t.waitText('ส่งต่อแล้ว')
 
     await t.goto('prod1', '#/board?station=cut', 1440)
@@ -596,7 +601,7 @@ async function runA2(ctx) {
         return false
       })
       if (didFinish) {
-        await t.clickButton('ยืนยัน')
+        await t.clickButton('ยืนยัน', { exact: true })
         await t.waitText('ส่งต่อแล้ว')
         continue
       }
@@ -823,7 +828,7 @@ async function runA3(ctx) {
     await t.waitText('กลับมาทำต่อได้')
 
     await t.goto('staff_single', '#/board?station=cut', 375)
-    await t.clickButton('ตัดงานเสร็จ'); await t.clickButton('ยืนยัน')
+    await t.clickButton('ตัดงานเสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
     await t.waitText('ส่งต่อแล้ว')
 
     await t.goto('staff_single', '#/history', 375)
@@ -874,7 +879,7 @@ async function runA4(ctx) {
     for (const no of ['TEST-A4-N1', 'TEST-A4-N2', 'TEST-A4-SM']) {
       const id = await jobIdByNo(stack, no)
       await openJobDirect(t, 'prod1', id)
-      await t.clickButton('เริ่มตัดงาน'); await t.clickButton('ตัดงานเสร็จ'); await t.clickButton('ยืนยัน')
+      await t.clickButton('เริ่มตัดงาน'); await t.clickButton('ตัดงานเสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
     }
     const n1Id = await jobIdByNo(stack, 'TEST-A4-N1')
     await t.goto('prod1', '#/board', 1440)
@@ -924,7 +929,7 @@ async function runA4(ctx) {
     await t.fillInput('input[aria-label="จำนวนที่ผ่าน"]', '4')
     await t.clickButton('บันทึกผ่าน')
     await t.waitText('ผ่านแล้ว 10 จาก 10')
-    await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน')
+    await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
     await t.waitText('รอจัดส่ง')
 
     // outside: ส่งแก้ไป outside แล้วแอดมินส่งออก/รับกลับ
@@ -949,14 +954,14 @@ async function runA4(ctx) {
     await t.clickButton('เริ่ม QC + Packing')
     await t.fillInput('input[aria-label="จำนวนที่ผ่าน"]', '8')
     await t.clickButton('บันทึกผ่าน')
-    await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน')
+    await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
     await t.waitText('รอจัดส่ง')
 
     // ตัวอย่างส่งตรวจผล
     const smId = await jobIdByNo(stack, 'TEST-A4-SM')
     await openJobDirect(t, 'qc', smId)
     await t.clickButton('เริ่ม QC + Packing')
-    await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน')
+    await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
     await t.waitText('รอผลตัวอย่าง')
     return 'QC ไม่จำกัดเครื่อง + ส่งแก้ sew & outside + ตัวอย่าง ผ่าน'
   })
@@ -989,14 +994,14 @@ async function runA5(ctx) {
     // ทำความก้าวหน้า: SEW อยู่เย็บ (พร้อมจองและจ่ายจักร), HOLD พักที่ตัด, DONE เสร็จ, OUT อยู่ข้างนอก
     for (const id of [sewId, doneId]) {
       await openJobDirect(t, 'prod1', id)
-      await t.clickButton('เริ่มตัดงาน'); await t.clickButton('ตัดงานเสร็จ'); await t.clickButton('ยืนยัน')
+      await t.clickButton('เริ่มตัดงาน'); await t.clickButton('ตัดงานเสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
       await t.waitText('ส่งต่อแล้ว')
     }
     await openJobDirect(t, 'qc', doneId)
     await t.clickButton('เริ่ม QC + Packing')
     await t.fillInput('input[aria-label="จำนวนที่ผ่าน"]', '5')
     await t.clickButton('บันทึกผ่าน')
-    await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน')
+    await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
 
     await t.goto('prod1', '#/board', 1440)
     await t.clickButton('จักรเย็บ')
@@ -1211,7 +1216,7 @@ async function runA7(ctx) {
     await t.goto('sup1', '#/board?station=cut', 1440)
     await t.waitText('TEST-A7-1')
     await t.clickButton('เริ่มตัดงาน')
-    await t.clickButton('ตัดงานเสร็จ'); await t.clickButton('ยืนยัน')
+    await t.clickButton('ตัดงานเสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
 
     await t.goto('sup1', '#/board', 1440)
     const sup1SeesSew = await t.ev(() => document.body.innerText.includes('TEST-A7-1'))
@@ -1278,9 +1283,9 @@ async function runA8(ctx) {
           } else {
             const actor = ['print', 'press', 'cut', 'dtf_press', 'emb'].includes(st) ? 'staff_multi' : 'prod1'
             await openJobDirect(t, actor, id)
-            await t.clickButton(/^เริ่ม/)
-            await t.clickButton(/^(?:พิมพ์งานเสร็จ|รีดงานเสร็จ|ตัดงานเสร็จ|รีดฟิล์มเสร็จ|ส่งปักเสร็จ|QC \+ Packing เสร็จ)$/)
-            await t.clickButton('ยืนยัน')
+            await t.clickButton(/^(?:\d+\. )?เริ่ม/)
+            await t.clickButton(/^(?:\d+\. )?(?:พิมพ์งานเสร็จ|รีดงานเสร็จ|ตัดงานเสร็จ|รีดฟิล์มเสร็จ|ส่งปักเสร็จ|QC \+ Packing เสร็จ)$/)
+            await t.clickButton('ยืนยัน', { exact: true })
           }
         }
       }
@@ -1288,10 +1293,10 @@ async function runA8(ctx) {
       await t.clickButton('เริ่ม QC + Packing')
       await t.fillInput('input[aria-label="จำนวนที่ผ่าน"]', '10')
       await t.clickButton('บันทึกผ่าน')
-      await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน')
+      await t.clickButton('QC + Packing เสร็จ'); await t.clickButton('ยืนยัน', { exact: true })
 
       await openJobDirect(t, 'admin1', id)
-      await t.clickButton('จัดส่งให้ลูกค้าแล้ว'); await t.clickButton('ยืนยัน')
+      await t.clickButton('จัดส่งให้ลูกค้าแล้ว'); await t.clickButton('ยืนยัน', { exact: true })
     }
 
     await t.goto('admin1', '#/', 1440)
@@ -1318,14 +1323,10 @@ async function main() {
 
   try {
     const ctx = { stack, chrome, t, second, peer, fixtures, tracker }
-    await runA1(ctx)
-    await runA2(ctx)
-    await runA3(ctx)
-    await runA4(ctx)
-    await runA5(ctx)
-    await runA6(ctx)
-    await runA7(ctx)
-    await runA8(ctx)
+    const only = (process.env.QA_ONLY ?? '').split(',').filter(Boolean)
+    for (const [name, run] of Object.entries({ A1: runA1, A2: runA2, A3: runA3, A4: runA4, A5: runA5, A6: runA6, A7: runA7, A8: runA8 })) {
+      if (!only.length || only.includes(name)) await run(ctx)
+    }
     assert.deepEqual(chrome.externalAttempts, [])
   } finally {
     await writeFile(SUMMARY_PATH, JSON.stringify({

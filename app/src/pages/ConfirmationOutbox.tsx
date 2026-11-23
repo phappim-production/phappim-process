@@ -6,9 +6,9 @@ import { reviseArgs } from '../data/confirmation'
 import { SAVE_HASH, recentlyTaken, takeOutbox } from '../data/confirmationDrafts'
 import { dataUrlBlob, mockupDataUrl, uploadMockup } from '../data/mockups'
 
-type Revised = { ok: 'revised'; no: string; rev: number; changed: boolean; picSaved: boolean; mockupRev: number | null; stale: number; warning?: string | undefined }
+type Revised = { ok: 'revised'; no: string; rev: number; changed: boolean; picSaved: boolean; mockupRev: number | null; stale: number; parts: string[]; warning?: string | undefined }
 type Result = { ok: true; no: string; id: string; warning?: string | undefined } | { ok: false; text: string } | { ok: 'elsewhere'; no: string } | Revised
-type ReviseReply = { changed: boolean; rev?: number; mockup_rev?: number | null; mockup_stale?: number }
+type ReviseReply = { changed: boolean; rev?: number; mockup_rev?: number | null; mockup_stale?: number; parts?: string[] | null }
 
 async function saveRevision(no: string, data: Record<string, unknown>): Promise<Revised | { ok: false; text: string }> {
   const fail = (why: string) => ({ ok: false as const, text: `บันทึกการแก้ใบ ${no} ไม่สำเร็จ: ${why}` })
@@ -33,7 +33,7 @@ async function saveRevision(no: string, data: Record<string, unknown>): Promise<
   }
   return {
     ok: 'revised', no, rev: r.data.rev ?? args.p_rev, changed: r.data.changed, picSaved,
-    mockupRev: r.data.mockup_rev ?? null, stale: r.data.mockup_stale ?? 0, warning,
+    mockupRev: r.data.mockup_rev ?? null, stale: r.data.mockup_stale ?? 0, parts: r.data.parts ?? [], warning,
   }
 }
 
@@ -100,6 +100,7 @@ export function ConfirmationOutbox({ onReceive, onRevised }: { onReceive: (draft
     return (
       <div role="status" className="grid gap-1 rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">
         <span>บันทึกการแก้ใบ {result.no} (แก้ไขครั้งที่ {result.rev}) เข้างานแล้ว · แจ้งทุกฝ่ายในกล่องจดหมายแล้ว</span>
+        {result.parts.length > 1 && <span>งานนี้แบ่งแล้ว · สเปกใหม่ใช้กับทุกส่วน: {result.parts.join(', ')}</span>}
         {result.stale > 0 && <span className="text-warn">ม็อคอัพกำกับสเปกฉบับ {result.mockupRev} ยังเป็นค่าเก่า {result.stale} จุด · เปิดหน้าม็อคอัพของงานแล้วทำฉบับใหม่</span>}
         {result.warning && <span className="text-warn">{result.warning}</span>}
         <span className="text-sm font-normal text-ink">ลูกค้าเซ็นใบใหม่แล้ว แนบที่รายละเอียดงาน → "เปลี่ยนเป็น PDF ใบใหม่"</span>
