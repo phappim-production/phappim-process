@@ -50,6 +50,12 @@ export const MARGIN_Y = 0.08
 export const clampBox = (x: number, y: number) => ({ boxX: round4(clamp(x, -MARGIN_X, 1 + MARGIN_X)), boxY: round4(clamp(y, -MARGIN_Y, 1 + MARGIN_Y)) })
 export const stageSize = (w: number, h: number) => ({ width: w * (1 + 2 * MARGIN_X), height: h * (1 + 2 * MARGIN_Y) })
 export const onStage = (x: number, y: number) => ({ left: (x + MARGIN_X) / (1 + 2 * MARGIN_X), top: (y + MARGIN_Y) / (1 + 2 * MARGIN_Y) })
+// กล่องข้อความเลื่อนตามตำแหน่ง: ชิดซ้ายสุด = ขอบซ้ายกล่องอยู่ที่จุด · ชิดขวาสุด = ขอบขวา (กล่องไม่ล้นพื้นที่ภาพ) · ตรงกับ coBoxPct ในฟอร์มใบยืนยัน
+export function boxAnchor(x: number, y: number) {
+  const s = onStage(x, y)
+  const l = clamp(s.left, 0, 1) * 100, t = clamp(s.top, 0, 1) * 100
+  return { left: `${l}%`, top: `${t}%`, transform: `translate(-${l}%, -${t}%)` }
+}
 export function fromStage(clientX: number, clientY: number, rect: { left: number; top: number; width: number; height: number }) {
   if (rect.width <= 0 || rect.height <= 0) return { x: 0, y: 0 }
   return {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  EMPTY_DRAFT, MARGIN_X, MARGIN_Y, applyEdit, blankSpec, clampBox, confirmationDraft, fromStage, onStage, stageSize, calloutLines, confirmationRefs, defaultBox, forStation, historyEdit, historyOf,
+  EMPTY_DRAFT, MARGIN_X, MARGIN_Y, applyEdit, blankSpec, boxAnchor, clampBox, confirmationDraft, fromStage, onStage, stageSize, calloutLines, confirmationRefs, defaultBox, forStation, historyEdit, historyOf,
   nextSpecCode, parseSize, redo, refLabel, refValue, saveProblems, submitProblems, toNormalized, toPayload, toPixels, undo, viewImage, type Draft,
 } from './annotation'
 
@@ -45,6 +45,13 @@ describe('พิกัดบนภาพ', () => {
     expect(defaultBox(0.2, 0.5).boxX).toBeLessThan(0)
     expect(defaultBox(0.8, 0.5).boxX).toBeGreaterThan(1)
     expect(clampBox(-3, 9)).toEqual({ boxX: -MARGIN_X, boxY: 1 + MARGIN_Y })
+  })
+
+  it('กล่องข้อความชิดขอบไม่ล้นพื้นที่ภาพ: ซ้ายสุดยึดขอบซ้ายกล่อง ขวาสุดยึดขอบขวา กลางยึดกึ่งกลาง', () => {
+    expect(boxAnchor(-MARGIN_X, -MARGIN_Y)).toEqual({ left: '0%', top: '0%', transform: 'translate(-0%, -0%)' })
+    expect(boxAnchor(1 + MARGIN_X, 1 + MARGIN_Y)).toEqual({ left: '100%', top: '100%', transform: 'translate(-100%, -100%)' })
+    expect(boxAnchor(0.5, 0.5)).toEqual({ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' })
+    expect(boxAnchor(-9, 9).left).toBe('0%')
   })
 
   it('พิกัดบนพื้นที่รวมขอบ แปลงไป-กลับตรงกันทุกขนาดจอและซูม', () => {
