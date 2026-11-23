@@ -3,7 +3,7 @@ import type { OverviewView } from '../auth/menus'
 import { DEFAULT_SEW_PRODUCT, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, hasSewMinutes, lateDays, lineRate, linesFor, machineSets, simulate, verdict, workdayToDate, type Forecast, type SewFloor } from '../proto/capacity'
 import { MACHINE_TYPE_NAME } from '../proto/sewing'
 import { ROUTES, STATION_NAME, WORK_END, byQueue, isOutLate, stationCounts, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
-import { duration, shortDate, stageSteps, stageText } from '../proto/format'
+import { dayDiff, duration, shortDate, stageSteps, stageText } from '../proto/format'
 import { Card, CardHeader, DueLabel, MockupThumb, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
 import { TONE, type Tone } from '../components/tone'
 import JobFinder from '../components/JobFinder'
@@ -348,7 +348,7 @@ function OutsideCard({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpen: (i
   )
 }
 
-function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Date; atRisk: Row[]; onOpen: (id: string) => void }) {
+export function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Date; atRisk: Row[]; onOpen: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false)
   const items: { id: string; tone: Tone; tag: string; text: string; job: Job }[] = []
   const lateBy = new Map(atRisk.map(r => [r.job.id, r]))
@@ -360,7 +360,7 @@ function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Date; atRi
     // ผู้บริหารต้องเห็นงานเกินเวลามาตรฐานจากภาพรวม ไม่ต้องรอสถานีแจ้ง
     else if (j.sla === 'report' || j.sla === 'over') items.push({ id: j.id + 't', tone: 'danger', tag: 'เกินเวลามาตรฐาน',
       text: `${j.station ? STATION_NAME[j.station] : ''} · ${j.sla === 'report' ? 'ยังไม่ส่งรายงานปัญหา' : 'รายงานปัญหาแล้ว'}`, job: j })
-    else if (isOverdue(j, now)) items.push({ id: j.id + 'd', tone: 'danger', tag: 'เลยกำหนดส่ง', text: `กำหนดส่ง ${shortDate(j.due)}`, job: j })
+    else if (isOverdue(j, now)) items.push({ id: j.id + 'd', tone: 'danger', tag: `ล่าช้า ${-dayDiff(j.due, now)} วัน`, text: `กำหนดส่ง ${shortDate(j.due)}`, job: j })
     else if (j.film && !j.film.received) {
       const late = isFilmLate(j, now)
       items.push({ id: j.id + 'f', tone: late ? 'danger' : 'warn', tag: late ? 'ฟิล์มเลย ETA' : 'รอฟิล์ม', text: late ? `ETA ${shortDate(j.film.eta)} · ตามร้านฟิล์ม` : `ETA ${shortDate(j.film.eta)}`, job: j })

@@ -1,0 +1,152 @@
+{
+  "results": [
+    {
+      "id": "B9",
+      "pass": false,
+      "violations": [
+        {
+          "role": "staff_single",
+          "hash": "#/admin",
+          "denied": false,
+          "hasSettingsInput": false,
+          "hasUserMgmt": false,
+          "snippet": "ระบบติดตามการผลิต မြန်မာ คำศัพท์ WORKSPACE งานของฉัน คิวงาน Station ประวัติการทำงาน แจ้งปัญหา กล่องจดหมาย พนักงานตัด พนักงานสถานี หน้านี้สำห"
+        },
+        {
+          "role": "staff_single",
+          "hash": "#/users",
+          "denied": false,
+          "hasSettingsInput": false,
+          "hasUserMgmt": false,
+          "snippet": "ระบบติดตามการผลิต မြန်မာ คำศัพท์ WORKSPACE งานของฉัน คิวงาน Station ประวัติการทำงาน แจ้งปัญหา กล่องจดหมาย พนักงานตัด พนักงานสถานี หน้านี้สำห"
+        },
+        {
+          "role": "staff_single",
+          "hash": "#/roles",
+          "denied": false,
+          "hasSettingsInput": false,
+          "hasUserMgmt": false,
+          "snippet": "ระบบติดตามการผลิต မြန်မာ คำศัพท์ WORKSPACE งานของฉัน คิวงาน Station ประวัติการทำงาน แจ้งปัญหา กล่องจดหมาย พนักงานตัด พนักงานสถานี หน้านี้สำห"
+        },
+        {
+          "role": "staff_single",
+          "hash": "#/assign",
+          "denied": false,
+          "hasSettingsInput": false,
+          "hasUserMgmt": false,
+          "snippet": "ระบบติดตามการผลิต မြန်မာ คำศัพท์ WORKSPACE งานของฉัน คิวงาน Station ประวัติการทำงาน แจ้งปัญหา กล่องจดหมาย พนักงานตัด พนักงานสถานี หน้านี้สำห"
+        },
+        {
+          "role": "staff_single",
+          "hash": "#/audit",
+          "denied": false,
+          "hasSettingsInput": false,
+          "hasUserMgmt": false,
+          "snippet": "ระบบติดตามการผลิต မြန်မာ คำศัพท์ WORKSPACE งานของฉัน คิวงาน Station ประวัติการทำงาน แจ้งปัญหา กล่องจดหมาย พนักงานตัด พนักงานสถานี หน้านี้สำห"
+        },
+        {
+          "role": "staff_single",
+          "hash": "#/settings",
+          "denied": false,
+          "hasSettingsInput": false,
+          "hasUserMgmt": false,
+          "snippet": "ระบบติดตามการผลิต မြန်မာ คำศัพท์ WORKSPACE งานของฉัน คิวงาน Station ประวัติการทำงาน แจ้งปัญหา กล่องจดหมาย พนักงานตัด พนักงานสถานี หน้านี้สำห"
+        },
+        {
+          "role": "staff_single",
+          "hash": "#/reviews",
+          "denied": false,
+          "hasSettingsInput": false,
+          "hasUserMgmt": false,
+          "snippet": "ระบบติดตามการผลิต မြန်မာ คำศัพท์ WORKSPACE งานของฉัน คิวงาน Station ประวัติการทำงาน แจ้งปัญหา กล่องจดหมาย พนักงานตัด พนักงานสถานี บทบาทของคุ"
+        },
+        {
+          "role": "staff_single",
+          "hash": "#/reports",
+          "denied": false,
+          "hasSettingsInput": false,
+          "hasUserMgmt": false,
+          "snippet": "ระบบติดตามการผลิต မြန်မာ คำศัพท์ WORKSPACE งานของฉัน คิวงาน Station ประวัติการทำงาน แจ้งปัญหา กล่องจดหมาย พนักงานตัด พนักงานสถานี บทบาทของคุ"
+        },
+        {
+          "role": "staff_single",
+          "hash": "#/production-queue",
+          "denied": false,
+          "hasSettingsInput": false,
+          "hasUserMgmt": false,
+          "snippet": "ระบบติดตามการผลิต မြန်မာ คำศัพท์ WORKSPACE งานของฉัน คิวงาน Station ประวัติการทำงาน แจ้งปัญหา กล่องจดหมาย พนักงานตัด พนักงานสถานี คิวการผลิต"
+        }
+      ]
+    },
+    {
+      "id": "B10",
+      "menusByRole": {
+        "admin1": [
+          "ภาพรวมใบงาน",
+          "จัดการใบงาน",
+          "คิวการผลิต",
+          "ติดตาม Station",
+          "รายงาน",
+          "กล่องจดหมาย"
+        ],
+        "prod1": [
+          "ภาพรวมแผนก",
+          "คิวงาน",
+          "Station ที่ดูแล",
+          "ปัญหา / งานแก้",
+          "รายงานแผนก",
+          "กล่องจดหมาย"
+        ],
+        "qc": [
+          "งานของฉัน",
+          "คิวงาน Station",
+          "ประวัติการทำงาน",
+          "แจ้งปัญหา",
+          "กล่องจดหมาย"
+        ],
+        "manager": [
+          "ภาพรวมการผลิต",
+          "ใบงานทั้งหมด",
+          "ทุก Station",
+          "รายงาน",
+          "รายการรออนุมัติ",
+          "กล่องจดหมาย"
+        ],
+        "owner": [
+          "ภาพรวมระบบ",
+          "ผู้ใช้งาน",
+          "Roles & Permissions",
+          "Station Assignment",
+          "Audit Log",
+          "ตั้งค่าระบบ",
+          "ภาพรวมการผลิต",
+          "ทุก Station",
+          "รายงาน",
+          "กล่องจดหมาย"
+        ],
+        "staff_single": [
+          "งานของฉัน",
+          "คิวงาน Station",
+          "ประวัติการทำงาน",
+          "แจ้งปัญหา",
+          "กล่องจดหมาย"
+        ]
+      }
+    },
+    {
+      "id": "C1-overflow",
+      "board375": {
+        "docClient": 375,
+        "docScroll": 375,
+        "mainClient": 375,
+        "mainScroll": 375
+      },
+      "drawer375": {
+        "docClient": 375,
+        "docScroll": 375,
+        "asideRight": 393,
+        "asideWidth": 375
+      }
+    }
+  ]
+}

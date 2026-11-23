@@ -1004,7 +1004,7 @@ function renderForm(){
           CATS.map(([c,t])=>`<div class="pcat"><div class="pcat-t">${esc(t)}</div><div class="opts">`+
             Object.entries(PRODUCTS).filter(([,x])=>x.cat===c).map(([k,x])=>`<label class="opt" data-name="${esc(x.name)}"><input type="radio" name="product" data-product value="${k}" ${k===state.product?'checked':''}><span>${esc(x.name)}</span></label>`).join('')+
             `</div></div>`).join('')
-        : `<div class="picked"><span class="sel">${esc(prod().name)}</span><button class="btn small" data-act="pick">เปลี่ยนสินค้า</button></div>`)+
+        : `<div class="picked"><span class="sel">${esc(prod().name)}</span>${revising()?`<span class="hint">เปลี่ยนสินค้าหลังรับงานไม่ได้ · ถ้าลูกค้าเปลี่ยนสินค้า ให้ผู้บริหารยกเลิกงานแล้วรับใบใหม่</span>`:`<button class="btn small" data-act="pick">เปลี่ยนสินค้า</button>`}</div>`)+
       `<p class="route">${esc(sampleNote())}</p></section>`;
     const v=scope(sec.s), fs=sec.fields.filter(f=>visible(f,v));
     return `<section class="card" id="sec_${sec.no}"><h2><span class="n">${sec.no}</span>${esc(sec.title)}</h2><div class="grid">${fs.map(f=>fieldHTML(f,sec.s,v)).join('')}</div></section>`;
@@ -1018,6 +1018,7 @@ function syncSaveBtn(){ const b=$('[data-act="savedb"]'); if(!b) return; const r
   b.title=r?'ลูกค้าขอแก้ใบหลังรับงาน: สเปกงานในระบบเปลี่ยนตามใบนี้ และแจ้งทุกฝ่าย':'เก็บใบนี้ในระบบติดตามการผลิต · ตอนส่งงานเข้าเลือกใบจากรายการได้เลย ไม่ต้องใช้ไฟล์'; }
 const stdCell=(id,i,c,val)=>{ const on=val===c.std, a=`data-t="${id}" data-r="${i}" data-c="${c.c}"`;
   return `<div class="std-cell">${on?`<span>${esc(c.std)}</span>`:`<input type="text" ${a} value="${esc(val)}">`}<label class="std"><input type="checkbox" ${a} data-std="${esc(c.std)}" ${on?'checked':''}>มาตรฐาน</label></div>`; };
+const sampleLocked=(f,s)=>s==='h'&&f.id==='sample'&&revising()&&!!jobBase()?.h?.sample;
 const WIDE=['check','sizeTable','itemTable','placements','images','textarea','dims'];
 function fieldHTML(f,s,v){
   const val=v[f.id], a=`data-s="${s}" data-k="${f.id}"`;
@@ -1032,7 +1033,9 @@ function fieldHTML(f,s,v){
     case 'radio': case 'check': {
       const opts=f.options.concat(f.other?[OTHER]:[]);
       const on=o=>f.type==='radio'?val===o:(val||[]).includes(o);
-      b=`<div class="opts">`+opts.map(o=>`<label class="opt"><input type="${f.type==='radio'?'radio':'checkbox'}" name="${s}_${f.id}" ${a} value="${esc(o)}" ${on(o)?'checked':''}><span>${esc(o)}</span></label>`).join('')+`</div>`;
+      const lock=sampleLocked(f,s);
+      b=`<div class="opts">`+opts.map(o=>`<label class="opt"><input type="${f.type==='radio'?'radio':'checkbox'}" name="${s}_${f.id}" ${a} value="${esc(o)}" ${on(o)?'checked':''} ${lock?'disabled':''}><span>${esc(o)}</span></label>`).join('')+`</div>`;
+      if(lock) b+=`<div class="hint">รับงานแบบนี้แล้ว เปลี่ยนในใบแก้ไม่ได้ · ถ้าต้องเปลี่ยน ให้ผู้บริหารยกเลิกงานแล้วรับใบใหม่</div>`;
       if(f.other&&on(OTHER)) b+=`<input type="text" class="other" data-s="${s}" data-k="${f.id}__other" value="${esc(v[f.id+'__other'])}" placeholder="ระบุ ${esc(f.label)}...">`;
       break; }
     case 'dims':
@@ -1287,7 +1290,7 @@ function loadData(d, label){
   if(typeof d.mockup_path==='string'&&d.mockup_path){ state.mockup_path=d.mockup_path; state.mockup_no=String(d.h.doc_no||'').trim(); } $('#alert').innerHTML='';
   if(d.from_job){ state.job_no=String(d.h.doc_no||'').trim(); state.job_img=state.imgs[0]?.src||''; }
   if(document.body.classList.contains('preview')) togglePreview(false); rerender();
-  if(d.from_job) state.job_base=jobSnapshot();
+  if(d.from_job){ state.job_base=jobSnapshot(); rerender(); }
   scrollTo(0,0); save(); toast(label);
   return true;
 }
