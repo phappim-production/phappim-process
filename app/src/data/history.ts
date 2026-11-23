@@ -146,6 +146,18 @@ export function eventWords(e: EventRow, n: Names, unit = 'ชิ้น'): EventW
     case 'queue_skip': return { title: word('เริ่มก่อนคิว{at}', { at }), detail: joined(reason, !!list(p.ahead) && word('ข้ามคิว {jobs}', { jobs: list(p.ahead) })), tone: 'warn' }
     case 'correction': return { title: word('แจ้งว่ารายการก่อนหน้ากดผิด'), detail: reason, tone: 'warn' }
     case 'confirmation_pdf': return { title: p.replaced ? word('เปลี่ยน PDF ใบยืนยัน') : word('แนบ PDF ใบยืนยันที่ลูกค้าเซ็น'), tone: 'ok' }
+    case 'spec_revised': {
+      const stale = typeof p.mockup_stale === 'number' && p.mockup_stale > 0
+      const moved = (k: string) => p[`${k}_from`] != null && str(p[`${k}_from`]) !== str(p[`${k}_to`])
+      return {
+        title: word('แก้ใบยืนยัน ครั้งที่ {rev} · ผลิตตามสเปกใหม่', { rev: num(p.rev) }), tone: 'warn',
+        detail: joined(moved('qty') && word('จำนวน {from} → {to} {unit}', { from: num(p.qty_from), to: num(p.qty_to), unit: u }),
+          moved('due') && word('กำหนดส่ง {from} → {to}', { from: date(p.due_from), to: date(p.due_to) }),
+          moved('spare') && word('เผื่อเสีย {from} → {to}', { from: num(p.spare_from), to: num(p.spare_to) }),
+          free(list(p.renamed)), !!list(p.fields) && word('ช่องที่แก้: {fields}', { fields: list(p.fields) }),
+          stale && word('ม็อคอัพกำกับสเปกฉบับ {rev} ยังเป็นค่าเก่า {n} จุด', { rev: num(p.mockup_rev), n: num(p.mockup_stale) })),
+      }
+    }
     case 'mockup': return { title: p.replaced ? word('เปลี่ยนรูปม็อคอัพ') : word('เพิ่มรูปม็อคอัพ'), tone: 'ok' }
     case 'mockup_approved':
       return { title: word('อนุมัติม็อคอัพกำกับสเปก ฉบับ {rev}', { rev: num(p.rev) }), detail: joined(p.replaced_rev != null && word('แทนฉบับ {rev}', { rev: num(p.replaced_rev) }), free(str(p.note))), tone: 'ok' }

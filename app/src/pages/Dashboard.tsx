@@ -282,7 +282,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
         <IconInbox className="size-5" />รับงานใหม่
       </button>
       {received && <p role="status" className="rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">ส่งงาน {received} เข้าโรงงานแล้ว · ขึ้นบอร์ดสถานีแรกทันที</p>}
-      <ConfirmationOutbox onReceive={id => { setReceived(null); setDraftId(id); setReceiving(true) }} />
+      <ConfirmationOutbox onReceive={id => { setReceived(null); setDraftId(id); setReceiving(true) }} onRevised={refresh} />
     </div>
   )
 

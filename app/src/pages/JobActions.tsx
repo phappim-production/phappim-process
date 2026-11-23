@@ -226,7 +226,7 @@ function ReviseConfirmation({ job, hasPdf, refresh }: { job: Job; hasPdf: boolea
       <summary className="min-h-12 cursor-pointer content-center font-medium">ส่งออก PDF ใบยืนยันอีกครั้ง / แก้ใบ (เช่น เปลี่ยนที่อยู่จัดส่ง)</summary>
       <ol className="mt-2 grid list-decimal gap-3 pl-5">
         <li className="grid gap-1">
-          <span>เปิดใบในฟอร์มแล้วกด "ส่งออก PDF" · ถ้าแก้ข้อมูล ใส่ "แก้ไขครั้งที่" แล้วส่งให้ลูกค้าเซ็นใหม่</span>
+          <span>พิมพ์ซ้ำ: เปิดใบในฟอร์มแล้วกด "ส่งออก PDF" · ลูกค้าขอแก้: แก้ในฟอร์ม ใส่ "แก้ไขครั้งที่" กด "บันทึกการแก้เข้างาน" (สเปกในระบบเปลี่ยนตาม + แจ้งทุกฝ่าย) แล้ว "ส่งออก PDF" ให้ลูกค้าเซ็น</span>
           <OpenInForm job={job} />
         </li>
         {hasPdf && (
@@ -260,7 +260,7 @@ function OpenInForm({ job }: { job: Job }) {
       <button type="button" className={secondaryBtn} disabled={busy} onClick={() => void open()}>
         {busy ? 'กำลังเปิดใบยืนยัน…' : 'เปิดใบยืนยันในฟอร์ม'}
       </button>
-      <p className="text-sm text-muted">สเปกงานในระบบไม่เปลี่ยนตาม · ถ้าแก้สเปกการผลิต ต้องแจ้งฝ่ายผลิตด้วย</p>
+      <p className="text-sm text-muted">เปลี่ยนสินค้าหรือการขึ้นตัวอย่างในใบแก้ไม่ได้ (ให้ผู้บริหารยกเลิกงาน แล้วรับใบใหม่)</p>
       {error && <p role="alert" className="text-danger">{error}</p>}
     </div>
   )

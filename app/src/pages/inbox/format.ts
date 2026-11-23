@@ -16,6 +16,7 @@ export type InboxKind =
   | 'mockup_returned'
   | 'mockup_approved'
   | 'job_cancelled'
+  | 'spec_revised'
 
 export type InboxItem = {
   id: number
@@ -53,6 +54,7 @@ const KIND_LABELS: Record<InboxKind, string> = {
   mockup_returned: 'ม็อคอัพถูกส่งกลับ',
   mockup_approved: 'สเปกอนุมัติแล้ว',
   job_cancelled: 'ยกเลิกงาน',
+  spec_revised: 'แก้ใบยืนยัน',
 }
 
 export function kindTone(kind: InboxKind): Tone {
