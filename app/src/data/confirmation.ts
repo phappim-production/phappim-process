@@ -90,6 +90,34 @@ export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
   }
 }
 
+export type ReviseArgs = {
+  p_spec: Record<string, unknown>
+  p_rev: number
+  p_customer_name: string
+  p_job_name: string
+  p_qty: number
+  p_spare_qty: number
+  p_due_date: string | null
+  p_needs_sample: boolean | null
+  p_changes: string[]
+}
+
+const FORM_ONLY_KEYS = ['revise_job', 'changes', 'mockup', 'mockup_path', 'from_job', 'job_img', 'job_no', 'mockup_no']
+
+/** ใบที่แก้หลังรับงาน → ค่าส่งให้ revise_job_spec · null = ไม่ใช่ข้อมูลจากฟอร์มใบยืนยัน */
+export function reviseArgs(raw: unknown): ReviseArgs | null {
+  const d = draftFromConfirmation(raw)
+  if (!d) return null
+  const spec = { ...d.spec }
+  for (const k of FORM_ONLY_KEYS) delete spec[k]
+  const listed = (raw as { changes?: unknown }).changes
+  const changes = Array.isArray(listed) ? [...new Set(listed.map(text).filter(Boolean))].slice(0, 40) : []
+  return {
+    p_spec: spec, p_rev: d.rev, p_customer_name: d.customer, p_job_name: d.jobName, p_qty: d.qty, p_spare_qty: d.spare,
+    p_due_date: d.due || null, p_needs_sample: d.needsSample, p_changes: changes,
+  }
+}
+
 // ชื่อไฟล์ใช้อังกฤษ/ตัวเลขเท่านั้น (ชื่อไทยอัปโหลดไม่ผ่าน) · ชื่อไฟล์ = ลายนิ้วมือเนื้อไฟล์ ส่งซ้ำได้ไฟล์เดิม
 export function confirmationPath(no: string, key: string): string {
   const safe = no.trim().replace(/[^A-Za-z0-9-]/g, '_') || 'job'

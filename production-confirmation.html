@@ -56,6 +56,9 @@ body.preview main.layout{grid-template-columns:minmax(0,1fr)}
 .field.wide{grid-column:1/-1}
 .lab{font-weight:600;font-size:14px;margin-bottom:4px}
 .lab small{font-weight:400;color:var(--muted)}
+.lab-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.na-btn{flex-shrink:0;min-height:36px;margin-bottom:4px;color:var(--muted)}
+.na-box{border:1px dashed var(--line);border-radius:8px;padding:8px 10px;color:var(--muted);background:#f7f8f6}
 .req{color:var(--warn);font-style:normal;margin-left:2px}
 .hint{color:var(--muted);font-size:13px;margin:-2px 0 6px}
 input[type=text],input[type=number],input[type=date],textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff}
@@ -251,6 +254,11 @@ const COMPANY = { name: 'ภาพพิมพ์ 142', logo: 'data:image/webp;b
 const OTHER = 'อื่นๆ';
 // ช่องที่ขาดแล้วเอกสารใช้ไม่ได้จริง (หัวทุกหน้า PDF + ระบบใช้หาใบ) · ช่องอื่นแค่เตือน เพราะบางงานไม่ต้องใส่
 const MUST_FILL=['doc_no','customer'];
+// ช่องที่ระบบใช้ตั้งค่างาน (เลขใบ ลูกค้า วันที่ ตัวอย่าง จำนวน เทคนิค) กด "ไม่ใช้กับงานนี้" ไม่ได้
+const NA_BLOCK=['doc_no','customer','job_name','issue_date','due_date','sample','delivery','size_sets','print_method','qty','spare'];
+const naAllowed=f=>f.req&&!NA_BLOCK.includes(f.id)&&!['sizeTable','images'].includes(f.type)&&!(f.type==='itemTable'&&f.cols.some(c=>c.sum));
+const isNA=(f,v)=>!!(v&&v[f.id+'__na']);
+const revising=()=>!!state.job_no&&state.job_no===String(state.h.doc_no||'').trim();
 const needsAddress = d => d==='จัดส่งตามที่อยู่' || d==='รถบริษัทไปส่ง';
 const SAMPLE_YES = 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)';
 const sampleNote = () => state.h.sample===SAMPLE_YES ? 'ขึ้นตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง' : state.h.sample ? 'งานนี้ไม่ขึ้นตัวอย่าง ผลิตจริงตามใบนี้' : 'ยังไม่ได้เลือกว่าขึ้นตัวอย่างหรือไม่';
@@ -275,7 +283,7 @@ const HEADER = [
     { id:'contact', type:'text', label:'ผู้ติดต่อ', req:true },
     { id:'phone', type:'text', label:'เบอร์โทร', req:true },
     { id:'delivery', type:'radio', label:'การรับสินค้า', req:true, options:['ลูกค้ารับเองที่โรงงาน','รถบริษัทไปส่ง','จัดส่งตามที่อยู่'] },
-    { id:'address', type:'textarea', label:'ที่อยู่จัดส่ง', req:true, when:v=>needsAddress(v.delivery), hint:'ลูกค้าเปลี่ยนที่อยู่หลังรับงาน: เปิดงานในระบบ → "ส่งออก PDF ใบยืนยันอีกครั้ง / แก้ใบ" → แก้ที่นี่แล้วส่งออก PDF ใหม่' },
+    { id:'address', type:'textarea', label:'ที่อยู่จัดส่ง', req:true, when:v=>needsAddress(v.delivery), hint:'ลูกค้าเปลี่ยนที่อยู่หลังรับงาน: เปิดงานในระบบ → "ส่งออก PDF ใบยืนยันอีกครั้ง / แก้ใบ" → แก้ที่นี่ กด "บันทึกการแก้เข้างาน" แล้วส่งออก PDF ใหม่' },
   ]},
 ];
 
@@ -1003,7 +1011,11 @@ function renderForm(){
   }).join('');
   markMissing();
   updateTotals();
+  syncSaveBtn();
 }
+function syncSaveBtn(){ const b=$('[data-act="savedb"]'); if(!b) return; const r=revising();
+  b.textContent=r?'บันทึกการแก้เข้างาน':'บันทึกเข้าระบบ';
+  b.title=r?'ลูกค้าขอแก้ใบหลังรับงาน: สเปกงานในระบบเปลี่ยนตามใบนี้ และแจ้งทุกฝ่าย':'เก็บใบนี้ในระบบติดตามการผลิต · ตอนส่งงานเข้าเลือกใบจากรายการได้เลย ไม่ต้องใช้ไฟล์'; }
 const stdCell=(id,i,c,val)=>{ const on=val===c.std, a=`data-t="${id}" data-r="${i}" data-c="${c.c}"`;
   return `<div class="std-cell">${on?`<span>${esc(c.std)}</span>`:`<input type="text" ${a} value="${esc(val)}">`}<label class="std"><input type="checkbox" ${a} data-std="${esc(c.std)}" ${on?'checked':''}>มาตรฐาน</label></div>`; };
 const WIDE=['check','sizeTable','itemTable','placements','images','textarea','dims'];
@@ -1061,7 +1073,12 @@ function fieldHTML(f,s,v){
       break;
   }
   const wide=f.wide||(WIDE.includes(f.type))||(f.type==='radio'&&(f.options.length>3||f.other));
-  return `<div class="field${wide?' wide':''}" id="fld_${s}_${f.id}"><div class="lab">${esc(f.label)}${f.req?'<i class="req">*</i>':''}${f.unit?` <small>(${esc(f.unit)})</small>`:''}</div>${f.hint?`<div class="hint">${esc(f.hint)}</div>`:''}${b}</div>`;
+  const na=naAllowed(f)&&isNA(f,v);
+  if(na) b=`<div class="na-box">ไม่ใช้กับงานนี้ · ไม่พิมพ์ลง PDF และไม่ส่งเข้าระบบ</div>`;
+  const naBtn=naAllowed(f)&&(na||fieldIssue(f,v).bad)
+    ? `<button type="button" class="btn small na-btn" data-act="na" data-s="${s}" data-nk="${f.id}" aria-pressed="${na}" title="${na?'กลับมากรอกช่องนี้':'ช่องนี้ไม่เกี่ยวกับงานนี้ · ไม่ต้องกรอก ไม่พิมพ์ลง PDF'}">${na?'ใช้ช่องนี้':'ไม่ใช้กับงานนี้'}</button>` : '';
+  const lab=`<div class="lab">${esc(f.label)}${f.req&&!na?'<i class="req">*</i>':''}${f.unit?` <small>(${esc(f.unit)})</small>`:''}</div>`;
+  return `<div class="field${wide?' wide':''}" id="fld_${s}_${f.id}">${naBtn?`<div class="lab-row">${lab}${naBtn}</div>`:lab}${f.hint&&!na?`<div class="hint">${esc(f.hint)}</div>`:''}${b}</div>`;
 }
 
 function updateTotals(){
@@ -1219,7 +1236,7 @@ form.addEventListener('input',e=>{
     form.querySelectorAll('.pcat').forEach(c=>{ let any=false;
       c.querySelectorAll('[data-name]').forEach(l=>{ const ok=!q||l.dataset.name.toLowerCase().includes(q); l.style.display=ok?'':'none'; any=any||ok; });
       c.style.display=any?'':'none'; }); return; }
-  if(d.k){ scope(d.s)[d.k]=t.value; }
+  if(d.k){ scope(d.s)[d.k]=t.value; if(d.k==='doc_no') syncSaveBtn(); }
   else if(d.t){ const r=scope('p')[d.t][+d.r]; if(d.c.startsWith('q:')) r.q[d.c.slice(2)]=t.value; else r[d.c]=t.value; }
   else if(d.pl){ const v=scope('p'); v[d.pl]=v[d.pl]||{}; (v[d.pl][d.pos]=v[d.pl][d.pos]||{})[d.pf]=t.value; }
   t.closest('.field')?.classList.remove('missing');
@@ -1253,6 +1270,7 @@ document.addEventListener('click',e=>{
     if(r===0){ state.callouts=[]; state.co_size=null; }
     state.imgs.splice(r,1); rerender(); }
   if(act==='delco'){ coList().splice(+b.dataset.r,1); rerender(); }
+  if(act==='na'){ const sc=scope(b.dataset.s), k=b.dataset.nk+'__na'; if(sc[k]) delete sc[k]; else sc[k]=true; rerender(); }
   if(act==='new'){ if(confirm('ล้างข้อมูลทั้งหมดและเริ่มใบใหม่?\n(ถ้ายังไม่ได้กด "บันทึกไฟล์" ข้อมูลใบนี้จะหาย)')){ state=fresh(); missing=[]; $('#alert').innerHTML=''; rerender(); scrollTo(0,0); } }
   if(act==='open'){ if(!(state.h.doc_no||state.h.customer)||confirm('เปิดไฟล์แล้วข้อมูลที่กรอกอยู่จะถูกแทนที่ ดำเนินการต่อ?')) $('#openFile').click(); }
   if(act==='savefile'){ const blob=new Blob([JSON.stringify({ app:'phappim-confirm', v:1, ...state, summary:{ qty:totalQty() } })],{type:'application/json'});
@@ -1267,8 +1285,10 @@ function loadData(d, label){
   if(!d||!d.h||!d.p||!PRODUCTS[d.product]) return false;
   state={ h:d.h, product:d.product, pickOpen:false, p:d.p, imgs:Array.isArray(d.imgs)?d.imgs:[], callouts:Array.isArray(d.callouts)?d.callouts:[], co_size:d.co_size||null }; missing=[];
   if(typeof d.mockup_path==='string'&&d.mockup_path){ state.mockup_path=d.mockup_path; state.mockup_no=String(d.h.doc_no||'').trim(); } $('#alert').innerHTML='';
-  if(d.from_job) state.job_no=String(d.h.doc_no||'').trim();
-  if(document.body.classList.contains('preview')) togglePreview(false); rerender(); scrollTo(0,0); save(); toast(label);
+  if(d.from_job){ state.job_no=String(d.h.doc_no||'').trim(); state.job_img=state.imgs[0]?.src||''; }
+  if(document.body.classList.contains('preview')) togglePreview(false); rerender();
+  if(d.from_job) state.job_base=jobSnapshot();
+  scrollTo(0,0); save(); toast(label);
   return true;
 }
 $('#openFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return;
@@ -1278,23 +1298,56 @@ $('#openFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) 
 
 /* ฟอร์มอยู่เว็บเดียวกับระบบ จึงส่งใบผ่าน localStorage ให้หน้าระบบที่ล็อกอินแล้วบันทึก ฟอร์มไม่ต้องล็อกอินเอง */
 const OUTBOX='pp142.confirmation.outbox', INBOX='pp142.confirmation.inbox';
+// ค่าของงานตอนเปิดจากระบบ ใช้บอกฝ่ายผลิตว่าใบแก้เปลี่ยนช่องไหน
+function jobSnapshot(){ return JSON.stringify({ product:state.product, h:state.h, p:scope('p'), co:state.callouts }); }
+function jobBase(){ try{ return JSON.parse(state.job_base||'null'); }catch(e){ return null; } }
+function changedLabels(){
+  const base=jobBase(); if(!base) return [];
+  const norm=x=>x==null||x===''||(Array.isArray(x)&&!x.length)?null:x;
+  const pick=(f,v)=>{ if(!v||!visible(f,v)) return null; if(isNA(f,v)) return 'NA';
+    return JSON.stringify([norm(v[f.id]), norm(v[f.id+'__other']), ...(f.parts||[]).map((_,i)=>norm(v[f.id+'_'+i]))]); };
+  const out=[];
+  layout().filter(sec=>sec.fields).forEach(sec=>{ const now=scope(sec.s), was=sec.s==='h'?base.h:base.p;
+    sec.fields.forEach(f=>{ if(['doc_no','rev','images'].includes(f.id)) return;
+      if(pick(f,now)!==pick(f,was)) out.push(f.label.replace(/ \(.*\)$/,'')); }); });
+  if((state.imgs[0]?.src||'')!==(state.job_img||'')) out.push('รูปม็อคอัพ');
+  if(JSON.stringify(state.callouts||[])!==JSON.stringify(base.co||[])) out.push('จุดกำกับบนม็อคอัพ');
+  return [...new Set(out)];
+}
 function saveToSystem(){
   if(location.protocol==='file:'){ alert('บันทึกเข้าระบบได้เมื่อเปิดฟอร์มจากเว็บระบบ (pp142.pages.dev/confirmation)\nตอนนี้เปิดจากไฟล์ในเครื่อง ให้ใช้ "บันทึกไฟล์" แทน'); return; }
   if(!String(state.h.doc_no||'').trim()){ alert('ใส่เลขที่ใบยืนยันก่อนบันทึกเข้าระบบ'); $('[data-k="doc_no"]')?.focus(); return; }
-  if(state.job_no&&state.job_no===String(state.h.doc_no).trim()){ alert('ใบ '+state.job_no+' รับงานเข้าโรงงานแล้ว ไม่ต้องบันทึกเข้าระบบ\nกด "ส่งออก PDF" ให้ลูกค้าเซ็น แล้วแนบ PDF ใบใหม่ที่รายละเอียดงาน → "ส่งออก PDF ใบยืนยันอีกครั้ง / แก้ใบ"'); return; }
-  // รูปที่เพิ่งเลือกยังอ่าน/ย่อไม่เสร็จ = ไม่ส่ง ไม่อย่างนั้นใบไปถึงระบบโดยไม่มีรูป
-  const first=state.imgs[0]&&state.imgs[0].src;
-  if(readingImgs||(first&&!(thumb&&thumb.src===first))){ refreshThumb(); alert('กำลังเตรียมรูปม็อคอัพ รอ 1–2 วินาที แล้วกด "บันทึกเข้าระบบ" อีกครั้ง'); return; }
+  const revise=revising(), btn=revise?'บันทึกการแก้เข้างาน':'บันทึกเข้าระบบ';
+  let changes=[];
+  if(revise){
+    if(!(num(state.h.rev)>0)){ alert('ใส่ "แก้ไขครั้งที่" ก่อนบันทึกการแก้เข้างาน (ใบแรกที่รับงานคือครั้งที่ 0)'); $('[data-k="rev"]')?.focus(); return; }
+    const base=jobBase();
+    if(base?.product&&base.product!==state.product){ alert('เปลี่ยนชนิดสินค้าหลังรับงานไม่ได้\nถ้าลูกค้าเปลี่ยนสินค้า ให้ผู้บริหารยกเลิกงานนี้แล้วรับใบใหม่'); return; }
+    if(base&&String(base.h?.sample||'')!==String(state.h.sample||'')){ alert('เปลี่ยน "ขึ้นตัวอย่าง" หลังรับงานไม่ได้\nเลือกกลับเป็น "'+(base.h?.sample||'—')+'" แล้วกดบันทึกอีกครั้ง'); $('#fld_h_sample')?.scrollIntoView({block:'center'}); return; }
+    missing=validate(); showAlert();
+    const hard=missing.filter(m=>m.hard);
+    if(hard.length){ rerender(); scrollTo(0,0); alert('ต้องแก้ '+hard.length+' รายการก่อนบันทึกการแก้เข้างาน (ดูกล่องแดงด้านบน)'); return; }
+    changes=changedLabels();
+    if(!changes.length&&num(state.h.rev)===num(jobBase()?.h?.rev)){ alert('ใบนี้ยังไม่ได้แก้อะไร\nถ้าจะพิมพ์ใบซ้ำ กด "ส่งออก PDF" ได้เลย ไม่ต้องบันทึก'); return; }
+    if(!confirm('บันทึกการแก้ใบ '+state.job_no+' (แก้ไขครั้งที่ '+num(state.h.rev)+') เข้างานในระบบ?\n\nช่องที่แก้: '+(changes.join(', ')||'—')+'\n\nสเปกงานในระบบจะเปลี่ยนตามใบนี้ และแจ้งทุกฝ่ายในกล่องจดหมาย')) return;
+  }
+  // รูปที่เพิ่งเลือกยังอ่าน/ย่อไม่เสร็จ = ไม่ส่ง ไม่อย่างนั้นใบไปถึงระบบโดยไม่มีรูป · ใบแก้ที่ใช้รูปเดิมของงานไม่ต้องรอ
+  const first=state.imgs[0]&&state.imgs[0].src, newImg=!!first&&!(revise&&first===state.job_img);
+  if(newImg&&(readingImgs||!(thumb&&thumb.src===first))){ refreshThumb(); alert('กำลังเตรียมรูปม็อคอัพ รอ 1–2 วินาที แล้วกด "'+btn+'" อีกครั้ง'); return; }
   const payload={ app:'phappim-confirm', v:1, ...state, imgs:[], summary:{ qty:totalQty() } };
   // ช่องที่ถูกซ่อนเพราะเปลี่ยนตัวเลือก (เช่น ผ้าเช็ดหน้า ↔ ผ้าพันคอ) ไม่ส่งเข้าระบบ ไม่อย่างนั้นหน้างานเห็นสเปกที่ลูกค้าไม่ได้เลือก
   const shown=scope('p'), part={...shown};
-  const keep=new Set(allFields().filter(f=>visible(f,shown)).map(f=>f.id));
-  allFields().forEach(f=>{ if(!keep.has(f.id)) delete part[f.id]; });
+  const drop=(obj,f)=>{ delete obj[f.id]; delete obj[f.id+'__other']; (f.parts||[]).forEach((_,i)=>delete obj[f.id+'_'+i]); };
+  allFields().forEach(f=>{ if(!visible(f,shown)||(naAllowed(f)&&isNA(f,shown))) drop(part,f); });
   payload.p={...state.p, [state.product]:part};
-  if(first&&thumb.data) payload.mockup=thumb.data;
+  const head={...state.h};
+  HEADER.flatMap(sec=>sec.fields).forEach(f=>{ if(naAllowed(f)&&isNA(f,head)) drop(head,f); });
+  payload.h=head;
+  if(newImg&&thumb.data) payload.mockup=thumb.data;
+  if(revise){ payload.revise_job=true; payload.changes=changes; }
   // รูปเดิมจากระบบใช้ได้เฉพาะใบเลขเดิม (เปลี่ยนเลขใบเพื่อทำใบใหม่ = ไม่เอารูปใบเดิมไป)
   if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()) delete payload.mockup_path;
-  delete payload.mockup_no; delete payload.job_no;
+  delete payload.mockup_no; delete payload.job_no; delete payload.job_base; delete payload.job_img;
   try{ localStorage.setItem(OUTBOX, JSON.stringify(payload)); }catch(e){ alert('บันทึกไม่สำเร็จ (พื้นที่เบราว์เซอร์เต็ม) ให้ใช้ "บันทึกไฟล์" แทน'); return; }
   const url='/#/board?confirmation=save';
   const w=window.open(url,'pp142-system');
@@ -1307,15 +1360,15 @@ function saveToSystem(){
   toast.h=setTimeout(()=>t.classList.remove('on','link'),20000);
 }
 // หน้าระบบกด "เปิดในฟอร์ม" (แก้ใบที่บันทึกไว้) → ใส่ข้อมูลไว้ใน INBOX แล้วเปิดหน้านี้
-(function takeInbox(){
+function takeInbox(){
   let d=null; try{ d=JSON.parse(localStorage.getItem(INBOX)); localStorage.removeItem(INBOX); }catch(e){}
   if(!d) return;
   const busy=String(state.h.doc_no||state.h.customer||'').trim() && state.h.doc_no!==d.h?.doc_no;
   if(busy && !confirm('เปิดใบ '+(d.h?.doc_no||'')+' จากระบบ ข้อมูลที่กรอกอยู่ในฟอร์มจะถูกแทนที่ ดำเนินการต่อ?')) return;
-  const label=d.from_job ? 'เปิดใบ '+(d.h?.doc_no||'')+' ของงานที่รับแล้ว · แก้ข้อมูล ใส่ "แก้ไขครั้งที่" แล้วกด "ส่งออก PDF"'
+  const label=d.from_job ? 'เปิดใบ '+(d.h?.doc_no||'')+' ของงานที่รับแล้ว · ลูกค้าขอแก้: แก้ข้อมูล ใส่ "แก้ไขครั้งที่" กด "บันทึกการแก้เข้างาน" แล้ว "ส่งออก PDF"'
     : 'เปิดใบ '+(d.h?.doc_no||'')+' จากระบบแล้ว · แก้แล้วกด "บันทึกเข้าระบบ" อีกครั้ง';
   if(!loadData(d, label)) alert('ข้อมูลจากระบบไม่ใช่ใบยืนยันการผลิต');
-})();
+}
 
 // กด Enter = ไปช่องถัดไป (กรอกตารางไซซ์ได้เร็ว) · กันล้อเมาส์เปลี่ยนตัวเลขโดยไม่ตั้งใจ
 form.addEventListener('keydown',e=>{ const t=e.target;
@@ -1338,10 +1391,7 @@ function negativeIn(f,v){
   }
   return false;
 }
-function validate(){
-  const out=[];
-  layout().filter(sec=>sec.fields).forEach(sec=>{ const s=sec.s, v=scope(s); sec.fields.forEach(f=>{
-    if(!visible(f,v)) return;
+function fieldIssue(f,v){
     const val=v[f.id]; let bad=false, why='';
     switch(f.type){
       case 'text': case 'date': case 'textarea': bad=f.req&&!String(val??'').trim(); break;
@@ -1367,6 +1417,13 @@ function validate(){
         break; }
       case 'images': bad=f.req&&!state.imgs.length; break;
     }
+    return { bad, why };
+}
+function validate(){
+  const out=[];
+  layout().filter(sec=>sec.fields).forEach(sec=>{ const s=sec.s, v=scope(s); sec.fields.forEach(f=>{
+    if(!visible(f,v)||(naAllowed(f)&&isNA(f,v))) return;
+    const { bad, why }=fieldIssue(f,v);
     if(negativeIn(f,v)){ out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why:'มีขนาดหรือจำนวนติดลบ แก้เป็นค่าบวก', hard:true }); return; }
     if(bad) out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why, hard:s==='h'&&MUST_FILL.includes(f.id) });
   }); });
@@ -1379,7 +1436,7 @@ function showAlert(){
   const li=list=>`<ul>${list.map(m=>`<li><a href="#${m.id}" data-goto="${m.id}">${esc(m.label)}</a>${m.why?` — ${esc(m.why)}`:''}</li>`).join('')}</ul>`;
   const hard=missing.filter(m=>m.hard), soft=missing.filter(m=>!m.hard);
   $('#alert').innerHTML=(hard.length?`<div class="alert"><b>ต้องแก้ ${hard.length} รายการก่อนส่งออก PDF</b>${li(hard)}</div>`:'')+
-    (soft.length?`<div class="alert soft"><b>ยังไม่ได้กรอก ${soft.length} รายการ</b><small>ไม่บังคับ · ถ้างานนี้ไม่ต้องใช้ ส่งออก PDF ได้เลย</small>${li(soft)}</div>`:'');
+    (soft.length?`<div class="alert soft"><b>ยังไม่ได้กรอก ${soft.length} รายการ</b><small>ไม่บังคับ · ช่องที่งานนี้ไม่ใช้ กด "ไม่ใช้กับงานนี้" ที่ช่องนั้น หรือส่งออก PDF ได้เลย</small>${li(soft)}</div>`:'');
 }
 $('#alert').addEventListener('click',e=>{ const a=e.target.closest('[data-goto]'); if(!a) return; e.preventDefault();
   if(document.body.classList.contains('preview')) togglePreview(false);
@@ -1419,16 +1476,17 @@ function renderDoc(){
   </div>`;
 
   const hk=(label,val,w)=>isNone(val)?'':`<div${w?' class="w"':''}><span>${label}</span><b>${esc(val)}</b></div>`;
-  const hItems=[hk('ผู้ติดต่อ',h.contact), hk('เบอร์โทร',h.phone),
+  const hv=id=>h[id+'__na']?'':h[id];
+  const hItems=[hk('ผู้ติดต่อ',hv('contact')), hk('เบอร์โทร',hv('phone')),
     hk('วันที่ออกใบ',h.issue_date?thDate(h.issue_date):''), hk('วันนัดส่งตัวอย่าง',h.sample_date?thDate(h.sample_date):''),
-    hk('การรับสินค้า',h.delivery), hk('แอดมินผู้ดูแล',[h.admin,h.admin_phone].filter(x=>!isNone(x)).join(' · ')),
-    needsAddress(h.delivery)?hk('ที่อยู่จัดส่ง',h.address,true):''].join('');
+    hk('การรับสินค้า',h.delivery), hk('แอดมินผู้ดูแล',[hv('admin'),h.admin_phone].filter(x=>!isNone(x)).join(' · ')),
+    needsAddress(h.delivery)?hk('ที่อยู่จัดส่ง',hv('address'),true):''].join('');
   let x=`<section class="ds">${hItems?`<div class="kv">${hItems}</div>`:''}
   <div class="d-prod"><span>จำนวนรวม <b>${qty}</b>${num(v.spare)>0?` (+ เผื่อเสีย ${esc(v.spare)} ${P.unit})`:''}</span></div></section>`;
 
   let n=0, mockNoted=false;
   allSecs().forEach(sec=>{
-    const fs=sec.fields.filter(f=>visible(f,v));
+    const fs=sec.fields.filter(f=>visible(f,v)&&!(naAllowed(f)&&isNA(f,v)));
     const simple=fs.filter(f=>!['sizeTable','itemTable','placements','images'].includes(f.type)&&f.id!=='spare');
     let body=kvHTML(simple,v), imgs='';
     fs.forEach(f=>{
@@ -1533,6 +1591,8 @@ async function exportPdf(){
 document.getElementById('barLogo').src=COMPANY.logo;
 renderForm();
 refreshThumb();
+// ต้องอยู่ท้ายสุด: โหลดใบแล้ววาดฟอร์มทันที ค่าคงที่ที่ประกาศหลังจุดเรียกจะยังใช้ไม่ได้ (สคริปต์หยุดทั้งก้อน)
+takeInbox();
 </script>
 </body>
 </html>

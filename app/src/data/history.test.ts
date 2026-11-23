@@ -44,3 +44,23 @@ describe('ไทม์ไลน์: ยกเลิกงาน', () => {
     expect(line.detail).toBe('ลูกค้ายกเลิกออเดอร์')
   })
 })
+
+describe('ไทม์ไลน์: แก้ใบยืนยันหลังรับงาน', () => {
+  const row = (payload: Record<string, unknown>): EventRow =>
+    ({ id: 5, type: 'spec_revised', phase: 'production', station_code: 'print', payload, by: null, at: '2026-11-23T03:00:00Z' })
+  it('บอกครั้งที่แก้ จำนวน/กำหนดส่งที่เปลี่ยน และช่องที่แก้', () => {
+    expect(eventLine(row({ rev: 2, fields: ['สีผ้าพื้น', 'ที่อยู่จัดส่ง'], mockup_stale: 0, qty_from: 100, qty_to: 120,
+      due_from: '2026-12-20', due_to: '2026-12-20', spare_from: 2, spare_to: 2, renamed: ['ชื่องาน'] }), names, 'ตัว')).toEqual({
+      title: 'แก้ใบยืนยัน ครั้งที่ 2 · ผลิตตามสเปกใหม่', tone: 'warn',
+      detail: 'จำนวน 100 → 120 ตัว · ชื่องาน · ช่องที่แก้: สีผ้าพื้น, ที่อยู่จัดส่ง',
+    })
+  })
+  it('เลื่อนกำหนดส่ง = บอกวันเดิมและวันใหม่', () => {
+    const line = eventLine(row({ rev: 1, qty_from: 10, qty_to: 10, due_from: '2026-12-20', due_to: '2026-12-25', spare_from: 0, spare_to: 0 }), names)
+    expect(line.detail).toMatch(/^กำหนดส่ง .*20.* → .*25/)
+  })
+  it('ม็อคอัพฉบับอนุมัติยังเป็นค่าเก่า = เตือนในประวัติ', () => {
+    expect(eventLine(row({ rev: 1, summary: [], fields: [], mockup_rev: 3, mockup_stale: 2 }), names).detail)
+      .toBe('ม็อคอัพกำกับสเปกฉบับ 3 ยังเป็นค่าเก่า 2 จุด')
+  })
+})

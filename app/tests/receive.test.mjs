@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { confirmationPath, draftFromConfirmation, pdfProblem, sampleChoice, totalQty } from '../src/data/confirmation.ts'
+import { confirmationPath, draftFromConfirmation, pdfProblem, reviseArgs, sampleChoice, totalQty } from '../src/data/confirmation.ts'
 import { etaFromDay, missingSteps } from '../src/data/stationSteps.ts'
 
 const form = (over = {}) => ({
@@ -189,4 +189,30 @@ test('วันคาดว่าเสร็จใหม่: ใช้ 18:00 �
   assert.equal(etaFromDay('2026-11-17', evening).toISOString(), '2026-11-17T16:59:00.000Z')
   assert.equal(etaFromDay('2026-11-16', evening), null)
   assert.equal(etaFromDay('', evening), null)
+})
+
+test('ใบที่แก้หลังรับงาน → ค่าส่งให้ revise_job_spec · ไม่เก็บค่าชั่วคราวของฟอร์มในสเปก', () => {
+  const a = reviseArgs(form({
+    revise_job: true, from_job: true, mockup: 'data:image/jpeg;base64,AAAA', mockup_path: 'SC691451/a.jpg', job_img: 'https://x/y',
+    changes: ['สีผ้าพื้น', ' สีผ้าพื้น ', '', 5, 'ที่อยู่จัดส่ง'],
+    h: { doc_no: ' SC691451 ', rev: '2', job_name: 'เสื้อทีม', customer: 'บริษัท เซอร์ราวด์', due_date: '2026-12-05', sample: 'ไม่ขึ้นตัวอย่าง' },
+  }))
+  assert.equal(a.p_rev, 2)
+  assert.equal(a.p_qty, 35)
+  assert.equal(a.p_spare_qty, 3)
+  assert.equal(a.p_due_date, '2026-12-05')
+  assert.equal(a.p_needs_sample, false)
+  assert.equal(a.p_customer_name, 'บริษัท เซอร์ราวด์')
+  assert.deepEqual(a.p_changes, ['สีผ้าพื้น', 'ที่อยู่จัดส่ง'])
+  for (const k of ['imgs', 'revise_job', 'from_job', 'mockup', 'mockup_path', 'job_img', 'changes']) assert.ok(!(k in a.p_spec), k)
+  assert.equal(a.p_spec.product, 'polo')
+  assert.equal(a.p_spec.h.doc_no, ' SC691451 ')
+})
+
+test('ใบแก้ที่ไม่มีกำหนดส่ง / ไม่ได้เลือกขึ้นตัวอย่าง ส่งค่าว่างให้ฐานข้อมูลปฏิเสธพร้อมเหตุผล', () => {
+  const a = reviseArgs(form({ h: { doc_no: 'SC1', rev: 1, customer: 'ก', due_date: '' } }))
+  assert.equal(a.p_due_date, null)
+  assert.equal(a.p_needs_sample, null)
+  assert.deepEqual(a.p_changes, [])
+  assert.equal(reviseArgs({ h: {} }), null)
 })

@@ -141,6 +141,8 @@ export async function flowR8Tests({ db, ok }) {
         start_mockup_sheet: [id, reason], save_mockup_draft: [id, 1, { views: [], specs: [], callouts: [] }], discard_mockup_draft: [id],
         submit_mockup_sheet: [id, 1], return_mockup_sheet: [id, reason], approve_mockup_sheet: [id, reason], ack_mockup_sheet: [id, 'cut'],
         mark_delivered: [id, reason], undo_delivery: [id, reason], cancel_job: [id, reason],
+        revise_job_spec: [id, { product: job.product_type_code, h: { doc_no: no }, p: {} }, 1, job.customer_name, job.job_name,
+          job.qty, job.spare_qty, day, job.needs_sample, ['ทดสอบแก้ใบ']],
         file_upload_allowed: ['mockups', photo.replace('r8.jpg', 'ab12.jpg'), 10, 'image/jpeg'],
         record_file_upload: ['mockups', photo.replace('r8.jpg', 'ab12.jpg'), 10, 'image/jpeg', 'bad'], file_read_allowed: ['mockups', [photo]],
       }
