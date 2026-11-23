@@ -1,0 +1,62 @@
+rpc	signature	owner	manager	admin1	admin2	prod1	prod2	sup1	sup2	qc	staff_multi	staff_single	staff_qc	staff_empty	disabled	norole	anon
+ack_mockup_sheet	p_sheet uuid, p_station text	P0002	42501	42501	42501	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	42501	42501	42501
+ack_review	p_kind text, p_ref bigint	22023	22023	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+add_vendor	p_name text, p_stations text[], p_contact text	P0001	42501	P0001	P0001	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+approve_mockup_sheet	p_sheet uuid, p_note text, p_version integer	P0002	P0002	P0002	P0002	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+assign_machines	p_job uuid, p_machine_codes text[]	P0002	42501	42501	42501	P0002	P0002	42501	P0002	42501	42501	42501	42501	42501	42501	42501	42501
+attach_confirmation_pdf	p_job uuid, p_path text	P0002	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+book_machines	p_job uuid, p_starts timestamp with time zone, p_ends timestamp with time zone	P0002	42501	42501	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+cancel_booking	p_job uuid	P0002	42501	42501	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+cancel_confirmation_draft	p_id uuid	P0001	42501	P0001	P0001	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+cancel_job	p_job uuid, p_reason text	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+check_material	p_material_id bigint, p_checked boolean	P0002	42501	P0002	P0002	P0002	P0002	42501	42501	P0002	P0002	P0002	P0002	P0002	42501	42501	42501
+close_issue	p_job uuid, p_note text	P0002	P0002	42501	42501	P0002	P0002	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501
+complete_substep	p_job uuid, p_key text, p_value jsonb	P0002	42501	42501	42501	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	42501	42501	42501
+correct_event	p_job uuid, p_event_id bigint, p_reason text	P0002	42501	42501	42501	P0002	P0002	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501
+discard_mockup_draft	p_sheet uuid	P0002	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+events_no_change		trigger	trigger	trigger	trigger	trigger	trigger	trigger	trigger	trigger	trigger	trigger	trigger	trigger	trigger	trigger	trigger
+file_read_allowed	p_kind text, p_paths text[]	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	42501	42501	42501
+file_upload_allowed	p_kind text, p_path text, p_size bigint, p_type text	23514	42501	23514	23514	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+finish_sewing	p_job uuid	P0002	42501	42501	42501	P0002	P0002	42501	P0002	42501	42501	42501	42501	42501	42501	42501	42501
+finish_station	p_job uuid, p_station text	P0002	42501	42501	42501	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	42501	42501	42501
+forward_out	p_run bigint, p_vendor bigint, p_last_station text, p_arrive_at timestamp with time zone, p_lead_days numeric, p_back_at timestamp with time zone, p_note text	P0001	42501	P0001	P0001	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+inbox_mark_all_read		accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	42501	42501	42501
+inbox_mark_read	p_ids bigint[]	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	42501	42501	42501
+inbox_scan		accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	42501	42501	42501
+inbox_unread_count		accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	42501	42501	42501
+job_sla_flags		accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	42501	42501	42501
+mark_delivered	p_job uuid, p_note text	P0002	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+move_job_ahead	p_job uuid, p_before uuid, p_reason text	P0001	P0001	42501	42501	P0001	P0001	P0001	P0001	42501	42501	42501	42501	42501	42501	42501	42501
+note_queue_skip	p_job uuid, p_reason text	P0002	42501	42501	42501	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	42501	42501	42501
+open_issue	p_job uuid, p_reason text	P0002	42501	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	42501	42501	42501
+order_film	p_job uuid, p_eta date	P0002	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+owner_list_users		accepted	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+receive_back	p_run bigint, p_note text	P0001	42501	P0001	P0001	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+receive_film	p_job uuid	P0002	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+receive_job	p_confirmation_no text, p_customer_name text, p_job_name text, p_product_type_code text, p_qty integer, p_unit text, p_due_date date, p_route_code text, p_confirmation_pdf_path text, p_spare_qty integer, p_confirmation_rev integer, p_spec jsonb, p_needs_sample boolean	23514	42501	23514	23514	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+record_file_upload	p_kind text, p_path text, p_size bigint, p_type text, p_proof text	23514	42501	23514	23514	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+record_qc	p_job uuid, p_passed integer, p_request uuid	P0002	42501	42501	42501	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	42501	42501	42501
+record_sample_result	p_job uuid, p_pass boolean, p_note text, p_customer_confirmed_at date	P0002	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+release_machines	p_job uuid, p_machine_codes text[]	P0002	42501	42501	42501	P0002	P0002	42501	P0002	42501	42501	42501	42501	42501	42501	42501	42501
+report_sewing_issue	p_job uuid, p_reason text, p_pause boolean	P0002	42501	42501	42501	P0002	P0002	42501	P0002	42501	42501	42501	42501	42501	42501	42501	42501
+resume_sewing	p_job uuid	P0002	42501	42501	42501	P0002	P0002	42501	P0002	42501	42501	42501	42501	42501	42501	42501	42501
+return_mockup_sheet	p_sheet uuid, p_reason text	P0002	P0002	42501	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+save_confirmation_draft	p_data jsonb	22023	42501	22023	22023	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+save_mockup_draft	p_sheet uuid, p_version integer, p_data jsonb	P0002	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+send_out	p_job uuid, p_vendor bigint, p_last_station text, p_arrive_at timestamp with time zone, p_lead_days numeric, p_back_at timestamp with time zone, p_note text	P0002	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+send_rework	p_job uuid, p_qty integer, p_reason text, p_source_station text	P0002	42501	42501	42501	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	42501	42501	42501
+set_job_machines	p_job uuid, p_type text, p_qty integer	P0002	42501	42501	42501	P0002	P0002	42501	P0002	42501	42501	42501	42501	42501	42501	42501	42501
+set_job_mockup	p_job uuid, p_path text	P0002	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+set_machine_status	p_machine_code text, p_status text, p_note text, p_repair_eta timestamp with time zone	P0002	42501	42501	42501	P0002	P0002	42501	P0002	42501	42501	42501	42501	42501	42501	42501	42501
+set_repair_eta	p_machine_code text, p_repair_eta timestamp with time zone, p_note text	P0002	42501	42501	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+split_job	p_job uuid, p_qty integer, p_request uuid	P0002	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+staff_names		accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	accepted	42501	42501	42501
+start_in_queue	p_job uuid, p_reason text	P0002	42501	42501	42501	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	42501	42501	42501
+start_mockup_sheet	p_job uuid, p_reason text	P0002	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+start_sewing	p_job uuid, p_codes text[]	P0002	42501	42501	42501	P0002	P0002	42501	P0002	42501	42501	42501	42501	42501	42501	42501	42501
+start_station	p_job uuid	P0002	42501	42501	42501	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	42501	42501	42501
+submit_delay_report	p_job uuid, p_reasons text[], p_detail text, p_new_eta timestamp with time zone, p_need_help text, p_request uuid	P0002	42501	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	P0002	42501	42501	42501
+submit_mockup_sheet	p_sheet uuid, p_version integer	P0002	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+undo_delivery	p_job uuid, p_reason text	P0002	42501	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+update_out_plan	p_run bigint, p_arrive_at timestamp with time zone, p_lead_days numeric, p_back_at timestamp with time zone	P0001	42501	P0001	P0001	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501	42501
+update_sew_count	p_job uuid, p_count integer	P0002	42501	42501	42501	P0002	P0002	P0002	P0002	42501	42501	42501	42501	42501	42501	42501	42501
