@@ -24,6 +24,7 @@ import { StationHeader, StationRail } from '../components/StationNav'
 import { machineUse } from '../proto/machines'
 import { SewingNow, type SewActions } from './SewingNow'
 import { JobActions } from './JobActions'
+import { JobVariants } from './JobVariants'
 import { StationQueue } from './StationQueue'
 import { ReceiveJob } from './ReceiveJob'
 import { ConfirmationOutbox } from './ConfirmationOutbox'
@@ -662,6 +663,7 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
                 : j.mockupUrl ? <Tr th="กดที่รูปเพื่อดูเต็มจอ" /> : <Tr th="ยังไม่มีรูปม็อคอัพ" />}
             </span>
           </div>
+          <JobVariants job={j} />
           {actions}
           <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3">

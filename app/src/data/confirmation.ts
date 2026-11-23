@@ -102,7 +102,7 @@ export type ReviseArgs = {
   p_changes: string[]
 }
 
-const FORM_ONLY_KEYS = ['revise_job', 'changes', 'mockup', 'mockup_path', 'from_job', 'job_img', 'job_no', 'mockup_no']
+const FORM_ONLY_KEYS = ['revise_job', 'changes', 'mockup', 'mockup_path', 'from_job', 'job_img', 'job_imgs', 'job_no', 'mockup_no']
 
 /** ใบที่แก้หลังรับงาน → ค่าส่งให้ revise_job_spec · null = ไม่ใช่ข้อมูลจากฟอร์มใบยืนยัน */
 export function reviseArgs(raw: unknown): ReviseArgs | null {

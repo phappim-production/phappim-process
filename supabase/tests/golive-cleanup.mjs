@@ -41,9 +41,12 @@ export async function goliveCleanupTests({ db, ok }) {
       ('confirmations', 'SC699001.pdf', 1, 'application/pdf', now() - interval '2 hours'),
       ('confirmations', 'uploading-now.pdf', 1, 'application/pdf', now()),
       ('mockups', 'TEST-GL-1/m.png', 1, 'image/png', now() - interval '2 hours'),
-      ('mockups', 'draft/m.png', 1, 'image/png', now() - interval '2 hours');
+      ('mockups', 'draft/m.png', 1, 'image/png', now() - interval '2 hours'),
+      ('mockups', 'SC699001/2.png', 1, 'image/png', now() - interval '2 hours'),
+      ('mockups', 'draft/2.png', 1, 'image/png', now() - interval '2 hours');
     update public.jobs set mockup_path = 'TEST-GL-1/m.png' where id = '${testA}';
-    insert into public.confirmation_drafts (confirmation_no, data, status) values ('SC699004', '{"mockup_path":"draft/m.png"}', 'draft');
+    update public.jobs set spec = '{"mockups":[{"name":"","path":"SC699001/2.png"}]}' where id = '${real}';
+    insert into public.confirmation_drafts (confirmation_no, data, status) values ('SC699004', '{"mockup_path":"draft/m.png","mockups":[{"path":"draft/2.png"}]}', 'draft');
   `)
 
   const realBefore = await val(`select count(*)::int from public.jobs where confirmation_no not like 'TEST-%'`)
@@ -81,8 +84,8 @@ export async function goliveCleanupTests({ db, ok }) {
   ok('ตารางผลสรุปบอกจำนวนงานที่ลบ', Number(get('ลบงานทดสอบ')) >= 3 && get('งานจริงที่เหลือ') === String(realBefore), JSON.stringify(summary))
   ok('ตารางผลสรุป: trigger กันลบประวัติเปิดคืนแล้ว', get('trigger') === 'เปิดอยู่ (ถูกต้อง)')
   const files = (await db.query(`select kind || '/' || path f from private.file_objects order by 1`)).rows.map(r => r.f)
-  ok('ไฟล์ R2: ลบรายการของงานทดสอบ · เก็บไฟล์งานจริง ใบร่าง และไฟล์ที่เพิ่งอัปโหลด',
-    files.join(',') === 'confirmations/SC699001.pdf,confirmations/uploading-now.pdf,mockups/draft/m.png', files.join(','))
+  ok('ไฟล์ R2: ลบรายการของงานทดสอบ · เก็บไฟล์งานจริง รูปที่ 2 ในสเปก ใบร่าง และไฟล์ที่เพิ่งอัปโหลด',
+    files.join(',') === 'confirmations/SC699001.pdf,confirmations/uploading-now.pdf,mockups/SC699001/2.png,mockups/draft/2.png,mockups/draft/m.png', files.join(','))
   const cmds = summary.filter(r => r.ขั้น === 7).map(r => r.ผล).sort()
   ok('ตารางผลสรุปให้คำสั่งลบไฟล์ R2 ครบ',
     get('ลบรายการไฟล์ R2') === '2' && cmds.join('|') ===

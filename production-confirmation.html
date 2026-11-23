@@ -111,6 +111,10 @@ table.ft tfoot td{font-weight:700;background:#f7f8f6}
 .imgs figcaption{font-size:12px;padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .imgs .cap{width:100%;border:0;border-top:1px solid var(--line);font:inherit;font-size:12px;padding:4px 6px}
 .imgs .btn.x{position:absolute;top:2px;right:2px;background:#fff;border-radius:6px}
+.imgs .imgno{position:absolute;top:4px;left:4px;background:var(--accent);color:#fff;border-radius:6px;padding:0 6px;font-size:12px;font-weight:700}
+.img-cell{display:flex;align-items:center;gap:6px}
+.img-cell img{width:36px;height:36px;object-fit:contain;border:1px solid var(--line);border-radius:4px;background:#f7f8f6;flex:none}
+.img-cell select{min-width:96px}
 
 .field.missing .lab{color:var(--caution)}
 .field.missing input,.field.missing .tbl-wrap,.field.missing .opts .opt{border-color:#e9c27f}
@@ -395,7 +399,11 @@ const PERSONAL = [
   C('personal','ข้อความรายตัว',['ชื่อรายตัว','เบอร์รายตัว','ตำแหน่ง/แผนก'],{ hint:'ถ้ามี ต้องแนบรายชื่อพร้อมไซซ์', when:hasPrint }),
   T('personal_pos','ตำแหน่ง ขนาด และเทคนิคของข้อความรายตัว',{ req:true, wide:true, when:v=>(v.personal||[]).length>0 }),
 ];
-const QTY = unit => N('qty','จำนวน',unit,{ req:true });
+const IMG_COL = { c:'img', label:'รูป', t:'img', opt:true };
+// 1 รหัสงานมีได้หลายแบบ (ลาย / สี) · ยอดงาน = ผลรวมของตาราง · id items ให้หน้าระบบนับยอดแบบเดียวกับสินค้าผืน
+const VARIANTS = unit => ({ id:'items', type:'itemTable', label:'แบบและจำนวน', req:true, addLabel:'+ เพิ่มแบบ',
+  hint:'1 แถวต่อ 1 แบบ (ลาย / สี) · มีแบบเดียวใส่แถวเดียว · เลือกรูปม็อคอัพของแต่ละแบบในคอลัมน์ "รูป"',
+  cols:[ { c:'name', label:'แบบ / ลาย', t:'text', opt:true }, { c:'color', label:'สี', t:'text', opt:true }, IMG_COL, { c:'qty', label:`จำนวน (${unit})`, t:'number', sum:true } ] });
 const SPARE = unit => N('spare','ผลิตเผื่อเสีย',unit,{ hint:'ไม่นับรวมในยอดส่งลูกค้า' });
 
 function printSec(methods, positions, x={}){
@@ -435,7 +443,7 @@ function sizeSec(sets, unit, x={}){
 function itemsSec(unit, x={}){
   const cols=[{ c:'name', label:x.nameLabel||'ลาย / ชื่อรายการ', t:'text' }];
   if(x.size!==false) cols.push({ c:'w', label:'กว้าง', t:'number', len:true },{ c:'h', label:x.hLabel||'สูง', t:'number', len:true });
-  cols.push({ c:'qty', label:`จำนวน (${unit})`, t:'number', sum:true });
+  cols.push(IMG_COL,{ c:'qty', label:`จำนวน (${unit})`, t:'number', sum:true });
   return { title:x.title||'ขนาดและจำนวน', fields:[
     ...(x.before||[]),
     { id:'items', type:'itemTable', label:'รายการ', lenUnit:x.size!==false?'ซม.':undefined, req:true, hint:x.hint||'ขนาดเป็นขนาดสำเร็จ', cols },
@@ -742,7 +750,7 @@ const PRODUCTS = {
       N('waist_len','ความยาวสายผูกเอวรวม','ซม.',{ hint:'มาตรฐาน 63 นิ้ว (ประมาณ 160 ซม.)' }),
       T('strap_color','สีสาย',{ ph:'เว้นว่าง = สีเดียวกับตัว' }),
       POCKETS(POCKET_APRON,{ kinds:['กระเป๋าแปะ','กระเป๋าแปะแบ่งช่อง','ช่องปากกา','กระเป๋าแปะมีฝาปิด'] }),
-      QTY('ผืน'), SPARE('ผืน') ]},
+      VARIANTS('ผืน'), SPARE('ผืน') ]},
     printSec(['งานปัก','ซิลค์สกรีน','ดิจิทัลพริ้นท์','DTF (ฟิล์มรีดร้อน)','ไม่มีลาย'],['อก','กลางตัว','กระเป๋า','สาย'],{ def:['งานปัก'] }),
     { title:'การเย็บ', fields:[ THREAD ]},
     packSec(['พับใส่ถุงแยกผืน','พับรวม','ไม่ใส่ถุง']),
@@ -775,7 +783,7 @@ const PRODUCTS = {
       R('usage','การใช้งาน',['ถุงผ้าทั่วไป / ถุงช้อปปิ้ง','ถุงยังชีพ','กระเป๋าของชำร่วย'],{ other:true }),
       R('style','ทรง',['ทรงแบน (ไม่มีก้น ไม่มีข้าง)','ขยายเฉพาะก้น','ขยายก้นและข้าง (ทรงกล่อง)','ถุงหูรูด','ทรงสะพายข้าง','ทรงเป้หูรูด'],{ other:true }),
       D('dims','ขนาดสำเร็จ',['กว้าง','สูง','ข้าง/ก้น'],{ hint:'ทรงแบน ใส่ข้าง/ก้น = 0' }),
-      QTY('ใบ'), SPARE('ใบ') ]},
+      VARIANTS('ใบ'), SPARE('ใบ') ]},
     { title:'ผ้า', fields:[
       R('fabric','ผ้าตัวกระเป๋า',['ผ้าแคนวาส','ผ้าดิบ','ผ้าไมโคร (ซับลิเมชั่น)','ผ้าร่ม','ผ้าสปันบอนด์ (Non-woven)'],{ other:true }),
       T('fabric_color','สีผ้า',{ req:true }), FABRICS_MORE(),
@@ -807,7 +815,7 @@ const PRODUCTS = {
       N('gsm','ความหนาผ้า','แกรม',{ req:true }),
       T('fabric_color','สีถุง',{ req:true }), FABRICS_MORE(),
       R('handle','หู',['หูหิ้วสั้น','สายสะพายยาว','เจาะหู (ไม่มีสาย)']),
-      QTY('ใบ'), SPARE('ใบ') ]},
+      VARIANTS('ใบ'), SPARE('ใบ') ]},
     printSec(['ดิจิทัลพริ้นท์ (ไม่จำกัดสี)','ซิลค์สกรีน','Photo HD','ไม่มีลาย'],['ด้านหน้า','ด้านหลัง','ข้าง']),
     packSec(['มัดรวมทุก 50 ใบ','มัดรวมทุก 100 ใบ','ใส่ถุงแยกใบ']),
   ]},
@@ -818,7 +826,7 @@ const PRODUCTS = {
       R('fold','แบบพับเก็บ',['พับเก็บใส่กระเป๋าจิ๋วในตัว','ซองสวมแยก','กระดุม / ยางยืดรัด']),
       D('dims','ขนาดตอนกาง',['กว้าง','สูง','ข้าง/ก้น']),
       D('fold_dims','ขนาดตอนพับ',['กว้าง','สูง'],{ req:false }),
-      QTY('ใบ'), SPARE('ใบ') ]},
+      VARIANTS('ใบ'), SPARE('ใบ') ]},
     { title:'หูหิ้ว / สาย', fields:[
       R('handle_style','รูปแบบ',['หูหิ้ว 2 หู','สายสะพายยาว','หูหิ้ว + สายสะพาย'],{ other:true }),
       R('handle_mat','วัสดุสาย',['ผ้าเดียวกับตัว กุ๊นขอบสาย','ผ้าเดียวกับตัว พับเย็บ','เทปไนลอน','เทปก้างปลา'],{ other:true }),
@@ -835,7 +843,7 @@ const PRODUCTS = {
       D('dims','ขนาดถุง',['กว้าง','สูง']),
       R('closure','การปิด',['หูรูดเชือก','หูรูดริบบิ้น'],{ other:true }),
       T('closure_color','สีเชือก / ริบบิ้น',{ req:true }),
-      QTY('ถุง'), SPARE('ถุง') ]},
+      VARIANTS('ถุง'), SPARE('ถุง') ]},
     { title:'ไส้และกลิ่น', fields:[
       R('filling','ไส้',['ดอกไม้แห้ง','หินภูเขาไฟ','เม็ดน้ำหอม','ไม่ใส่ไส้ (ถุงเปล่า)'],{ other:true }),
       T('scent','กลิ่น',{ req:true, when:v=>v.filling&&!/ไม่ใส่/.test(v.filling) }),
@@ -854,7 +862,7 @@ const PRODUCTS = {
       T('lining_fabric','ผ้าซับใน / สี',{ req:true, when:v=>v.lining==='มีซับใน' }),
       R('closure','การปิดปาก',['ไม่มี','ซิป','กระดุมแป๊ก','หูรูด']),
       POCKETS(POCKET_BAG,{ label:'ช่องใส่ของ', kinds:['ช่องแปะแบบเปิด','ช่องซิป','ช่องใส่ปากกา'] }),
-      QTY('ใบ'), SPARE('ใบ') ]},
+      VARIANTS('ใบ'), SPARE('ใบ') ]},
     printSec(['สกรีนบนกระจูด','ป้ายหนังติดโลโก้','ป้ายผ้า / งานปักบนซับ','ไม่มีลาย'],['ด้านหน้า','ด้านหลัง','ป้ายที่หู'],{ title:'ตกแต่ง / โลโก้' }),
     packSec(['ถุงแยกใบ','ใส่กล่อง','มัดรวม']),
   ]},
@@ -997,6 +1005,8 @@ function scope(s){
   if(Array.isArray(v.fit)) v.fit=v.fit.filter(x=>x!=='ทรงเด็ก');
   if(v.bag==='ถุงแยกตัว (1/1)') v.bag='แพ็ค 1/1 (ถุงแยกตัว)';
   if(v.bag==='ถุงรวมตามไซซ์'){ v.bag=''; v.outer_pack='แพ็คใส่ถุงใหญ่'; v.bigbag_split=['แยกถุงตามไซซ์']; }
+  // ใบก่อนมีตารางแบบเก็บจำนวนช่องเดียว
+  if(v.qty!==undefined&&!Array.isArray(v.items)&&allFields().some(f=>f.id==='items')){ if(num(v.qty)>0) v.items=[{ qty:String(v.qty) }]; delete v.qty; }
   return v;
 }
 const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1050,6 +1060,16 @@ function syncSaveBtn(){ const b=$('[data-act="savedb"]'); if(!b) return; const r
   b.title=r?'ลูกค้าขอแก้ใบหลังรับงาน: สเปกงานในระบบเปลี่ยนตามใบนี้ และแจ้งทุกฝ่าย':'เก็บใบนี้ในระบบติดตามการผลิต · ตอนส่งงานเข้าเลือกใบจากรายการได้เลย ไม่ต้องใช้ไฟล์'; }
 const stdCell=(id,i,c,val)=>{ const on=val===c.std, a=`data-t="${id}" data-r="${i}" data-c="${c.c}"`;
   return `<div class="std-cell">${on?`<span>${esc(c.std)}</span>`:`<input type="text" ${a} value="${esc(val)}">`}<label class="std"><input type="checkbox" ${a} data-std="${esc(c.std)}" ${on?'checked':''}>มาตรฐาน</label></div>`; };
+const imgName=n=>{ const m=state.imgs[n-1]; return m?`รูป ${n}${m.name?' · '+m.name:''}`:''; };
+const imgCell=(id,i,val)=>{ const n=+val||0, m=state.imgs[n-1], a=`data-t="${id}" data-r="${i}" data-c="img"`;
+  if(!state.imgs.length) return `<span class="hint">ยังไม่มีรูป</span>`;
+  return `<div class="img-cell">${m?`<img src="${m.src}" alt="">`:''}<select ${a} aria-label="รูปของแถว ${i+1}"><option value="">— ไม่ระบุ —</option>${state.imgs.map((x,j)=>`<option value="${j+1}" ${n===j+1?'selected':''}>${esc(imgName(j+1))}</option>`).join('')}</select></div>`; };
+// ลบรูปแล้วเลขรูปที่แถวอ้างต้องเลื่อนตาม ไม่อย่างนั้นแบบจะชี้ผิดรูป
+function shiftImgRefs(removed){
+  const v=scope('p');
+  allFields().filter(f=>f.type==='itemTable'||f.type==='sizeTable').forEach(f=>{ (Array.isArray(v[f.id])?v[f.id]:[]).forEach(r=>{
+    const n=+r.img||0; if(n===removed+1) delete r.img; else if(n>removed+1) r.img=String(n-1); }); });
+}
 const sampleLocked=(f,s)=>s==='h'&&f.id==='sample'&&revising()&&!!jobBase()?.h?.sample;
 const WIDE=['check','sizeTable','itemTable','placements','images','textarea','dims'];
 function fieldHTML(f,s,v){
@@ -1075,11 +1095,11 @@ function fieldHTML(f,s,v){
     case 'sizeTable': {
       const cols=sizeCols(v), rs=rows(v,f.id);
       if(!cols.length){ b=`<div class="hint">เลือกชุดไซซ์ก่อน</div>`; break; }
-      b=`<div class="tbl-wrap"><table class="ft"><thead><tr><th>${esc(f.rowLabel||'แบบ / สี')}</th>${cols.map(c=>`<th>${c}</th>`).join('')}<th>รวม</th><th></th></tr></thead><tbody>`+
-        rs.map((r,i)=>`<tr><td class="l"><input type="text" data-t="${f.id}" data-r="${i}" data-c="label" value="${esc(r.label)}" placeholder="เช่น สีขาว ลาย A"></td>`+
+      b=`<div class="tbl-wrap"><table class="ft"><thead><tr><th>${esc(f.rowLabel||'แบบ / สี')}</th><th>รูป</th>${cols.map(c=>`<th>${c}</th>`).join('')}<th>รวม</th><th></th></tr></thead><tbody>`+
+        rs.map((r,i)=>`<tr><td class="l"><input type="text" data-t="${f.id}" data-r="${i}" data-c="label" value="${esc(r.label)}" placeholder="เช่น สีขาว ลาย A"></td><td class="l">${imgCell(f.id,i,r.img)}</td>`+
           cols.map(c=>`<td><input type="number" min="0" data-t="${f.id}" data-r="${i}" data-c="q:${esc(c)}" value="${esc(r.q[c])}"></td>`).join('')+
           `<td data-rt="${i}">0</td><td>${rs.length>1?`<button class="btn x" data-act="delrow" data-id="${f.id}" data-r="${i}" title="ลบแถว">✕</button>`:''}</td></tr>`).join('')+
-        `</tbody><tfoot><tr><td>รวม</td>${cols.map(c=>`<td data-ct="${esc(c)}">0</td>`).join('')}<td data-gt>0</td><td></td></tr></tfoot></table></div>`+
+        `</tbody><tfoot><tr><td>รวม</td><td></td>${cols.map(c=>`<td data-ct="${esc(c)}">0</td>`).join('')}<td data-gt>0</td><td></td></tr></tfoot></table></div>`+
         `<div class="tbl-actions"><button class="btn small ghost" data-act="addrow" data-id="${f.id}">+ เพิ่มแบบ/สี</button></div>`+
         sizeChart(f,v).map(l=>`<div class="hint">${esc(l)}</div>`).join('');
       break; }
@@ -1088,6 +1108,7 @@ function fieldHTML(f,s,v){
       b=`<div class="tbl-wrap"><table class="ft"><thead><tr>${f.cols.map(c=>`<th>${esc(colLabel(c,f,v))}</th>`).join('')}<th></th></tr></thead><tbody>`+
         rs.map((r,i)=>`<tr>${f.cols.map(c=>`<td class="${c.t!=='number'?'l':''}">`+(c.t==='select'
             ? `<select data-t="${f.id}" data-r="${i}" data-c="${c.c}"><option value="">— เลือก —</option>${c.options.map(o=>`<option ${r[c.c]===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`
+            : c.t==='img' ? imgCell(f.id,i,r[c.c])
             : c.std ? stdCell(f.id,i,c,r[c.c])
             : `<input type="${c.t}" ${c.t==='number'?'min="0" step="any"':''} data-t="${f.id}" data-r="${i}" data-c="${c.c}" value="${esc(r[c.c])}">`)+`</td>`).join('')}<td>${rs.length>1||!f.req?`<button class="btn x" data-act="delrow" data-id="${f.id}" data-r="${i}" title="ลบแถว">✕</button>`:''}</td></tr>`).join('')+
         `</tbody>${f.cols.some(c=>c.sum)?`<tfoot><tr>${f.cols.map((c,j)=>`<td>${j===0?'รวม':c.sum?'<span data-gt>0</span>':''}</td>`).join('')}<td></td></tr></tfoot>`:''}</table></div>`+
@@ -1104,7 +1125,7 @@ function fieldHTML(f,s,v){
       break; }
     case 'images':
       b=`<input type="file" accept="image/*" multiple data-img>`+
-        `<div class="imgs">${state.imgs.map((m,i)=>`<figure><img src="${m.src}" alt=""><input class="cap" data-imgcap="${i}" value="${esc(m.name)}" aria-label="ชื่อใต้รูป" placeholder="ชื่อใต้รูป เช่น ผ้าตาข่าย"><button class="btn x" data-act="delimg" data-r="${i}" title="ลบภาพ">✕</button></figure>`).join('')}</div>`+coEditorHTML();
+        `<div class="imgs">${state.imgs.map((m,i)=>`<figure><span class="imgno">รูป ${i+1}</span><img src="${m.src}" alt=""><input class="cap" data-imgcap="${i}" value="${esc(m.name)}" aria-label="ชื่อใต้รูป" placeholder="ชื่อใต้รูป เช่น ผ้าตาข่าย"><button class="btn x" data-act="delimg" data-r="${i}" title="ลบภาพ">✕</button></figure>`).join('')}</div>`+coEditorHTML();
       break;
   }
   const wide=f.wide||(WIDE.includes(f.type))||(f.type==='radio'&&(f.options.length>3||f.other));
@@ -1153,27 +1174,28 @@ function compress(file){ return new Promise(res=>{ const fr=new FileReader();
   fr.onerror=()=>res(null); fr.readAsDataURL(file); }); }
 let readingImgs=0;
 function rerender(){ const y=scrollY; renderForm(); scrollTo(0,y); save(); refreshThumb(); }
-// ภาพแรก = รูปม็อคอัพบนการ์ดงานในระบบ · ย่อด้านยาว 800px (~100 KB) เพราะส่งผ่าน localStorage ที่พื้นที่น้อย
-let thumb=null;
+// รูปที่มาจากระบบเป็นลิงก์ข้ามเว็บ ย่อไม่ได้ · ส่งแค่ path เดิม ระบบใช้ไฟล์เดิม
+const sysPath=(m,i)=>/^data:/.test(m.src||'')?'':m.path||(i===0?state.mockup_path||'':'');
+// ทุกรูปย่อด้านยาว 1000px (~150 KB) เพราะส่งเข้าระบบผ่าน localStorage ที่พื้นที่น้อย · ค่า null = ย่อไม่ได้
+const shrunk=new Map();
+let measured='';
 function refreshThumb(){
   const src=state.imgs[0]&&state.imgs[0].src;
-  if(!src){ thumb=null; return; }
-  if(thumb&&thumb.src===src) return;
-  const img=new Image();
-  img.onload=()=>{
-    if(state.imgs[0]&&state.imgs[0].src===src&&(!state.co_size||state.co_size.w!==img.width||state.co_size.h!==img.height)){
+  if(src&&measured!==src){ measured=src; const img=new Image();
+    img.onload=()=>{ if(state.imgs[0]?.src!==src||(state.co_size&&state.co_size.w===img.width&&state.co_size.h===img.height)) return;
       state.co_size={ w:img.width, h:img.height };
       const st=form.querySelector('[data-co-stage]'); if(st) st.outerHTML=coStageHTML(true);
-      save();
-    }
-    const k=Math.min(1,800/Math.max(img.width,img.height)), c=document.createElement('canvas');
-    c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); const g=c.getContext('2d');
-    g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0,c.width,c.height);
-    // รูปที่เปิดจากระบบเป็นลิงก์ข้ามเว็บ ย่อไม่ได้ · ไม่ส่งรูปใหม่ ระบบใช้รูปเดิม (mockup_path)
-    let data=null; try{ data=c.toDataURL('image/jpeg',0.8); }catch(e){}
-    if(state.imgs[0]&&state.imgs[0].src===src) thumb={ src, data }; };
-  img.onerror=()=>{ if(state.imgs[0]&&state.imgs[0].src===src) thumb={ src, data:null }; };
-  img.src=src;
+      save(); };
+    img.src=src; }
+  state.imgs.forEach((m,i)=>{ if(!m.src||sysPath(m,i)||shrunk.has(m.src)) return;
+    shrunk.set(m.src,undefined); const img=new Image();
+    img.onload=()=>{ const k=Math.min(1,1000/Math.max(img.width,img.height)), c=document.createElement('canvas');
+      c.width=Math.round(img.width*k); c.height=Math.round(img.height*k); const g=c.getContext('2d');
+      g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0,c.width,c.height);
+      let data=null; try{ data=c.toDataURL('image/jpeg',0.8); }catch(e){}
+      shrunk.set(m.src,data); };
+    img.onerror=()=>shrunk.set(m.src,null);
+    img.src=m.src; });
 }
 
 /* จุดกำกับ (Callout) บนภาพแรก · พิกัดเป็นสัดส่วนของภาพ (0–1) กล่องข้อความวางในขอบว่างรอบภาพได้
@@ -1226,7 +1248,7 @@ function coEditorHTML(){
 function coDocHTML(){
   const cs=coList(); if(!state.imgs[0]||!cs.length) return '';
   const refs=coRefs();
-  return `<figure class="d-co">${coStageHTML(false)}<figcaption>${esc(state.imgs[0].name||'ภาพม็อคอัพ')} · จุดกำกับ ${cs.length} จุด</figcaption></figure><div class="d-mock">${esc(MOCKUP_NOTE)}</div>`+
+  return `<figure class="d-co">${coStageHTML(false)}<figcaption>${esc(imgName(1))} · จุดกำกับ ${cs.length} จุด</figcaption></figure><div class="d-mock">${esc(MOCKUP_NOTE)}</div>`+
     `<table class="dt"><thead><tr><th>#</th><th>จุด</th><th>รายละเอียด</th></tr></thead><tbody>`+
     cs.map((c,i)=>`<tr><td>${i+1}</td><td class="l">${esc(c.title)}</td><td class="l">${esc(coLabel(c,refs))}</td></tr>`).join('')+`</tbody></table>`;
 }
@@ -1308,7 +1330,7 @@ document.addEventListener('click',e=>{
   if(act==='delimg'){ const r=+b.dataset.r;
     if(r===0&&coList().length&&!confirm(`ภาพแรกมีจุดกำกับ ${coList().length} จุด ลบภาพแล้วจุดจะหายด้วย ลบต่อ?`)) return;
     if(r===0){ state.callouts=[]; state.co_size=null; }
-    state.imgs.splice(r,1); rerender(); }
+    shiftImgRefs(r); state.imgs.splice(r,1); rerender(); }
   if(act==='delco'){ coList().splice(+b.dataset.r,1); rerender(); }
   if(act==='unit'){ scope(b.dataset.s)[b.dataset.uk+'__unit']=b.dataset.u; return rerender(); }
   if(act==='na'){ const sc=scope(b.dataset.s), k=b.dataset.nk+'__na'; if(sc[k]) delete sc[k]; else sc[k]=true; rerender(); }
@@ -1328,7 +1350,7 @@ function loadData(d, label){
   if(!d||!d.h||!d.p||!PRODUCTS[d.product]) return false;
   state={ h:d.h, product:d.product, pickOpen:false, p:d.p, imgs:Array.isArray(d.imgs)?d.imgs:[], callouts:Array.isArray(d.callouts)?d.callouts:[], co_size:d.co_size||null }; missing=[];
   if(typeof d.mockup_path==='string'&&d.mockup_path){ state.mockup_path=d.mockup_path; state.mockup_no=String(d.h.doc_no||'').trim(); } $('#alert').innerHTML='';
-  if(d.from_job){ state.job_no=String(d.h.doc_no||'').trim(); state.job_img=state.imgs[0]?.src||''; }
+  if(d.from_job){ state.job_no=String(d.h.doc_no||'').trim(); state.job_imgs=JSON.stringify(state.imgs.map(m=>m.src)); }
   if(document.body.classList.contains('preview')) togglePreview(false); rerender();
   if(d.from_job){ state.job_base=jobSnapshot(); rerender(); }
   scrollTo(0,0); save(); toast(label);
@@ -1353,7 +1375,7 @@ function changedLabels(){
   layout().filter(sec=>sec.fields).forEach(sec=>{ const now=scope(sec.s), was=sec.s==='h'?base.h:base.p;
     sec.fields.forEach(f=>{ if(['doc_no','rev','images'].includes(f.id)) return;
       if(pick(f,now)!==pick(f,was)) out.push(f.label.replace(/ \(.*\)$/,'')); }); });
-  if((state.imgs[0]?.src||'')!==(state.job_img||'')) out.push('รูปม็อคอัพ');
+  if(JSON.stringify(state.imgs.map(m=>m.src))!==(state.job_imgs||'[]')) out.push('รูปม็อคอัพ');
   if(JSON.stringify(state.callouts||[])!==JSON.stringify(base.co||[])) out.push('จุดกำกับบนม็อคอัพ');
   return [...new Set(out)];
 }
@@ -1375,8 +1397,10 @@ function saveToSystem(){
     if(!confirm('บันทึกการแก้ใบ '+state.job_no+' (แก้ไขครั้งที่ '+num(state.h.rev)+') เข้างานในระบบ?\n\nช่องที่แก้: '+(changes.join(', ')||'—')+'\n\nสเปกงานในระบบจะเปลี่ยนตามใบนี้ และแจ้งทุกฝ่ายในกล่องจดหมาย')) return;
   }
   // รูปที่เพิ่งเลือกยังอ่าน/ย่อไม่เสร็จ = ไม่ส่ง ไม่อย่างนั้นใบไปถึงระบบโดยไม่มีรูป · ใบแก้ที่ใช้รูปเดิมของงานไม่ต้องรอ
-  const first=state.imgs[0]&&state.imgs[0].src, newImg=!!first&&!(revise&&first===state.job_img);
-  if(newImg&&(readingImgs||!(thumb&&thumb.src===first))){ refreshThumb(); alert('กำลังเตรียมรูปม็อคอัพ รอ 1–2 วินาที แล้วกด "'+btn+'" อีกครั้ง'); return; }
+  refreshThumb();
+  if(readingImgs||state.imgs.some((m,i)=>!sysPath(m,i)&&shrunk.get(m.src)===undefined)){ alert('กำลังเตรียมรูปม็อคอัพ รอ 1–2 วินาที แล้วกด "'+btn+'" อีกครั้ง'); return; }
+  const broken=state.imgs.map((m,i)=>!sysPath(m,i)&&!shrunk.get(m.src)?i+1:0).filter(Boolean);
+  if(broken.length){ alert('เปิดรูปที่ '+broken.join(', ')+' ไม่ได้ ลบรูปนั้นแล้วเลือกไฟล์รูปใหม่'); return; }
   const payload={ app:'phappim-confirm', v:1, ...state, imgs:[], summary:{ qty:totalQty() } };
   // ช่องที่ถูกซ่อนเพราะเปลี่ยนตัวเลือก (เช่น ผ้าเช็ดหน้า ↔ ผ้าพันคอ) ไม่ส่งเข้าระบบ ไม่อย่างนั้นหน้างานเห็นสเปกที่ลูกค้าไม่ได้เลือก
   const shown=scope('p'), part={...shown};
@@ -1386,11 +1410,11 @@ function saveToSystem(){
   const head={...state.h};
   HEADER.flatMap(sec=>sec.fields).forEach(f=>{ if(naAllowed(f)&&isNA(f,head)) drop(head,f); });
   payload.h=head;
-  if(newImg&&thumb.data) payload.mockup=thumb.data;
+  payload.mockups=state.imgs.map((m,i)=>{ const path=sysPath(m,i); return path?{ name:m.name||'', path }:{ name:m.name||'', data:shrunk.get(m.src) }; });
   if(revise){ payload.revise_job=true; payload.changes=changes; }
   // รูปเดิมจากระบบใช้ได้เฉพาะใบเลขเดิม (เปลี่ยนเลขใบเพื่อทำใบใหม่ = ไม่เอารูปใบเดิมไป)
   if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()) delete payload.mockup_path;
-  delete payload.mockup_no; delete payload.job_no; delete payload.job_base; delete payload.job_img;
+  delete payload.mockup_no; delete payload.job_no; delete payload.job_base; delete payload.job_imgs;
   try{ localStorage.setItem(OUTBOX, JSON.stringify(payload)); }catch(e){ alert('บันทึกไม่สำเร็จ (พื้นที่เบราว์เซอร์เต็ม) ให้ใช้ "บันทึกไฟล์" แทน'); return; }
   showAfterSave(state.h.doc_no);
   const url='/#/board?confirmation=save';
@@ -1537,18 +1561,20 @@ function renderDoc(){
       if(f.type==='sizeTable'){
         const all=sizeCols(v), rs=rows(v,f.id).filter(r=>all.some(c=>num(r.q[c])>0));
         const cols=all.filter(c=>rs.some(r=>num(r.q[c])>0));
-        if(rs.length) body+=`<table class="dt"><thead><tr><th>${esc(f.rowLabel||'แบบ / สี')}</th>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}<th>รวม</th></tr></thead><tbody>`+
-          rs.map(r=>`<tr><td class="l">${esc(r.label)}</td>${cols.map(c=>`<td>${num(r.q[c])||''}</td>`).join('')}<td><b>${cols.reduce((a,c)=>a+num(r.q[c]),0)}</b></td></tr>`).join('')+
-          `</tbody><tfoot><tr><td>รวม</td>${cols.map(c=>`<td>${rs.reduce((a,r)=>a+num(r.q[c]),0)}</td>`).join('')}<td>${totalQty()}</td></tr></tfoot></table>`;
+        const pic=rs.some(r=>imgName(+r.img));
+        if(rs.length) body+=`<table class="dt"><thead><tr><th>${esc(f.rowLabel||'แบบ / สี')}</th>${pic?'<th>รูป</th>':''}${cols.map(c=>`<th>${esc(c)}</th>`).join('')}<th>รวม</th></tr></thead><tbody>`+
+          rs.map(r=>`<tr><td class="l">${esc(r.label)}</td>${pic?`<td>${imgName(+r.img)?'รูป '+(+r.img):''}</td>`:''}${cols.map(c=>`<td>${num(r.q[c])||''}</td>`).join('')}<td><b>${cols.reduce((a,c)=>a+num(r.q[c]),0)}</b></td></tr>`).join('')+
+          `</tbody><tfoot><tr><td>รวม</td>${pic?'<td></td>':''}${cols.map(c=>`<td>${rs.reduce((a,r)=>a+num(r.q[c]),0)}</td>`).join('')}<td>${totalQty()}</td></tr></tfoot></table>`;
         const chart=sizeChart(f,v); if(rs.length&&chart.length) body+=`<div class="tlabel">ขนาดสำเร็จ</div>`+chart.map(l=>`<p>${esc(l)}</p>`).join('');
       }
       if(f.type==='itemTable'){
         const rs=rows(v,f.id,!!f.none).filter(r=>f.cols.some(c=>!isNone(r[c.c])));
         const lab=f.none||f.printLabel?`<div class="tlabel">${esc(fieldLabel(f,v))}</div>`:'';
         // ไม่มีรายการ = ไม่พิมพ์หัวข้อนี้ · คอลัมน์ที่ว่างทุกแถวไม่แสดง ยกเว้นยอดรวม
-        const cols=f.cols.filter(c=>c.sum||rs.some(r=>!isNone(r[c.c])));
+        const cell=(c,r)=>c.t==='img'?(imgName(+r[c.c])?'รูป '+(+r[c.c]):''):isNone(r[c.c])?'':r[c.c];
+        const cols=f.cols.filter(c=>c.sum||rs.some(r=>cell(c,r)));
         if(rs.length) body+=lab+`<table class="dt"><thead><tr><th>#</th>${cols.map(c=>`<th>${esc(colLabel(c,f,v))}</th>`).join('')}</tr></thead><tbody>`+
-          rs.map((r,i)=>`<tr><td>${i+1}</td>${cols.map(c=>`<td class="${c.t!=='number'?'l':''}">${isNone(r[c.c])?'':esc(r[c.c])}</td>`).join('')}</tr>`).join('')+
+          rs.map((r,i)=>`<tr><td>${i+1}</td>${cols.map(c=>`<td class="${c.t!=='number'&&c.t!=='img'?'l':''}">${esc(cell(c,r))}</td>`).join('')}</tr>`).join('')+
           `</tbody>${cols.some(c=>c.sum)?`<tfoot><tr><td colspan="${cols.length}">รวม</td><td>${totalQty()}</td></tr></tfoot>`:''}</table>`;
       }
       if(f.type==='placements'){
@@ -1559,7 +1585,8 @@ function renderDoc(){
       }
       if(f.type==='images'&&state.imgs.length){
         const co=coDocHTML(), rest=co?state.imgs.slice(1):state.imgs;
-        imgs=co+(rest.length?`<div class="d-imgs">${rest.map(m=>`<figure><img src="${m.src}" alt=""><figcaption>${esc(m.name)}</figcaption></figure>`).join('')}</div>`:'');
+        const first=co?2:1;
+        imgs=co+(rest.length?`<div class="d-imgs">${rest.map((m,i)=>`<figure><img src="${m.src}" alt=""><figcaption>${esc(imgName(i+first))}</figcaption></figure>`).join('')}</div>`:'');
       }
     });
     // ภาพแยกออกจากกล่องหัวข้อ เพื่อให้ตัดหน้าระหว่างภาพได้ ไม่ดันทั้งหัวข้อไปหน้าใหม่

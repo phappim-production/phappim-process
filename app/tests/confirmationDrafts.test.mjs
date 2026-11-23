@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { draftLabel, formDataFromJob, OUTBOX_KEY, takeOutbox } from '../src/data/confirmationDrafts.ts'
+import { draftLabel, formDataFromDraft, formDataFromJob, OUTBOX_KEY, takeOutbox } from '../src/data/confirmationDrafts.ts'
 import { eventLine } from '../src/data/history.ts'
 
 const memory = init => {
@@ -44,13 +44,27 @@ test('ไทม์ไลน์: ส่งงานเข้าโดยยัง
 
 test('เปิดใบของงานที่รับแล้วในฟอร์ม: ใช้ข้อมูลบนงาน + รูปในระบบ', () => {
   const spec = { h: { doc_no: 'SC-9' }, p: { tshirt: { fabric: 'TC' } }, product: 'tshirt', callouts: [{ x: 0.2 }], mockup: 'data:old' }
-  const d = formDataFromJob(spec, 'SC-9/a.jpg', 'https://files.example/a')
-  assert.deepEqual(d.imgs, [{ name: 'ม็อคอัพจากระบบ', src: 'https://files.example/a' }])
+  const urls = new Map([['SC-9/a.jpg', 'https://files.example/a']])
+  const d = formDataFromJob(spec, 'SC-9/a.jpg', urls)
+  assert.deepEqual(d.imgs, [{ name: '', src: 'https://files.example/a', path: 'SC-9/a.jpg' }])
   assert.equal(d.mockup_path, 'SC-9/a.jpg')
   assert.equal(d.from_job, true)
   assert.equal(d.mockup, undefined)
   assert.deepEqual(d.callouts, [{ x: 0.2 }])
-  assert.deepEqual(formDataFromJob(spec, null, null).imgs, [])
-  assert.equal(formDataFromJob({ h: {} }, null, null), null)
-  assert.equal(formDataFromJob(null, null, null), null)
+  assert.deepEqual(formDataFromJob(spec, null, new Map()).imgs, [])
+  assert.equal(formDataFromJob({ h: {} }, null, new Map()), null)
+  assert.equal(formDataFromJob(null, null, new Map()), null)
+})
+
+test('เปิดใบในฟอร์ม: รูปครบทุกรูปตามลำดับ · รูปที่ขอลิงก์ไม่ได้ยังอยู่ เลขรูปของแบบจะได้ไม่เลื่อน', () => {
+  const mockups = [{ name: 'หน้า', path: 'SC-9/a.jpg' }, { name: 'แดง', path: 'SC-9/b.jpg' }, { name: 'ฟ้า', path: 'SC-9/c.jpg' }]
+  const spec = { h: { doc_no: 'SC-9' }, p: { bag: {} }, product: 'bag', mockups }
+  const urls = new Map([['SC-9/a.jpg', 'u:a'], ['SC-9/c.jpg', 'u:c']])
+  const d = formDataFromJob(spec, 'SC-9/a.jpg', urls)
+  assert.deepEqual(d.imgs, [{ name: 'หน้า', src: 'u:a', path: 'SC-9/a.jpg' }, { name: 'แดง', src: '', path: 'SC-9/b.jpg' }, { name: 'ฟ้า', src: 'u:c', path: 'SC-9/c.jpg' }])
+  assert.equal(d.mockups, undefined)
+  const draft = formDataFromDraft({ h: { doc_no: 'SC-9' }, mockup_path: 'SC-9/a.jpg', mockups }, urls)
+  assert.equal(draft.imgs.length, 3)
+  assert.equal(draft.mockup_path, 'SC-9/a.jpg')
+  assert.deepEqual(formDataFromDraft({ h: {}, mockup_path: 'SC-9/a.jpg' }, urls).imgs, [{ name: '', src: 'u:a', path: 'SC-9/a.jpg' }])
 })

@@ -52,3 +52,19 @@ test('ฟอร์มใบยืนยัน: หัวตาราง / ตา
   assert.doesNotMatch(js, /label:'[^']*\((ซม|นิ้ว)\.?\)'/)
   assert.doesNotMatch(js, /<th>ขนาด \(ซม\.\)<\/th>/)
 })
+
+test('ฟอร์มใบยืนยัน: ทุกสินค้าใส่ได้หลายแบบใน 1 ใบ (ตารางแถวละแบบที่มีจำนวน) และเลือกรูปของแต่ละแบบได้', () => {
+  const js = scripts.join('\n')
+  const start = js.indexOf('const MUST_FILL=')
+  const end = js.indexOf('// แอดมินกับลูกค้ามักไม่รู้วิธีเย็บ')
+  assert.ok(start > 0 && end > start)
+  const { PRODUCTS } = new Function(js.slice(start, end) + '\nreturn { PRODUCTS }')()
+  const lacking = []
+  for (const [key, p] of Object.entries(PRODUCTS)) {
+    const fields = p.sections.flatMap(s => s.fields)
+    const table = fields.find(f => f.type === 'sizeTable' || (f.type === 'itemTable' && f.cols.some(c => c.sum)))
+    if (!table || fields.some(f => f.id === 'qty')) { lacking.push(key); continue }
+    if (table.type === 'itemTable' && (table.id !== 'items' || !table.cols.some(c => c.t === 'img'))) lacking.push(key)
+  }
+  assert.deepEqual(lacking, [])
+})

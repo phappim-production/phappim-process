@@ -1,4 +1,5 @@
 // ฟอร์มอยู่เว็บเดียวกับระบบ จึงส่งใบกันผ่าน localStorage ไม่ต้องล็อกอินในฟอร์ม · ชื่อ key ต้องตรงกับ production-confirmation.html
+import { formImages, specMockups } from './jobMockups.ts'
 
 export const OUTBOX_KEY = 'pp142.confirmation.outbox'
 export const INBOX_KEY = 'pp142.confirmation.inbox'
@@ -53,13 +54,24 @@ export function draftLabel(d: Pick<DraftRow, 'confirmation_no' | 'customer_name'
   return [d.confirmation_no, d.customer_name, `บันทึก ${day}`].filter(Boolean).join(' · ')
 }
 
-// งานที่รับแล้วหลุดจากรายการใบร่าง จึงเปิดฟอร์มจากข้อมูลบนงาน · รูปเป็นลิงก์ชั่วคราว ฟอร์มคงรูปในระบบด้วย mockup_path
-export function formDataFromJob(spec: unknown, mockupPath: string | null, mockupUrl: string | null): Record<string, unknown> | null {
+// งานที่รับแล้วหลุดจากรายการใบร่าง จึงเปิดฟอร์มจากข้อมูลบนงาน · รูปเป็นลิงก์ชั่วคราว ฟอร์มคงรูปในระบบด้วย path ของแต่ละรูป
+export function formDataFromJob(spec: unknown, mockupPath: string | null, urls: ReadonlyMap<string, string>): Record<string, unknown> | null {
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return null
   const s = spec as Record<string, unknown>
   if (!s.h || typeof s.h !== 'object' || !s.p || typeof s.p !== 'object' || typeof s.product !== 'string') return null
-  const out: Record<string, unknown> = { ...s, imgs: mockupUrl ? [{ name: 'ม็อคอัพจากระบบ', src: mockupUrl }] : [], from_job: true }
+  const out: Record<string, unknown> = { ...s, imgs: formImages(specMockups(s, mockupPath), urls), from_job: true }
   delete out.mockup
+  delete out.mockups
   if (mockupPath) out.mockup_path = mockupPath
+  return out
+}
+
+/** ใบร่างที่บันทึกไว้ → ข้อมูลเปิดในฟอร์มพร้อมรูปทุกรูป */
+export function formDataFromDraft(data: unknown, urls: ReadonlyMap<string, string>): Record<string, unknown> | null {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null
+  const d = data as Record<string, unknown>
+  const path = typeof d.mockup_path === 'string' && d.mockup_path ? d.mockup_path : null
+  const out: Record<string, unknown> = { ...d, imgs: formImages(specMockups(d, path), urls) }
+  delete out.mockups
   return out
 }

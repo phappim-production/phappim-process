@@ -105,6 +105,16 @@ export async function r2FileTests({ db, ok, as }) {
   ok('ไฟล์ที่ยังไม่ผูกกับงาน แอดมินอีกคนเปิดไม่ได้', (await readable(U.admin2, 'mockups', [sheetPic])).length === 0)
   ok('คนอัปโหลดเปิดไฟล์ตัวเองก่อนผูกกับงานได้ (ดูรูปก่อนบันทึกร่าง)', JSON.stringify(await readable(U.admin, 'mockups', [sheetPic])) === JSON.stringify([sheetPic]))
   ok('path ของ PDF ขอเป็นรูปไม่ได้', (await readable(U.admin, 'mockups', [pdfA])).length === 0)
+  const pic2 = 'SC-R2-M/2222222222222222.jpg', draftPic = 'SC-R2-D/3333333333333333.jpg', stray = 'SC-R2-M/4444444444444444.jpg'
+  for (const p of [pic2, draftPic, stray]) await as(U.admin, () => db.query(record('mockups', p, 500, 'image/jpeg')))
+  ok('รูปอื่นที่ยังไม่อยู่ในสเปก คนอื่นเปิดไม่ได้', (await readable(U.qc, 'mockups', [pic2, stray])).length === 0)
+  await db.query(`update public.jobs set spec = jsonb_set(coalesce(spec, '{}'), '{mockups}', $2::jsonb) where id = $1`,
+    [jobM, JSON.stringify([{ name: 'ด้านหน้า', path: picM }, { name: 'สีแดง', path: pic2 }])])
+  await db.query(`insert into public.confirmation_drafts (confirmation_no, data, status) values ('SC-R2-D', $1, 'draft')`,
+    [JSON.stringify({ mockups: [{ name: '', path: draftPic }] })])
+  ok('รูปที่ 2 ในสเปกงาน QC เปิดได้', JSON.stringify(await readable(U.qc, 'mockups', [pic2, stray])) === JSON.stringify([pic2]))
+  ok('รูปในรายการของใบร่าง แอดมินอีกคนเปิดได้', JSON.stringify(await readable(U.admin2, 'mockups', [draftPic])) === JSON.stringify([draftPic]))
+  await tryAs('บัญชีปิดเปิดรูปที่ 2 ไม่ได้', U.off, `select public.file_read_allowed('mockups', array['${pic2}'])`, /ถูกปิด/)
   ok('ไฟล์ที่ไม่มีอยู่ ไม่ออกลิงก์', (await readable(U.admin, 'confirmations', ['SC-R2-A/0000000000000000.pdf'])).length === 0)
 
   await db.exec(`delete from private.file_settings; delete from private.file_objects;`)
