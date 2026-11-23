@@ -63,6 +63,11 @@ export async function mockupSheetTests({ db, ok, as }) {
   ok('ค่าจากใบยืนยัน: ขนาดที่พิมพ์หน่วยมาแล้วไม่ต่อ ซม. ซ้ำ', await sized('8x8 ซม.') === 'DTF · 8x8 ซม.', await sized('8x8 ซม.'))
   ok('ค่าจากใบยืนยัน: ขนาดหน่วยอื่นคงตามที่พิมพ์', await sized('3 นิ้ว') === 'DTF · 3 นิ้ว')
   ok('ค่าจากใบยืนยัน: ขนาดตัวเลขล้วนต่อ ซม.', await sized('10 × 12') === 'DTF · 10 × 12 ซม.')
+  const inch = (size, unit) => db.query(`select private.mockup_ref_value($1::jsonb, 'placement:หน้าอกซ้าย') v`,
+    [JSON.stringify({ ...spec, p: { tshirt: { ...spec.p.tshirt, placements__unit: unit, placements: { 'หน้าอกซ้าย': { on: true, tech: 'DTF', size } } } } })]).then(r => r.rows[0].v)
+  ok('ค่าจากใบยืนยัน: เลือกหน่วยนิ้ว ต่อ นิ้ว', await inch('3 × 4', 'นิ้ว') === 'DTF · 3 × 4 นิ้ว', await inch('3 × 4', 'นิ้ว'))
+  ok('ค่าจากใบยืนยัน: เลือกหน่วยนิ้วแต่พิมพ์หน่วยมาเอง ไม่ต่อซ้ำ', await inch('8 ซม.', 'นิ้ว') === 'DTF · 8 ซม.')
+  ok('ค่าจากใบยืนยัน: หน่วยที่ไม่รู้จักใช้ ซม.', await inch('5', 'ฟุต') === 'DTF · 5 ซม.')
   ok('ไม่มีฟังก์ชันไหนใช้รหัส 40001 / 40P01 (PostgREST ลองซ้ำไม่หยุด)', (await db.query(`select count(*)::int n from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace where n.nspname in ('public', 'private') and p.prosrc ~ '40001|40P01'`)).rows[0].n === 0)
   ok('ค่าจากใบยืนยัน: ช่องแบบรายการต่อด้วยจุลภาค',

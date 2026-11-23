@@ -25,3 +25,30 @@ test('ฟอร์มใบยืนยัน: PDF ที่ลูกค้า�
   assert.doesNotMatch(js, /thDate\(h\.due_date\)/)
   assert.match(js, /data-act="next"/)
 })
+
+test('ฟอร์มใบยืนยัน: ช่องขนาดเลือกหน่วย ซม. / นิ้ว ได้ · ค่าเดิมที่ไม่ได้เลือกใช้หน่วยตั้งต้นของช่อง', () => {
+  const js = scripts.join('\n')
+  const start = js.indexOf('const LEN_UNITS=')
+  const end = js.indexOf('\n', js.indexOf('const colLabel='))
+  assert.ok(start > 0 && end > start)
+  const { unitOf, fieldLabel, colLabel, lenDefault } = new Function(js.slice(start, end) + '\nreturn { unitOf, fieldLabel, colLabel, lenDefault }')()
+  const width = { id: 'fabric_width', type: 'number', unit: 'นิ้ว' }
+  assert.equal(unitOf(width, {}), 'นิ้ว')
+  assert.equal(unitOf(width, { fabric_width__unit: 'ซม.' }), 'ซม.')
+  assert.equal(unitOf(width, { fabric_width__unit: 'ฟุต' }), 'นิ้ว')
+  assert.equal(lenDefault({ id: 'per_box', type: 'number', unit: 'ชิ้น' }), null)
+  assert.equal(unitOf({ id: 'per_box', type: 'number', unit: 'ชิ้น' }, { per_box__unit: 'นิ้ว' }), 'ชิ้น')
+  const measure = { id: 'measure_rows', type: 'itemTable', label: 'ขนาดสำเร็จแต่ละไซซ์', lenUnit: 'นิ้ว', cols: [{ c: 'chest', label: 'รอบอก' }] }
+  assert.equal(fieldLabel(measure, {}), 'ขนาดสำเร็จแต่ละไซซ์ (นิ้ว)')
+  assert.equal(fieldLabel(measure, { measure_rows__unit: 'ซม.' }), 'ขนาดสำเร็จแต่ละไซซ์ (ซม.)')
+  const items = { id: 'items', type: 'itemTable', label: 'รายการ', lenUnit: 'ซม.', cols: [{ c: 'w', label: 'กว้าง', len: true }, { c: 'qty', label: 'จำนวน (ผืน)' }] }
+  assert.equal(fieldLabel(items, {}), 'รายการ')
+  assert.equal(colLabel(items.cols[0], items, { items__unit: 'นิ้ว' }), 'กว้าง (นิ้ว)')
+  assert.equal(colLabel(items.cols[1], items, { items__unit: 'นิ้ว' }), 'จำนวน (ผืน)')
+})
+
+test('ฟอร์มใบยืนยัน: หัวตาราง / ตารางพิมพ์ไม่ล็อกหน่วย ซม. ตายตัว', () => {
+  const js = scripts.join('\n')
+  assert.doesNotMatch(js, /label:'[^']*\((ซม|นิ้ว)\.?\)'/)
+  assert.doesNotMatch(js, /<th>ขนาด \(ซม\.\)<\/th>/)
+})
