@@ -206,7 +206,8 @@ export function refValue(spec: unknown, ref: string | null): string | null {
       if (methods.length === 1) tech = methods[0]!
     }
     const size = text(x.size)
-    return [tech, size && (/^[0-9 .,xX×*/-]+$/.test(size) ? `${size} ซม.` : size), text(x.note)].filter(Boolean).join(' · ') || null
+    const unit = base.placements__unit === 'นิ้ว' ? 'นิ้ว' : 'ซม.'
+    return [tech, size && (/^[0-9 .,xX×*/-]+$/.test(size) ? `${size} ${unit}` : size), text(x.note)].filter(Boolean).join(' · ') || null
   }
   if (ref.startsWith('field:')) {
     const v = base[ref.slice(6)]

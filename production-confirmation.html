@@ -58,6 +58,11 @@ body.preview main.layout{grid-template-columns:minmax(0,1fr)}
 .lab small{font-weight:400;color:var(--muted)}
 .lab-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .na-btn{flex-shrink:0;min-height:36px;margin-bottom:4px;color:var(--muted)}
+.lab-tools{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.unit-sw{display:inline-flex;flex-shrink:0;margin-bottom:4px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.unit-sw button{min-height:36px;min-width:48px;padding:4px 10px;border:none;background:var(--card);font-size:13px;cursor:pointer}
+.unit-sw button+button{border-left:1px solid var(--line)}
+.unit-sw button[aria-pressed="true"]{background:var(--accent);color:#fff;font-weight:600}
 .na-box{border:1px dashed var(--line);border-radius:8px;padding:8px 10px;color:var(--muted);background:#f7f8f6}
 .req{color:var(--warn);font-style:normal;margin-left:2px}
 .hint{color:var(--muted);font-size:13px;margin:-2px 0 6px}
@@ -297,6 +302,12 @@ const C=(id,label,options,x={})=>({ id, type:'check', label, options, ...x });
 const T=(id,label,x={})=>({ id, type:'text', label, ...x });
 const N=(id,label,unit,x={})=>({ id, type:'number', label, unit, ...x });
 const D=(id,label,parts,x={})=>({ id, type:'dims', label, parts, unit:'ซม.', req:true, ...x });
+const LEN_UNITS=['ซม.','นิ้ว'];
+const lenDefault=f=>f.lenUnit||(['number','dims'].includes(f.type)&&LEN_UNITS.includes(f.unit)?f.unit:null);
+const unitOf=(f,v)=>{ const d=lenDefault(f); if(!d) return f.unit||''; const u=v&&v[f.id+'__unit']; return LEN_UNITS.includes(u)?u:d; };
+const withUnit=(label,f,v)=>`${label} (${unitOf(f,v)})`;
+const fieldLabel=(f,v)=>f.type==='itemTable'&&f.lenUnit&&!f.cols.some(c=>c.len)?withUnit(f.label,f,v):f.label;
+const colLabel=(c,f,v)=>c.len?withUnit(c.label,f,v):c.label;
 const A=(id,label,x={})=>({ id, type:'textarea', label, ...x });
 const has=(v,id,re)=>[].concat(v[id]||[]).some(x=>re.test(x));
 
@@ -364,13 +375,13 @@ const POCKET_BAG = ['ด้านในตัวกระเป๋า','ด้�
 const POCKET_APRON = ['อกกลาง','อกซ้าย','อกขวา','กลางตัว','ล่างซ้าย','ล่างขวา','ล่างเต็มแนว (แบ่งช่อง)'];
 const POCKET_KINDS = ['กระเป๋าแปะ','กระเป๋าเจาะ (ซ่อน)','กระเป๋าแปะมีฝาปิด','ช่องปากกา','กระเป๋าซิป','กระเป๋าจิงโจ้'];
 function POCKETS(positions, x={}){
-  return { id:x.id||'pocket_rows', type:'itemTable', label:x.label||'กระเป๋า', req:!!x.req, when:x.when, none:'ไม่มีกระเป๋า', addLabel:'+ เพิ่มกระเป๋า',
+  return { id:x.id||'pocket_rows', type:'itemTable', label:x.label||'กระเป๋า', lenUnit:'ซม.', req:!!x.req, when:x.when, none:'ไม่มีกระเป๋า', addLabel:'+ เพิ่มกระเป๋า',
     hint:'ไม่มีกระเป๋า = เว้นว่าง · 1 แถวต่อ 1 ตำแหน่ง · ซ้าย/ขวา = ฝั่งของคนใส่ · ติ๊ก "มาตรฐาน" = ใช้ขนาดมาตรฐานโรงงาน · สีกุ๊นใส่ในช่องหมายเหตุ · ระยะอ้างอิงเช่น "ห่างไหล่ 20 ซม. ห่างสาบ 6 ซม."',
     cols:[
       { c:'pos', label:'ตำแหน่ง', t:'select', options:positions },
       { c:'kind', label:'แบบ', t:'select', options:x.kinds||POCKET_KINDS },
       { c:'close', label:'การปิด', t:'select', options:['ไม่มี','กระดุม','กระดุมแป๊ก','ซิป','ตีนตุ๊กแก'] },
-      { c:'size', label:'ขนาด ก × ส (ซม.)', t:'text', std:'ขนาดมาตรฐาน' },
+      { c:'size', label:'ขนาด ก × ส', t:'text', std:'ขนาดมาตรฐาน', len:true },
       { c:'piping', label:'กุ๊น', t:'select', options:['ไม่มีกุ๊น','กุ๊นปากกระเป๋า','กุ๊นรอบกระเป๋า'], opt:true },
       { c:'note', label:'ระยะอ้างอิง / สี / หมายเหตุ', t:'text', opt:true },
     ]};
@@ -390,7 +401,7 @@ const SPARE = unit => N('spare','ผลิตเผื่อเสีย',unit,{
 function printSec(methods, positions, x={}){
   return { title: x.title||'งานพิมพ์ / ตกแต่ง', fields:[
     C('print_method','เทคนิค (เลือกได้หลายแบบ)',[...methods, CUSTOMER_FABRIC],{ req:true, other:true, hint:x.hint, def:x.def }),
-    ...(positions?[{ id:'placements', type:'placements', label:'ตำแหน่ง เทคนิค และขนาดของแต่ละจุด', req:true, positions, hint:'ซ้าย/ขวา = ฝั่งของคนใส่ (มองเสื้อจากด้านหน้า อกซ้ายจะอยู่ทางขวามือของคนดู)', when:spotPrint }]:[]),
+    ...(positions?[{ id:'placements', type:'placements', label:'ตำแหน่ง เทคนิค และขนาดของแต่ละจุด', lenUnit:'ซม.', req:true, positions, hint:'ซ้าย/ขวา = ฝั่งของคนใส่ (มองเสื้อจากด้านหน้า อกซ้ายจะอยู่ทางขวามือของคนดู)', when:spotPrint }]:[]),
     ...(x.extra||[]),
     ...TECH_DETAIL.filter(t=>!(x.extra||[]).some(e=>e.id===t.id)),
     COLOR_MATCH,
@@ -408,7 +419,7 @@ function measureKind(v,kindOf){
   const k=(typeof kindOf==='function'?kindOf(v):kindOf)||'top';
   return k==='set' || (k==='top'&&filledIn(v,MEASURE_PANTS)) || (k==='pants'&&filledIn(v,MEASURE_TOP)) ? 'set' : k;
 }
-const measureRows = kindOf => Object.entries(MEASURE_COLS).map(([kind,cols])=>({ id:'measure_rows', type:'itemTable', label:'ขนาดสำเร็จแต่ละไซซ์ (นิ้ว)', addLabel:'+ เพิ่มไซซ์', printLabel:true,
+const measureRows = kindOf => Object.entries(MEASURE_COLS).map(([kind,cols])=>({ id:'measure_rows', type:'itemTable', label:'ขนาดสำเร็จแต่ละไซซ์', lenUnit:'นิ้ว', addLabel:'+ เพิ่มไซซ์', printLabel:true,
   when:v=>v.size_chart===SIZE_OWN && measureKind(v,kindOf)===kind,
   hint:'1 แถวต่อ 1 ไซซ์ · ช่องที่ไม่ใช้เว้นว่าง · คอลัมน์สุดท้ายใช้กับขนาดอื่น เช่น ความยาวซิป ปลายขา',
   cols:[ { c:'size', label:'ไซซ์', t:'text' }, ...cols, { c:'other', label:'อื่นๆ (ระบุ)', t:'text', opt:true } ] }));
@@ -423,11 +434,11 @@ function sizeSec(sets, unit, x={}){
 }
 function itemsSec(unit, x={}){
   const cols=[{ c:'name', label:x.nameLabel||'ลาย / ชื่อรายการ', t:'text' }];
-  if(x.size!==false) cols.push({ c:'w', label:'กว้าง (ซม.)', t:'number' },{ c:'h', label:x.hLabel||'สูง (ซม.)', t:'number' });
+  if(x.size!==false) cols.push({ c:'w', label:'กว้าง', t:'number', len:true },{ c:'h', label:x.hLabel||'สูง', t:'number', len:true });
   cols.push({ c:'qty', label:`จำนวน (${unit})`, t:'number', sum:true });
   return { title:x.title||'ขนาดและจำนวน', fields:[
     ...(x.before||[]),
-    { id:'items', type:'itemTable', label:'รายการ', req:true, hint:x.hint||'ขนาดเป็นขนาดสำเร็จ', cols },
+    { id:'items', type:'itemTable', label:'รายการ', lenUnit:x.size!==false?'ซม.':undefined, req:true, hint:x.hint||'ขนาดเป็นขนาดสำเร็จ', cols },
     SPARE(unit),
     ...(x.after||[]),
   ]};
@@ -674,7 +685,7 @@ const PRODUCTS = {
       R('yan_type','แบบ',['ผ้ายันต์ (ผืน)','ธงกฐินแบบแขวนยาว (1.30 ม. × 19 นิ้ว)','ธงกฐินรุ่นกลาง (19 × 12 นิ้ว)','ธงกฐินไวนิลรุ่นกลาง (19 × 12 นิ้ว)','ธงกฐินแบบเล็ก (แขวนหน้ารถ / แจก)'],{ other:true }),
       R('fabric','วัสดุ',['ผ้าดิบ','ผ้าไหมอิตาลี','ผ้าซาติน','ผ้าโทเร','ไวนิล'],{ other:true }),
       T('fabric_color','สีผ้าพื้น',{ req:true }), FABRICS_MORE() ]},
-    itemsSec('ผืน',{ hint:'ใส่ขนาดสำเร็จ (ซม.) แม้เป็นขนาดมาตรฐาน' }),
+    itemsSec('ผืน',{ hint:'ใส่ขนาดสำเร็จ แม้เป็นขนาดมาตรฐาน' }),
     printSec(['ดิจิทัลพริ้นท์ (ไม่จำกัดสี/ขนาด)','ซิลค์สกรีน (1–2 สี, ไม่เกิน 40 × 60 ซม.)','DTF (ไม่เกิน 60 × 100 ซม.)'],null,{ title:'งานพิมพ์',
       extra:[ R('sides','จำนวนหน้า',['หน้าเดียว','สองหน้า']) ] }),
     { title:'เก็บขอบและอุปกรณ์', fields:[
@@ -697,7 +708,7 @@ const PRODUCTS = {
   ]},
   cheer: { cat:'flat', name:'ผ้าเชียร์กีฬา', unit:'ผืน', sections:[
     { title:'ผ้า', fields:[ R('fabric','ชนิดผ้า',['ผ้าซาติน','ผ้าไหมอิตาลี','ผ้าร่ม','ผ้าโพลีเอสเตอร์'],{ other:true }), FABRICS_MORE() ]},
-    itemsSec('ผืน',{ hint:'ขนาดยอดนิยม 14 × 130 ซม. และ 15 × 150 ซม.', hLabel:'ยาว (ซม.)' }),
+    itemsSec('ผืน',{ hint:'ขนาดยอดนิยม 14 × 130 ซม. และ 15 × 150 ซม.', hLabel:'ยาว' }),
     printSec(M_FLAT,null,{ title:'งานพิมพ์', def:['ซับลิเมชั่น พิมพ์เต็มผืน'], extra:[ R('sides','จำนวนหน้า',['หน้าเดียว','สองหน้า (ประกบ 2 ชั้น)']) ] }),
     { title:'การตัดเย็บและพู่', fields:[
       R('edge','การตัดเย็บ',['พับริมเย็บ','โพ้งขอบ','เย็บประกบ 2 ชั้น'],{ other:true }),
@@ -708,7 +719,7 @@ const PRODUCTS = {
   ]},
   glasses: { cat:'flat', name:'ผ้าเช็ดแว่น', unit:'ผืน', sections:[
     { title:'ผ้า', fields:[ R('fabric','ชนิดผ้า',['Poly 100%','Poly 80/20','Suede','Velvet'],{ other:true }), T('fabric_color','สีผ้า',{ req:true }), FABRICS_MORE() ]},
-    itemsSec('ผืน',{ hint:'ใส่ขนาดสำเร็จ (ซม.)' }),
+    itemsSec('ผืน',{ hint:'ใส่ขนาดสำเร็จ' }),
     printSec(['ดิจิทัลพริ้นท์ (เต็มผืน)','ซิลค์สกรีน','ปั๊มจม','สกรีนฟอยล์ทอง'],null,{ title:'งานพิมพ์',
       extra:[ R('logo_pos','ตำแหน่งโลโก้',['กลางผืน','มุมล่างขวา','มุมล่างซ้าย','เต็มผืน'],{ other:true }) ] }),
     { title:'ขอบผ้า', fields:[ R('edge','ขอบผ้า',['โพ้งริม','ตัดเลเซอร์ (ไม่เย็บ)','ตัดร้อน'],{ other:true }) ]},
@@ -716,7 +727,7 @@ const PRODUCTS = {
   ]},
   blanket: { cat:'flat', name:'ผ้านาโน / ผ้าห่ม', unit:'ผืน', sections:[
     { title:'ผ้า', fields:[ R('fabric','ชนิดผ้า',['ผ้านาโน (Microfiber)','ผ้าขนนุ่ม (Flannel)'],{ other:true }), FABRICS_MORE() ]},
-    itemsSec('ผืน',{ hint:'Size M 75 × 120 ซม. · Size L 100 × 150 ซม.', hLabel:'ยาว (ซม.)' }),
+    itemsSec('ผืน',{ hint:'Size M 75 × 120 ซม. · Size L 100 × 150 ซม.', hLabel:'ยาว' }),
     printSec(['ซับลิเมชั่น พิมพ์เต็มผืน','DTF (ฟิล์มรีดร้อน)','งานปัก'],null,{ title:'งานพิมพ์', def:['ซับลิเมชั่น พิมพ์เต็มผืน'] }),
     { title:'เก็บขอบ', fields:[ R('edge','การเก็บขอบ',['กุ๊นขอบ','โพ้งขอบ'],{ other:true }), T('edge_color','สีขอบ / สีกุ๊น'), THREAD ]},
     packSec(['พับใส่ถุงใส','ม้วนผูกริบบิ้น','ใส่ถุงหูรูด','กล่อง']),
@@ -915,7 +926,7 @@ const PRODUCTS = {
       C('services','บริการที่ต้องการ',['พิมพ์ผ้าซับลิเมชั่น (ผ้าเมตร)','ตัดผ้าเลเซอร์','ตัดสกรีนผ้า','สกรีน DTF','สกรีน UV DTF','รีดแพค','แซกรางดุม / ติดกระดุม','พิมพ์/สกรีนผ้าหลังตัดเย็บ','พิมพ์หนัง','พิมพ์/ตัดเฟล็ก'],{ req:true, other:true }),
       A('material','วัสดุ / ชิ้นงานที่ลูกค้าส่งมา',{ req:true, hint:'ชนิด สี จำนวนที่รับเข้า สภาพ' }),
       N('meters','จำนวนเมตร (ถ้าเป็นผ้าเมตร)','เมตร') ]},
-    itemsSec('ชิ้น',{ nameLabel:'รายการ / ลาย', hint:'ขนาดงานพิมพ์หรือขนาดชิ้นงาน (ซม.)' }),
+    itemsSec('ชิ้น',{ nameLabel:'รายการ / ลาย', hint:'ขนาดงานพิมพ์หรือขนาดชิ้นงาน' }),
     { title:'รายละเอียดงาน', fields:[ A('work_detail','รายละเอียดการทำงาน',{ req:true, hint:'ตำแหน่ง อุณหภูมิ/เวลา (ถ้ามี) เงื่อนไขพิเศษ' }), COLOR_MATCH ]},
     packSec(['ส่งคืนตามที่รับมา','พับใส่ถุง','ม้วน']),
   ]},
@@ -1074,7 +1085,7 @@ function fieldHTML(f,s,v){
       break; }
     case 'itemTable': {
       const rs=rows(v,f.id,!!f.none);
-      b=`<div class="tbl-wrap"><table class="ft"><thead><tr>${f.cols.map(c=>`<th>${c.label}</th>`).join('')}<th></th></tr></thead><tbody>`+
+      b=`<div class="tbl-wrap"><table class="ft"><thead><tr>${f.cols.map(c=>`<th>${esc(colLabel(c,f,v))}</th>`).join('')}<th></th></tr></thead><tbody>`+
         rs.map((r,i)=>`<tr>${f.cols.map(c=>`<td class="${c.t!=='number'?'l':''}">`+(c.t==='select'
             ? `<select data-t="${f.id}" data-r="${i}" data-c="${c.c}"><option value="">— เลือก —</option>${c.options.map(o=>`<option ${r[c.c]===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`
             : c.std ? stdCell(f.id,i,c,r[c.c])
@@ -1088,7 +1099,7 @@ function fieldHTML(f,s,v){
       b=`<div class="pl"><div class="pl-head"><span>ตำแหน่ง</span><span>เทคนิค</span><span>ขนาด</span><span>หมายเหตุ</span></div>`+f.positions.map(p=>{ const x=pv[p]||{};
         return `<div class="pl-row"><label class="opt"><input type="checkbox" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="on" ${x.on?'checked':''}><span>${esc(p)}</span></label>`+
           `<input type="text" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="tech" value="${esc(x.tech)}" placeholder="${esc(one||'เช่น งานปัก / DTF')}" ${x.on?'':'disabled'}>`+
-          `<input type="text" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="size" value="${esc(x.size)}" placeholder="กว้าง × สูง (ซม.)" ${x.on?'':'disabled'}>`+
+          `<input type="text" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="size" value="${esc(x.size)}" placeholder="กว้าง × สูง (${unitOf(f,v)})" ${x.on?'':'disabled'}>`+
           `<input type="text" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="note" value="${esc(x.note)}" placeholder="หมายเหตุ เช่น ห่างคอ 8 ซม." ${x.on?'':'disabled'}></div>`; }).join('')+`</div>`;
       break; }
     case 'images':
@@ -1101,8 +1112,11 @@ function fieldHTML(f,s,v){
   if(na) b=`<div class="na-box">ไม่ใช้กับงานนี้ · ไม่พิมพ์ลง PDF และไม่ส่งเข้าระบบ</div>`;
   const naBtn=naAllowed(f)&&(na||fieldIssue(f,v).bad)
     ? `<button type="button" class="btn small na-btn" data-act="na" data-s="${s}" data-nk="${f.id}" aria-pressed="${na}" title="${na?'กลับมากรอกช่องนี้':'ช่องนี้ไม่เกี่ยวกับงานนี้ · ไม่ต้องกรอก ไม่พิมพ์ลง PDF'}">${na?'ใช้ช่องนี้':'ไม่ใช้กับงานนี้'}</button>` : '';
-  const lab=`<div class="lab">${esc(f.label)}${f.req&&!na?'<i class="req">*</i>':''}${f.unit?` <small>(${esc(f.unit)})</small>`:''}</div>`;
-  return `<div class="field${wide?' wide':''}" id="fld_${s}_${f.id}">${naBtn?`<div class="lab-row">${lab}${naBtn}</div>`:lab}${f.hint&&!na?`<div class="hint">${esc(f.hint)}</div>`:''}${b}</div>`;
+  const u=unitOf(f,v), sw=lenDefault(f)&&!na
+    ? `<div class="unit-sw" role="group" aria-label="หน่วยของ ${esc(f.label)}">${LEN_UNITS.map(x=>`<button type="button" data-act="unit" data-s="${s}" data-uk="${f.id}" data-u="${x}" aria-pressed="${x===u}">${x}</button>`).join('')}</div>` : '';
+  const lab=`<div class="lab">${esc(fieldLabel(f,v))}${f.req&&!na?'<i class="req">*</i>':''}${f.unit&&!sw?` <small>(${esc(f.unit)})</small>`:''}</div>`;
+  const tools=sw+naBtn;
+  return `<div class="field${wide?' wide':''}" id="fld_${s}_${f.id}">${tools?`<div class="lab-row">${lab}<div class="lab-tools">${tools}</div></div>`:lab}${f.hint&&!na?`<div class="hint">${esc(f.hint)}</div>`:''}${b}</div>`;
 }
 
 function updateTotals(){
@@ -1173,8 +1187,10 @@ const coBoxPct=(x,y)=>{ const l=(x+CO_MX)/(1+2*CO_MX)*100, t=(y+CO_MY)/(1+2*CO_M
 function coList(){ if(!Array.isArray(state.callouts)) state.callouts=[]; return state.callouts; }
 function coRefs(){
   const v=scope('p'), out=[], ms=[].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m));
+  const pu=unitOf({ id:'placements', lenUnit:'ซม.' },v);
   Object.entries(v.placements||{}).forEach(([pos,x])=>{ if(!x||!x.on) return;
-    const val=[x.tech||(ms.length===1?ms[0]:''), x.size?x.size+' ซม.':'', x.note].filter(Boolean).join(' · ');
+    const size=String(x.size??'').trim();
+    const val=[x.tech||(ms.length===1?ms[0]:''), size&&(/^[0-9 .,xX×*/-]+$/.test(size)?`${size} ${pu}`:size), x.note].filter(Boolean).join(' · ');
     out.push({ ref:'placement:'+pos, label:'ตำแหน่ง '+pos, val }); });
   [['neck','คอเสื้อ'],['neck_color','สีคอ'],['sleeve','แขน'],['fabric','ชนิดผ้า'],['fabric_color','สีผ้าพื้น']].forEach(([k,l])=>{
     const raw=v[k]; const val=Array.isArray(raw)?raw.filter(Boolean).join(', '):String(raw??'').trim();
@@ -1294,6 +1310,7 @@ document.addEventListener('click',e=>{
     if(r===0){ state.callouts=[]; state.co_size=null; }
     state.imgs.splice(r,1); rerender(); }
   if(act==='delco'){ coList().splice(+b.dataset.r,1); rerender(); }
+  if(act==='unit'){ scope(b.dataset.s)[b.dataset.uk+'__unit']=b.dataset.u; return rerender(); }
   if(act==='na'){ const sc=scope(b.dataset.s), k=b.dataset.nk+'__na'; if(sc[k]) delete sc[k]; else sc[k]=true; rerender(); }
   if(act==='new'){ if(confirm('ล้างข้อมูลในฟอร์มทั้งหมดและเริ่มใบใหม่?\n(ใบที่ยังไม่ได้กด "บันทึกเข้าระบบ" หรือ "บันทึกไฟล์" จะหาย)')) startOver(false); }
   if(act==='next'){ startOver(true); }
@@ -1331,7 +1348,7 @@ function changedLabels(){
   const base=jobBase(); if(!base) return [];
   const norm=x=>x==null||x===''||(Array.isArray(x)&&!x.length)?null:x;
   const pick=(f,v)=>{ if(!v||!visible(f,v)) return null; if(isNA(f,v)) return 'NA';
-    return JSON.stringify([norm(v[f.id]), norm(v[f.id+'__other']), ...(f.parts||[]).map((_,i)=>norm(v[f.id+'_'+i]))]); };
+    return JSON.stringify([norm(v[f.id]), norm(v[f.id+'__other']), lenDefault(f)?unitOf(f,v):null, ...(f.parts||[]).map((_,i)=>norm(v[f.id+'_'+i]))]); };
   const out=[];
   layout().filter(sec=>sec.fields).forEach(sec=>{ const now=scope(sec.s), was=sec.s==='h'?base.h:base.p;
     sec.fields.forEach(f=>{ if(['doc_no','rev','images'].includes(f.id)) return;
@@ -1363,7 +1380,7 @@ function saveToSystem(){
   const payload={ app:'phappim-confirm', v:1, ...state, imgs:[], summary:{ qty:totalQty() } };
   // ช่องที่ถูกซ่อนเพราะเปลี่ยนตัวเลือก (เช่น ผ้าเช็ดหน้า ↔ ผ้าพันคอ) ไม่ส่งเข้าระบบ ไม่อย่างนั้นหน้างานเห็นสเปกที่ลูกค้าไม่ได้เลือก
   const shown=scope('p'), part={...shown};
-  const drop=(obj,f)=>{ delete obj[f.id]; delete obj[f.id+'__other']; (f.parts||[]).forEach((_,i)=>delete obj[f.id+'_'+i]); };
+  const drop=(obj,f)=>{ delete obj[f.id]; delete obj[f.id+'__other']; delete obj[f.id+'__unit']; (f.parts||[]).forEach((_,i)=>delete obj[f.id+'_'+i]); };
   allFields().forEach(f=>{ if(!visible(f,shown)||(naAllowed(f)&&isNA(f,shown))) drop(part,f); });
   payload.p={...state.p, [state.product]:part};
   const head={...state.h};
@@ -1476,14 +1493,14 @@ function valText(f,v){
   const val=v[f.id], o=x=>x===OTHER?`${OTHER}: ${v[f.id+'__other']||''}`:x;
   switch(f.type){
     case 'date': return val?thDate(val):'';
-    case 'number': return num(val)>0?`${val}${f.unit?' '+f.unit:''}`:'';
+    case 'number': { const u=unitOf(f,v); return num(val)>0?`${val}${u?' '+u:''}`:''; }
     case 'radio': return val&&!isNone(val)?o(val):'';
     case 'check': return (val||[]).filter(x=>!isNone(x)).map(o).join(', ');
     case 'dims': {
       // ช่องที่ใส่หน่วยในวงเล็บเอง เช่น "หนา (มม.)" แสดงหน่วยของตัวเองแยกจากหน่วยหลัก
       const ps=f.parts.map((p,i)=>{ const m=/^(.*?)\s*\(([^)]+)\)$/.exec(p); return { name:m?m[1]:p, unit:m?m[2]:'', x:v[f.id+'_'+i] }; }).filter(p=>num(p.x)>0);
       const main=ps.filter(p=>!p.unit), own=ps.filter(p=>p.unit);
-      return [main.length?main.map(p=>`${p.name} ${p.x}`).join(' × ')+(f.unit?' '+f.unit:''):'', ...own.map(p=>`${p.name} ${p.x} ${p.unit}`)].filter(Boolean).join(' · '); }
+      return [main.length?main.map(p=>`${p.name} ${p.x}`).join(' × ')+' '+unitOf(f,v):'', ...own.map(p=>`${p.name} ${p.x} ${p.unit}`)].filter(Boolean).join(' · '); }
     default: { const t=String(val??'').trim(); return isNone(t)?'':t; }
   }
 }
@@ -1527,17 +1544,17 @@ function renderDoc(){
       }
       if(f.type==='itemTable'){
         const rs=rows(v,f.id,!!f.none).filter(r=>f.cols.some(c=>!isNone(r[c.c])));
-        const lab=f.none||f.printLabel?`<div class="tlabel">${esc(f.label)}</div>`:'';
+        const lab=f.none||f.printLabel?`<div class="tlabel">${esc(fieldLabel(f,v))}</div>`:'';
         // ไม่มีรายการ = ไม่พิมพ์หัวข้อนี้ · คอลัมน์ที่ว่างทุกแถวไม่แสดง ยกเว้นยอดรวม
         const cols=f.cols.filter(c=>c.sum||rs.some(r=>!isNone(r[c.c])));
-        if(rs.length) body+=lab+`<table class="dt"><thead><tr><th>#</th>${cols.map(c=>`<th>${c.label}</th>`).join('')}</tr></thead><tbody>`+
+        if(rs.length) body+=lab+`<table class="dt"><thead><tr><th>#</th>${cols.map(c=>`<th>${esc(colLabel(c,f,v))}</th>`).join('')}</tr></thead><tbody>`+
           rs.map((r,i)=>`<tr><td>${i+1}</td>${cols.map(c=>`<td class="${c.t!=='number'?'l':''}">${isNone(r[c.c])?'':esc(r[c.c])}</td>`).join('')}</tr>`).join('')+
           `</tbody>${cols.some(c=>c.sum)?`<tfoot><tr><td colspan="${cols.length}">รวม</td><td>${totalQty()}</td></tr></tfoot>`:''}</table>`;
       }
       if(f.type==='placements'){
         const on=Object.entries(v[f.id]||{}).filter(([,p])=>p.on);
         const ms=[].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m));
-        if(on.length) body+=`<table class="dt"><thead><tr><th>ตำแหน่ง</th><th>เทคนิค</th><th>ขนาด (ซม.)</th><th>หมายเหตุ</th></tr></thead><tbody>`+
+        if(on.length) body+=`<table class="dt"><thead><tr><th>ตำแหน่ง</th><th>เทคนิค</th><th>ขนาด (${unitOf(f,v)})</th><th>หมายเหตุ</th></tr></thead><tbody>`+
           on.map(([k,p])=>`<tr><td class="l">${esc(k)}</td><td class="l">${esc(p.tech||(ms.length===1?ms[0]:''))}</td><td>${esc(p.size)}</td><td class="l">${esc(p.note)}</td></tr>`).join('')+`</tbody></table>`;
       }
       if(f.type==='images'&&state.imgs.length){
