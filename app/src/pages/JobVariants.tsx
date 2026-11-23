@@ -32,14 +32,14 @@ function Thumb({ pic, size }: { pic: Pic | undefined; size: string }) {
 }
 
 // แสดงเมื่องานมีหลายแบบ หรือมีรูปมากกว่า 1 รูป · งานแบบเดียวรูปเดียวดูจากรูปด้านบนพอ
-export function JobVariants({ job }: { job: Pick<Job, 'id' | 'unit'> }) {
+export function JobVariants({ job }: { job: Pick<Job, 'id' | 'unit'> & Partial<Pick<Job, 'qty' | 'mockup'>> }) {
   const t = useT()
   const [data, setData] = useState<Loaded | 'error' | null>(null)
   useEffect(() => {
     let alive = true
     void loadVariants(job.id).then(r => { if (alive) setData(r) })
     return () => { alive = false }
-  }, [job.id])
+  }, [job.id, job.qty, job.mockup])
 
   if (data === null) return <p className="text-muted"><Tr inline th="กำลังโหลดแบบและรูปของงาน…" /></p>
   if (data === 'error') return <p role="alert" className="text-danger"><Tr inline th="โหลดแบบและรูปของงานไม่ได้ ปิดแล้วเปิดงานนี้อีกครั้ง" /></p>

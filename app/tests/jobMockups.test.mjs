@@ -2,9 +2,10 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { cardPath, formMockups, specMockups, specVariants } from '../src/data/jobMockups.ts'
 
-test('รูปของงาน: ใช้รายการในสเปก · สเปกรุ่นก่อนใช้ mockup_path รูปเดียว', () => {
+test('รูปของงาน: ใช้รายการในสเปก · สเปกรุ่นก่อนหรือลบรูปหมดใช้ mockup_path รูปเดียว', () => {
   const spec = { mockups: [{ name: 'หน้า', path: 'SC-1/a.jpg' }, { name: '', path: '' }, 'x', { name: 'แดง', path: 'SC-1/b.jpg' }] }
   assert.deepEqual(specMockups(spec, 'SC-1/z.jpg'), [{ name: 'หน้า', path: 'SC-1/a.jpg' }, { name: 'แดง', path: 'SC-1/b.jpg' }])
+  assert.deepEqual(specMockups({ mockups: [] }, 'SC-1/z.jpg'), [{ name: '', path: 'SC-1/z.jpg' }])
   assert.deepEqual(specMockups({ h: {} }, 'SC-1/z.jpg'), [{ name: '', path: 'SC-1/z.jpg' }])
   assert.deepEqual(specMockups(null, null), [])
 })

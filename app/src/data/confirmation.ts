@@ -102,6 +102,28 @@ export type ReviseArgs = {
   p_changes: string[]
 }
 
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
+
+/** ปรับหัวใบและจำนวนเผื่อเสียใน spec ให้ตรงกับค่าที่แอดมินแก้หน้ารับงาน ก่อนส่งเข้า receive_job */
+export function syncConfirmationSpec(draft: ReceiveDraft, productName: string): Record<string, unknown> {
+  const s = draft.spec
+  if (!isRecord(s.h) || !isRecord(s.p) || typeof s.product !== 'string') return s
+  const h: Record<string, unknown> = {
+    ...s.h,
+    doc_no: draft.no.trim(),
+    rev: draft.rev > 0 ? draft.rev : '',
+    customer: draft.customer.trim(),
+    job_name: draft.jobName.trim() || productName,
+    due_date: draft.due || s.h.due_date,
+    sample: draft.needsSample === true ? 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)' : draft.needsSample === false ? 'ไม่ขึ้นตัวอย่าง' : s.h.sample,
+  }
+  const part = s.p[draft.product]
+  const p = isRecord(part)
+    ? { ...s.p, [draft.product]: { ...part, spare: draft.spare > 0 ? draft.spare : (part.spare ?? '') } }
+    : s.p
+  return { ...s, h, p }
+}
+
 const FORM_ONLY_KEYS = ['revise_job', 'changes', 'mockup', 'mockup_path', 'from_job', 'job_img', 'job_imgs', 'job_no', 'mockup_no']
 
 /** ใบที่แก้หลังรับงาน → ค่าส่งให้ revise_job_spec · null = ไม่ใช่ข้อมูลจากฟอร์มใบยืนยัน */

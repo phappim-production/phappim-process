@@ -12,10 +12,12 @@ const count = (v: unknown) => {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
 }
 
-/** รูปของงานตามลำดับในฟอร์ม (รูป 1 = รูปบนการ์ด) · สเปกรุ่นก่อนมีแค่ mockup_path */
+/** รูปของงานตามลำดับในฟอร์ม (รูป 1 = รูปบนการ์ด) · สเปกรุ่นก่อนหรือลบรูปทั้งหมดใช้ mockup_path */
 export function specMockups(spec: unknown, mockupPath: string | null): JobMockup[] {
-  const list = isObj(spec) && Array.isArray(spec.mockups) ? spec.mockups : null
-  if (list) return list.flatMap(m => (isObj(m) && text(m.path) ? [{ name: text(m.name), path: text(m.path) }] : []))
+  const list = isObj(spec) && Array.isArray(spec.mockups)
+    ? spec.mockups.flatMap(m => (isObj(m) && text(m.path) ? [{ name: text(m.name), path: text(m.path) }] : []))
+    : []
+  if (list.length) return list
   return mockupPath ? [{ name: '', path: mockupPath }] : []
 }
 

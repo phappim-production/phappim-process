@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { draftLabel, formDataFromDraft, formDataFromJob, OUTBOX_KEY, takeOutbox } from '../src/data/confirmationDrafts.ts'
+import { syncConfirmationSpec } from '../src/data/confirmation.ts'
 import { eventLine } from '../src/data/history.ts'
 
 const memory = init => {
@@ -67,4 +68,29 @@ test('เปิดใบในฟอร์ม: รูปครบทุกรู
   assert.equal(draft.imgs.length, 3)
   assert.equal(draft.mockup_path, 'SC-9/a.jpg')
   assert.deepEqual(formDataFromDraft({ h: {}, mockup_path: 'SC-9/a.jpg' }, urls).imgs, [{ name: '', src: 'u:a', path: 'SC-9/a.jpg' }])
+})
+
+test('หน้ารับงาน: ปรับหัวใบและเผื่อเสียใน spec ให้ตรงกับค่าที่แอดมินแก้ก่อนส่งเข้าโรงงาน', () => {
+  const synced = syncConfirmationSpec({
+    no: ' SC69-NEW ',
+    rev: 2,
+    customer: ' ลูกค้าใหม่ ',
+    jobName: '',
+    product: 'tshirt',
+    qty: 50,
+    spare: 5,
+    due: '2026-12-20',
+    route: 'normal',
+    needsSample: true,
+    spec: { h: { doc_no: 'OLD', customer: 'เก่า', sample: 'ไม่ขึ้นตัวอย่าง' }, p: { tshirt: { spare: 1 } }, product: 'tshirt' },
+  }, 'เสื้อยืด')
+  assert.deepEqual(synced.h, {
+    doc_no: 'SC69-NEW',
+    rev: 2,
+    customer: 'ลูกค้าใหม่',
+    job_name: 'เสื้อยืด',
+    due_date: '2026-12-20',
+    sample: 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)',
+  })
+  assert.equal(synced.p.tshirt.spare, 5)
 })
