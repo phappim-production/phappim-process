@@ -52,6 +52,10 @@ it('หน้าปัญหา/งานแก้ เปิดได้เฉ�
   expect(ROLES.filter(r => canOpenPage(r, 'dept')).sort()).toEqual(['owner', 'production', 'supervisor'])
 })
 
+it('คิวการผลิตทั้งโรงงานเปิดตรงๆ ไม่ได้สำหรับพนักงานสถานีและ QC', () => {
+  expect(ROLES.filter(r => !canOpenPage(r, 'queueAll')).sort()).toEqual(['qc', 'staff'])
+})
+
 it('หน้าของผู้ดูแลระบบเปิดได้เฉพาะเจ้าของ · รายการรออนุมัติเฉพาะผู้บริหาร/เจ้าของ', () => {
   for (const page of ['sysOverview', 'roles', 'audit'] as const) expect(ROLES.filter(r => canOpenPage(r, page)), page).toEqual(['owner'])
   expect(ROLES.filter(r => canOpenPage(r, 'reviews')).sort()).toEqual(['manager', 'owner'])

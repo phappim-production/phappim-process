@@ -68,6 +68,9 @@ export function canOpenPage(role: EmployeeRole, page: PageKey): boolean {
       return role === 'owner' || role === 'admin' || role === 'manager'
     case 'artwork':
       return role !== 'staff'
+    // คิวทั้งโรงงานเป็นของคนวางแผน · staff/QC เห็นแค่คิวสถานีของตัวเองที่บอร์ด
+    case 'queueAll':
+      return role !== 'staff' && role !== 'qc'
     default:
       return true
   }
