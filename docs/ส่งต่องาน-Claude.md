@@ -24,7 +24,7 @@
 | เครื่องต่อสถานี (ฐานจริง) | พิมพ์ 2 · รีด 1 · ตัด 2 · รีดฟิล์ม 2 · QC + Packing / ปัก / เย็บ / สั่งผลิตข้างนอก ไม่จำกัด |
 | ค่าที่ปรับชั่วคราว | ไม่มีค้าง |
 | บัญชี | เจ้าของ `sale@phap-pim142.com` · `manager@pp142.local` · `admin1`–`admin4@` · `production@` · `staff4@` = ฝ่ายผลิต · `staff1@` พิมพ์+รีด+ตัด · `staff2@` รีด · `staff3@` ตัด · `staff5@` QC+Packing · `staff6`–`staff10@` ยังไม่จับคู่สถานี (ยืนยันกับเจ้าของ) · `@pp142.test` 4 บัญชี **ปิดอยู่** (AI ห้ามใช้บนระบบจริง) |
-| QA | **รอบ 15 = Codex C16** ทดสอบทุกอย่างหลัง PR 156–173 · ใบสั่งงาน `docs/qa/ใบสั่งงาน-รอบ-15-codex.md` · worktree `../pp142-c16` (branch `codex/c16-full-qa`) · รอส่งงาน ·  รอบ 11–14 ปิดแล้ว (Codex C13 · C14 · C15 · Antigravity G12 → PR 156) · ผลตรวจท้าย [`qa/รอบ-14-antigravity.md`](qa/รอบ-14-antigravity.md) |
+| QA | **รอบ 16 = Codex C17 (`../pp142-c17` · `codex/c17-full-qa`) + Antigravity G13 (`../pp142-g13` · `antigravity/g13-ux-qa`)** ทดสอบทั้งระบบ + PR 175 · ใบสั่งงาน `docs/qa/ใบสั่งงาน-รอบ-16-*.md` · รอส่งงาน · **รอบ 15 (C16) ส่งแล้ว ยังไม่ merge** · บั๊ก R15-01 ถึง 04 (ระดับ 2 × 2 · ระดับ 3 × 2) ยังไม่แก้ ·  รอบ 11–14 ปิดแล้ว (Codex C13 · C14 · C15 · Antigravity G12 → PR 156) · ผลตรวจท้าย [`qa/รอบ-14-antigravity.md`](qa/รอบ-14-antigravity.md) |
 | worktree ของ AI | `../pp142-g12` (merge แล้ว ลบได้) · `../pp142-c13` `c14` `c15` (ส่งงานแล้ว · ลบได้เมื่อปิด Codex · ตรวจโปรเซสก่อนตาม memory `worktree-hands-off`) · `../pp142-r2` ลบได้ |
 
 ## งานถัดไป
