@@ -332,25 +332,47 @@ export function calloutWords(c: Callout, d: Pick<Draft, 'specs'>, jobSpec?: unkn
   return out
 }
 
-// จุดที่แอดมินวางไว้ในฟอร์มใบยืนยัน (state.callouts · co_size) → ร่างม็อคอัพบนภาพหลัก
+// จุดที่แอดมินวางไว้ในฟอร์มใบยืนยัน (state.callouts · co_sizes / co_size) → ร่างม็อคอัพแต่ละมุมภาพ
 export function confirmationDraft(spec: unknown, mockupPath: string | null): Draft | null {
-  if (!mockupPath || !isObj(spec) || !Array.isArray(spec.callouts) || !isObj(spec.co_size)) return null
-  const w = Number(spec.co_size.w), h = Number(spec.co_size.h)
-  if (!(w > 0 && h > 0)) return null
+  if (!isObj(spec) || !Array.isArray(spec.callouts)) return null
+  const paths = Array.isArray(spec.mockups) ? spec.mockups.map(m => (isObj(m) ? text(m.path) : '')) : []
+  const frontPath = paths[0] || mockupPath || ''
+  if (!frontPath) return null
+  paths[0] = frontPath
+  const readSize = (v: unknown) => {
+    if (!isObj(v)) return null
+    const w = Number(v.w), h = Number(v.h)
+    return w > 0 && h > 0 ? { width: w, height: h } : null
+  }
+  const sizeAt = (idx: number) =>
+    (Array.isArray(spec.co_sizes) ? readSize(spec.co_sizes[idx]) : null) ?? readSize(spec.co_size)
+  const frontSize = sizeAt(0)
+  if (!frontSize) return null
+
+  const views: MockView[] = [{ view: 'front', path: frontPath, ...frontSize }]
+  const viewByImg = new Map<number, ViewKey>([[0, 'front']])
   const callouts: Callout[] = []
   for (const raw of spec.callouts.slice(0, MAX_CALLOUTS)) {
     if (!isObj(raw)) continue
     const x = Number(raw.x), y = Number(raw.y)
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+    const rawImg = Number(raw.img)
+    const imgIdx = Number.isInteger(rawImg) && rawImg >= 0 ? rawImg : 0
+    if (!viewByImg.has(imgIdx) && imgIdx > 0 && paths[imgIdx] && views.length < VIEW_ORDER.length) {
+      const vKey = VIEW_ORDER[views.length]!
+      views.push({ view: vKey, path: paths[imgIdx]!, ...(sizeAt(imgIdx) ?? frontSize) })
+      viewByImg.set(imgIdx, vKey)
+    }
     const no = callouts.length + 1
     const ref = text(raw.ref)
     const box = clampBox(Number(raw.bx), Number(raw.by))
     callouts.push({
-      key: `confirmation-${no}`, view: 'front', no, x: round4(clamp01(x)), y: round4(clamp01(y)), ...box,
+      key: `confirmation-${no}`, view: viewByImg.get(imgIdx) ?? 'front', no,
+      x: round4(clamp01(x)), y: round4(clamp01(y)), ...box,
       title: (text(raw.title) || `จุด ${no}`).slice(0, 80), body: text(raw.body),
       specRef: /^(placement|field):.+$/.test(ref) ? ref : null, specKey: null, stations: [],
     })
   }
   if (!callouts.length) return null
-  return { views: [{ view: 'front', path: mockupPath, width: w, height: h }], specs: [], callouts }
+  return { views, specs: [], callouts }
 }

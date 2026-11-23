@@ -80,7 +80,7 @@ test('ฟอร์มใบยืนยัน: ทำสินค้าถัด
   assert.equal(nextDocNo(''), '')
 })
 
-test('ฟอร์มใบยืนยัน: ตั้งรูปอื่นเป็นรูป 1 แล้วเลื่อนเลขรูปในแถวตามไม่ให้ชี้ผิดแบบ', () => {
+test('ฟอร์มใบยืนยัน: ตั้งรูปอื่นเป็นรูป 1 แล้วเลื่อนเลขรูปในแถวและจุดกำกับตามไม่ให้ชี้ผิดแบบ', () => {
   const js = scripts.join('\n')
   const start = js.indexOf('function moveImgToFirst(')
   const end = js.indexOf('\nconst sampleLocked=')
@@ -88,17 +88,17 @@ test('ฟอร์มใบยืนยัน: ตั้งรูปอื่น
   const fnSrc = js.slice(start, end)
   const state = {
     imgs: [{ name: 'A' }, { name: 'B' }, { name: 'C' }, { name: 'D' }],
-    callouts: [],
+    callouts: [{ img: 0, title: 'หน้า' }, { img: 2, title: 'แขน' }],
     co_size: { w: 100, h: 100 },
+    co_sizes: [{ w: 100, h: 100 }, { w: 200, h: 200 }, { w: 300, h: 150 }],
     p: { bag: { items: [{ img: '1' }, { img: '2' }, { img: '3' }, { img: '4' }] } },
   }
   const { moveImgToFirst } = new Function(
-    'state', 'coList', 'confirm', 'scope', 'allFields', 'rerender',
+    'state', 'coList', 'scope', 'allFields', 'rerender',
     fnSrc + '\nreturn { moveImgToFirst }',
   )(
     state,
     () => state.callouts,
-    () => true,
     () => state.p.bag,
     () => [{ id: 'items', type: 'itemTable' }],
     () => {},
@@ -106,4 +106,56 @@ test('ฟอร์มใบยืนยัน: ตั้งรูปอื่น
   moveImgToFirst(2)
   assert.deepEqual(state.imgs.map(m => m.name), ['C', 'A', 'B', 'D'])
   assert.deepEqual(state.p.bag.items.map(r => r.img), ['2', '3', '1', '4'])
+  assert.deepEqual(state.callouts.map(c => c.img), [1, 0])
+  assert.deepEqual(state.co_sizes.map(s => s.w), [300, 100, 200])
+})
+
+test('ฟอร์มใบยืนยัน: ชี้จุดกำกับได้ทุกรูปม็อคอัพ และพิมพ์แสดงทุกรูปที่มีจุดในตัวอย่าง/PDF', () => {
+  const js = scripts.join('\n')
+  const start = js.indexOf('const CO_MX=')
+  const end = js.indexOf('\nlet coDrag=null;')
+  assert.ok(start > 0 && end > start)
+  const fnSrc = js.slice(start, end)
+  const state = {
+    imgs: [
+      { name: 'ด้านหน้า', src: 'data:image/png;base64,a', w: 800, h: 600 },
+      { name: 'ด้านหลัง', src: 'data:image/png;base64,b', w: 600, h: 800 },
+    ],
+    callouts: [
+      { img: 0, x: 0.2, y: 0.3, bx: -0.1, by: 0.3, title: 'อกซ้าย', ref: '', body: '' },
+      { img: 1, x: 0.5, y: 0.4, bx: 1.1, by: 0.4, title: 'กลางหลัง', ref: '', body: 'พิมพ์ใหญ่' },
+    ],
+    co_size: { w: 800, h: 600 },
+    co_sizes: [{ w: 800, h: 600 }, { w: 600, h: 800 }],
+    p: { tshirt: {} },
+  }
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+  const imgName = n => { const m = state.imgs[n - 1]; return m ? `รูป ${n}${m.name ? ' · ' + m.name : ''}` : '' }
+  const { coEditorHTML, coDocHTML } = new Function(
+    'state', 'coTab', 'scope', 'unitOf', 'OTHER', 'isNone', 'form', 'esc', 'imgName', 'MOCKUP_NOTE',
+    fnSrc + '\nreturn { coEditorHTML, coDocHTML }',
+  )(
+    state,
+    1,
+    () => state.p.tshirt,
+    () => 'ซม.',
+    'อื่นๆ',
+    x => !x,
+    { querySelector: () => null, querySelectorAll: () => [] },
+    esc,
+    imgName,
+    'หมายเหตุทดสอบ',
+  )
+  assert.match(coEditorHTML(), /class="co-tabs"/)
+  assert.match(coEditorHTML(), /รูป 1 · ด้านหน้า \(1\)/)
+  assert.match(coEditorHTML(), /รูป 2 · ด้านหลัง \(1\)/)
+  assert.match(coEditorHTML(), /data-co-img="1"/)
+  assert.match(coEditorHTML(), /src="data:image\/png;base64,b"/)
+  assert.match(coEditorHTML(), /data-co="1" data-cf="img"/)
+  const doc = coDocHTML()
+  assert.equal((doc.match(/class="d-co"/g) || []).length, 2)
+  assert.match(doc, /รูป 1 · ด้านหน้า · จุดกำกับ 1 จุด/)
+  assert.match(doc, /รูป 2 · ด้านหลัง · จุดกำกับ 1 จุด/)
+  assert.match(doc, /<td>รูป 1<\/td>/)
+  assert.match(doc, /<td>รูป 2<\/td>/)
 })
