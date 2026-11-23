@@ -4,9 +4,10 @@ import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { uploadFile } from '../data/files'
-import { contentKey } from '../data/mockups'
+import { contentKey, signedUrls } from '../data/mockups'
 import { confirmationPath, draftFromConfirmation, pdfProblem, sewRecipeProblem, type ReceiveDraft } from '../data/confirmation'
-import { draftLabel, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
+import { draftLabel, formDataFromDraft, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
+import { specMockups } from '../data/jobMockups'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
 import { receiveForecast, type SewFloor } from '../proto/capacity'
 import { dueDateWarning } from '../proto/format'
@@ -72,11 +73,16 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
   }
 
   // แก้ใบที่บันทึกไว้: ส่งข้อมูลให้ฟอร์มผ่าน localStorage แล้วเปิดฟอร์มแท็บใหม่
-  function openInForm() {
+  async function openInForm() {
     const row = drafts?.find(r => r.id === picked)
     if (!row) return
-    try { window.localStorage.setItem(INBOX_KEY, JSON.stringify(row.data)) } catch { setError('เปิดในฟอร์มไม่ได้ (พื้นที่เบราว์เซอร์เต็ม)'); return }
-    window.open(CONFIRMATION_FORM, '_blank', 'noopener')
+    // เปิดหน้าต่างก่อนรอลิงก์รูป ไม่อย่างนั้นเบราว์เซอร์บนมือถือจะบล็อกป๊อปอัป
+    const win = window.open('', '_blank')
+    const path = typeof (row.data as { mockup_path?: unknown } | null)?.mockup_path === 'string' ? (row.data as { mockup_path: string }).mockup_path : null
+    const data = formDataFromDraft(row.data, await signedUrls(specMockups(row.data, path).map(m => m.path)))
+    try { window.localStorage.setItem(INBOX_KEY, JSON.stringify(data ?? row.data)) } catch { win?.close(); setError('เปิดในฟอร์มไม่ได้ (พื้นที่เบราว์เซอร์เต็ม)'); return }
+    if (win) win.location.href = CONFIRMATION_FORM
+    else window.open(CONFIRMATION_FORM, '_blank', 'noopener')
   }
 
   const set = <K extends keyof ReceiveDraft>(k: K, v: ReceiveDraft[K]) => { setDraft(d => ({ ...d, [k]: v })); setError('') }
@@ -149,7 +155,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
           </label>
           <div className="grid gap-2 sm:grid-cols-2">
             <a href={CONFIRMATION_FORM} target="_blank" rel="noopener" className={`${secondaryBtn} text-center`}>เปิดฟอร์มใบยืนยัน (ใบใหม่)</a>
-            <button type="button" className={secondaryBtn} disabled={!picked} onClick={openInForm}
+            <button type="button" className={secondaryBtn} disabled={!picked} onClick={() => void openInForm()}
               title={picked ? undefined : 'เลือกใบยืนยันก่อน'}>{picked ? 'แก้ใบนี้ในฟอร์ม' : 'แก้ใบในฟอร์ม (เลือกใบก่อน)'}</button>
           </div>
           <p className="text-sm text-muted">กรอกฟอร์ม → กด &quot;บันทึกเข้าระบบ&quot; → ใบขึ้นในรายการนี้ · ส่งออก PDF ให้ลูกค้าเซ็นจากฟอร์มได้ตามเดิม</p>

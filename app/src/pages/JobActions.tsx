@@ -5,7 +5,8 @@ import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { confirmationPath, pdfProblem } from '../data/confirmation'
 import { formDataFromJob, INBOX_KEY } from '../data/confirmationDrafts'
-import { contentKey, mockupProblem, shrinkImage, uploadMockup } from '../data/mockups'
+import { specMockups } from '../data/jobMockups'
+import { contentKey, mockupProblem, shrinkImage, signedUrls, uploadMockup } from '../data/mockups'
 import { signFiles, uploadFile } from '../data/files'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
 import { DEPT_NAME, OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, stationNo, usesFilm, type Dept, type Job, type StationCode, type Vendor } from '../proto/model'
@@ -272,9 +273,7 @@ async function loadFormData(jobId: string): Promise<{ ok: true; data: Record<str
   if (error) return { ok: false, reason: thaiError(error.message) }
   const row = data as { spec: unknown; mockup_path: string | null }
   // ลิงก์รูปใช้ได้ 1 ชั่วโมง พอสำหรับแก้แล้วพิมพ์ PDF
-  const signed = row.mockup_path ? await signFiles('mockups', [row.mockup_path], 3600) : null
-  const url = row.mockup_path && signed?.ok ? signed.urls.get(row.mockup_path) ?? null : null
-  const form = formDataFromJob(row.spec, row.mockup_path, url)
+  const form = formDataFromJob(row.spec, row.mockup_path, await signedUrls(specMockups(row.spec, row.mockup_path).map(m => m.path)))
   return form ? { ok: true, data: form } : { ok: false, reason: 'งานนี้รับเข้าโดยไม่ได้ใช้ฟอร์มใบยืนยัน จึงไม่มีข้อมูลให้เปิดในฟอร์ม' }
 }
 

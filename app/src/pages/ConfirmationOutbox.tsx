@@ -4,27 +4,44 @@ import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { reviseArgs } from '../data/confirmation'
 import { SAVE_HASH, recentlyTaken, takeOutbox } from '../data/confirmationDrafts'
-import { dataUrlBlob, mockupDataUrl, uploadMockup } from '../data/mockups'
+import { dataUrlBlob, mockupDataUrl, mockupFolder, uploadFormMockups, uploadMockup } from '../data/mockups'
+import { cardPath, formMockups, type JobMockup } from '../data/jobMockups'
 
 type Revised = { ok: 'revised'; no: string; rev: number; changed: boolean; picSaved: boolean; mockupRev: number | null; stale: number; parts: string[]; warning?: string | undefined }
 type Result = { ok: true; no: string; id: string; warning?: string | undefined } | { ok: false; text: string } | { ok: 'elsewhere'; no: string } | Revised
 type ReviseReply = { changed: boolean; rev?: number; mockup_rev?: number | null; mockup_stale?: number; parts?: string[] | null }
 
-async function saveRevision(no: string, data: Record<string, unknown>): Promise<Revised | { ok: false; text: string }> {
+async function saveRevision(no: string, sent: Record<string, unknown>): Promise<Revised | { ok: false; text: string }> {
   const fail = (why: string) => ({ ok: false as const, text: `บันทึกการแก้ใบ ${no} ไม่สำเร็จ: ${why}` })
-  const args = reviseArgs(data)
-  if (!args) return fail('ข้อมูลจากฟอร์มไม่ใช่ใบยืนยันการผลิต')
   if (!supabase) return fail('ยังไม่ได้ตั้งค่า Supabase')
-  const { data: job, error } = await supabase.from('jobs').select('id').eq('confirmation_no', no).maybeSingle()
+  const { data: job, error } = await supabase.from('jobs').select('id, mockup_path').eq('confirmation_no', no).maybeSingle()
   if (error) return fail(thaiError(error.message))
   if (!job) return fail(`ไม่พบงาน ${no} ในระบบ (งานอาจถูกแบ่ง หรือเลขที่ใบในฟอร์มถูกเปลี่ยน)`)
-  const id = (job as { id: string }).id
+  const { id, mockup_path: current } = job as { id: string; mockup_path: string | null }
+  // รูปต้องเข้าที่เก็บก่อน สเปกจึงอ้างรูปได้ครบ · รูปไม่ผ่าน = ยังไม่แก้อะไรในงาน
+  const { mockups: _m, ...data } = sent
+  const items = formMockups(sent.mockups)
+  let list: JobMockup[] | null = null
+  if (items) {
+    const up = items.length ? await uploadFormMockups(no, items) : { ok: true as const, list: [] }
+    if (!up.ok) return fail(`รูปม็อคอัพยังเข้าระบบไม่ได้ (${up.reason}) · ลองกด "บันทึกการแก้เข้างาน" ในฟอร์มอีกครั้ง`)
+    list = up.list
+    data.mockups = list
+  }
+  const args = reviseArgs(data)
+  if (!args) return fail('ข้อมูลจากฟอร์มไม่ใช่ใบยืนยันการผลิต')
   const r = await rpc<ReviseReply>('revise_job_spec', { p_job: id, ...args })
   if (!r.ok) return fail(r.reason)
-  // เปลี่ยนรูปหลังสเปกผ่านการตรวจแล้ว · รูปไม่ผ่าน = สเปกยังเข้า แจ้งให้เปลี่ยนรูปที่รายละเอียดงาน
   let warning: string | undefined
   let picSaved = false
-  const pic = mockupDataUrl(data.mockup)
+  const card = list ? cardPath(list, mockupFolder(no)) : null
+  if (card && card !== current) {
+    const set = await rpc('set_job_mockup', { p_job: id, p_path: card })
+    if (set.ok) picSaved = true
+    else warning = `รูปบนการ์ดงานยังเป็นรูปเดิม (${set.reason}) · เปลี่ยนรูปได้ที่รายละเอียดงาน`
+  }
+  // ฟอร์มรุ่นก่อนส่งรูปแรกรูปเดียว · เปลี่ยนรูปหลังสเปกผ่านการตรวจแล้ว
+  const pic = items ? null : mockupDataUrl(data.mockup)
   if (pic) {
     const up = await uploadMockup(no, dataUrlBlob(pic))
     const set = up.ok ? await rpc('set_job_mockup', { p_job: id, p_path: up.path }) : up
@@ -63,10 +80,20 @@ export function ConfirmationOutbox({ onReceive, onRevised }: { onReceive: (draft
         if (alive) setResult(done)
         return
       }
-      // รูปม็อคอัพย่อจากฟอร์ม → Storage · ใบร่างเก็บแค่ path · อัปโหลดไม่ได้ = บันทึกใบต่อ (รูปเดิมยังอยู่) แล้วบอกให้รู้
-      const { mockup, ...data } = item.data
-      const pic = mockupDataUrl(mockup)
+      // รูปม็อคอัพย่อจากฟอร์ม → ที่เก็บไฟล์ · ใบร่างเก็บแค่ path · อัปโหลดไม่ได้ = บันทึกใบต่อ (รูปเดิมยังอยู่) แล้วบอกให้รู้
+      const { mockup, mockups, ...data } = item.data
+      const items = formMockups(mockups)
+      const pic = items ? null : mockupDataUrl(mockup)
       let warning: string | undefined
+      if (items) {
+        const up = items.length ? await uploadFormMockups(item.no, items) : { ok: true as const, list: [] }
+        if (up.ok) {
+          data.mockups = up.list
+          const card = cardPath(up.list, mockupFolder(item.no))
+          if (card) data.mockup_path = card
+          else delete data.mockup_path
+        } else warning = `รูปม็อคอัพยังไม่เข้าระบบ (${up.reason}) · กด "บันทึกเข้าระบบ" ในฟอร์มอีกครั้ง`
+      }
       if (pic) {
         const up = await uploadMockup(item.no, dataUrlBlob(pic))
         if (up.ok) data.mockup_path = up.path

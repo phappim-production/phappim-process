@@ -39,14 +39,14 @@ try {
                 case 'dims': f.parts.forEach((p, i) => { if (!(num(v[f.id + '_' + i]) > 0)) v[f.id + '_' + i] = 20 + i * 10 }); break
                 case 'sizeTable': {
                   const rs = rows(v, f.id), cols = sizeCols(v)
-                  if (!rs[0].label) { rs[0].label = 'สีขาว'; cols.slice(0, 4).forEach((c, i) => { rs[0].q[c] = 10 + i * 5 }) }
+                  if (!rs[0].label) { rs[0].label = 'สีขาว'; rs[0].img = '1'; cols.slice(0, 4).forEach((c, i) => { rs[0].q[c] = 10 + i * 5 }) }
                   break
                 }
                 case 'itemTable': {
                   const rs = rows(v, f.id, !!f.none)
                   if (!rs.length || !rs[0][f.cols[0].c]) {
                     const r = {}
-                    f.cols.forEach(c => { r[c.c] = c.t === 'select' ? c.options[0] : c.t === 'number' ? 5 : (c.label.includes('ขนาด') ? '10 × 12' : 'ตัวอย่าง') })
+                    f.cols.forEach(c => { r[c.c] = c.t === 'select' ? c.options[0] : c.t === 'img' ? '1' : c.t === 'number' ? 5 : (c.label.includes('ขนาด') ? '10 × 12' : 'ตัวอย่าง') })
                     if (rs.length) Object.assign(rs[0], r); else rs.push(r)
                   }
                   break

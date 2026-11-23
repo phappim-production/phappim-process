@@ -74,7 +74,9 @@ begin
       and not (f.kind = 'mockups' and (
             exists (select 1 from public.jobs j where j.mockup_path = f.path)
             or exists (select 1 from public.mockup_views v where v.image_path = f.path)
-            or exists (select 1 from public.confirmation_drafts d where d.data ->> 'mockup_path' = f.path)))
+            or exists (select 1 from public.jobs j where j.spec -> 'mockups' @> jsonb_build_array(jsonb_build_object('path', f.path)))
+            or exists (select 1 from public.confirmation_drafts d where d.data ->> 'mockup_path' = f.path)
+            or exists (select 1 from public.confirmation_drafts d where d.data -> 'mockups' @> jsonb_build_array(jsonb_build_object('path', f.path)))))
     returning f.kind, f.path
   )
   insert into golive_summary

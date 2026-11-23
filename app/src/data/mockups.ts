@@ -1,6 +1,7 @@
 // bucket ไม่เปิดสาธารณะ (งานลูกค้า) → ขอลิงก์ชั่วคราวทีละชุด แล้วจำไว้ใช้ซ้ำจนใกล้หมดอายุ
 import type { Job } from '../proto/model'
 import { MAX_UPLOAD_BYTES, signFiles, uploadFile } from './files'
+import type { FormMockup, JobMockup } from './jobMockups'
 import { withTimeout } from './live'
 
 export const MAX_MOCKUP_BYTES = MAX_UPLOAD_BYTES
@@ -118,4 +119,25 @@ export async function uploadMockup(no: string, blob: Blob): Promise<{ ok: true; 
   const path = mockupPath(no, await contentKey(blob), mockupExt(blob.type) ?? 'jpg')
   const up = await uploadFile('mockups', path, blob, blob.type)
   return up.ok ? { ok: true, path } : up
+}
+
+// รูปที่มีในระบบแล้วใช้ path เดิม · รูปใหม่อัปโหลดเข้าโฟลเดอร์ของใบ · รูปไหนไม่ผ่าน = ไม่ส่งทั้งชุด (เลขรูปของแต่ละแบบต้องไม่เลื่อน)
+export async function uploadFormMockups(no: string, items: readonly FormMockup[]): Promise<{ ok: true; list: JobMockup[] } | { ok: false; reason: string }> {
+  const list: JobMockup[] = []
+  for (const [i, m] of items.entries()) {
+    if (m.path) { list.push({ name: m.name, path: m.path }); continue }
+    const pic = mockupDataUrl(m.data)
+    if (!pic) return { ok: false, reason: `รูปที่ ${i + 1} อ่านไม่ได้ ให้ลบแล้วเลือกรูปใหม่ในฟอร์ม` }
+    const up = await uploadMockup(no, dataUrlBlob(pic))
+    if (!up.ok) return { ok: false, reason: `รูปที่ ${i + 1}: ${up.reason}` }
+    list.push({ name: m.name, path: up.path })
+  }
+  return { ok: true, list }
+}
+
+// ลิงก์ 1 ชั่วโมงสำหรับเปิดใบในฟอร์ม · ขอไม่ได้ = รูปว่าง ฟอร์มยังเปิดได้
+export async function signedUrls(paths: readonly string[]): Promise<Map<string, string>> {
+  if (!paths.length) return new Map()
+  const r = await signFiles('mockups', [...new Set(paths)], 3600)
+  return r.ok ? new Map(r.urls) : new Map()
 }
