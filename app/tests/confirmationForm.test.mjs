@@ -19,3 +19,9 @@ test('ฟอร์มใบยืนยัน: เปิดใบจากระ
   assert.doesNotMatch(js.slice(call), /^(const|let|class)\s/m)
   assert.doesNotMatch(js.slice(0, call), /\(function takeInbox/)
 })
+
+test('ฟอร์มใบยืนยัน: PDF ที่ลูกค้าเซ็นไม่พิมพ์กำหนดส่ง (วันส่งใช้ภายใน)', () => {
+  const js = scripts.join('\n')
+  assert.doesNotMatch(js, /thDate\(h\.due_date\)/)
+  assert.match(js, /data-act="next"/)
+})

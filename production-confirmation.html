@@ -113,6 +113,9 @@ table.ft tfoot td{font-weight:700;background:#f7f8f6}
 .field.missing.hard input,.field.missing.hard .tbl-wrap,.field.missing.hard .opts .opt{border-color:#e6a49f}
 .alert{background:var(--warn-soft);border:1px solid #f0b9b4;color:var(--warn);border-radius:12px;padding:12px 16px;margin-bottom:14px}
 .alert b{display:block;margin-bottom:4px}
+.after-save{background:var(--accent-soft);border:1px solid var(--accent);color:var(--ink);border-radius:12px;padding:12px 16px;margin-bottom:14px;display:grid;gap:10px}
+.after-save .row{display:flex;flex-wrap:wrap;gap:8px}
+.after-save .btn{min-height:44px}
 .alert ul{margin:0;padding-left:20px}
 .alert a{color:var(--warn)}
 .alert.soft{background:var(--caution-soft);border-color:#f1d29c;color:var(--caution)}
@@ -229,7 +232,7 @@ div[data-co-part].co-box{cursor:move;touch-action:none}
   <span class="qty-badge" id="qtyBadge">0</span>
   <span class="progress edit-only" id="progress"></span>
   <div class="btn-group edit-only">
-    <button class="btn" data-act="new" title="ล้างฟอร์มเพื่อเริ่มใบใหม่">ใบใหม่</button>
+    <button class="btn" data-act="new" title="ล้างข้อมูลในฟอร์มทั้งหมดเพื่อเริ่มใบใหม่">ล้างฟอร์ม</button>
     <button class="btn" data-act="open" title="เปิดไฟล์ใบงานที่บันทึกไว้ (.json)">เปิดไฟล์</button>
     <button class="btn" data-act="savefile" title="บันทึกเป็นไฟล์ไว้เปิดแก้ไขหรือออกฉบับใหม่ภายหลัง">บันทึกไฟล์</button>
   </div>
@@ -242,6 +245,7 @@ div[data-co-part].co-box{cursor:move;touch-action:none}
   <nav id="nav" class="edit-only" aria-label="หัวข้อในฟอร์ม"></nav>
   <div>
     <div id="alert"></div>
+    <div id="afterSave" class="edit-only"></div>
     <div id="form"></div>
     <div id="doc" class="doc"></div>
   </div>
@@ -937,6 +941,23 @@ const form = $('#form');
 let state = load() || fresh();
 let missing = [];
 
+const ORDER_KEEP=['issue_date','due_date','admin','admin_phone','customer','contact','phone','delivery','address'];
+const nextDocNo = no => { const m=/^(.*-)(\d+)$/.exec(String(no||'').trim()); return m ? m[1]+String(+m[2]+1).padStart(m[2].length,'0') : ''; };
+function showAfterSave(no){
+  $('#afterSave').innerHTML=`<div class="after-save" role="status"><b>ส่งใบ ${esc(no)} เข้าระบบแล้ว · ทำสินค้าอื่นต่อได้เลย</b>
+    <div class="row"><button class="btn primary" data-act="next">ทำสินค้าถัดไป (ใช้ข้อมูลลูกค้าเดิม)</button>
+    <button class="btn" data-act="clearall">ล้างฟอร์มทั้งหมด</button></div></div>`;
+}
+function startOver(keepOrder){
+  const h=state.h, no=h.doc_no;
+  state=fresh();
+  if(keepOrder){ ORDER_KEEP.forEach(k=>{ if(h[k]!==undefined) state.h[k]=h[k]; }); state.h.doc_no=nextDocNo(no); }
+  missing=[]; $('#alert').innerHTML=''; $('#afterSave').innerHTML='';
+  if(document.body.classList.contains('preview')) togglePreview(false);
+  rerender(); scrollTo(0,0); save();
+  toast(keepOrder ? 'เริ่มสินค้าถัดไป · ข้อมูลลูกค้าเดิมยังอยู่ · ตรวจเลขที่ใบแล้วเลือกสินค้า' : 'ล้างฟอร์มแล้ว');
+  if(keepOrder) setTimeout(()=>$('[data-k="doc_no"]')?.focus(),0);
+}
 function fresh(){ return { h:{ issue_date: today() }, product:'tshirt', pickOpen:true, p:{}, imgs:[], callouts:[], co_size:null }; }
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function load(){ try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.h&&s.p&&PRODUCTS[s.product]){ s.pickOpen=false; s.imgs=Array.isArray(s.imgs)?s.imgs:[]; s.callouts=Array.isArray(s.callouts)?s.callouts:[]; return s; } }catch(e){} return null; }
@@ -1274,7 +1295,9 @@ document.addEventListener('click',e=>{
     state.imgs.splice(r,1); rerender(); }
   if(act==='delco'){ coList().splice(+b.dataset.r,1); rerender(); }
   if(act==='na'){ const sc=scope(b.dataset.s), k=b.dataset.nk+'__na'; if(sc[k]) delete sc[k]; else sc[k]=true; rerender(); }
-  if(act==='new'){ if(confirm('ล้างข้อมูลทั้งหมดและเริ่มใบใหม่?\n(ถ้ายังไม่ได้กด "บันทึกไฟล์" ข้อมูลใบนี้จะหาย)')){ state=fresh(); missing=[]; $('#alert').innerHTML=''; rerender(); scrollTo(0,0); } }
+  if(act==='new'){ if(confirm('ล้างข้อมูลในฟอร์มทั้งหมดและเริ่มใบใหม่?\n(ใบที่ยังไม่ได้กด "บันทึกเข้าระบบ" หรือ "บันทึกไฟล์" จะหาย)')) startOver(false); }
+  if(act==='next'){ startOver(true); }
+  if(act==='clearall'){ startOver(false); }
   if(act==='open'){ if(!(state.h.doc_no||state.h.customer)||confirm('เปิดไฟล์แล้วข้อมูลที่กรอกอยู่จะถูกแทนที่ ดำเนินการต่อ?')) $('#openFile').click(); }
   if(act==='savefile'){ const blob=new Blob([JSON.stringify({ app:'phappim-confirm', v:1, ...state, summary:{ qty:totalQty() } })],{type:'application/json'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fileBase()+'.json'; document.body.appendChild(a); a.click(); a.remove();
@@ -1352,6 +1375,7 @@ function saveToSystem(){
   if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()) delete payload.mockup_path;
   delete payload.mockup_no; delete payload.job_no; delete payload.job_base; delete payload.job_img;
   try{ localStorage.setItem(OUTBOX, JSON.stringify(payload)); }catch(e){ alert('บันทึกไม่สำเร็จ (พื้นที่เบราว์เซอร์เต็ม) ให้ใช้ "บันทึกไฟล์" แทน'); return; }
+  showAfterSave(state.h.doc_no);
   const url='/#/board?confirmation=save';
   const w=window.open(url,'pp142-system');
   // มือถือบางเครื่องคืน null ทั้งที่เปิดแท็บได้ จึงไม่เปลี่ยนหน้าเอง (กัน 2 แท็บแย่งใบเดียวกัน) ให้ลิงก์ไว้กดเองแทน
@@ -1474,7 +1498,7 @@ function renderDoc(){
   const head=`<div class="ph">
     <img class="logo" src="${COMPANY.logo}" alt="${esc(COMPANY.name)}">
     <div class="tt">ใบยืนยันการผลิต<small>${esc(P.name)}</small></div>
-    <div class="no"><span class="big">${esc(h.doc_no||'—')}</span>${num(h.rev)>0?`<span class="rev">แก้ไขครั้งที่ ${esc(h.rev)}</span><br>`:''}กำหนดส่ง <b>${thDate(h.due_date)}</b></div>
+    <div class="no"><span class="big">${esc(h.doc_no||'—')}</span>${num(h.rev)>0?`<span class="rev">แก้ไขครั้งที่ ${esc(h.rev)}</span>`:''}</div>
     <div class="job"><span>ลูกค้า <b>${esc(h.customer||'—')}</b></span><span>งาน <b>${esc(h.job_name||'—')}</b></span><span>จำนวน <b>${qty}</b></span></div>
   </div>`;
 
