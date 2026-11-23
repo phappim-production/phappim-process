@@ -68,3 +68,42 @@ test('ฟอร์มใบยืนยัน: ทุกสินค้าใส
   }
   assert.deepEqual(lacking, [])
 })
+
+test('ฟอร์มใบยืนยัน: ทำสินค้าถัดไปเลื่อนเลขท้ายอัตโนมัติ (เติม -0002 เมื่อยังไม่มีเลขต่อท้าย)', () => {
+  const js = scripts.join('\n')
+  const line = js.match(/const nextDocNo = .+;/)?.[0]
+  assert.ok(line)
+  const { nextDocNo } = new Function(line + '\nreturn { nextDocNo }')()
+  assert.equal(nextDocNo('SC690871'), 'SC690871-0002')
+  assert.equal(nextDocNo('SC690871-0001'), 'SC690871-0002')
+  assert.equal(nextDocNo('SC690871-0009'), 'SC690871-0010')
+  assert.equal(nextDocNo(''), '')
+})
+
+test('ฟอร์มใบยืนยัน: ตั้งรูปอื่นเป็นรูป 1 แล้วเลื่อนเลขรูปในแถวตามไม่ให้ชี้ผิดแบบ', () => {
+  const js = scripts.join('\n')
+  const start = js.indexOf('function moveImgToFirst(')
+  const end = js.indexOf('\nconst sampleLocked=')
+  assert.ok(start > 0 && end > start)
+  const fnSrc = js.slice(start, end)
+  const state = {
+    imgs: [{ name: 'A' }, { name: 'B' }, { name: 'C' }, { name: 'D' }],
+    callouts: [],
+    co_size: { w: 100, h: 100 },
+    p: { bag: { items: [{ img: '1' }, { img: '2' }, { img: '3' }, { img: '4' }] } },
+  }
+  const { moveImgToFirst } = new Function(
+    'state', 'coList', 'confirm', 'scope', 'allFields', 'rerender',
+    fnSrc + '\nreturn { moveImgToFirst }',
+  )(
+    state,
+    () => state.callouts,
+    () => true,
+    () => state.p.bag,
+    () => [{ id: 'items', type: 'itemTable' }],
+    () => {},
+  )
+  moveImgToFirst(2)
+  assert.deepEqual(state.imgs.map(m => m.name), ['C', 'A', 'B', 'D'])
+  assert.deepEqual(state.p.bag.items.map(r => r.img), ['2', '3', '1', '4'])
+})

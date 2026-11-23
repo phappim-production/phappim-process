@@ -112,6 +112,8 @@ table.ft tfoot td{font-weight:700;background:#f7f8f6}
 .imgs .cap{width:100%;border:0;border-top:1px solid var(--line);font:inherit;font-size:12px;padding:4px 6px}
 .imgs .btn.x{position:absolute;top:2px;right:2px;background:#fff;border-radius:6px}
 .imgs .imgno{position:absolute;top:4px;left:4px;background:var(--accent);color:#fff;border-radius:6px;padding:0 6px;font-size:12px;font-weight:700}
+.imgs .main-btn{width:100%;border:0;border-top:1px solid var(--line);border-radius:0;font-size:12px;padding:4px 6px;color:var(--accent);background:#f7f8f6}
+.imgs .main-btn:hover{background:var(--accent-soft)}
 .img-cell{display:flex;align-items:center;gap:6px}
 .img-cell img{width:36px;height:36px;object-fit:contain;border:1px solid var(--line);border-radius:4px;background:#f7f8f6;flex:none}
 .img-cell select{min-width:96px}
@@ -272,6 +274,7 @@ const NA_BLOCK=['doc_no','customer','job_name','issue_date','due_date','sample',
 const naAllowed=f=>f.req&&!NA_BLOCK.includes(f.id)&&!['sizeTable','images'].includes(f.type)&&!(f.type==='itemTable'&&f.cols.some(c=>c.sum));
 const isNA=(f,v)=>!!(v&&v[f.id+'__na']);
 const revising=()=>!!state.job_no&&state.job_no===String(state.h.doc_no||'').trim();
+const docLocked=(f,s)=>s==='h'&&f.id==='doc_no'&&revising();
 const needsAddress = d => d==='จัดส่งตามที่อยู่' || d==='รถบริษัทไปส่ง';
 const SAMPLE_YES = 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)';
 const sampleNote = () => state.h.sample===SAMPLE_YES ? 'ขึ้นตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง' : state.h.sample ? 'งานนี้ไม่ขึ้นตัวอย่าง ผลิตจริงตามใบนี้' : 'ยังไม่ได้เลือกว่าขึ้นตัวอย่างหรือไม่';
@@ -427,7 +430,7 @@ function measureKind(v,kindOf){
   const k=(typeof kindOf==='function'?kindOf(v):kindOf)||'top';
   return k==='set' || (k==='top'&&filledIn(v,MEASURE_PANTS)) || (k==='pants'&&filledIn(v,MEASURE_TOP)) ? 'set' : k;
 }
-const measureRows = kindOf => Object.entries(MEASURE_COLS).map(([kind,cols])=>({ id:'measure_rows', type:'itemTable', label:'ขนาดสำเร็จแต่ละไซซ์', lenUnit:'นิ้ว', addLabel:'+ เพิ่มไซซ์', printLabel:true,
+const measureRows = kindOf => Object.entries(MEASURE_COLS).map(([kind,cols])=>({ id:'measure_rows', type:'itemTable', label:'ขนาดสำเร็จแต่ละไซซ์', lenUnit:'นิ้ว', req:true, addLabel:'+ เพิ่มไซซ์', printLabel:true,
   when:v=>v.size_chart===SIZE_OWN && measureKind(v,kindOf)===kind,
   hint:'1 แถวต่อ 1 ไซซ์ · ช่องที่ไม่ใช้เว้นว่าง · คอลัมน์สุดท้ายใช้กับขนาดอื่น เช่น ความยาวซิป ปลายขา',
   cols:[ { c:'size', label:'ไซซ์', t:'text' }, ...cols, { c:'other', label:'อื่นๆ (ระบุ)', t:'text', opt:true } ] }));
@@ -961,16 +964,22 @@ let state = load() || fresh();
 let missing = [];
 
 const ORDER_KEEP=['issue_date','due_date','admin','admin_phone','customer','contact','phone','delivery','address'];
-const nextDocNo = no => { const m=/^(.*-)(\d+)$/.exec(String(no||'').trim()); return m ? m[1]+String(+m[2]+1).padStart(m[2].length,'0') : ''; };
-function showAfterSave(no){
-  $('#afterSave').innerHTML=`<div class="after-save" role="status"><b>ส่งใบ ${esc(no)} เข้าระบบแล้ว · ทำสินค้าอื่นต่อได้เลย</b>
-    <div class="row"><button class="btn primary" data-act="next">ทำสินค้าถัดไป (ใช้ข้อมูลลูกค้าเดิม)</button>
-    <button class="btn" data-act="clearall">ล้างฟอร์มทั้งหมด</button></div></div>`;
+const nextDocNo = no => { const s=String(no||'').trim(), m=/^(.*-)(\d+)$/.exec(s); return m ? m[1]+String(+m[2]+1).padStart(m[2].length,'0') : s ? s+'-0002' : ''; };
+function showAfterSave(no, revise){
+  const actions=revise
+    ? `<button class="btn primary" data-act="export">ส่งออก PDF ใบแก้ไข</button>
+       <button class="btn" data-act="preview">ดูตัวอย่าง PDF</button>
+       <button class="btn" data-act="next">ทำสินค้าถัดไป (ใช้ข้อมูลลูกค้าเดิม)</button>
+       <button class="btn" data-act="clearall">ล้างฟอร์มทั้งหมด</button>`
+    : `<button class="btn primary" data-act="next">ทำสินค้าถัดไป (ใช้ข้อมูลลูกค้าเดิม)</button>
+       <button class="btn" data-act="clearall">ล้างฟอร์มทั้งหมด</button>`;
+  $('#afterSave').innerHTML=`<div class="after-save" role="status"><b>${revise?`ส่งการแก้ใบ ${esc(no)} เข้างานแล้ว · อย่าลืมส่งออก PDF ใบแก้ไขให้ลูกค้าเซ็น`:`ส่งใบ ${esc(no)} เข้าระบบแล้ว · ทำสินค้าอื่นต่อได้เลย`}</b>
+    <div class="row">${actions}</div></div>`;
 }
 function startOver(keepOrder){
   const h=state.h, no=h.doc_no;
   state=fresh();
-  if(keepOrder){ ORDER_KEEP.forEach(k=>{ if(h[k]!==undefined) state.h[k]=h[k]; }); state.h.doc_no=nextDocNo(no); }
+  if(keepOrder){ ORDER_KEEP.forEach(k=>{ if(h[k]!==undefined) state.h[k]=h[k]; if(h[k+'__na']) state.h[k+'__na']=true; }); state.h.doc_no=nextDocNo(no); }
   missing=[]; $('#alert').innerHTML=''; $('#afterSave').innerHTML='';
   if(document.body.classList.contains('preview')) togglePreview(false);
   rerender(); scrollTo(0,0); save();
@@ -1062,7 +1071,7 @@ const stdCell=(id,i,c,val)=>{ const on=val===c.std, a=`data-t="${id}" data-r="${
   return `<div class="std-cell">${on?`<span>${esc(c.std)}</span>`:`<input type="text" ${a} value="${esc(val)}">`}<label class="std"><input type="checkbox" ${a} data-std="${esc(c.std)}" ${on?'checked':''}>มาตรฐาน</label></div>`; };
 const imgName=n=>{ const m=state.imgs[n-1]; return m?`รูป ${n}${m.name?' · '+m.name:''}`:''; };
 const imgCell=(id,i,val)=>{ const n=+val||0, m=state.imgs[n-1], a=`data-t="${id}" data-r="${i}" data-c="img"`;
-  if(!state.imgs.length) return `<span class="hint">ยังไม่มีรูป</span>`;
+  if(!state.imgs.length) return `<button type="button" class="btn small ghost" data-act="pickimg" title="แนบรูปม็อคอัพ">+ แนบรูป</button>`;
   return `<div class="img-cell">${m?`<img src="${m.src}" alt="">`:''}<select ${a} aria-label="รูปของแถว ${i+1}"><option value="">— ไม่ระบุ —</option>${state.imgs.map((x,j)=>`<option value="${j+1}" ${n===j+1?'selected':''}>${esc(imgName(j+1))}</option>`).join('')}</select></div>`; };
 // ลบรูปแล้วเลขรูปที่แถวอ้างต้องเลื่อนตาม ไม่อย่างนั้นแบบจะชี้ผิดรูป
 function shiftImgRefs(removed){
@@ -1070,14 +1079,28 @@ function shiftImgRefs(removed){
   allFields().filter(f=>f.type==='itemTable'||f.type==='sizeTable').forEach(f=>{ (Array.isArray(v[f.id])?v[f.id]:[]).forEach(r=>{
     const n=+r.img||0; if(n===removed+1) delete r.img; else if(n>removed+1) r.img=String(n-1); }); });
 }
+function moveImgToFirst(idx){
+  if(idx<=0||idx>=state.imgs.length) return;
+  if(coList().length&&!confirm(`ภาพแรกมีจุดกำกับ ${coList().length} จุด เปลี่ยนรูปหลักแล้วจุดจะหายด้วย ทำต่อ?`)) return;
+  if(coList().length){ state.callouts=[]; state.co_size=null; }
+  const [picked]=state.imgs.splice(idx,1); state.imgs.unshift(picked);
+  const v=scope('p');
+  allFields().filter(f=>f.type==='itemTable'||f.type==='sizeTable').forEach(f=>{ (Array.isArray(v[f.id])?v[f.id]:[]).forEach(r=>{
+    const n=+r.img||0; if(n===idx+1) r.img='1'; else if(n>=1&&n<=idx) r.img=String(n+1); }); });
+  state.co_size=null;
+  rerender();
+}
 const sampleLocked=(f,s)=>s==='h'&&f.id==='sample'&&revising()&&!!jobBase()?.h?.sample;
 const WIDE=['check','sizeTable','itemTable','placements','images','textarea','dims'];
 function fieldHTML(f,s,v){
   const val=v[f.id], a=`data-s="${s}" data-k="${f.id}"`;
   let b='';
   switch(f.type){
-    case 'text': case 'date':
-      b=`<input type="${f.type}" ${a} value="${esc(val)}" placeholder="${esc(f.ph||'')}">`; break;
+    case 'text': case 'date': {
+      const lock=docLocked(f,s);
+      b=`<input type="${f.type}" ${a} value="${esc(val)}" placeholder="${esc(f.ph||'')}" ${lock?'disabled':''}>`;
+      if(lock) b+=`<div class="hint">งานที่รับแล้วเปลี่ยนเลขที่ใบไม่ได้ · ถ้าจะเริ่มใบใหม่ กดปุ่ม &quot;ล้างฟอร์ม&quot; ด้านบน</div>`;
+      break; }
     case 'number':
       b=`<input type="number" min="0" step="any" inputmode="decimal" ${a} value="${esc(val)}">`; break;
     case 'textarea':
@@ -1100,11 +1123,12 @@ function fieldHTML(f,s,v){
           cols.map(c=>`<td><input type="number" min="0" data-t="${f.id}" data-r="${i}" data-c="q:${esc(c)}" value="${esc(r.q[c])}"></td>`).join('')+
           `<td data-rt="${i}">0</td><td>${rs.length>1?`<button class="btn x" data-act="delrow" data-id="${f.id}" data-r="${i}" title="ลบแถว">✕</button>`:''}</td></tr>`).join('')+
         `</tbody><tfoot><tr><td>รวม</td><td></td>${cols.map(c=>`<td data-ct="${esc(c)}">0</td>`).join('')}<td data-gt>0</td><td></td></tr></tfoot></table></div>`+
-        `<div class="tbl-actions"><button class="btn small ghost" data-act="addrow" data-id="${f.id}">+ เพิ่มแบบ/สี</button></div>`+
+        `<div class="tbl-actions"><button class="btn small ghost" data-act="addrow" data-id="${f.id}">+ เพิ่มแบบ/สี</button><button type="button" class="btn small" data-act="pickimg">${state.imgs.length?`รูปในใบนี้ ${state.imgs.length} รูป · + เพิ่มรูป`:'+ แนบรูปม็อคอัพ'}</button></div>`+
         sizeChart(f,v).map(l=>`<div class="hint">${esc(l)}</div>`).join('');
       break; }
     case 'itemTable': {
       const rs=rows(v,f.id,!!f.none);
+      const hasImg=f.cols.some(c=>c.t==='img');
       b=`<div class="tbl-wrap"><table class="ft"><thead><tr>${f.cols.map(c=>`<th>${esc(colLabel(c,f,v))}</th>`).join('')}<th></th></tr></thead><tbody>`+
         rs.map((r,i)=>`<tr>${f.cols.map(c=>`<td class="${c.t!=='number'?'l':''}">`+(c.t==='select'
             ? `<select data-t="${f.id}" data-r="${i}" data-c="${c.c}"><option value="">— เลือก —</option>${c.options.map(o=>`<option ${r[c.c]===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`
@@ -1112,31 +1136,37 @@ function fieldHTML(f,s,v){
             : c.std ? stdCell(f.id,i,c,r[c.c])
             : `<input type="${c.t}" ${c.t==='number'?'min="0" step="any"':''} data-t="${f.id}" data-r="${i}" data-c="${c.c}" value="${esc(r[c.c])}">`)+`</td>`).join('')}<td>${rs.length>1||!f.req?`<button class="btn x" data-act="delrow" data-id="${f.id}" data-r="${i}" title="ลบแถว">✕</button>`:''}</td></tr>`).join('')+
         `</tbody>${f.cols.some(c=>c.sum)?`<tfoot><tr>${f.cols.map((c,j)=>`<td>${j===0?'รวม':c.sum?'<span data-gt>0</span>':''}</td>`).join('')}<td></td></tr></tfoot>`:''}</table></div>`+
-        `<div class="tbl-actions"><button class="btn small ghost" data-act="addrow" data-id="${f.id}">${f.addLabel||'+ เพิ่มรายการ'}</button></div>`;
+        `<div class="tbl-actions"><button class="btn small ghost" data-act="addrow" data-id="${f.id}">${f.addLabel||'+ เพิ่มรายการ'}</button>`+
+        (f.id==='measure_rows'?`<button type="button" class="btn small" data-act="fillsizes">+ ดึงไซซ์ที่มีจำนวนจากตารางด้านบน</button>`:'')+
+        (hasImg?`<button type="button" class="btn small" data-act="pickimg">${state.imgs.length?`รูปในใบนี้ ${state.imgs.length} รูป · + เพิ่มรูป`:'+ แนบรูปม็อคอัพ'}</button>`:'')+
+        `</div>`;
       break; }
     case 'placements': {
       const pv=v[f.id]||{};
       const ms=[].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m)), one=ms.length===1?ms[0]:'';
       b=`<div class="pl"><div class="pl-head"><span>ตำแหน่ง</span><span>เทคนิค</span><span>ขนาด</span><span>หมายเหตุ</span></div>`+f.positions.map(p=>{ const x=pv[p]||{};
         return `<div class="pl-row"><label class="opt"><input type="checkbox" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="on" ${x.on?'checked':''}><span>${esc(p)}</span></label>`+
-          `<input type="text" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="tech" value="${esc(x.tech)}" placeholder="${esc(one||'เช่น งานปัก / DTF')}" ${x.on?'':'disabled'}>`+
+          `<input type="text" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="tech" list="dl_tech_${f.id}" value="${esc(x.tech)}" placeholder="${esc(one||'เช่น งานปัก / DTF')}" ${x.on?'':'disabled'}>`+
           `<input type="text" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="size" value="${esc(x.size)}" placeholder="กว้าง × สูง (${unitOf(f,v)})" ${x.on?'':'disabled'}>`+
-          `<input type="text" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="note" value="${esc(x.note)}" placeholder="หมายเหตุ เช่น ห่างคอ 8 ซม." ${x.on?'':'disabled'}></div>`; }).join('')+`</div>`;
+          `<input type="text" data-pl="${f.id}" data-pos="${esc(p)}" data-pf="note" value="${esc(x.note)}" placeholder="หมายเหตุ เช่น ห่างคอ 8 ซม." ${x.on?'':'disabled'}></div>`; }).join('')+`</div>`+
+        (ms.length?`<datalist id="dl_tech_${f.id}">${ms.map(m=>`<option value="${esc(m)}">`).join('')}</datalist>`:'');
       break; }
     case 'images':
       b=`<input type="file" accept="image/*" multiple data-img>`+
-        `<div class="imgs">${state.imgs.map((m,i)=>`<figure><span class="imgno">รูป ${i+1}</span><img src="${m.src}" alt=""><input class="cap" data-imgcap="${i}" value="${esc(m.name)}" aria-label="ชื่อใต้รูป" placeholder="ชื่อใต้รูป เช่น ผ้าตาข่าย"><button class="btn x" data-act="delimg" data-r="${i}" title="ลบภาพ">✕</button></figure>`).join('')}</div>`+coEditorHTML();
+        `<div class="imgs">${state.imgs.map((m,i)=>`<figure><span class="imgno">รูป ${i+1}</span><img src="${m.src}" alt=""><input class="cap" data-imgcap="${i}" value="${esc(m.name)}" aria-label="ชื่อใต้รูป" placeholder="ชื่อใต้รูป เช่น ผ้าตาข่าย">${i>0?`<button type="button" class="btn small main-btn" data-act="mainimg" data-r="${i}" title="ตั้งเป็นรูป 1 (แสดงบนการ์ดงานและใบปะงาน)">ตั้งเป็นรูป 1</button>`:''}<button class="btn x" data-act="delimg" data-r="${i}" title="ลบภาพ">✕</button></figure>`).join('')}</div>`+coEditorHTML();
       break;
   }
   const wide=f.wide||(WIDE.includes(f.type))||(f.type==='radio'&&(f.options.length>3||f.other));
   const na=naAllowed(f)&&isNA(f,v);
   if(na) b=`<div class="na-box">ไม่ใช้กับงานนี้ · ไม่พิมพ์ลง PDF และไม่ส่งเข้าระบบ</div>`;
-  const naBtn=naAllowed(f)&&(na||fieldIssue(f,v).bad)
+  const naBtn=naAllowed(f)
     ? `<button type="button" class="btn small na-btn" data-act="na" data-s="${s}" data-nk="${f.id}" aria-pressed="${na}" title="${na?'กลับมากรอกช่องนี้':'ช่องนี้ไม่เกี่ยวกับงานนี้ · ไม่ต้องกรอก ไม่พิมพ์ลง PDF'}">${na?'ใช้ช่องนี้':'ไม่ใช้กับงานนี้'}</button>` : '';
+  const bumpBtn=s==='h'&&f.id==='rev'&&revising()
+    ? `<button type="button" class="btn small" data-act="bumprev">+ ตั้งเป็นครั้งที่ ${num(jobBase()?.h?.rev)+1}</button>` : '';
   const u=unitOf(f,v), sw=lenDefault(f)&&!na
     ? `<div class="unit-sw" role="group" aria-label="หน่วยของ ${esc(f.label)}">${LEN_UNITS.map(x=>`<button type="button" data-act="unit" data-s="${s}" data-uk="${f.id}" data-u="${x}" aria-pressed="${x===u}">${x}</button>`).join('')}</div>` : '';
   const lab=`<div class="lab">${esc(fieldLabel(f,v))}${f.req&&!na?'<i class="req">*</i>':''}${f.unit&&!sw?` <small>(${esc(f.unit)})</small>`:''}</div>`;
-  const tools=sw+naBtn;
+  const tools=sw+bumpBtn+naBtn;
   return `<div class="field${wide?' wide':''}" id="fld_${s}_${f.id}">${tools?`<div class="lab-row">${lab}<div class="lab-tools">${tools}</div></div>`:lab}${f.hint&&!na?`<div class="hint">${esc(f.hint)}</div>`:''}${b}</div>`;
 }
 
@@ -1151,6 +1181,7 @@ function updateTotals(){
   }
   form.querySelectorAll('[data-gt]').forEach(el=>el.textContent=t.toLocaleString());
   updateProgress();
+  syncCalloutUI();
 }
 function updateProgress(){
   const m=validate(), cnt={};
@@ -1205,8 +1236,15 @@ const coClamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,Number.isFinite(v)?v:0));
 const coR4=v=>Math.round(v*10000)/10000;
 const coPct=(x,y)=>`left:${(x+CO_MX)/(1+2*CO_MX)*100}%;top:${(y+CO_MY)/(1+2*CO_MY)*100}%`;
 // เลื่อนกล่องตามตำแหน่งบนพื้นที่ภาพ ชิดซ้ายสุด = ขอบซ้ายกล่องอยู่ที่จุด ชิดขวาสุด = ขอบขวา กล่องจึงไม่ล้นออกนอกภาพ
-const coBoxPct=(x,y)=>{ const l=(x+CO_MX)/(1+2*CO_MX)*100, t=(y+CO_MY)/(1+2*CO_MY)*100; return `left:${l}%;top:${t}%;transform:translate(-${l}%,-${t}%)`; };
+const coBoxPct=(x,y)=>{ const l=coClamp((x+CO_MX)/(1+2*CO_MX),0,1)*100, t=coClamp((y+CO_MY)/(1+2*CO_MY),0,1)*100; return `left:${l}%;top:${t}%;transform:translate(-${l}%,-${t}%)`; };
 function coList(){ if(!Array.isArray(state.callouts)) state.callouts=[]; return state.callouts; }
+const CO_FIELDS=[
+  ['fit','ทรง'],['neck','คอเสื้อ'],['neck_fabric','ผ้าคอ'],['neck_color','สีคอ'],['sleeve','แขน'],['sleeve_end','ปลายแขน'],
+  ['fabric','ชนิดผ้า'],['fabric_color','สีผ้าพื้น'],['gsm','น้ำหนักผ้า'],['fabric_width','หน้าผ้า'],['print_method','เทคนิคพิมพ์'],
+  ['side_seam','ตะเข็บข้าง'],['hem','ชายเสื้อ'],['thread','สีด้าย'],['neck_label','ป้ายคอ'],['size_label','ป้ายไซซ์'],
+  ['color_match','การเทียบสี'],['art_file','ไฟล์งาน'],['notes','หมายเหตุ'],['edge','ริม'],['sew_style','รูปแบบการเย็บ'],
+  ['logo_pos','ตำแหน่งโลโก้'],['print_pos','ตำแหน่งและขนาดโลโก้'],['bag','ใส่ถุง'],['fold','การพับ'],['box_note','การแพ็ค'],
+];
 function coRefs(){
   const v=scope('p'), out=[], ms=[].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m));
   const pu=unitOf({ id:'placements', lenUnit:'ซม.' },v);
@@ -1214,10 +1252,20 @@ function coRefs(){
     const size=String(x.size??'').trim();
     const val=[x.tech||(ms.length===1?ms[0]:''), size&&(/^[0-9 .,xX×*/-]+$/.test(size)?`${size} ${pu}`:size), x.note].filter(Boolean).join(' · ');
     out.push({ ref:'placement:'+pos, label:'ตำแหน่ง '+pos, val }); });
-  [['neck','คอเสื้อ'],['neck_color','สีคอ'],['sleeve','แขน'],['fabric','ชนิดผ้า'],['fabric_color','สีผ้าพื้น']].forEach(([k,l])=>{
-    const raw=v[k]; const val=Array.isArray(raw)?raw.filter(Boolean).join(', '):String(raw??'').trim();
+  CO_FIELDS.forEach(([k,l])=>{
+    if(v[k+'__na']) return;
+    const raw=v[k], fmt=x=>x===OTHER?`${OTHER}: ${v[k+'__other']||''}`:x;
+    const val=Array.isArray(raw)?raw.map(fmt).filter(x=>!isNone(x)).join(', '):(isNone(raw)?'':fmt(String(raw??'').trim()));
     if(val) out.push({ ref:'field:'+k, label:l, val }); });
   return out;
+}
+function syncCalloutUI(){
+  const refs=coRefs(), cs=coList();
+  cs.forEach((c,i)=>{ const box=form.querySelector(`.co-box[data-co-i="${i}"]`); if(box) box.innerHTML=coBoxInner(c,i,refs); });
+  form.querySelectorAll('select[data-cf="ref"]').forEach(sel=>{
+    const cur=sel.value;
+    sel.innerHTML=`<option value="">— อ้างตำแหน่ง / ช่องในใบนี้ —</option>`+refs.map(r=>`<option value="${esc(r.ref)}" ${r.ref===cur?'selected':''}>${esc(r.label)}${r.val?': '+esc(r.val):''}</option>`).join('');
+  });
 }
 function coLabel(c,refs){ const r=refs.find(x=>x.ref===c.ref); return [r?`${r.label}: ${r.val}`:'', c.body].filter(Boolean).join(' · '); }
 function coBoxInner(c,i,refs){ const sub=coLabel(c,refs); return `<b>${i+1}</b> ${esc(c.title||'(ยังไม่ตั้งชื่อ)')}${sub?`<small>${esc(sub)}</small>`:''}`; }
@@ -1290,8 +1338,10 @@ function coAdd(e){
 
 form.addEventListener('input',e=>{
   const t=e.target, d=t.dataset;
-  if(t.type==='radio'||t.type==='checkbox'||t.type==='file') return;
-  if(d.imgcap!==undefined){ const m=state.imgs[+d.imgcap]; if(m){ m.name=t.value; save(); } return; }
+  if(t.type==='radio'||t.type==='checkbox'||t.type==='file'||t.tagName==='SELECT') return;
+  if(d.imgcap!==undefined){ const m=state.imgs[+d.imgcap]; if(m){ m.name=t.value;
+    form.querySelectorAll(`select[data-c="img"] option[value="${+d.imgcap+1}"]`).forEach(o=>{ o.textContent=imgName(+d.imgcap+1); });
+    save(); } return; }
   if(d.co!==undefined){ const c=coList()[+d.co]; if(!c) return; c[d.cf]=t.value;
     const box=form.querySelector(`.co-box[data-co-i="${d.co}"]`); if(box) box.innerHTML=coBoxInner(c,+d.co,coRefs()); save(); return; }
   if(t.id==='psearch'){ const q=t.value.trim().toLowerCase();
@@ -1307,10 +1357,16 @@ form.addEventListener('input',e=>{
 form.addEventListener('change',e=>{
   const t=e.target, d=t.dataset;
   if(d.product!==undefined){ state.product=t.value; state.pickOpen=false; scope('p'); return rerender(); }
+  if(d.t){ const r=scope('p')[d.t][+d.r]; if(d.c.startsWith('q:')) r.q[d.c.slice(2)]=t.value; else r[d.c]=t.value;
+    if(d.c==='img') return rerender(); updateTotals(); save(); return; }
+  if(d.co!==undefined){ const c=coList()[+d.co]; if(!c) return; c[d.cf]=t.value;
+    const box=form.querySelector(`.co-box[data-co-i="${d.co}"]`); if(box) box.innerHTML=coBoxInner(c,+d.co,coRefs()); save(); return; }
   if(t.type==='radio'&&d.k){ scope(d.s)[d.k]=t.value; return rerender(); }
   if(t.type==='checkbox'&&d.k){ const v=scope(d.s); const arr=new Set(v[d.k]||[]); t.checked?arr.add(t.value):arr.delete(t.value); v[d.k]=[...arr]; return rerender(); }
   if(t.type==='checkbox'&&d.std!==undefined){ scope('p')[d.t][+d.r][d.c]=t.checked?d.std:''; return rerender(); }
-  if(t.type==='checkbox'&&d.pl){ const v=scope('p'); v[d.pl]=v[d.pl]||{}; (v[d.pl][d.pos]=v[d.pl][d.pos]||{}).on=t.checked; return rerender(); }
+  if(t.type==='checkbox'&&d.pl){ const v=scope('p'); v[d.pl]=v[d.pl]||{}; (v[d.pl][d.pos]=v[d.pl][d.pos]||{}).on=t.checked; rerender();
+    if(t.checked){ const ms=[].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m));
+      const pf=ms.length>1?'tech':'size'; form.querySelector(`input[data-pl="${d.pl}"][data-pos="${CSS.escape(d.pos)}"][data-pf="${pf}"]`)?.focus(); } return; }
   if(t.type==='file'&&d.img!==undefined){
     const files=[...t.files]; readingImgs++;
     Promise.all(files.map(compress)).then(a=>{
@@ -1325,6 +1381,20 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('[data-act]'); if(!b) return;
   const act=b.dataset.act, v=scope('p');
   if(act==='pick'){ state.pickOpen=true; rerender(); setTimeout(()=>$('#psearch')?.focus(),0); }
+  if(act==='pickimg'){ const inp=form.querySelector('input[type="file"][data-img]'); if(inp){ inp.scrollIntoView({behavior:'smooth',block:'center'}); inp.click(); } }
+  if(act==='mainimg'){ moveImgToFirst(+b.dataset.r); }
+  if(act==='bumprev'){ state.h.rev=num(jobBase()?.h?.rev)+1; rerender(); }
+  if(act==='fillsizes'){
+    const cols=sizeCols(v), sRows=Array.isArray(v.sizes)?v.sizes:[];
+    const used=cols.filter(c=>sRows.some(r=>num(r.q?.[c])>0));
+    const want=used.length?used:cols;
+    if(!want.length){ toast('เลือกชุดไซซ์ด้านบนก่อน'); return; }
+    const cur=Array.isArray(v.measure_rows)?v.measure_rows:[];
+    const bySize=new Map(cur.filter(r=>String(r.size||'').trim()).map(r=>[String(r.size).trim(),r]));
+    const extras=cur.filter(r=>String(r.size||'').trim()&&!want.includes(String(r.size).trim()));
+    v.measure_rows=[...want.map(s=>bySize.get(s)||{size:s}),...extras];
+    rerender();
+  }
   if(act==='addrow'){ v[b.dataset.id].push(b.dataset.id==='sizes'?{q:{}}:{}); rerender(); }
   if(act==='delrow'){ v[b.dataset.id].splice(+b.dataset.r,1); rerender(); }
   if(act==='delimg'){ const r=+b.dataset.r;
@@ -1346,11 +1416,14 @@ document.addEventListener('click',e=>{
   if(act==='export'){ exportPdf(); }
 });
 
+const imgSnap=()=>JSON.stringify(state.imgs.map(m=>[m.path||m.src, String(m.name||'').trim()]));
 function loadData(d, label){
   if(!d||!d.h||!d.p||!PRODUCTS[d.product]) return false;
   state={ h:d.h, product:d.product, pickOpen:false, p:d.p, imgs:Array.isArray(d.imgs)?d.imgs:[], callouts:Array.isArray(d.callouts)?d.callouts:[], co_size:d.co_size||null }; missing=[];
-  if(typeof d.mockup_path==='string'&&d.mockup_path){ state.mockup_path=d.mockup_path; state.mockup_no=String(d.h.doc_no||'').trim(); } $('#alert').innerHTML='';
-  if(d.from_job){ state.job_no=String(d.h.doc_no||'').trim(); state.job_imgs=JSON.stringify(state.imgs.map(m=>m.src)); }
+  if(typeof d.mockup_path==='string'&&d.mockup_path) state.mockup_path=d.mockup_path;
+  if((typeof d.mockup_path==='string'&&d.mockup_path)||state.imgs.some(m=>m.path)) state.mockup_no=String(d.h.doc_no||'').trim();
+  $('#alert').innerHTML='';
+  if(d.from_job){ state.job_no=String(d.h.doc_no||'').trim(); state.job_imgs=imgSnap(); }
   if(document.body.classList.contains('preview')) togglePreview(false); rerender();
   if(d.from_job){ state.job_base=jobSnapshot(); rerender(); }
   scrollTo(0,0); save(); toast(label);
@@ -1375,7 +1448,7 @@ function changedLabels(){
   layout().filter(sec=>sec.fields).forEach(sec=>{ const now=scope(sec.s), was=sec.s==='h'?base.h:base.p;
     sec.fields.forEach(f=>{ if(['doc_no','rev','images'].includes(f.id)) return;
       if(pick(f,now)!==pick(f,was)) out.push(f.label.replace(/ \(.*\)$/,'')); }); });
-  if(JSON.stringify(state.imgs.map(m=>m.src))!==(state.job_imgs||'[]')) out.push('รูปม็อคอัพ');
+  if(imgSnap()!==(state.job_imgs||'[]')) out.push('รูปม็อคอัพ');
   if(JSON.stringify(state.callouts||[])!==JSON.stringify(base.co||[])) out.push('จุดกำกับบนม็อคอัพ');
   return [...new Set(out)];
 }
@@ -1385,7 +1458,7 @@ function saveToSystem(){
   const revise=revising(), btn=revise?'บันทึกการแก้เข้างาน':'บันทึกเข้าระบบ';
   let changes=[];
   if(revise){
-    if(!(num(state.h.rev)>0)){ alert('ใส่ "แก้ไขครั้งที่" ก่อนบันทึกการแก้เข้างาน (ใบแรกที่รับงานคือครั้งที่ 0)'); $('[data-k="rev"]')?.focus(); return; }
+    if(!(num(state.h.rev)>0)){ $('#fld_h_rev')?.scrollIntoView({block:'center'}); alert('ใส่ "แก้ไขครั้งที่" ก่อนบันทึกการแก้เข้างาน (ใบแรกที่รับงานคือครั้งที่ 0)'); $('[data-k="rev"]')?.focus(); return; }
     const base=jobBase();
     if(base?.product&&base.product!==state.product){ alert('เปลี่ยนชนิดสินค้าหลังรับงานไม่ได้\nถ้าลูกค้าเปลี่ยนสินค้า ให้ผู้บริหารยกเลิกงานนี้แล้วรับใบใหม่'); return; }
     if(base&&String(base.h?.sample||'')!==String(state.h.sample||'')){ alert('เปลี่ยน "ขึ้นตัวอย่าง" หลังรับงานไม่ได้\nเลือกกลับเป็น "'+(base.h?.sample||'—')+'" แล้วกดบันทึกอีกครั้ง'); $('#fld_h_sample')?.scrollIntoView({block:'center'}); return; }
@@ -1404,7 +1477,7 @@ function saveToSystem(){
   const payload={ app:'phappim-confirm', v:1, ...state, imgs:[], summary:{ qty:totalQty() } };
   // ช่องที่ถูกซ่อนเพราะเปลี่ยนตัวเลือก (เช่น ผ้าเช็ดหน้า ↔ ผ้าพันคอ) ไม่ส่งเข้าระบบ ไม่อย่างนั้นหน้างานเห็นสเปกที่ลูกค้าไม่ได้เลือก
   const shown=scope('p'), part={...shown};
-  const drop=(obj,f)=>{ delete obj[f.id]; delete obj[f.id+'__other']; delete obj[f.id+'__unit']; (f.parts||[]).forEach((_,i)=>delete obj[f.id+'_'+i]); };
+  const drop=(obj,f)=>{ delete obj[f.id]; delete obj[f.id+'__other']; delete obj[f.id+'__unit']; delete obj[f.id+'__na']; (f.parts||[]).forEach((_,i)=>delete obj[f.id+'_'+i]); };
   allFields().forEach(f=>{ if(!visible(f,shown)||(naAllowed(f)&&isNA(f,shown))) drop(part,f); });
   payload.p={...state.p, [state.product]:part};
   const head={...state.h};
@@ -1413,10 +1486,10 @@ function saveToSystem(){
   payload.mockups=state.imgs.map((m,i)=>{ const path=sysPath(m,i); return path?{ name:m.name||'', path }:{ name:m.name||'', data:shrunk.get(m.src) }; });
   if(revise){ payload.revise_job=true; payload.changes=changes; }
   // รูปเดิมจากระบบใช้ได้เฉพาะใบเลขเดิม (เปลี่ยนเลขใบเพื่อทำใบใหม่ = ไม่เอารูปใบเดิมไป)
-  if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()) delete payload.mockup_path;
+  if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()){ delete payload.mockup_path; payload.mockups=payload.mockups.filter(m=>!m.path); }
   delete payload.mockup_no; delete payload.job_no; delete payload.job_base; delete payload.job_imgs;
   try{ localStorage.setItem(OUTBOX, JSON.stringify(payload)); }catch(e){ alert('บันทึกไม่สำเร็จ (พื้นที่เบราว์เซอร์เต็ม) ให้ใช้ "บันทึกไฟล์" แทน'); return; }
-  showAfterSave(state.h.doc_no);
+  showAfterSave(state.h.doc_no, revise);
   const url='/#/board?confirmation=save';
   const w=window.open(url,'pp142-system');
   // มือถือบางเครื่องคืน null ทั้งที่เปิดแท็บได้ จึงไม่เปลี่ยนหน้าเอง (กัน 2 แท็บแย่งใบเดียวกัน) ให้ลิงก์ไว้กดเองแทน
@@ -1473,9 +1546,11 @@ function fieldIssue(f,v){
         else if(rs.some(r=>tot(r)>0&&!String(r.label??'').trim())){ bad=true; why='ใส่ชื่อแบบ/สีให้ทุกแถวที่มีจำนวน'; }
         break; }
       case 'itemTable': { const rs=rows(v,f.id,!!f.none);
-        const full=r=>f.cols.filter(c=>!c.opt).every(c=>c.t==='number'?num(r[c.c])>0:String(r[c.c]??'').trim());
+        const full=f.id==='measure_rows'
+          ? r=>String(r.size??'').trim()&&f.cols.some(c=>c.c!=='size'&&String(r[c.c]??'').trim())
+          : r=>f.cols.filter(c=>!c.opt).every(c=>c.t==='number'?num(r[c.c])>0:String(r[c.c]??'').trim());
         const empty=r=>f.cols.every(c=>!String(r[c.c]??'').trim());
-        if(f.req&&!rs.some(full)){ bad=true; why='ต้องมีอย่างน้อย 1 รายการที่กรอกครบ'; }
+        if(f.req&&!rs.some(full)){ bad=true; why=f.id==='measure_rows'?'ใส่ไซซ์และขนาดอย่างน้อย 1 แถว':'ต้องมีอย่างน้อย 1 รายการที่กรอกครบ'; }
         else if(rs.some(r=>!full(r)&&!empty(r))){ bad=true; why='มีแถวที่กรอกไม่ครบ'; }
         break; }
       case 'placements': { const on=Object.entries(val||{}).filter(([,x])=>x.on);
