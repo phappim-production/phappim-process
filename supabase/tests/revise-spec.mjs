@@ -140,9 +140,24 @@ export async function reviseSpecTests({ db, ok, as }) {
   ok('เผื่อเสียอยู่ที่งานแม่ ส่วนที่แบ่งยังเป็น 0', p7.spare_qty === 2 && c7.spare_qty === 0 && g7.spare_qty === 0)
   ok('ทุกส่วนที่แบ่งลง events แก้ใบ', (await events(child)).length === 1 && (await events(grandchild)).length === 1 && (await events(parent)).length === 1)
   ok('ข้อความแจ้งบอกว่าใช้กับทุกส่วน', /ใช้กับทุกส่วนที่แบ่ง: SC-RV-7, SC-RV-7-2, SC-RV-7-2-2/.test((await inbox(parent))[0]?.body ?? ''))
-  await reject('ส่วนที่แบ่งรับใบแก้ตรงไม่ได้ (เลขที่ใบเป็นของงานแม่)', U.admin, args(child, s7(), { qty: 100, sample: false }), /ไม่ตรงกับงาน SC-RV-7-2/)
+  await reject('แก้ใบจากส่วนที่แบ่งด้วยเลขของส่วนนั้นไม่ได้ (บอกเลขงานแม่)', U.admin,
+    args(child, spec('SC-RV-7-2', { h: { rev: 2 }, p: { fabric_color: 'แดง' } }), { rev: 2, qty: 30, sample: false }),
+    /เลขที่ใบในฟอร์ม \(SC-RV-7-2\) ไม่ตรงกับงาน SC-RV-7 · แก้เลขที่ใบกลับเป็น SC-RV-7 /)
+  ok('ถูกปฏิเสธแล้วงานลูกไม่เปลี่ยนสเปก', (await jobRow(child)).spec.p.tshirt.fabric_color === 'ดำ' && (await jobRow(child)).confirmation_rev === 1)
+  const rg = await call(U.admin, args(grandchild, spec('SC-RV-7', { h: { rev: 2 }, p: { fabric_color: 'เขียว' } }),
+    { rev: 2, qty: 100, sample: false, due: '2026-12-22' }))
+  const fam = [await jobRow(parent), await jobRow(child), await jobRow(grandchild)]
+  ok('แก้ใบจากส่วนที่แบ่ง (เลขงานแม่) = แก้ทุกส่วนรวมงานแม่', rg.changed === true && rg.parts.length === 3
+    && fam.every(x => x.spec.p.tshirt.fabric_color === 'เขียว' && x.confirmation_rev === 2), JSON.stringify(rg))
+  ok('แก้จากส่วนที่แบ่งแล้วจำนวนทุกส่วนคงเดิม', fam.map(x => x.qty).join() === '70,20,10', fam.map(x => x.qty).join())
+
+  const root9 = await jobOf('SC-RV-9', 'production', false)
+  const child9 = await call(U.admin, `public.split_job('${root9}', 40)`)
+  await call(U.mgr, `public.cancel_job('${root9}', 'ลูกค้ายกเลิกบางส่วน')`)
+  await reject('งานแม่ถูกยกเลิก แก้ใบจากส่วนที่แบ่งไม่ได้ (บอกให้รับใบใหม่)', U.admin,
+    args(child9, spec('SC-RV-9', { h: { rev: 1 }, p: { fabric_color: 'ดำ' } }), { qty: 40, sample: false }), /งานแม่ SC-RV-9 ถูกยกเลิกแล้ว.*รับเป็นใบใหม่/)
 
   const other = await jobOf('SC-RV-7-0002', 'production', false)
-  const r8 = await call(U.admin, args(parent, spec('SC-RV-7', { h: { rev: 2 } }), { rev: 2, qty: 100, sample: false, due: '2026-12-22' }))
+  const r8 = await call(U.admin, args(parent, spec('SC-RV-7', { h: { rev: 3 } }), { rev: 3, qty: 100, sample: false, due: '2026-12-22' }))
   ok('ใบอีกสินค้าในออเดอร์เดียวกัน (-0002) ไม่ถูกนับเป็นส่วนที่แบ่ง', r8.parts.length === 3 && (await jobRow(other)).confirmation_rev === 0, JSON.stringify(r8))
 }
