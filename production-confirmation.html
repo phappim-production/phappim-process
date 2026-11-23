@@ -1307,7 +1307,7 @@ function saveToSystem(){
   toast.h=setTimeout(()=>t.classList.remove('on','link'),20000);
 }
 // หน้าระบบกด "เปิดในฟอร์ม" (แก้ใบที่บันทึกไว้) → ใส่ข้อมูลไว้ใน INBOX แล้วเปิดหน้านี้
-(function takeInbox(){
+function takeInbox(){
   let d=null; try{ d=JSON.parse(localStorage.getItem(INBOX)); localStorage.removeItem(INBOX); }catch(e){}
   if(!d) return;
   const busy=String(state.h.doc_no||state.h.customer||'').trim() && state.h.doc_no!==d.h?.doc_no;
@@ -1315,7 +1315,7 @@ function saveToSystem(){
   const label=d.from_job ? 'เปิดใบ '+(d.h?.doc_no||'')+' ของงานที่รับแล้ว · แก้ข้อมูล ใส่ "แก้ไขครั้งที่" แล้วกด "ส่งออก PDF"'
     : 'เปิดใบ '+(d.h?.doc_no||'')+' จากระบบแล้ว · แก้แล้วกด "บันทึกเข้าระบบ" อีกครั้ง';
   if(!loadData(d, label)) alert('ข้อมูลจากระบบไม่ใช่ใบยืนยันการผลิต');
-})();
+}
 
 // กด Enter = ไปช่องถัดไป (กรอกตารางไซซ์ได้เร็ว) · กันล้อเมาส์เปลี่ยนตัวเลขโดยไม่ตั้งใจ
 form.addEventListener('keydown',e=>{ const t=e.target;
@@ -1533,6 +1533,8 @@ async function exportPdf(){
 document.getElementById('barLogo').src=COMPANY.logo;
 renderForm();
 refreshThumb();
+// ต้องอยู่ท้ายสุด: โหลดใบแล้ววาดฟอร์มทันที ค่าคงที่ที่ประกาศหลังจุดเรียกจะยังใช้ไม่ได้ (สคริปต์หยุดทั้งก้อน)
+takeInbox();
 </script>
 </body>
 </html>
