@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { confirmationPath, pdfProblem } from '../data/confirmation'
+import { formDataFromJob, INBOX_KEY } from '../data/confirmationDrafts'
 import { contentKey, mockupProblem, shrinkImage, uploadMockup } from '../data/mockups'
 import { signFiles, uploadFile } from '../data/files'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
@@ -31,6 +32,7 @@ type Detail = {
   materials: Material[]; steps: Substep[]; done: Map<string, unknown>; reasons: Reason[]
 }
 type Notice = { ok: boolean; text: Word } | null
+const CONFIRMATION_FORM = '/confirmation'
 
 async function loadDetail(job: Job): Promise<Detail> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
@@ -103,6 +105,7 @@ export function JobActions({ job: j, role, myStations = [], version, now, refres
         : admin ? <AttachPdf job={j} refresh={refresh} />
         : <p className="text-muted"><Tr th="ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น (แอดมินแนบทีหลัง)" /></p>}
       {admin && <SetMockup job={j} refresh={refresh} />}
+      {admin && <ReviseConfirmation job={j} hasPdf={!!d.pdfPath} refresh={refresh} />}
       {notice && (
         <p role={notice.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}><Tr th={notice.text.th} vars={notice.text.vars} /></p>
       )}
@@ -134,7 +137,7 @@ export function JobActions({ job: j, role, myStations = [], version, now, refres
 }
 
 // ส่งงานเข้าได้ก่อนลูกค้าเซ็น แล้วแนบ PDF ทีหลัง
-function AttachPdf({ job, refresh }: { job: Job; refresh: () => Promise<void> }) {
+function AttachPdf({ job, refresh, replace = false }: { job: Job; refresh: () => Promise<void>; replace?: boolean }) {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -152,15 +155,22 @@ function AttachPdf({ job, refresh }: { job: Job; refresh: () => Promise<void> })
     setFile(null)
     await refresh()
   }
+  const verb = replace ? 'เปลี่ยนเป็น PDF ใบใหม่' : 'แนบ PDF ใบยืนยัน'
+  const pick = (
+    <>
+      <FilePick accept="application/pdf,.pdf" label={replace ? 'เลือก PDF ใบแก้ไขที่ลูกค้าเซ็นแล้ว' : 'เลือก PDF ใบยืนยันที่ลูกค้าเซ็น'} chosen={file?.name ?? ''}
+        onPick={f => { setFile(f ?? null); setError('') }} />
+      {file && problem && <p role="alert" className="text-danger">{problem}</p>}
+      <button type="button" className={replace ? secondaryBtn : primaryBtn} disabled={!file || !!problem || busy} onClick={() => void attach()}>
+        {busy ? 'กำลังแนบ PDF…' : file ? verb : `${verb} (เลือกไฟล์ก่อน)`}
+      </button>
+    </>
+  )
+  if (replace) return <div className="grid gap-2">{pick}{error && <p role="alert" className="text-danger">{error}</p>}</div>
   return (
     <div className="grid gap-2 rounded-xl border border-warn/30 bg-warn-soft p-3">
       <p className="font-medium text-warn">ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น</p>
-      <FilePick accept="application/pdf,.pdf" label="เลือก PDF ใบยืนยันที่ลูกค้าเซ็น" chosen={file?.name ?? ''}
-        onPick={f => { setFile(f ?? null); setError('') }} />
-      {file && problem && <p role="alert" className="text-danger">{problem}</p>}
-      <button type="button" className={primaryBtn} disabled={!file || !!problem || busy} onClick={() => void attach()}>
-        {busy ? 'กำลังแนบ PDF…' : file ? 'แนบ PDF ใบยืนยัน' : 'แนบ PDF ใบยืนยัน (เลือกไฟล์ก่อน)'}
-      </button>
+      {pick}
       {error && <p role="alert" className="text-danger">{error}</p>}
     </div>
   )
@@ -199,6 +209,64 @@ function SetMockup({ job, refresh }: { job: Job; refresh: () => Promise<void> })
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={msg.ok ? 'font-medium text-ok' : 'text-danger'}>{msg.text}</p>}
     </div>
   )
+}
+
+function ReviseConfirmation({ job, hasPdf, refresh }: { job: Job; hasPdf: boolean; refresh: () => Promise<void> }) {
+  return (
+    <details className="rounded-xl border border-line p-3">
+      <summary className="min-h-12 cursor-pointer content-center font-medium">ลูกค้าขอแก้ใบยืนยัน (เช่น เปลี่ยนที่อยู่จัดส่ง)</summary>
+      <ol className="mt-2 grid list-decimal gap-3 pl-5">
+        <li className="grid gap-1">
+          <span>เปิดใบในฟอร์ม แก้ข้อมูล ใส่ "แก้ไขครั้งที่" แล้วส่งออก PDF ให้ลูกค้าเซ็น</span>
+          <OpenInForm job={job} />
+        </li>
+        {hasPdf && (
+          <li className="grid gap-1">
+            <span>ได้ใบที่ลูกค้าเซ็นแล้ว แนบแทนใบเดิม (ประวัติงานบันทึกว่าเปลี่ยน PDF)</span>
+            <AttachPdf job={job} refresh={refresh} replace />
+          </li>
+        )}
+      </ol>
+    </details>
+  )
+}
+
+function OpenInForm({ job }: { job: Job }) {
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  async function open() {
+    setError('')
+    // เปิดหน้าต่างก่อนรอข้อมูล ไม่อย่างนั้นเบราว์เซอร์บนมือถือจะบล็อกป๊อปอัป
+    const win = window.open('', '_blank')
+    setBusy(true)
+    const r = await loadFormData(job.id)
+    setBusy(false)
+    if (!r.ok) { win?.close(); setError(r.reason); return }
+    try { window.localStorage.setItem(INBOX_KEY, JSON.stringify(r.data)) } catch { win?.close(); setError('เปิดในฟอร์มไม่ได้ (พื้นที่เบราว์เซอร์เต็ม)'); return }
+    if (win) win.location.href = CONFIRMATION_FORM
+    else window.location.href = CONFIRMATION_FORM
+  }
+  return (
+    <div className="grid gap-1">
+      <button type="button" className={secondaryBtn} disabled={busy} onClick={() => void open()}>
+        {busy ? 'กำลังเปิดใบยืนยัน…' : 'เปิดใบยืนยันในฟอร์ม'}
+      </button>
+      <p className="text-sm text-muted">สเปกงานในระบบไม่เปลี่ยนตาม · ถ้าแก้สเปกการผลิต ต้องแจ้งฝ่ายผลิตด้วย</p>
+      {error && <p role="alert" className="text-danger">{error}</p>}
+    </div>
+  )
+}
+
+async function loadFormData(jobId: string): Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; reason: string }> {
+  if (!supabase) return { ok: false, reason: 'ยังไม่ได้ตั้งค่า Supabase' }
+  const { data, error } = await supabase.from('jobs').select('spec, mockup_path').eq('id', jobId).single()
+  if (error) return { ok: false, reason: thaiError(error.message) }
+  const row = data as { spec: unknown; mockup_path: string | null }
+  // ลิงก์รูปใช้ได้ 1 ชั่วโมง พอสำหรับแก้แล้วพิมพ์ PDF
+  const signed = row.mockup_path ? await signFiles('mockups', [row.mockup_path], 3600) : null
+  const url = row.mockup_path && signed?.ok ? signed.urls.get(row.mockup_path) ?? null : null
+  const form = formDataFromJob(row.spec, row.mockup_path, url)
+  return form ? { ok: true, data: form } : { ok: false, reason: 'งานนี้รับเข้าโดยไม่ได้ใช้ฟอร์มใบยืนยัน จึงไม่มีข้อมูลให้เปิดในฟอร์ม' }
 }
 
 // ลิงก์มีอายุ 5 นาที เพราะไฟล์ไม่เปิดสาธารณะ

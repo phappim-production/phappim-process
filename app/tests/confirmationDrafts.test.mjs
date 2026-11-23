@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { draftLabel, OUTBOX_KEY, takeOutbox } from '../src/data/confirmationDrafts.ts'
+import { draftLabel, formDataFromJob, OUTBOX_KEY, takeOutbox } from '../src/data/confirmationDrafts.ts'
 import { eventLine } from '../src/data/history.ts'
 
 const memory = init => {
@@ -40,4 +40,17 @@ test('ไทม์ไลน์: ส่งงานเข้าโดยยัง
   assert.match(rec.detail ?? '', /ยังไม่มี PDF ที่ลูกค้าเซ็น/)
   assert.equal(eventLine({ ...base, type: 'confirmation_pdf', payload: { replaced: false } }, names, 'ตัว').title, 'แนบ PDF ใบยืนยันที่ลูกค้าเซ็น')
   assert.equal(eventLine({ ...base, type: 'confirmation_pdf', payload: { replaced: true } }, names, 'ตัว').title, 'เปลี่ยน PDF ใบยืนยัน')
+})
+
+test('เปิดใบของงานที่รับแล้วในฟอร์ม: ใช้ข้อมูลบนงาน + รูปในระบบ', () => {
+  const spec = { h: { doc_no: 'SC-9' }, p: { tshirt: { fabric: 'TC' } }, product: 'tshirt', callouts: [{ x: 0.2 }], mockup: 'data:old' }
+  const d = formDataFromJob(spec, 'SC-9/a.jpg', 'https://files.example/a')
+  assert.deepEqual(d.imgs, [{ name: 'ม็อคอัพจากระบบ', src: 'https://files.example/a' }])
+  assert.equal(d.mockup_path, 'SC-9/a.jpg')
+  assert.equal(d.from_job, true)
+  assert.equal(d.mockup, undefined)
+  assert.deepEqual(d.callouts, [{ x: 0.2 }])
+  assert.deepEqual(formDataFromJob(spec, null, null).imgs, [])
+  assert.equal(formDataFromJob({ h: {} }, null, null), null)
+  assert.equal(formDataFromJob(null, null, null), null)
 })
