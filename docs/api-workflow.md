@@ -24,7 +24,7 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 |---|---|---|---|
 | `save_confirmation_draft` | `p_data jsonb` (state ทั้งฟอร์ม · ต้องมี `h.doc_no`) → `uuid` | admin · owner | บันทึก/แก้ใบยืนยันร่างตามเลขที่ใบ (`confirmation_drafts`) · ตัด `imgs` ทิ้ง (ห้ามเก็บรูปในตาราง) · ปฏิเสธ: ไม่มีเลขที่ใบ, ข้อมูลไม่ใช่ใบยืนยัน, เลขนี้ส่งงานเข้าแล้ว · ใบที่ยกเลิกแล้วบันทึกใหม่ = กลับเป็นร่าง |
 | `cancel_confirmation_draft` | `p_id` | admin · owner | ยกเลิกใบร่าง · ปฏิเสธ: ส่งงานเข้าแล้ว / ยกเลิกแล้ว |
-| `receive_job` | `p_confirmation_no, p_customer_name, p_job_name, p_product_type_code, p_qty, p_unit, p_due_date, p_route_code, p_confirmation_pdf_path` (**ว่างได้**) · ไม่บังคับ `p_spare_qty, p_confirmation_rev, p_spec, p_needs_sample` → `uuid` | **admin · owner** (production/supervisor = "แอดมินเป็นคนส่งงานเข้าโรงงาน") | สร้างงาน → ปล่อยเข้าสถานีแรก/ขึ้นตัวอย่างทันที · ใบร่างเลขเดียวกัน → `received` + `job_id` · ปฏิเสธ: เลขซ้ำ, ไม่เลือกขึ้นตัวอย่าง, จำนวน ≤ 0, ไม่มีกำหนดส่ง, PDF ที่แนบไม่ใช่ .pdf / ยังไม่อัปโหลดจริง |
+| `receive_job` | `p_confirmation_no, p_customer_name, p_job_name, p_product_type_code, p_qty, p_unit, p_due_date, p_route_code, p_confirmation_pdf_path` (**ว่างได้**) · ไม่บังคับ `p_spare_qty, p_confirmation_rev, p_spec, p_needs_sample, p_develop` → `uuid` | **admin · owner** (production/supervisor = "แอดมินเป็นคนส่งงานเข้าโรงงาน") | สร้างงาน → ปล่อยเข้าสถานีแรก/ขึ้นตัวอย่างทันที · ใบร่างเลขเดียวกัน → `received` + `job_id` · ปฏิเสธ: เลขซ้ำ, ไม่เลือกขึ้นตัวอย่าง, จำนวน ≤ 0, ไม่มีกำหนดส่ง, PDF ที่แนบไม่ใช่ .pdf / ยังไม่อัปโหลดจริง |
 | `attach_confirmation_pdf` | `p_job, p_path` | admin · owner | แนบ/เปลี่ยน PDF ที่ลูกค้าเซ็น · event `confirmation_pdf` (`replaced`) · ปฏิเสธ: งานยกเลิก, ไม่ใช่ PDF / ยังไม่อัปโหลด |
 | `revise_job_spec` | `p_job, p_spec, p_rev, p_customer_name, p_job_name, p_qty, p_spare_qty, p_due_date, p_needs_sample` · ไม่บังคับ `p_changes` (ชื่อช่องที่แก้จากฟอร์ม) → `jsonb` (`changed`, `rev`, `mockup_rev`, `mockup_stale`) | admin · owner | ลูกค้าขอแก้ใบหลังรับงาน: ฟอร์มที่เปิดจากงานกด "บันทึกการแก้เข้างาน" → แทน `spec` + ครั้งที่แก้ ชื่อลูกค้า ชื่องาน จำนวน เผื่อเสีย กำหนดส่ง · ไม่เปลี่ยนสถานี/สถานะ · ไม่มีอะไรเปลี่ยน = `changed: false` ไม่ลง event · **งานที่แบ่งแล้ว** (`20261123020000`): สเปก/ลูกค้า/ชื่องาน/กำหนดส่ง/ครั้งที่แก้ เปลี่ยนทุกส่วน (`parts`) จำนวนแต่ละส่วนคงเดิม · จำนวนในใบต้องเท่ายอดรวมทุกส่วน · event `spec_revised` (`summary`, `fields`, `mockup_stale`) · กล่องจดหมาย `spec_revised` ทุกฝ่าย (บอกจุดในม็อคอัพฉบับอนุมัติที่ยังเป็นค่าเก่า) · ปฏิเสธ: งานยกเลิก, เลขที่ใบไม่ตรง, เปลี่ยนสินค้า, เปลี่ยนการขึ้นตัวอย่าง, ครั้งที่แก้ < 1 หรือถอยหลัง, จำนวน ≤ 0 / ต่ำกว่า QC ผ่านแล้ว / เปลี่ยนจำนวนงานที่เสร็จแล้ว, ไม่มีกำหนดส่ง |
 
@@ -71,7 +71,7 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 ## ตัวอย่าง + ฟิล์ม
 | ฟังก์ชัน | อาร์กิวเมนต์ | ใครเรียก | ทำอะไร / ปฏิเสธเมื่อ |
 |---|---|---|---|
-| `record_sample_result` | `p_job, p_pass, p_note, p_customer_confirmed_at` | admin · owner | ผ่าน → ผลิตจริงสถานีแรก · ไม่ผ่าน (ต้องมี note) → ตัวอย่างรอบใหม่ + แจ้งเตือน |
+| `record_sample_result` | `p_job, p_pass, p_note, p_customer_confirmed_at` | admin · owner | ผ่าน → ผลิตจริงสถานีแรก (**งาน Develop** `jobs.develop` → `done` ทันที ไม่ผลิตจริง · `20261124000000`) · ไม่ผ่าน (ต้องมี note) → ตัวอย่างรอบใหม่ + แจ้งเตือน |
 | `order_film` | `p_job, p_eta` | admin · owner | บันทึกสั่ง + วันคาดว่าได้รับ · เส้นทางที่ไม่ใช้ฟิล์ม → "ไม่ต้องสั่งฟิล์ม" |
 | `receive_film` | `p_job` | admin · owner | บันทึกได้รับ → ปลดล็อกสถานีรีดฟิล์ม · ทำได้ทุกช่วงของงาน |
 

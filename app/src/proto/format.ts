@@ -49,7 +49,7 @@ export function stageText(j: Job) {
 // งานที่ไม่ขึ้นตัวอย่างไม่มี 2 ขั้นกลาง
 export function stageSteps(j: Job) {
   const pre = j.needsSample === false ? ['วัตถุดิบ'] : ['วัตถุดิบ', 'ขึ้นตัวอย่าง', 'ลูกค้ายืนยัน']
-  const steps = [...pre, ...ROUTES[j.route].stations.map(s => STATION_NAME[s])]
+  const steps = [...pre, ...(j.develop ? [] : ROUTES[j.route].stations.map(s => STATION_NAME[s]))]
   const current = j.phase === 'materials' ? 0 : j.phase === 'sample' ? 1 : j.phase === 'sample_review' ? 2
     : j.phase === 'production' ? pre.length + Math.max(0, ROUTES[j.route].stations.indexOf(j.station ?? ROUTES[j.route].stations[0])) : steps.length
   return { steps, current }

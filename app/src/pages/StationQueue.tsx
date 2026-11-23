@@ -141,7 +141,7 @@ function QueueCard({ job: j, now, badge, first, onOpen, children, station }: {
         <span className="flex flex-wrap items-center gap-2">
           {badge}
           <b className="text-xl">{j.no}</b>
-          {j.phase === 'sample' && <Pill tone="info">{t('ตัวอย่าง')}</Pill>}
+          {j.phase === 'sample' && <Pill tone="info">{t(j.develop ? 'ตัวอย่าง · Develop' : 'ตัวอย่าง')}</Pill>}
           {j.rework && <Pill tone="danger">{t('งานแก้ {qty} {unit}', { qty: j.rework.qty, unit: { th: j.unit } })}</Pill>}
           {spec && <Pill tone={spec.rev > 1 ? 'danger' : 'warn'}>{spec.rev > 1 ? t('สเปกเปลี่ยน ฉบับ {rev} · ยังไม่รับทราบ', { rev: spec.rev }) : t('มีสเปกกำกับ · ยังไม่รับทราบ')}</Pill>}
           <IconChevronRight className="ml-auto size-5 text-muted" />

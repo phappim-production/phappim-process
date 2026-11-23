@@ -242,10 +242,10 @@ export function lateDays(finish: Date, due: Date) {
 
 // เตือนอย่างเดียว ไม่บล็อกการรับงาน
 export function receiveForecast(jobs: Job[], now: Date, floor: SewFloor | undefined,
-  job: { route: RouteCode; qty: number; productCode?: string; needsSample: boolean; due: string }): { finish: Date; late: number | null } {
+  job: { route: RouteCode; qty: number; productCode?: string; needsSample: boolean; develop?: boolean; due: string }): { finish: Date; late: number | null } {
   const lead = job.needsSample ? LEAD.sample + LEAD.sampleReview : 0
-  const r = simulate(jobs, now, { route: job.route, qty: Math.max(1, job.qty), productCode: job.productCode, lead }, floor)
-  const finish = workdayToDate(r.extraFinishDay ?? 0, now)
+  const r = job.develop ? null : simulate(jobs, now, { route: job.route, qty: Math.max(1, job.qty), productCode: job.productCode, lead }, floor)
+  const finish = workdayToDate(r ? r.extraFinishDay ?? 0 : lead, now)
   const late = /^\d{4}-\d{2}-\d{2}$/.test(job.due) ? lateDays(finish, new Date(`${job.due}T00:00:00`)) : null
   return { finish, late }
 }

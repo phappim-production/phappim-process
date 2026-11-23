@@ -618,7 +618,7 @@ try {
     await t.waitText('ลำดับสถานี:')
     await t.ev(() => {
       const buttons = [...document.querySelectorAll('input[name="needs-sample"]')]
-      if (!buttons[1].checked) buttons[1].click()
+      if (!buttons[2].checked) buttons[2].click()
     })
     await t.button('รับงาน')
     await waitFor(() => api.calls.some(c => c.fn === 'receive_job'), 'RPC รับงาน')

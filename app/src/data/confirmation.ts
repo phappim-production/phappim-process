@@ -12,6 +12,7 @@ export type ReceiveDraft = {
   due: string            // YYYY-MM-DD
   route: RouteCode | null       // null = ยังไม่ได้เลือก · แอดมินกำหนดเองทุกงาน (เทคนิคพิมพ์ไม่ได้บอกเส้นทางตายตัว)
   needsSample: boolean | null   // null = ยังไม่ได้เลือก (ต้องเลือกก่อนรับงาน)
+  develop: boolean
   spec: Record<string, unknown>
 }
 
@@ -59,6 +60,10 @@ export function sampleChoice(h: Answers): boolean | null {
   return null
 }
 
+export function developChoice(h: Answers): boolean {
+  return /^ขึ้นตัวอย่าง.*Develop/.test(text(h.sample))
+}
+
 /** null = ไม่ใช่ไฟล์จากฟอร์มใบยืนยัน */
 export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
   if (!raw || typeof raw !== 'object') return null
@@ -86,6 +91,7 @@ export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
     due: /^\d{4}-\d{2}-\d{2}$/.test(text(d.h.due_date)) ? text(d.h.due_date) : '',
     route: null,
     needsSample: sampleChoice(d.h),
+    develop: developChoice(d.h),
     spec,
   }
 }

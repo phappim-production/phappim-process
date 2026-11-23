@@ -28,7 +28,8 @@ export function ReportView({ data }: { data: ReportMetrics }) {
   return (
     <>
       <section aria-label="สรุปงานเสร็จ" className="grid min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-        <StatTile icon={IconCheck} label="งานเสร็จ" value={summary.finished} tone="brand" />
+        <ReportTile icon={IconCheck} label="งานเสร็จ" value={integer.format(summary.finished)} tone="brand"
+          note={summary.develop ? `ไม่รวมงาน Develop ${integer.format(summary.develop)} งาน (นับแยก)` : 'งานผลิต'} />
         <ReportTile icon={IconChart} label="เสร็จทันกำหนด" value={percent(summary.onTimePct)}
           note={summary.finished ? `${integer.format(summary.onTime)} จาก ${integer.format(summary.finished)} งาน` : 'ยังไม่มีงานเสร็จ'}
           tone={summary.onTimePct === 100 ? 'ok' : summary.onTimePct === 0 ? 'danger' : 'brand'} />
@@ -39,7 +40,7 @@ export function ReportView({ data }: { data: ReportMetrics }) {
       {summary.finished === 0 ? (
         <Card>
           <CardHeader icon={IconClipboard} title="ยังไม่มีงานที่เสร็จในช่วงนี้"
-            sub="เวลาเฉลี่ยต่อสถานี ผลตัวอย่าง และงานส่งแก้จะแสดงเมื่อมีงานเสร็จในช่วงที่เลือก" />
+            sub={`เวลาเฉลี่ยต่อสถานี ผลตัวอย่าง และงานส่งแก้จะแสดงเมื่อมีงานเสร็จในช่วงที่เลือก${summary.develop ? ` · งาน Develop เสร็จ ${integer.format(summary.develop)} งาน` : ''}`} />
         </Card>
       ) : (
         <>
@@ -63,6 +64,7 @@ export function ReportView({ data }: { data: ReportMetrics }) {
                   <p>มีผลรอบแรก {integer.format(samples.firstRoundCount)} งาน</p>
                 )}
                 <p>ไม่ขึ้นตัวอย่าง {integer.format(samples.skipped)} งาน</p>
+                {summary.develop > 0 && <p>งาน Develop (ตัวอย่างอย่างเดียว ไม่ผลิตจริง) เสร็จ {integer.format(summary.develop)} งาน · นับแยก</p>}
               </div>
             </Card>
             <Card className="min-w-0">

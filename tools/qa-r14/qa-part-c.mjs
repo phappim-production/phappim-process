@@ -45,7 +45,7 @@ async function receiveBasic(t, stack, no, customer, qty = 10, route = 'cut_only'
     const rSel = [...dlg.querySelectorAll('select')].find(s => [...s.options].some(o => o.value === rt))
     rSel.value = rt; rSel.dispatchEvent(new Event('change', { bubbles: true }))
   }, customer, qty, route)
-  await t.ev(() => document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[1].click())
+  await t.ev(() => document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[2].click())
   await t.clickButton(/^รับงาน$/, { exact: true, inside: '[role="dialog"]' })
   await t.waitText(`ส่งงาน ${no} เข้าโรงงานแล้ว`)
   return (await sql(stack, 'select id from public.jobs where confirmation_no = $1', [no])).rows[0].id
@@ -190,7 +190,7 @@ async function main() {
         setVal(inputs.find(i => i.type === 'date'), '2020-01-01')
         const rSel = [...dlg.querySelectorAll('select')].find(s => [...s.options].some(o => o.value === 'cut_only'))
         rSel.value = 'cut_only'; rSel.dispatchEvent(new Event('change', { bubbles: true }))
-        document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[1].click()
+        document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[2].click()
       })
       const pastWarned = await t.ev(() => document.body.innerText.includes('กำหนดส่งเป็นวันที่ผ่านมาแล้ว'))
       assert.equal(pastWarned, true)
