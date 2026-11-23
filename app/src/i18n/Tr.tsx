@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
-import { LangAllowed, hasBurmese, setLang, translate, useLang, type Lang, type Vars } from './lang'
+import { LangAllowed, hasBurmese, setLang, setScreenLang, translate, useLang, type Lang, type Vars } from './lang'
 import { IconGlobe } from '../components/icons'
 
 export function LangScope({ allowed, children }: { allowed: boolean; children: ReactNode }) {
@@ -11,6 +11,8 @@ export function DocumentLang() {
   useEffect(() => {
     document.documentElement.lang = lang
     document.documentElement.classList.toggle('lang-my', lang === 'my')
+    setScreenLang(lang)
+    return () => setScreenLang(null)
   }, [lang])
   return null
 }

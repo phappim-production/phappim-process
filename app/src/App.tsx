@@ -170,8 +170,8 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 bg-brand px-4 py-2 text-white lg:hidden print:hidden">
-          <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-9 w-auto shrink-0 rounded-md ring-1 ring-white/25" />
+        <header className="flex items-center gap-2 bg-brand px-3 py-2 text-white sm:gap-3 sm:px-4 lg:hidden print:hidden">
+          <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-8 w-auto shrink-0 rounded-md ring-1 ring-white/25 sm:h-9" />
           <span className="hidden text-sm font-semibold whitespace-nowrap text-white/75 sm:inline">{t('ระบบติดตามการผลิต')}</span>
           {/* แท็บเล็ตใช้ร่วมกันหลายคน ต้องเห็นตลอดว่าใครล็อกอินอยู่ เพราะทุกการกดบันทึกชื่อผู้กด */}
           {translated && <LangToggle compact className="ml-auto text-white hover:bg-white/10" />}
@@ -181,7 +181,8 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
               <span className="block truncate font-semibold">{profile.name}</span>
               <span className="block truncate text-sm text-white/80">{roleLabel}</span>
             </span>
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-gold text-brand-700"><IconUser className="size-5" /></span>
+            {/* มือถือแคบ ชื่อผู้ใช้สำคัญกว่าไอคอน (คำพม่ายาวกว่าไทย) */}
+            <span className="hidden size-10 shrink-0 place-items-center rounded-full bg-gold text-brand-700 sm:grid"><IconUser className="size-5" /></span>
           </a>
         </header>
 
@@ -245,7 +246,7 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
               <a key={hash} href={hash} aria-current={active ? 'page' : undefined} onClick={() => setMoreOpen(false)}
                 className={`flex min-h-14 min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 text-sm ${active ? 'font-bold text-brand' : 'text-muted'}`}>
                 <span className={`grid h-8 w-12 place-items-center rounded-full ${active ? 'bg-brand text-white' : ''}`}><Icon className="size-5" /></span>
-                <span className="max-w-full truncate px-0.5">{t(short)}</span>
+                <span className="line-clamp-2 max-w-full px-0.5 text-center leading-tight break-words">{t(short)}</span>
               </a>
             )
           })}
