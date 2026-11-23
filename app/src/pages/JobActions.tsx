@@ -223,10 +223,10 @@ function SetMockup({ job, refresh }: { job: Job; refresh: () => Promise<void> })
 function ReviseConfirmation({ job, hasPdf, refresh }: { job: Job; hasPdf: boolean; refresh: () => Promise<void> }) {
   return (
     <details className="rounded-xl border border-line p-3">
-      <summary className="min-h-12 cursor-pointer content-center font-medium">ลูกค้าขอแก้ใบยืนยัน (เช่น เปลี่ยนที่อยู่จัดส่ง)</summary>
+      <summary className="min-h-12 cursor-pointer content-center font-medium">ส่งออก PDF ใบยืนยันอีกครั้ง / แก้ใบ (เช่น เปลี่ยนที่อยู่จัดส่ง)</summary>
       <ol className="mt-2 grid list-decimal gap-3 pl-5">
         <li className="grid gap-1">
-          <span>เปิดใบในฟอร์ม แก้ข้อมูล ใส่ "แก้ไขครั้งที่" แล้วส่งออก PDF ให้ลูกค้าเซ็น</span>
+          <span>เปิดใบในฟอร์มแล้วกด "ส่งออก PDF" · ถ้าแก้ข้อมูล ใส่ "แก้ไขครั้งที่" แล้วส่งให้ลูกค้าเซ็นใหม่</span>
           <OpenInForm job={job} />
         </li>
         {hasPdf && (
