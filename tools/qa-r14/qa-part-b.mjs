@@ -66,7 +66,7 @@ async function seedRichDataset(stack, t, fixtures) {
       const rSel = [...dlg.querySelectorAll('select')].find(s => [...s.options].some(o => o.value === rt))
       rSel.value = rt; rSel.dispatchEvent(new Event('change', { bubbles: true }))
     }, no, route)
-    await t.ev(smp => document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[smp ? 0 : 1].click(), sample)
+    await t.ev(smp => document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[smp ? 0 : 2].click(), sample)
     await t.clickButton(/^รับงาน$/, { exact: true, inside: '[role="dialog"]' })
     await t.waitText(`ส่งงาน ${no} เข้าโรงงานแล้ว`)
     return (await sql(stack, 'select id from public.jobs where confirmation_no = $1', [no])).rows[0].id

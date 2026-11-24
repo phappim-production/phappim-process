@@ -439,7 +439,7 @@ try {
     await t.waitText('ลำดับสถานี:')
     await t.ev(() => {
       const buttons = [...document.querySelectorAll('input[name="needs-sample"]')]
-      if (!buttons[1].checked) buttons[1].click()
+      if (!buttons[2].checked) buttons[2].click()
     })
     await t.button('รับงาน')
     await waitFor(() => api.draft.callouts.length === 2, 'เก็บร่างจากใบยืนยัน')

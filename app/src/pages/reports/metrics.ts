@@ -15,6 +15,7 @@ export type ReportJob = {
   created_at: string
   finished_at: string | null
   needs_sample: boolean
+  develop?: boolean
 }
 
 export type ReportVisit = {
@@ -186,7 +187,10 @@ function stationTimes(rows: ReportRows, jobs: ReportJob[]) {
 }
 
 export function reportMetrics(rows: ReportRows, window: ReportWindow) {
-  const jobs = rows.jobs.filter(job => within(timestamp(job.finished_at), window))
+  const finishedInWindow = rows.jobs.filter(job => within(timestamp(job.finished_at), window))
+  // งาน Develop จบที่ตัวอย่าง ไม่ใช่งานผลิต จึงนับแยก ไม่ปนกับงานเสร็จ/ทันกำหนด/เวลาต่อสถานี
+  const jobs = finishedInWindow.filter(job => !job.develop)
+  const developJobs = finishedInWindow.filter(job => job.develop)
   const ids = new Set(jobs.map(job => job.id))
   const stationNames = new Map(rows.stations.map(station => [station.code, station.name]))
   const lateJobs = jobs.flatMap(job => {
@@ -232,6 +236,7 @@ export function reportMetrics(rows: ReportRows, window: ReportWindow) {
       onTimePct: jobs.length ? 100 * onTime / jobs.length : null,
       averageLeadDays: jobs.length ? jobs.reduce((sum, job) => sum + workDays(timestamp(job.created_at), timestamp(job.finished_at)), 0) / jobs.length : null,
       reworkQty,
+      develop: developJobs.length,
     },
     stations: stationTimes(rows, jobs),
     samples: {

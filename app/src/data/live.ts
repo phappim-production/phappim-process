@@ -18,6 +18,7 @@ export type JobRow = {
   stage_entered_at: string
   sample_round: number
   needs_sample?: boolean     // ไม่มีในแถวเก่า = ขึ้นตัวอย่าง
+  develop?: boolean
   materials_waiting_depts: Dept[] | null
   dtf_film_eta: string | null
   dtf_film_received_at: string | null
@@ -157,6 +158,7 @@ export function toJobs(rows: JobRow[], products: ProductRow[], reworks: ReworkRo
       since: new Date(r.stage_entered_at),
       sampleRound: r.sample_round,
       needsSample: r.needs_sample ?? true,
+      develop: r.develop === true,
       materials: Object.fromEntries(DEPTS.map(d => [d, !waiting.has(d)])) as Record<Dept, boolean>,
     }
     if (r.current_station) job.station = r.current_station

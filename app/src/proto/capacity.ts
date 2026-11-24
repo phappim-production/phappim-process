@@ -109,7 +109,8 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
   type Run = { id: string; stations: StationCode[]; i: number; ready: number; order: number; filmDay: number; firstQty: number; qty: number; needs: Need[]; lineRate: number; isExtra: boolean }
   let lines: SewLine[] = []
   const runs: Run[] = jobs.filter(j => j.phase !== 'done').sort(byQueue).map((j, order) => {
-    const stations = ROUTES[j.route].stations
+    // งาน Develop จบที่ตัวอย่าง ไม่เข้าคิวผลิตจริงของสถานีใด
+    const stations = j.develop ? [] : ROUTES[j.route].stations
     // ฟิล์มยังไม่ถึง → รีด DTF เริ่มไม่ได้ก่อน ETA
     const filmDay = j.film && !j.film.received ? workdaysUntil(j.film.eta, now) : 0
     // งานแก้ทำแค่ชิ้นที่ส่งกลับ (finish_station ส่งจากสถานีต้นเหตุตรงไป QC ไม่ผ่านสถานีระหว่างทาง)
@@ -138,7 +139,8 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
       id: j.id, stations, isExtra: false,
       i: inLine ? Math.max(0, stations.indexOf(j.station ?? stations[0])) : 0,
       ready: inLine ? (j.status === 'hold' ? LEAD.hold : 0)
-        : j.phase === 'materials' ? LEAD.materials : j.phase === 'sample' ? LEAD.sample : LEAD.sampleReview,
+        : j.phase === 'materials' ? LEAD.materials + (j.develop ? LEAD.sample + LEAD.sampleReview : 0)
+        : j.phase === 'sample' ? LEAD.sample + (j.develop ? LEAD.sampleReview : 0) : LEAD.sampleReview,
       order,
       filmDay,
       firstQty: inLine ? remainingAt(j) : j.qty,
@@ -147,6 +149,7 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
       lineRate: lineRate(j.productCode),
     }
   })
+  for (const r of runs) if (!r.stations.length) finishDay.set(r.id, r.ready)
   if (extra) runs.push({ id: '__new', stations: ROUTES[extra.route].stations, i: 0, ready: extra.lead ?? LEAD.newJob, order: Infinity, filmDay: 0, firstQty: extra.qty, qty: extra.qty, needs: floor.needsOf(extra.productCode), lineRate: lineRate(extra.productCode), isExtra: true })
 
   // ภาระงานของสถานี = ชิ้นที่ยังต้องผ่าน ÷ กำลังผลิตต่อวัน (ไม่รวมเวลารอสถานีก่อนหน้า จึงชี้คอขวดได้ตรง)
@@ -242,10 +245,10 @@ export function lateDays(finish: Date, due: Date) {
 
 // เตือนอย่างเดียว ไม่บล็อกการรับงาน
 export function receiveForecast(jobs: Job[], now: Date, floor: SewFloor | undefined,
-  job: { route: RouteCode; qty: number; productCode?: string; needsSample: boolean; due: string }): { finish: Date; late: number | null } {
+  job: { route: RouteCode; qty: number; productCode?: string; needsSample: boolean; develop?: boolean; due: string }): { finish: Date; late: number | null } {
   const lead = job.needsSample ? LEAD.sample + LEAD.sampleReview : 0
-  const r = simulate(jobs, now, { route: job.route, qty: Math.max(1, job.qty), productCode: job.productCode, lead }, floor)
-  const finish = workdayToDate(r.extraFinishDay ?? 0, now)
+  const r = job.develop ? null : simulate(jobs, now, { route: job.route, qty: Math.max(1, job.qty), productCode: job.productCode, lead }, floor)
+  const finish = workdayToDate(r ? r.extraFinishDay ?? 0 : lead, now)
   const late = /^\d{4}-\d{2}-\d{2}$/.test(job.due) ? lateDays(finish, new Date(`${job.due}T00:00:00`)) : null
   return { finish, late }
 }

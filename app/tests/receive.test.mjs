@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { confirmationPath, draftFromConfirmation, pdfProblem, reviseArgs, sampleChoice, totalQty } from '../src/data/confirmation.ts'
+import { confirmationPath, developChoice, draftFromConfirmation, pdfProblem, reviseArgs, sampleChoice, totalQty } from '../src/data/confirmation.ts'
 import { etaFromDay, missingSteps } from '../src/data/stationSteps.ts'
 
 const form = (over = {}) => ({
@@ -129,6 +129,18 @@ test('ขึ้นตัวอย่าง: อ่านจากใบยืน
   assert.equal(sampleChoice({}), null)
   assert.equal(draftFromConfirmation(form()).needsSample, null)
   assert.equal(draftFromConfirmation(form({ h: { ...form().h, sample: 'ไม่ขึ้นตัวอย่าง' } })).needsSample, false)
+})
+
+test('งาน Develop: ขึ้นตัวอย่าง + จบที่ตัวอย่าง · ขึ้นตัวอย่างปกติ/ไม่ขึ้น/ไฟล์เก่า ไม่ใช่ Develop', () => {
+  const dev = { sample: 'ขึ้นตัวอย่าง (งาน Develop · จบที่ตัวอย่าง ไม่ผลิตจริง)' }
+  assert.equal(sampleChoice(dev), true)
+  assert.equal(developChoice(dev), true)
+  assert.equal(developChoice({ sample: 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)' }), false)
+  assert.equal(developChoice({ sample: 'ไม่ขึ้นตัวอย่าง' }), false)
+  assert.equal(developChoice({}), false)
+  const d = draftFromConfirmation({ h: { doc_no: 'SC1', ...dev }, p: { tshirt: { qty: 2 } }, product: 'tshirt' })
+  assert.equal(d?.needsSample, true)
+  assert.equal(d?.develop, true)
 })
 
 test('วันกำหนดส่งรูปแบบผิด = ว่าง ให้กรอกเอง', () => {

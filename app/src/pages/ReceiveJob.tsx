@@ -19,7 +19,7 @@ type Product = { code: string; name: string; unit: string }
 // vite.config.ts คัดลอกฟอร์มขึ้นเว็บนี้ · Cloudflare เสิร์ฟโดยไม่มี .html
 const CONFIRMATION_FORM = '/confirmation'
 
-const EMPTY: ReceiveDraft = { no: '', rev: 0, customer: '', jobName: '', product: '', qty: 0, spare: 0, due: '', route: null, needsSample: null, spec: {} }
+const EMPTY: ReceiveDraft = { no: '', rev: 0, customer: '', jobName: '', product: '', qty: 0, spare: 0, due: '', route: null, needsSample: null, develop: false, spec: {} }
 
 // PDF ที่ลูกค้าเซ็นไม่บังคับ แนบทีหลังได้ที่รายละเอียดงาน
 export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
@@ -92,8 +92,8 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
   const product = products?.find(p => p.code === draft.product)
   // เตือนอย่างเดียว ไม่บล็อกการส่งงานเข้า
   const forecast = useMemo(() => product && draft.route && draft.qty > 0 && draft.needsSample !== null
-    ? receiveForecast(jobs, now, floor, { route: draft.route, qty: draft.qty, productCode: product.code, needsSample: draft.needsSample, due: draft.due })
-    : null, [jobs, now, floor, product, draft.route, draft.qty, draft.needsSample, draft.due])
+    ? receiveForecast(jobs, now, floor, { route: draft.route, qty: draft.qty, productCode: product.code, needsSample: draft.needsSample, develop: draft.develop, due: draft.due })
+    : null, [jobs, now, floor, product, draft.route, draft.qty, draft.needsSample, draft.develop, draft.due])
   const pdfIssue = pdfProblem(pdf)
   const dueWarning = dueDateWarning(draft.due, now)
   const recipeIssue = product ? sewRecipeProblem(draft.route, floor.needsOf(product.code)) : null
@@ -136,7 +136,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
       p_confirmation_no: draft.no.trim(), p_customer_name: draft.customer.trim(), p_job_name: draft.jobName.trim() || product.name,
       p_product_type_code: product.code, p_qty: draft.qty, p_unit: product.unit, p_due_date: draft.due, p_route_code: draft.route,
       p_confirmation_pdf_path: path, p_spare_qty: draft.spare, p_confirmation_rev: draft.rev, p_spec: syncConfirmationSpec(draft, product.name),
-      p_needs_sample: draft.needsSample,
+      p_needs_sample: draft.needsSample, p_develop: draft.develop,
     })
     if (!r.ok) { setSaving(null); setError(r.reason); return }
     setSaving('กำลังสร้างร่างม็อคอัพจากจุดในใบยืนยัน…')
@@ -212,13 +212,16 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
         {/* ขึ้นตัวอย่างเฉพาะงานที่ลูกค้าจ่ายค่าตัวอย่าง · ไม่มีค่าตั้งต้น ต้องเลือกเอง */}
         <fieldset className="grid gap-2">
           <legend className="mb-1 font-medium">ขึ้นตัวอย่าง (ตามที่ตกลงกับลูกค้าในใบยืนยัน)</legend>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {([[true, 'ขึ้นตัวอย่าง', 'ลูกค้าจ่ายค่าตัวอย่าง · ขึ้นตัวอย่างก่อนผลิตจริง'], [false, 'ไม่ขึ้นตัวอย่าง', 'เข้าสถานีแรกผลิตจริงทันที']] as const).map(([v, title, hint]) => (
-              <label key={title} className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border p-3 ${draft.needsSample === v ? 'border-brand bg-brand-soft' : 'border-line'}`}>
-                <input type="radio" name="needs-sample" className="mt-1 size-5 shrink-0" checked={draft.needsSample === v} onChange={() => set('needsSample', v)} />
+          <div className="grid gap-2 sm:grid-cols-3">
+            {([[true, false, 'ขึ้นตัวอย่าง', 'ลูกค้าจ่ายค่าตัวอย่าง · ขึ้นตัวอย่างก่อนผลิตจริง'], [true, true, 'ขึ้นตัวอย่าง (งาน Develop)', 'ทำตัวอย่างอย่างเดียว · ลูกค้ายืนยันผ่าน = งานเสร็จ ไม่ผลิตจริง'], [false, false, 'ไม่ขึ้นตัวอย่าง', 'เข้าสถานีแรกผลิตจริงทันที']] as const).map(([v, dev, title, hint]) => {
+              const on = draft.needsSample === v && draft.develop === dev
+              return (
+              <label key={title} className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border p-3 ${on ? 'border-brand bg-brand-soft' : 'border-line'}`}>
+                <input type="radio" name="needs-sample" className="mt-1 size-5 shrink-0" checked={on} onChange={() => { setDraft(d => ({ ...d, needsSample: v, develop: dev })); setError('') }} />
                 <span className="grid"><span className="font-medium">{title}</span><span className="text-sm text-muted">{hint}</span></span>
               </label>
-            ))}
+              )
+            })}
           </div>
         </fieldset>
 

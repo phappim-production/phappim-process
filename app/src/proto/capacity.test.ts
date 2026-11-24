@@ -220,6 +220,22 @@ describe('คาดวันเสร็จตอนแอดมินส่ง�
     expect(plain.late).toBeLessThan(0)
   })
 
+  it('งาน Develop: คาดว่าเสร็จหลังตัวอย่าง ไม่นับเวลาผลิตจริง', () => {
+    const big = { route: 'normal' as const, qty: 1000, productCode: 'tshirt', needsSample: true, due: '2026-11-30' }
+    const dev = receiveForecast([], friday, undefined, { ...big, develop: true })
+    expect(dev.finish).toEqual(workdayToDate(LEAD.sample + LEAD.sampleReview, friday))
+    expect(dev.finish.getTime()).toBeLessThan(receiveForecast([], friday, undefined, big).finish.getTime())
+  })
+
+  it('งาน Develop ที่อยู่ในโรงงาน: ไม่กินกำลังผลิตของสถานี · คาดเสร็จเมื่อลูกค้ายืนยันตัวอย่าง', () => {
+    const dev: Job = { ...job, id: 'dev', qty: 1000, phase: 'sample', develop: true }
+    const result = simulate([job, dev], friday)
+    expect(result.load).toEqual(simulate([job], friday).load)
+    expect(result.finishDay.get('j1')).toBe(simulate([job], friday).finishDay.get('j1'))
+    expect(result.finishDay.get('dev')).toBe(LEAD.sample + LEAD.sampleReview)
+    expect(simulate([{ ...dev, phase: 'sample_review', station: undefined, status: undefined }], friday).finishDay.get('dev')).toBe(LEAD.sampleReview)
+  })
+
   it('งานใหญ่กำหนดส่งใกล้: บอกว่าช้ากี่วัน', () => {
     const r = receiveForecast([], friday, undefined, { route: 'normal', qty: 1000, productCode: 'tshirt', needsSample: false, due: '2026-11-21' })
     expect(r.late).toBeGreaterThan(0)

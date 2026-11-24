@@ -33,7 +33,7 @@ export async function loadReport(window: ReportWindow, signal: AbortSignal): Pro
 
   const [jobs, stations, routes, reasonCodes, delays, periodIssues] = await Promise.all([
     readAll<ReportJob>((from, to) => db.from('jobs')
-      .select('id,confirmation_no,customer_name,route_code,due_date,created_at,finished_at,needs_sample')
+      .select('id,confirmation_no,customer_name,route_code,due_date,created_at,finished_at,needs_sample,develop')
       .eq('phase', 'done').gte('finished_at', start).lt('finished_at', end).order('id').range(from, to).abortSignal(signal), signal),
     readAll<ReportStation>((from, to) => db.from('stations').select('code,name,sla_days')
       .order('sort').order('code').range(from, to).abortSignal(signal), signal),

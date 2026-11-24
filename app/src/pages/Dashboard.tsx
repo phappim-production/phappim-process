@@ -611,7 +611,7 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
       { label: j.sampleRound > 1 ? { th: 'ขึ้นตัวอย่าง (รอบ {n})', vars: { n: j.sampleRound } } : { th: 'ขึ้นตัวอย่าง' }, state: (j.phase === 'materials' ? 'todo' : j.phase === 'sample' ? 'current' : 'done') as StepState },
       { label: { th: 'ลูกค้ายืนยันตัวอย่าง' }, state: (['materials', 'sample'].includes(j.phase) ? 'todo' : j.phase === 'sample_review' ? 'current' : 'done') as StepState },
     ]),
-    ...stations.map((s, i) => ({
+    ...(j.develop ? [] : stations).map((s, i) => ({
       label: { th: STATION_NAME[s] },
       state: (j.phase === 'done' ? 'done' : j.phase !== 'production' ? 'todo' : i < curIdx ? 'done' : i === curIdx ? (j.status === 'hold' ? 'hold' : 'current') : 'todo') as StepState,
     })),
@@ -674,6 +674,7 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
               <Info label="กำหนดส่ง"><DueLabel job={j} now={now} long /></Info>
               <Info label="เส้นทาง">{t(ROUTES[j.route].name)}</Info>
               <Info label="ตัวอย่าง">{j.needsSample === false ? t('ไม่ขึ้นตัวอย่าง')
+                : j.develop ? t(j.phase === 'done' ? 'งาน Develop · ผ่านแล้ว (รอบ {n}) · ไม่ผลิตจริง' : 'งาน Develop · รอบที่ {n} · ผ่านแล้วจบงาน ไม่ผลิตจริง', { n: j.sampleRound })
                 : t(j.phase === 'production' || j.phase === 'done' ? 'รอบที่ {n} · ผ่านแล้ว' : 'รอบที่ {n}', { n: j.sampleRound })}</Info>
               <Info label="อยู่ในขั้นนี้">{j.phase === 'done' ? '—' : t(since.th, since.vars)}</Info>
             </dl>

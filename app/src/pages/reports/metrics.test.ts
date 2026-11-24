@@ -87,6 +87,16 @@ describe('งานเสร็จ ผลตัวอย่าง และง�
     expect(data.samples).toMatchObject({ required: 2, skipped: 1, recorded: 2, averageRounds: 1.5, firstRoundCount: 2, firstPassPct: 50 })
   })
 
+  it('งาน Develop นับแยก ไม่ปนกับงานเสร็จ ทันกำหนด และผลตัวอย่างของงานผลิต', () => {
+    const data = metrics({
+      jobs: [{ ...job, id: 'prod' }, { ...job, id: 'dev', needs_sample: true, develop: true, due_date: '2026-11-20' }],
+      samples: [{ job_id: 'dev', round: 1, result: 'pass' }],
+    })
+    expect(data.summary).toMatchObject({ finished: 1, onTime: 1, develop: 1 })
+    expect(data.samples.required).toBe(0)
+    expect(data.lateJobs).toEqual([])
+  })
+
   it('แยกงานที่ขาดบันทึกผลตัวอย่างออกจากฐานคำนวณ', () => {
     const data = metrics({
       jobs: [{ ...job, needs_sample: true }, { ...job, id: 'missing', needs_sample: true }],
@@ -97,7 +107,7 @@ describe('งานเสร็จ ผลตัวอย่าง และง�
 
   it('ช่วงว่างแสดงค่าที่คำนวณไม่ได้เป็น null และยอดนับเป็น 0', () => {
     const data = metrics({})
-    expect(data.summary).toEqual({ finished: 0, onTime: 0, onTimePct: null, averageLeadDays: null, reworkQty: 0 })
+    expect(data.summary).toEqual({ finished: 0, onTime: 0, onTimePct: null, averageLeadDays: null, reworkQty: 0, develop: 0 })
     expect(data.samples.firstPassPct).toBeNull()
     expect(data.stations).toEqual({ items: [], bottleneck: null })
   })

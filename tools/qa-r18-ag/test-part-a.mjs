@@ -283,7 +283,7 @@ async function main() {
           const rSel = [...dlg.querySelectorAll('select')].find(s => [...s.options].some(o => o.value === 'normal'))
           rSel.value = 'normal'; rSel.dispatchEvent(new Event('change', { bubbles: true }))
         }, qty)
-        await t.ev(() => document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[1].click())
+        await t.ev(() => document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[2].click())
         await t.clickButton(/^รับงาน$/, { exact: true, inside: '[role="dialog"]' })
         await t.waitText(`ส่งงาน ${no} เข้าโรงงานแล้ว`)
         return (await sql(stack, `select id from public.jobs where confirmation_no = $1`, [no])).rows[0].id
@@ -383,7 +383,7 @@ async function main() {
         const rSel = [...dlg.querySelectorAll('select')].find(s => [...s.options].some(o => o.value === 'normal'))
         rSel.value = 'normal'; rSel.dispatchEvent(new Event('change', { bubbles: true }))
       })
-      await t.ev(() => document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[1].click())
+      await t.ev(() => document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[2].click())
       chrome.main.setDialogAccept(true)
       await t.clickButton(/^รับงาน$/, { exact: true, inside: '[role="dialog"]' })
       await t.waitText('ส่งงาน SC69-LATE1 เข้าโรงงานแล้ว')
@@ -478,7 +478,7 @@ async function main() {
         const rSel = [...dlg.querySelectorAll('select')].find(s => [...s.options].some(o => o.value === 'cut_only'))
         rSel.value = 'cut_only'; rSel.dispatchEvent(new Event('change', { bubbles: true }))
       })
-      await t.ev(() => document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[1].click())
+      await t.ev(() => document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[2].click())
       await t.clickButton(/^รับงาน$/, { exact: true, inside: '[role="dialog"]' })
       await t.waitText('ส่งงาน SC69-MK181 เข้าโรงงานแล้ว')
       const jobId = (await sql(stack, `select id from public.jobs where confirmation_no = 'SC69-MK181'`)).rows[0].id

@@ -122,7 +122,7 @@ export function JobActions({ job: j, role, myStations = [], version, now, refres
       {j.phase === 'sample_review' && (
         <SampleResult job={j} admin={admin} busy={busy}
           onSave={(pass, note, day) => act('record_sample_result', { p_pass: pass, p_note: note || null, p_customer_confirmed_at: day || null },
-            pass ? 'ตัวอย่างผ่าน · งานไปผลิตจริงที่สถานีแรก' : `ตัวอย่างไม่ผ่าน · ขึ้นตัวอย่างรอบ ${j.sampleRound + 1}`)} />
+            pass ? (j.develop ? 'ตัวอย่างผ่าน · งาน Develop เสร็จแล้ว (ไม่ผลิตจริง) · บันทึกจัดส่งเมื่อส่งตัวอย่างให้ลูกค้า' : 'ตัวอย่างผ่าน · งานไปผลิตจริงที่สถานีแรก') : `ตัวอย่างไม่ผ่าน · ขึ้นตัวอย่างรอบ ${j.sampleRound + 1}`)} />
       )}
       {inStation && st === 'sew' && (<>
         {(d.sla.station_over || d.sla.segment_over || d.sla.station_warn || d.sla.segment_warn) && <SlaBanner sla={d.sla} />}
@@ -487,7 +487,7 @@ function SampleResult({ job: j, admin, busy, onSave }: {
             </button>
           </div>
         ) : (
-          <Confirm text={confirm ? 'ยืนยันตัวอย่างผ่าน? งานจะไปผลิตจริงทั้งก้อน' : `ยืนยันไม่ผ่าน? งานจะกลับไปขึ้นตัวอย่างรอบ ${j.sampleRound + 1}`}
+          <Confirm text={confirm ? (j.develop ? 'ยืนยันตัวอย่างผ่าน? งาน Develop จะจบ (เสร็จ · รอส่ง) ไม่ผลิตจริง' : 'ยืนยันตัวอย่างผ่าน? งานจะไปผลิตจริงทั้งก้อน') : `ยืนยันไม่ผ่าน? งานจะกลับไปขึ้นตัวอย่างรอบ ${j.sampleRound + 1}`}
             busy={busy} danger={!confirm} onYes={async () => { if (await onSave(confirm, note.trim(), day)) setConfirm(null) }} onNo={() => setConfirm(null)} />
         )}
       </div>
