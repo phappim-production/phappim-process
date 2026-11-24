@@ -52,7 +52,7 @@ export function boardScope(role: EmployeeRole, section: Section | null, stations
       return {
         title: mine.length ? `งานสถานี${mine.map(s => STATION_NAME[s]).join(' · ')}` : 'ยังไม่ได้จับคู่สถานี',
         titleT: mine.length ? { th: 'งานสถานี{stations}', vars: { stations: mine.map(s => ({ th: STATION_NAME[s] })) } } : { th: 'ยังไม่ได้จับคู่สถานี' },
-        sub: mine.length ? 'งานที่อยู่สถานีของคุณ · กดการ์ดเพื่อดูรายละเอียด' : 'ให้เจ้าของระบบจับคู่สถานีให้ที่เมนู Station Assignment',
+        sub: mine.length ? 'งานที่อยู่สถานีของคุณ · กดการ์ดเพื่อดูรายละเอียด' : 'ให้เจ้าของระบบจับคู่สถานีให้ที่เมนู จับคู่สถานี',
         columns: mine,
         sampleStations: mine,
         showFilm: mine.includes('dtf_press'),

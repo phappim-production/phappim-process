@@ -22,7 +22,7 @@ export function TodoPanel({ jobs, now, onOpen }: { jobs: Job[]; now: Date; onOpe
   return (
     <Card>
       <CardHeader icon={IconClipboard} title={<Tr inline th="ต้องทำตอนนี้" />} tone={urgent ? 'danger' : 'brand'}
-        sub={list.length ? t(urgent ? '{n} งาน · ด่วน {urgent} งาน · เรียงตามคิว' : '{n} งาน · เรียงตามคิว', { n: list.length, urgent }) : undefined} />
+        sub={list.length ? t(urgent ? '{n} งาน · เลยกำหนด / ติดปัญหา {urgent} งาน · เรียงตามคิว' : '{n} งาน · เรียงตามคิว', { n: list.length, urgent }) : undefined} />
       {list.length === 0 ? (
         <p className="px-5 pb-5 text-muted"><Tr th="ไม่มีงานค้างในส่วนของคุณ" /></p>
       ) : (

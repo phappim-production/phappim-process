@@ -27,19 +27,21 @@ it('แถบเมนูล่างบนมือถือไม่เกิ�
 })
 
 it('เมนูตามบทบาท', () => {
-  expect(names('manager')).toEqual(['ภาพรวมการผลิต', 'ใบงานทั้งหมด', 'ทุก Station', 'รายงาน', 'รายการรออนุมัติ', 'กล่องจดหมาย'])
-  expect(names('admin')).toEqual(['ภาพรวมใบงาน', 'จัดการใบงาน', 'คิวการผลิต', 'ติดตาม Station', 'รายงาน', 'กล่องจดหมาย'])
-  expect(names('production')).toEqual(['ภาพรวมแผนก', 'คิวงาน', 'Station ที่ดูแล', 'ปัญหา / งานแก้', 'รายงานแผนก', 'กล่องจดหมาย'])
+  expect(names('manager')).toEqual(['ภาพรวมการผลิต', 'ใบงานทั้งหมด', 'ทุกสถานี', 'รายงาน', 'รายการรออนุมัติ', 'กล่องจดหมาย'])
+  expect(names('admin')).toEqual(['ภาพรวมใบงาน', 'จัดการใบงาน', 'คิวการผลิต', 'ติดตามสถานี', 'รายงาน', 'กล่องจดหมาย'])
+  expect(names('production')).toEqual(['ภาพรวมแผนก', 'คิวงาน', 'สถานีที่ดูแล', 'ปัญหา / งานแก้', 'รายงานแผนก', 'กล่องจดหมาย'])
   expect(names('supervisor')).toEqual(names('production'))
-  expect(names('qc')).toEqual(['งานของฉัน', 'คิวงาน Station', 'ประวัติการทำงาน', 'แจ้งปัญหา', 'กล่องจดหมาย'])
+  expect(names('qc')).toEqual(['งานของฉัน', 'คิวงานสถานี', 'ประวัติการทำงาน', 'รายงานปัญหา', 'กล่องจดหมาย'])
   expect(names('staff')).toEqual(names('qc'))
-  expect(roleMenu('owner')[0].items.map(i => i.name)).toEqual(['ภาพรวมระบบ', 'ผู้ใช้งาน', 'Roles & Permissions', 'Station Assignment', 'Audit Log', 'ตั้งค่าระบบ'])
+  expect(roleMenu('owner')[0].items.map(i => i.name)).toEqual(['ภาพรวมระบบ', 'ผู้ใช้งาน', 'บทบาทและสิทธิ์', 'จับคู่สถานี', 'บันทึกการเปลี่ยนแปลง', 'ตั้งค่าระบบ'])
 })
 
 it('ลิงก์ที่ไม่รู้จักไปภาพรวม · ใบงานเปิดมุมมองค้นหา · คิวงานเปิดแท็บต้องทำตอนนี้', () => {
   expect(routeOf('#/nope')).toEqual({ page: 'overview' })
   expect(routeOf('#/jobs')).toEqual({ page: 'overview', overviewView: 'find' })
   expect(routeOf('#/queue').tab).toBe('todo')
+  expect(routeOf('#/board').tab).toBe('board')
+  expect(routeOf('#/sewing').tab).toBe('sewing')
   expect(routeOf('#/users').settingsTab).toBe('users')
 })
 

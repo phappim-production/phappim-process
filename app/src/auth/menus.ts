@@ -19,8 +19,9 @@ export const ROUTES: Record<string, Route> = {
   '#/admin': { page: 'sysOverview' },
   '#/roles': { page: 'roles' },
   '#/audit': { page: 'audit' },
-  '#/board': { page: 'board' },
+  '#/board': { page: 'board', tab: 'board' },
   '#/queue': { page: 'board', tab: 'todo' },
+  '#/sewing': { page: 'board', tab: 'sewing' },
   '#/mine': { page: 'board', tab: 'todo' },
   '#/dept': { page: 'dept' },
   '#/issues': { page: 'issues' },
@@ -54,57 +55,57 @@ const INBOX = item('#/inbox', 'กล่องจดหมาย', 'inbox')
 export function roleMenu(role: EmployeeRole): MenuGroup[] {
   switch (role) {
     case 'manager':
-      return [{ title: 'WORKSPACE', items: [
+      return [{ title: 'เมนู', items: [
         item('#/', 'ภาพรวมการผลิต', 'gauge', 'ภาพรวม'),
         item('#/jobs', 'ใบงานทั้งหมด', 'list', 'ใบงาน'),
-        item('#/board', 'ทุก Station', 'columns', 'Station'),
+        item('#/board', 'ทุกสถานี', 'columns', 'สถานี'),
         item('#/reports', 'รายงาน', 'chart'),
         item('#/reviews', 'รายการรออนุมัติ', 'flag', 'รออนุมัติ'),
         INBOX,
       ] }]
     case 'owner':
       return [
-        { title: 'WORKSPACE', items: [
+        { title: 'เมนู', items: [
           item('#/admin', 'ภาพรวมระบบ', 'gauge', 'ภาพรวม'),
           item('#/users', 'ผู้ใช้งาน', 'users', 'ผู้ใช้'),
-          item('#/roles', 'Roles & Permissions', 'shield', 'สิทธิ์'),
-          item('#/assign', 'Station Assignment', 'pin', 'จับคู่'),
-          item('#/audit', 'Audit Log', 'log'),
+          item('#/roles', 'บทบาทและสิทธิ์', 'shield', 'สิทธิ์'),
+          item('#/assign', 'จับคู่สถานี', 'pin', 'จับคู่'),
+          item('#/audit', 'บันทึกการเปลี่ยนแปลง', 'log', 'บันทึก'),
           item('#/settings', 'ตั้งค่าระบบ', 'sliders', 'ตั้งค่า'),
         ] },
         { title: 'งานผลิต', items: [
           item('#/production', 'ภาพรวมการผลิต', 'chart', 'การผลิต'),
-          item('#/board', 'ทุก Station', 'columns', 'Station'),
+          item('#/board', 'ทุกสถานี', 'columns', 'สถานี'),
           item('#/reports', 'รายงาน', 'chart'),
           INBOX,
         ] },
       ]
     case 'admin':
-      return [{ title: 'WORKSPACE', items: [
+      return [{ title: 'เมนู', items: [
         item('#/', 'ภาพรวมใบงาน', 'gauge', 'ภาพรวม'),
         item('#/jobs', 'จัดการใบงาน', 'list', 'ใบงาน'),
         item('#/production-queue', 'คิวการผลิต', 'queue', 'คิว'),
-        item('#/board', 'ติดตาม Station', 'columns', 'Station'),
+        item('#/board', 'ติดตามสถานี', 'columns', 'สถานี'),
         item('#/reports', 'รายงาน', 'chart'),
         INBOX,
       ] }]
     case 'production':
     case 'supervisor':
-      return [{ title: 'WORKSPACE', items: [
+      return [{ title: 'เมนู', items: [
         item('#/dept', 'ภาพรวมแผนก', 'gauge', 'ภาพรวม'),
         item('#/queue', 'คิวงาน', 'queue'),
-        item('#/board', 'Station ที่ดูแล', 'columns', 'Station'),
+        item('#/board', 'สถานีที่ดูแล', 'columns', 'สถานี'),
         item('#/issues', 'ปัญหา / งานแก้', 'flag', 'ปัญหา'),
         item('#/reports', 'รายงานแผนก', 'chart', 'รายงาน'),
         INBOX,
       ] }]
     case 'qc':
     case 'staff':
-      return [{ title: 'WORKSPACE', items: [
+      return [{ title: 'เมนู', items: [
         item('#/mine', 'งานของฉัน', 'gauge'),
-        item('#/board', 'คิวงาน Station', 'queue', 'คิวงาน'),
+        item('#/board', 'คิวงานสถานี', 'queue', 'คิวงาน'),
         item('#/history', 'ประวัติการทำงาน', 'clock', 'ประวัติ'),
-        item('#/report', 'แจ้งปัญหา', 'flag'),
+        item('#/report', 'รายงานปัญหา', 'flag', 'ปัญหา'),
         INBOX,
       ] }]
   }

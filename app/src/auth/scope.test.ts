@@ -52,7 +52,7 @@ it('พนักงานสถานีเห็นและกดได้เ�
   expect(s.canSew).toBe(false)
   const none = boardScope('staff', null, [])
   expect(none.columns).toEqual([])
-  expect(none.sub).toMatch(/Station Assignment/)
+  expect(none.sub).toMatch(/จับคู่สถานี/)
 })
 
 it('งานขึ้นตัวอย่างเข้าขอบเขตพนักงานสถานีเฉพาะเมื่ออยู่สถานีที่จับคู่ และแสดงในคอลัมน์สถานีนั้น', () => {

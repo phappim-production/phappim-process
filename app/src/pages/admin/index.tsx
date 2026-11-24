@@ -101,9 +101,14 @@ export function SystemOverviewPage() {
                   {d.unassigned.map(u => <li key={u.user_id}><Pill tone="warn">ยังไม่จับคู่สถานี</Pill> {u.name || u.email}</li>)}
                   {d.broken.map(m => <li key={m.code}><Pill tone="danger">จักรเสีย</Pill> {m.code}{m.note ? ` · ${m.note}` : ''}</li>)}
                   {d.noRecipe.length > 0 && (
-                    <li>
-                      <Pill tone="neutral">ยังไม่มีสูตรจักร {d.noRecipe.length} สินค้า</Pill>
-                      <span className="mt-1 block text-sm text-muted">ถ้าต้องเย็บ ให้ใส่ที่ ตั้งค่าระบบ → จักรเย็บ · {d.noRecipe.map(p => p.name).join(' · ')}</span>
+                    <li className="grid gap-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <Pill tone="neutral">ยังไม่มีสูตรจักร {d.noRecipe.length} สินค้า</Pill>
+                        <a href="#/settings" className="inline-flex min-h-11 items-center text-sm font-semibold text-brand">ใส่สูตรที่ ตั้งค่าระบบ → จักรเย็บ</a>
+                      </span>
+                      <ul className="grid gap-0.5 pl-4 text-sm text-muted [list-style:disc]">
+                        {d.noRecipe.map(p => <li key={p.code}>{p.name}</li>)}
+                      </ul>
                     </li>
                   )}
                   {!d.unassigned.length && !d.broken.length && !d.noRecipe.length && <li className="text-muted">ตั้งค่าครบแล้ว</li>}
@@ -111,7 +116,7 @@ export function SystemOverviewPage() {
               </Card>
             </div>
             <Card>
-              <CardHeader icon={IconClipboard} title="การเปลี่ยนแปลงล่าสุด" right={<a href="#/audit" className="text-sm font-semibold text-brand">ดู Audit Log</a>} />
+              <CardHeader icon={IconClipboard} title="การเปลี่ยนแปลงล่าสุด" right={<a href="#/audit" className="text-sm font-semibold text-brand">ดูบันทึกการเปลี่ยนแปลง</a>} />
               <ul className="grid gap-2 px-4 pb-4">
                 {d.audit.length ? d.audit.map(r => <AuditLine key={r.id} row={r} name={name} />) : <li className="text-muted">ยังไม่มีการแก้ตั้งค่า</li>}
               </ul>
@@ -125,7 +130,7 @@ export function SystemOverviewPage() {
 
 export function RolesPage() {
   return (
-    <Page title="Roles & Permissions" sub="แต่ละบทบาททำอะไรได้ · ฐานข้อมูลบังคับสิทธิ์จริง เปลี่ยนบทบาทของคนที่เมนูผู้ใช้งาน" icon={IconShield}>
+    <Page title="บทบาทและสิทธิ์" sub="แต่ละบทบาททำอะไรได้ · ฐานข้อมูลบังคับสิทธิ์จริง เปลี่ยนบทบาทของคนที่เมนูผู้ใช้งาน" icon={IconShield}>
       <Card className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-left">
           <thead>
@@ -168,7 +173,7 @@ export function AuditPage() {
   const load = useMemo(() => () => loadAudit(Number(days)), [days])
   const [state, retry] = useLoad(load)
   return (
-    <Page title="Audit Log" sub="ใครทำอะไรเมื่อไร · แก้หรือลบบันทึกไม่ได้" icon={IconClipboard}>
+    <Page title="บันทึกการเปลี่ยนแปลง" sub="ใครทำอะไรเมื่อไร · แก้หรือลบบันทึกไม่ได้" icon={IconClipboard}>
       <div className="flex flex-wrap gap-2">
         <ViewSwitch variant="sub" label="ชนิดบันทึก" value={view} onChange={setView} options={AUDIT_VIEWS} />
         <ViewSwitch variant="sub" label="ช่วงเวลา" value={days} onChange={setDays} options={AUDIT_DAYS} />

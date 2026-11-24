@@ -11,7 +11,7 @@ export const PERMISSIONS: Permission[] = [
   { key: 'station', name: 'เริ่ม / เสร็จ / พักงานที่สถานี', roles: {
     owner: true, production: true, supervisor: 'เฟสที่ดูแล', qc: 'QC + Packing', staff: 'สถานีที่จับคู่' } },
   { key: 'qc', name: 'บันทึกผล QC · ส่งแก้', roles: { owner: true, production: true, supervisor: 'เฟส 2', qc: true, staff: 'ถ้าจับคู่ QC' } },
-  { key: 'issue', name: 'แจ้งปัญหา (พักงาน)', roles: {
+  { key: 'issue', name: 'รายงานปัญหา (พักงาน)', roles: {
     owner: true, admin: true, production: true, supervisor: 'เฟสที่ดูแล', qc: 'QC + Packing', staff: 'สถานีที่จับคู่' } },
   { key: 'close', name: '"แก้แล้ว ทำต่อ"', roles: { owner: true, manager: 'ยกเว้นเย็บ', production: true, supervisor: true } },
   { key: 'insert', name: 'แทรกงานด่วนเข้าคิว', roles: { owner: true, manager: true, production: true, supervisor: true } },
@@ -25,7 +25,7 @@ export const PERMISSIONS: Permission[] = [
   { key: 'overview', name: 'ดูภาพรวมทั้งโรงงาน', roles: { owner: true, manager: true, admin: true } },
   { key: 'reports', name: 'ดูรายงาน', roles: { owner: true, manager: true, admin: true, production: true, supervisor: true } },
   { key: 'review', name: 'รับทราบรายการรอผู้บริหาร', roles: { owner: true, manager: true } },
-  { key: 'settings', name: 'ตั้งค่าระบบ · ผู้ใช้ · จับคู่สถานี · Audit Log', roles: { owner: true } },
+  { key: 'settings', name: 'ตั้งค่าระบบ · ผู้ใช้ · จับคู่สถานี · บันทึกการเปลี่ยนแปลง', roles: { owner: true } },
 ]
 
 export function cell(p: Permission, role: EmployeeRole): Cell {

@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
   COLUMNS, DEPT_NAME, ROUTES, SLA_LABEL, byQueue, isOutLate, STATION_NAME, STATUS_NAME, stationNo,
-  filmLabel, savedStation, isDoneToday, isFilmLate, isFilmNotOrdered, isOverdue, isWaitingFilm, missingDepts, queueHead,
+  filmLabel, savedStation, startStation, isDoneToday, isFilmLate, isFilmNotOrdered, isOverdue, isWaitingFilm, missingDepts, queueHead,
   type ColumnKey, type Job, type RouteCode, type StationCode,
 } from '../proto/model'
 import { lateDays, sewFloorOf, simulate, workdayToDate } from '../proto/capacity'
 import { durationWord, relDayWord } from '../proto/format'
-import { Card, DueLabel, MockupThumb, Pill, StatTile, ViewSwitch, pillGroup, pillItem, pillOff, pillOn } from '../components/ui'
+import { Card, DueLabel, MockupThumb, Pill, RouteBadge, StatTile, ViewSwitch, pillGroup, pillItem, pillOff, pillOn } from '../components/ui'
 import { thaiError } from '../data/live'
 import { jobKey, jobVersion } from '../data/jobKey'
 import { Tr } from '../i18n/Tr'
@@ -164,7 +164,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
       try { localStorage.setItem(STATION_KEY, fromLink) } catch { /* ไม่จำก็ใช้ได้ */ }
       return savedStation(fromLink, columns)
     }
-    try { return savedStation(localStorage.getItem(STATION_KEY), columns) } catch { return 'all' }
+    try { return startStation(localStorage.getItem(STATION_KEY), columns, role === 'staff' || role === 'qc') } catch { return 'all' }
   })
   const setStation = (key: ColumnKey | 'all') => {
     setStationState(key)
@@ -291,7 +291,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
   )
 
   const VIEW_TITLE: Partial<Record<View, string>> = {
-    issues: 'ปัญหา / งานแก้', reviews: 'รายการรออนุมัติ', report: 'แจ้งปัญหา', history: 'ประวัติการทำงาน', queueAll: 'คิวการผลิต', dept: 'ภาพรวมแผนก',
+    issues: 'ปัญหา / งานแก้', reviews: 'รายการรออนุมัติ', report: 'รายงานปัญหา', history: 'ประวัติการทำงาน', queueAll: 'คิวการผลิต', dept: 'ภาพรวมแผนก',
   }
   const title = VIEW_TITLE[view]
   if (title) {
@@ -308,7 +308,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
           {view === 'queueAll' && <QueueAllView jobs={allJobs} now={now} onOpen={setOpenId} />}
           {view === 'dept' && <>
             <RoleSummary scope={myScope} jobs={allJobs} machines={machines} now={now}
-              onPick={t => { window.location.hash = t === 'todo' ? '#/queue' : '#/board' }} />
+              onPick={t => { window.location.hash = t === 'todo' ? '#/queue' : t === 'sewing' ? '#/sewing' : '#/board' }} />
             <StationNow jobs={allJobs} now={now} stations={deptStations ?? undefined} />
             <a href="#/issues" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-line bg-card px-5 font-semibold text-brand hover:bg-brand-soft">ดูปัญหา / งานแก้ทั้งหมด</a>
           </>}
@@ -329,6 +329,20 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
         </div>
         {drawer}
         {receive}
+      </div>
+    )
+  }
+
+  if (role === 'staff' && myScope.columns?.length === 0) {
+    return (
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-4 p-4 sm:p-6">
+          <PageHeader title={myScope.titleT ?? myScope.title} today={today} updated={loadedAt} />
+          <Card className="grid gap-2 border-warn/40 bg-warn-soft p-5">
+            <p className="text-lg font-semibold text-warn"><Tr th="ยังไม่ได้จับคู่สถานี" /></p>
+            <p><Tr th="ให้เจ้าของระบบจับคู่สถานีให้ที่เมนู จับคู่สถานี" /></p>
+          </Card>
+        </div>
       </div>
     )
   }
@@ -482,10 +496,11 @@ function RoleSummary({ scope, jobs, machines, now, onPick }: {
 }) {
   const tiles = useMemo(() => roleSummary(scope.summary, jobs.filter(j => jobInScope(j, scope)), jobs, machines, now),
     [scope, jobs, machines, now])
+  const dense = scope.summary === 'staff' || scope.summary === 'qc'
   return (
     <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
       {tiles.map(t => (
-        <StatTile key={t.key} icon={SUMMARY_ICON[t.icon]} label={t.label} value={t.value} note={t.note} tone={t.tone}
+        <StatTile key={t.key} icon={SUMMARY_ICON[t.icon]} label={t.label} value={t.value} note={t.note} tone={t.tone} dense={dense}
           onClick={t.tab && scope.tabs.includes(t.tab) ? () => onPick(t.tab!, t.sewingView) : undefined} />
       ))}
     </div>
@@ -633,7 +648,7 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold tracking-tight">{j.no}</h2>
-                <span className="rounded-full bg-brand-soft px-2 py-px text-xs font-bold text-brand">{t(ROUTES[j.route].short)}</span>
+                <RouteBadge route={j.route} />
               </div>
               <p className="truncate text-muted">{j.customer}</p>
             </div>
@@ -659,19 +674,25 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
         </header>
 
         <div className="grid gap-4 p-4 text-sm">
-          <div className="grid justify-items-center gap-1 rounded-2xl border border-line bg-card p-3 shadow-card">
-            {j.specSheet
-              ? <a href={'#/mockup?id=' + encodeURIComponent(j.id)} className="w-full max-w-72" aria-label={t('เปิดม็อคอัพกำกับสเปก')}><MockupThumb job={j} size="lg" /></a>
-              : j.mockupUrl
-                ? <a href={j.mockupUrl} target="_blank" rel="noreferrer" className="w-full max-w-72" aria-label={t('เปิดรูปม็อคอัพเต็มจอ')}><MockupThumb job={j} size="lg" /></a>
-                : <MockupThumb job={j} size="lg" />}
-            <span className={`text-center ${j.specSheet ? 'font-semibold text-brand' : 'text-muted'}`}>
-              {j.specSheet ? <Tr th="กดที่รูปเพื่อดูม็อคอัพกำกับสเปก ฉบับ {rev}" vars={{ rev: j.specSheet.rev }} />
-                : j.mockupUrl ? <Tr th="กดที่รูปเพื่อดูเต็มจอ" /> : <Tr th="ยังไม่มีรูปม็อคอัพ" />}
-            </span>
-          </div>
-          <JobVariants job={j} />
           {actions}
+          {j.mockupUrl ? (
+            <div className="grid justify-items-center gap-1 rounded-2xl border border-line bg-card p-3 shadow-card">
+              {j.specSheet
+                ? <a href={'#/mockup?id=' + encodeURIComponent(j.id)} className="w-full max-w-72" aria-label={t('เปิดม็อคอัพกำกับสเปก')}><MockupThumb job={j} size="lg" /></a>
+                : <a href={j.mockupUrl} target="_blank" rel="noreferrer" className="w-full max-w-72" aria-label={t('เปิดรูปม็อคอัพเต็มจอ')}><MockupThumb job={j} size="lg" /></a>}
+              <span className={`text-center ${j.specSheet ? 'font-semibold text-brand' : 'text-muted'}`}>
+                {j.specSheet ? <Tr th="กดที่รูปเพื่อดูม็อคอัพกำกับสเปก ฉบับ {rev}" vars={{ rev: j.specSheet.rev }} /> : <Tr th="กดที่รูปเพื่อดูเต็มจอ" />}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-2xl border border-line bg-card p-3 text-muted shadow-card">
+              <MockupThumb job={j} />
+              {j.specSheet
+                ? <a href={'#/mockup?id=' + encodeURIComponent(j.id)} className="inline-flex min-h-12 items-center font-semibold text-brand"><Tr th="เปิดม็อคอัพกำกับสเปก" /></a>
+                : <Tr th="ยังไม่มีรูปม็อคอัพ" />}
+            </div>
+          )}
+          <JobVariants job={j} />
           <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
               <Info label="สินค้า">{j.product}</Info>

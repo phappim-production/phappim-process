@@ -413,6 +413,8 @@ test('กันบั๊ก: ตัวอย่างเย็บเสร็จ
 
 // ---- ตัวเลขสรุปตามตำแหน่ง (proto/summary.ts) ----
 import { roleSummary } from '../src/proto/summary.ts'
+import { thai } from '../src/i18n/word.ts'
+const noteText = n => typeof n === 'string' ? n : thai(n)
 import { boardScope as scopeOf, jobInScope as inScope } from '../src/auth/scope.ts'
 
 const tile = (tiles, key) => tiles.find(t => t.key === key)
@@ -448,7 +450,7 @@ test('เฟส 1: นับเฉพาะงานที่อยู่สถ�
   const t = summaryFor('supervisor', 1)
   assert.equal(tile(t, 'doing').value, 1)          // พิมพ์กำลังทำ (เย็บกำลังทำอยู่เฟส 2 ไม่นับ)
   assert.equal(tile(t, 'urgent').value, 2)         // ตัดพักงาน + รีดเลยกำหนด
-  assert.equal(tile(t, 'urgent').note, 'พักงาน 1 · เลยกำหนด 1')
+  assert.equal(noteText(tile(t, 'urgent').note), 'พักงาน 1 · เลยกำหนด 1')
   assert.equal(tile(t, 'film').value, 1)
 })
 
@@ -457,14 +459,14 @@ test('เฟส 2: กำลังเย็บ · รอเย็บ (ยัง�
   assert.equal(tile(t, 'sewing').value, 1)
   assert.equal(tile(t, 'waitingSew').value, 2)     // งานรอเย็บ + งานแก้ที่กลับมาเย็บ
   assert.equal(tile(t, 'machines').value, 1)
-  assert.equal(tile(t, 'machines').note, 'จาก 3 ตัว · เสีย 1')
+  assert.equal(noteText(tile(t, 'machines').note), 'จาก 3 ตัว · เสีย 1')
   assert.equal(tile(t, 'qc').value, 1)
 })
 
 test('QC: รอ QC พร้อมจำนวนชิ้น · กำลังตรวจ · งานแก้ · เสร็จวันนี้', () => {
   const t = summaryFor('qc', null)
   assert.equal(tile(t, 'qc').value, 1)
-  assert.equal(tile(t, 'qc').note, '40 ชิ้น')
+  assert.equal(noteText(tile(t, 'qc').note), '40 ชิ้น')
   assert.equal(tile(t, 'qcDoing').value >= 0, true)
   assert.equal(t.some(x => x.key === 'materials'), false)
   assert.equal(tile(t, 'rework').value, 1)
@@ -478,9 +480,9 @@ test('ฝ่ายผลิต: งานทั้งโรงงานไม่
   assert.equal(tile(t, 'broken').value, 1)
 })
 
-test('ไม่มีงานด่วน: ตัวเลขเป็น 0 และบอกว่าไม่มีงานด่วน', () => {
+test('ไม่มีงานเลยกำหนดหรือติดปัญหา: ตัวเลขเป็น 0 และบอกว่าไม่มี', () => {
   const t = roleSummary('factory', [job({ station: 'print', status: 'queued' })], [], [], now)
   assert.equal(tile(t, 'urgent').value, 0)
-  assert.equal(tile(t, 'urgent').note, 'ไม่มีงานด่วน')
-  assert.equal(tile(t, 'machines').note, 'จาก 0 ตัว')
+  assert.equal(noteText(tile(t, 'urgent').note), 'ไม่มีงานเลยกำหนดหรือติดปัญหา')
+  assert.equal(noteText(tile(t, 'machines').note), 'จาก 0 ตัว')
 })

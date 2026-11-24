@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ComponentType } from 'react'
 import { STATION_NAME, STATION_ORDER, type ColumnKey, type Job, type StationCode } from '../proto/model'
-import { IconCheck, IconFactory, IconFilm, IconFlame, IconPackage, IconPrinter, IconScissors, IconSewing, IconSparkles, IconUsers } from './icons'
+import { IconAlert, IconCheck, IconFactory, IconFilm, IconFlame, IconPackage, IconPrinter, IconScissors, IconSewing, IconSparkles, IconUsers } from './icons'
 import { Tr } from '../i18n/Tr'
 import { useT } from '../i18n/lang'
 
@@ -46,7 +46,7 @@ export function StationRail({ columns, counts, urgent, station, onPick }: {
           <span className="text-sm font-semibold whitespace-nowrap">{t(name)}</span>
           <span className="flex items-baseline gap-1 text-sm">
             <b className="text-lg tabular-nums">{n}</b>
-            {hot > 0 && <span className={`font-bold ${on ? 'text-white' : 'text-danger'}`}>{t('ด่วน {n}', { n: hot })}</span>}
+            {hot > 0 && <span className={`inline-flex items-center gap-0.5 font-bold ${on ? 'text-white' : 'text-danger'}`} title={t('เลยกำหนด / ติดปัญหา {n}', { n: hot })}><IconAlert className="size-4" /><span className="sr-only">{t('เลยกำหนด / ติดปัญหา {n}', { n: hot })}</span><span aria-hidden>{hot}</span></span>}
           </span>
         </button>
       </li>
@@ -54,7 +54,7 @@ export function StationRail({ columns, counts, urgent, station, onPick }: {
   }
   return (
     <nav ref={rail} aria-label={t('เลือกสถานี')} className="-mx-4 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6">
-      <ol className="flex gap-2">
+      <ol className="flex gap-2 md:flex-wrap">
         {chip('all', 'ทุกสถานี')}
         {stations.map(s => chip(s, columns.find(c => c.key === s)!.name))}
         {others.map(c => chip(c.key, c.name))}
