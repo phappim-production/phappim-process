@@ -17,7 +17,9 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
   station: StationCode; jobs: Job[]; role: EmployeeRole; myStations?: StationCode[]; onSewStart?: (jobId: string, noted?: boolean) => void; machines?: { used: Job[]; total: number; full: boolean } | null; now: Date; call: QueueCall; onOpen: (id: string) => void
 }) {
   const floor = role === 'production' || role === 'supervisor' || role === 'owner'
-  const canPress = floor || (role === 'qc' && station === 'qc_pack') || (role === 'staff' && myStations.includes(station))
+  // สถานีเย็บจ่ายจักรต่อเนื่องกัน ฐานข้อมูลให้ฝ่ายผลิตกดเท่านั้น
+  const staffAtSew = role === 'staff' && station === 'sew' && myStations.includes(station)
+  const canPress = floor || (role === 'qc' && station === 'qc_pack') || (role === 'staff' && station !== 'sew' && myStations.includes(station))
   const canInsert = floor || role === 'manager'
   const working = jobs.filter(j => (j.phase === 'sample' || j.phase === 'production') && j.station === station && (j.status === 'doing' || j.status === 'hold')).sort(byQueue)
   const queue = waitingAt(jobs, station)
@@ -69,6 +71,7 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
         </div>
       )}
 
+      {staffAtSew && <p className="rounded-xl bg-info-soft px-4 py-3 font-medium text-info"><Tr th="สถานีเย็บ: ฝ่ายผลิตเป็นคนกดเริ่ม / เสร็จ / พักงาน · เจอปัญหาให้แจ้งฝ่ายผลิต" /></p>}
       <div className={`grid items-start gap-4 ${outside.length ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
         <section aria-labelledby="q-working" className="grid gap-2">
           <SectionHead id="q-working" title="กำลังทำ" count={[t('{n} งาน', { n: working.filter(j => j.status === 'doing').length }), working.some(j => j.status === 'hold') ? t('พักงาน {n} งาน', { n: working.filter(j => j.status === 'hold').length }) : ''].filter(Boolean).join(' · ')} />

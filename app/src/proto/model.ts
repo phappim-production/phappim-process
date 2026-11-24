@@ -73,6 +73,7 @@ export type Job = {
   mockupUrl?: string         // ลิงก์ชั่วคราวสำหรับแสดงรูป · ไม่มี = แสดงกรอบว่าง
   rework?: { qty: number; reason: string }
   holdReason?: string
+  heldSince?: Date
   doneAt?: Date
   delivered?: { at: Date; note: string }  // แอดมินบันทึกส่งให้ลูกค้าแล้ว (เฉพาะงานเสร็จ)
   queue?: number             // jobs.queue_seq · แทรกงานด่วนได้

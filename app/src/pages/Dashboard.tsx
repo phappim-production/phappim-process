@@ -203,7 +203,8 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
     if (!id && jobFromHash() !== null) window.location.replace(window.location.hash.split('?')[0])
   }
   const floor = useMemo(() => sewFloorOf(machines, needs, shared), [machines, needs, shared])
-  const forecast = useMemo(() => simulate(jobs, now, undefined, floor), [jobs, now, floor])
+  // คิดจากงานทั้งโรงงาน งานนอกขอบเขตของบทบาทก็แย่งกำลังผลิตเหมือนกัน
+  const forecast = useMemo(() => simulate(allJobs, now, undefined, floor), [allJobs, now, floor])
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -263,7 +264,8 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
   const matchingColumns = columns.filter(c => station === 'all' ? (byColumn.get(c.key)?.length ?? 0) > 0 : c.key === station)
   const visibleCount = matchingColumns.reduce((sum, c) => sum + (byColumn.get(c.key)?.length ?? 0), 0)
   const hasFilters = filter !== 'all' || route !== 'all' || wholeFactory
-  const openFinish = openJob && openJob.phase !== 'done' ? workdayToDate(forecast.finishDay.get(openJob.id) ?? 0, now) : undefined
+  const openDay = openJob && openJob.phase !== 'done' ? forecast.finishDay.get(openJob.id) : undefined
+  const openFinish = openDay === undefined ? undefined : workdayToDate(openDay, now)
   const drawer = openJob && (
     <JobDrawer job={openJob} now={now} finish={openFinish} onClose={() => setOpenId(null)}
       actions={<JobActions job={openJob} role={role} myStations={myScope.pressStations} version={loadedAt.getTime()} now={now} refresh={refresh} vendors={data.vendors} onCancelled={setClosedNotice} />}

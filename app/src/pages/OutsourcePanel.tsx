@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { rpc } from '../data/useFactoryData'
-import { newRequestId } from '../data/requestId'
+import { requestSlot } from '../data/requestId'
 import { OUTSOURCEABLE, ROUTES, STATION_NAME, isOutLate, telHref, type Job, type StationCode, type Vendor } from '../proto/model'
 import { defaultBack, outSpan } from '../proto/outsource'
 import { wholeCount } from '../proto/format'
@@ -22,7 +22,7 @@ export function OutsourcePanel({ job: j, vendors, admin, now, refresh }: {
   job: Job; vendors: Vendor[]; admin: boolean; now: Date; refresh: () => Promise<void>
 }) {
   const [mode, setMode] = useState<'send' | 'forward' | 'plan' | 'receive' | 'split' | null>(null)
-  const [splitRequest, setSplitRequest] = useState(newRequestId)
+  const [splitRequest] = useState(requestSlot)
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const t = useT()
@@ -109,8 +109,8 @@ export function OutsourcePanel({ job: j, vendors, admin, now, refresh }: {
         <SplitForm job={j} busy={busy} onCancel={() => setMode(null)}
           onSave={async qty => {
             // ใช้รหัสคำขอเดิมจนกว่าแบ่งสำเร็จ กดซ้ำตอนเน็ตช้าจึงไม่ได้ใบลูกเพิ่ม
-            const ok = await act('split_job', { p_job: j.id, p_qty: qty, p_request: splitRequest }, `แบ่ง ${qty.toLocaleString('th-TH')} ${j.unit} เป็นงานใหม่ ${j.no}-… แล้ว · เปิดงานใหม่เพื่อส่งออก`)
-            if (ok) setSplitRequest(newRequestId())
+            const ok = await act('split_job', { p_job: j.id, p_qty: qty, p_request: splitRequest.idFor(String(qty)) }, `แบ่ง ${qty.toLocaleString('th-TH')} ${j.unit} เป็นงานใหม่ ${j.no}-… แล้ว · เปิดงานใหม่เพื่อส่งออก`)
+            if (ok) splitRequest.clear()
             return ok
           }} />
       )}

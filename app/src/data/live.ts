@@ -78,11 +78,25 @@ export type SpecAckRow = { sheet_id: string; station_code: string }
 export function attachSpecSheets(jobs: Job[], sheets: SpecSheetRow[], acks: SpecAckRow[]): Job[] {
   if (!sheets.length) return jobs
   const byJob = new Map(sheets.map(s => [s.job_id, s]))
+  const ackedBy = new Map<string, Set<string>>()
+  for (const a of acks) ackedBy.set(a.sheet_id, (ackedBy.get(a.sheet_id) ?? new Set<string>()).add(a.station_code))
   return jobs.map(j => {
     const s = byJob.get(j.id)
     if (!s) return j
-    const acked = [...new Set(acks.filter(a => a.sheet_id === s.id).map(a => a.station_code))].filter(isStationCode)
+    const acked = [...(ackedBy.get(s.id) ?? [])].filter(isStationCode)
     return { ...j, specSheet: { id: s.id, rev: s.rev, acked } }
+  })
+}
+
+export type HoldRow = { job_id: string; opened_at: string }
+
+export function attachHolds(jobs: Job[], holds: HoldRow[]): Job[] {
+  if (!holds.length) return jobs
+  const opened = new Map<string, string>()
+  for (const h of holds) if ((opened.get(h.job_id) ?? '') < h.opened_at) opened.set(h.job_id, h.opened_at)
+  return jobs.map(j => {
+    const at = j.status === 'hold' ? opened.get(j.id) : undefined
+    return at ? { ...j, heldSince: new Date(at) } : j
   })
 }
 

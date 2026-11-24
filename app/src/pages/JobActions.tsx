@@ -13,7 +13,7 @@ import { DEPT_NAME, OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, statio
 import { OutsourcePanel } from './OutsourcePanel'
 import { FilePick } from '../components/FilePick'
 import { relDayWord, slaAmountWord, spaced, wholeCount } from '../proto/format'
-import { newRequestId } from '../data/requestId'
+import { requestSlot } from '../data/requestId'
 import { bookingDay } from '../proto/sewing'
 import { canCancelJob, canCloseIssue, type EmployeeRole } from '../auth/access'
 import { Pill } from '../components/ui'
@@ -606,16 +606,16 @@ function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act 
 }
 
 function SlaReport({ sla: s, reasons, busy, now, act }: { sla: Sla; reasons: Reason[]; busy: boolean; now: Date; act: Act }) {
-  const [reportRequest, setReportRequest] = useState(newRequestId)
+  const [reportRequest] = useState(requestSlot)
   const needReport = (s.station_over && !s.station_reported) || (s.segment_over && !s.segment_reported)
   if (!needReport && !s.station_warn && !s.segment_warn) return null
   return (
     <DelayReport reasons={reasons} busy={busy} now={now} required={!!needReport}
       onSend={async (codes, detail, eta, help) => {
         const ok = await act('submit_delay_report', {
-          p_reasons: codes, p_detail: detail, p_new_eta: eta.toISOString(), p_need_help: help || null, p_request: reportRequest,
+          p_reasons: codes, p_detail: detail, p_new_eta: eta.toISOString(), p_need_help: help || null, p_request: reportRequest.idFor(JSON.stringify([codes, detail, eta.toISOString(), help])),
         }, 'ส่งรายงานปัญหาแล้ว')
-        if (ok) setReportRequest(newRequestId())
+        if (ok) reportRequest.clear()
         return ok
       }} />
   )
@@ -641,7 +641,7 @@ function SlaBanner({ sla: s }: { sla: Sla }) {
 function QcPanel({ job: j, passed, busy, act }: { job: Job; passed: number; busy: boolean; act: Act }) {
   const t = useT()
   const [pass, setPass] = useState('')
-  const [request, setRequest] = useState(newRequestId)
+  const [request] = useState(requestSlot)
   const passQty = wholeCount(pass) || null
   const [rework, setRework] = useState<{ qty: string; reason: string; source: string } | null>(null)
   const reworkQty = rework ? wholeCount(rework.qty) || null : null
@@ -653,7 +653,7 @@ function QcPanel({ job: j, passed, busy, act }: { job: Job; passed: number; busy
       <div className="flex flex-wrap gap-2">
         <input type="number" min={1} inputMode="numeric" value={pass} onChange={e => setPass(e.target.value)} aria-label={t('จำนวนที่ผ่าน')} placeholder={t('จำนวนที่ผ่าน')} className={`${fieldClass} w-36 flex-1`} />
         <button type="button" disabled={busy || !passQty} className={okBtn}
-          onClick={async () => { if (passQty && await act('record_qc', { p_passed: passQty, p_request: request }, { th: 'บันทึกผ่าน QC {qty} {unit}', vars: { qty: passQty, unit } })) { setPass(''); setRequest(newRequestId()) } }}>
+          onClick={async () => { if (passQty && await act('record_qc', { p_passed: passQty, p_request: request.idFor(String(passQty)) }, { th: 'บันทึกผ่าน QC {qty} {unit}', vars: { qty: passQty, unit } })) { setPass(''); request.clear() } }}>
           {pass.trim() && !passQty ? <Tr th="ใส่จำนวนเต็ม" /> : <><IconCheck className="size-5 shrink-0" /><Tr th="บันทึกผ่าน" /></>}</button>
       </div>
       {rework === null
