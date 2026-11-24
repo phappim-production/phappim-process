@@ -277,6 +277,7 @@ function makeHelper(tab, origin) {
     return waitFor(
       () => ev((pat, flags) => {
         const text = document.body.innerText
+        if (flags === null && /^เริ่ม(?!ก่อนคิว|เย็บ)/.test(pat) && [...document.querySelectorAll('[role="dialog"] button')].some(el => el.textContent.trim() === 'เริ่มก่อนคิว')) return true
         return flags !== null ? new RegExp(pat, flags).test(text) : text.includes(pat) || text.replace(/\s+/g, ' ').includes(pat)
       }, isRe ? needle.source : needle, isRe ? needle.flags : null),
       `ข้อความ "${needle}"`,
@@ -298,7 +299,8 @@ function makeHelper(tab, origin) {
 
   async function clickButton(label, { exact = false, inside = 'body', index = 0 } = {}) {
     const isRe = label instanceof RegExp
-    return waitFor(() => ev((pat, flags, ex, scope, idx) => {
+    const stationStart = !isRe && /^เริ่ม(?!ก่อนคิว|เย็บ)/.test(label)
+    const clicked = await waitFor(() => ev((pat, flags, ex, scope, idx, stationStart) => {
       const root = document.querySelector(scope) ?? document.body
       const btns = [...root.querySelectorAll('button, [role="button"], summary')].filter(el => {
         if (!el.getClientRects().length) return false
@@ -308,11 +310,23 @@ function makeHelper(tab, origin) {
         return ex ? txt === pat : txt.includes(pat)
       })
       const btn = btns[idx]
-      if (!btn) return false
+      if (!btn) {
+        // งานที่ไม่ใช่คิวแรก รายละเอียดงานมีแต่ปุ่มเริ่มก่อนคิว (ต้องใส่เหตุผล)
+        const skip = stationStart ? [...document.querySelectorAll('[role="dialog"] button')].find(el => el.getClientRects().length && !el.disabled && el.textContent.replace(/\s+/g, ' ').trim() === 'เริ่มก่อนคิว') : null
+        if (!skip) return false
+        skip.scrollIntoView({ block: 'center', inline: 'nearest' })
+        skip.click()
+        return 'skip'
+      }
       btn.scrollIntoView({ block: 'center', inline: 'nearest' })
       btn.click()
       return true
-    }, isRe ? label.source : label, isRe ? label.flags : null, exact, inside, index), `ปุ่ม "${label}"`)
+    }, isRe ? label.source : label, isRe ? label.flags : null, exact, inside, index, stationStart), `ปุ่ม "${label}"`)
+    if (clicked === 'skip') {
+      await fillInput('[role="dialog"] input[aria-label="เหตุผล"]', 'ทดสอบเริ่มก่อนคิว')
+      await clickButton('บันทึกและเริ่ม', { exact: true, inside: '[role="dialog"]' })
+    }
+    return clicked
   }
 
   async function fillInput(selector, value, { index = 0 } = {}) {

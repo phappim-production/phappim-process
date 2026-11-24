@@ -16,7 +16,7 @@ export type BoardScope = {
   titleT?: Word
   sub: string
   columns: ColumnKey[] | null   // null = ทุกคอลัมน์ (ทั้งโรงงาน)
-  sampleStations?: StationCode[] // คอลัมน์ "ขึ้นตัวอย่าง" แสดงเฉพาะงานที่อยู่สถานีเหล่านี้
+  sampleStations?: StationCode[] // งานขึ้นตัวอย่างเข้าขอบเขตเฉพาะเมื่ออยู่สถานีเหล่านี้
   materialsDept?: Dept           // คอลัมน์ "รอวัตถุดิบ" แสดงเฉพาะงานที่ยังรอฝ่ายนี้
   showFilm: boolean              // ฟิล์ม DTF เกี่ยวกับแอดมินและคนที่ดูแลรีด DTF เท่านั้น
   tabs: DashTab[]                // แท็บแรก = เปิดมาเจอ
@@ -87,6 +87,7 @@ export function boardScope(role: EmployeeRole, section: Section | null, stations
         title: 'งาน QC + Packing',
         sub: 'งานรอตรวจ · งานเสร็จล่าสุด',
         columns: ['qc_pack', 'done'],
+        sampleStations: ['qc_pack'],
         materialsDept: 'qc',
         summary: 'qc',
         showFilm: false,
@@ -121,10 +122,18 @@ export function boardScope(role: EmployeeRole, section: Section | null, stations
 export function jobInScope(job: Job, scope: BoardScope): boolean {
   if (!scope.columns) return true
   const column = columnOf(job)
-  if (!scope.columns.includes(column)) return false
+  // ตัวอย่างที่อยู่สถานีของตัวเองคืองานที่ต้องทำ แม้บทบาทนั้นไม่มีคอลัมน์ "ขึ้นตัวอย่าง"
   if (column === 'sample' && scope.sampleStations) return !!job.station && scope.sampleStations.includes(job.station)
+  if (!scope.columns.includes(column)) return false
   if (column === 'materials' && scope.materialsDept) return !job.materials[scope.materialsDept]
   return true
+}
+
+// บทบาทที่ไม่มีคอลัมน์ "ขึ้นตัวอย่าง" เห็นงานตัวอย่างในคอลัมน์สถานีที่งานอยู่
+export function boardColumnOf(job: Job, scope: BoardScope): ColumnKey {
+  const column = columnOf(job)
+  if (column === 'sample' && job.station && scope.columns && !scope.columns.includes('sample') && scope.columns.includes(job.station)) return job.station
+  return column
 }
 
 // หน้าแรกหลังล็อกอิน: คนที่ต้องดูภาพรวมไปภาพรวม · คนหน้างานไปงานของตัวเองทันที

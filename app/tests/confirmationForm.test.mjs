@@ -176,3 +176,74 @@ test('ฟอร์มใบยืนยัน: เปลี่ยนเลขท
   assert.match(save, /if\(foreign\.length\)\{ alert\(/)
   assert.ok(save.indexOf('foreign.length') < save.indexOf('const payload='))
 })
+
+function autosave(state) {
+  const js = scripts.join('\n')
+  const start = js.indexOf('let warnedQuota=false')
+  const end = js.indexOf('function toast(')
+  assert.ok(start > 0 && end > start)
+  const writes = []
+  const timers = new Map()
+  let nextTimer = 0
+  const api = new Function('state', 'localStorage', 'LS', 'setTimeout', 'clearTimeout', 'toast', js.slice(start, end) + '\nreturn { save, saveSoon, flushSave }')(
+    state, { setItem: (key, text) => writes.push([key, JSON.parse(text)]) }, 'pc142',
+    (fn, ms) => { timers.set(++nextTimer, { fn, ms }); return nextTimer }, id => { timers.delete(id) }, () => {},
+  )
+  const tick = () => { for (const [id, t] of [...timers]) { timers.delete(id); t.fn() } }
+  return { ...api, writes, timers, tick }
+}
+
+test('ฟอร์มใบยืนยัน: พิมพ์รัวเขียนลงเครื่องครั้งเดียวหลังหยุดพิมพ์ 0.4 วิ ด้วยค่าล่าสุด', () => {
+  const state = { h: { customer: '' }, imgs: [] }
+  const form = autosave(state)
+  for (const text of ['ส', 'สม', 'สมช', 'สมชาย']) { state.h.customer = text; form.saveSoon() }
+  assert.equal(form.writes.length, 0)
+  assert.deepEqual([...form.timers.values()].map(t => t.ms), [400])
+  form.tick()
+  assert.deepEqual(form.writes, [['pc142', { h: { customer: 'สมชาย' }, imgs: [] }]])
+  form.tick()
+  assert.equal(form.writes.length, 1)
+})
+
+test('ฟอร์มใบยืนยัน: สิ่งที่พิมพ์ค้างถูกเขียนทันทีเมื่อสั่ง flush · ไม่มีอะไรค้าง = ไม่เขียนซ้ำ', () => {
+  const state = { h: { customer: 'ก' }, imgs: [] }
+  const form = autosave(state)
+  form.flushSave()
+  assert.equal(form.writes.length, 0)
+  form.saveSoon()
+  state.h.customer = 'กข'
+  form.flushSave()
+  assert.deepEqual(form.writes.map(w => w[1].h.customer), ['กข'])
+  assert.equal(form.timers.size, 0)
+  form.flushSave()
+  form.tick()
+  assert.equal(form.writes.length, 1)
+})
+
+test('ฟอร์มใบยืนยัน: การบันทึกทันที (เปลี่ยนสินค้า โหลดใบ ล้างฟอร์ม) ยกเลิกรอบที่รออยู่ ไม่เขียนค่าเก่าทับทีหลัง', () => {
+  const state = { h: { customer: 'เดิม' }, imgs: [] }
+  const form = autosave(state)
+  form.saveSoon()
+  state.h.customer = 'ใหม่'
+  form.save()
+  assert.equal(form.timers.size, 0)
+  form.tick()
+  assert.deepEqual(form.writes.map(w => w[1].h.customer), ['ใหม่'])
+})
+
+test('ฟอร์มใบยืนยัน: flush ครบทุกทางออก (ออกจากช่อง · ซ่อนแท็บ · ปิดหน้า · บันทึกเข้าระบบ · ส่งออก PDF) และมีแต่การพิมพ์ที่หน่วง', () => {
+  const js = scripts.join('\n')
+  assert.match(js, /form\.addEventListener\('change',flushSave\)/)
+  assert.match(js, /addEventListener\('pagehide',flushSave\)/)
+  assert.match(js, /addEventListener\('visibilitychange',\(\)=>\{ if\(document\.visibilityState==='hidden'\) flushSave\(\); \}\)/)
+  assert.match(js, /function saveToSystem\(\)\{\s*flushSave\(\);/)
+  assert.match(js, /async function exportPdf\(\)\{\s*flushSave\(\);/)
+  const input = js.slice(js.indexOf("form.addEventListener('input'"), js.indexOf("form.addEventListener('change',e=>"))
+  assert.equal((input.match(/saveSoon\(\)/g) ?? []).length, 3)
+  assert.doesNotMatch(input, /[^a-zA-Z]save\(\)/)
+  assert.equal((js.replace(input, '').match(/saveSoon\(\)/g) ?? []).length, 1)
+  for (const name of ['startOver', 'loadData', 'rerender']) {
+    const at = js.indexOf(`function ${name}(`)
+    assert.match(js.slice(at, js.indexOf('\nfunction ', at + 1)), /[^a-zA-Z]save\(\);/, name)
+  }
+})

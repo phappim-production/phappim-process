@@ -997,14 +997,18 @@ function startOver(keepOrder){
 function fresh(){ return { h:{ issue_date: today() }, product:'tshirt', pickOpen:true, p:{}, imgs:[], callouts:[], co_size:null, co_sizes:[] }; }
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function load(){ try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.h&&s.p&&PRODUCTS[s.product]){ s.pickOpen=false; s.imgs=Array.isArray(s.imgs)?s.imgs:[]; s.callouts=Array.isArray(s.callouts)?s.callouts:[]; s.co_sizes=Array.isArray(s.co_sizes)?s.co_sizes:[]; return s; } }catch(e){} return null; }
-let warnedQuota=false;
+let warnedQuota=false, saveTimer=0;
 function save(){
+  clearTimeout(saveTimer); saveTimer=0;
   try{ localStorage.setItem(LS, JSON.stringify(state)); }
   catch(e){
     try{ const {imgs,...rest}=state; localStorage.setItem(LS, JSON.stringify({...rest,imgs:[]})); }catch(e2){}
     if(!warnedQuota&&state.imgs.length){ warnedQuota=true; toast('ภาพใหญ่เกินกว่าจะจำอัตโนมัติ กด "บันทึกไฟล์" เพื่อเก็บภาพไว้'); }
   }
 }
+// พิมพ์ทีละตัวอักษรไม่เขียน state ทั้งก้อน (รวมรูป base64 หลาย MB) ลงเครื่องทุกครั้ง · รอหยุดพิมพ์ 0.4 วิ แล้วเขียนครั้งเดียว
+function saveSoon(){ clearTimeout(saveTimer); saveTimer=setTimeout(save,400); }
+function flushSave(){ if(saveTimer) save(); }
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.remove('link'); t.classList.add('on'); clearTimeout(toast.h); toast.h=setTimeout(()=>t.classList.remove('on'),2800); }
 function fileBase(){ const h=state.h; return ['ใบยืนยัน',h.doc_no,num(h.rev)>0?'แก้ไข'+h.rev:'',h.customer].filter(Boolean).join(' ').replace(/[\\/:*?"<>|]/g,'-'); }
 function prod(){ return PRODUCTS[state.product]; }
@@ -1421,9 +1425,9 @@ form.addEventListener('input',e=>{
     form.querySelectorAll(`select[data-c="img"] option[value="${i+1}"]`).forEach(o=>{ o.textContent=imgName(i+1); });
     const tab=form.querySelector(`.co-tab[data-r="${i}"]`);
     if(tab){ const cnt=coList().filter(c=>coImgAt(c)===i).length; tab.textContent=imgName(i+1)+(cnt?` (${cnt})`:''); }
-    save(); } return; }
+    saveSoon(); } return; }
   if(d.co!==undefined){ const c=coList()[+d.co]; if(!c) return; c[d.cf]=t.value;
-    const box=form.querySelector(`.co-box[data-co-i="${d.co}"]`); if(box) box.innerHTML=coBoxInner(c,+d.co,coRefs()); save(); return; }
+    const box=form.querySelector(`.co-box[data-co-i="${d.co}"]`); if(box) box.innerHTML=coBoxInner(c,+d.co,coRefs()); saveSoon(); return; }
   if(t.id==='psearch'){ const q=t.value.trim().toLowerCase();
     form.querySelectorAll('.pcat').forEach(c=>{ let any=false;
       c.querySelectorAll('[data-name]').forEach(l=>{ const ok=!q||l.dataset.name.toLowerCase().includes(q); l.style.display=ok?'':'none'; any=any||ok; });
@@ -1432,7 +1436,7 @@ form.addEventListener('input',e=>{
   else if(d.t){ const r=scope('p')[d.t][+d.r]; if(d.c.startsWith('q:')) r.q[d.c.slice(2)]=t.value; else r[d.c]=t.value; }
   else if(d.pl){ const v=scope('p'); v[d.pl]=v[d.pl]||{}; (v[d.pl][d.pos]=v[d.pl][d.pos]||{})[d.pf]=t.value; }
   t.closest('.field')?.classList.remove('missing');
-  updateTotals(); save();
+  updateTotals(); saveSoon();
 });
 form.addEventListener('change',e=>{
   const t=e.target, d=t.dataset;
@@ -1458,6 +1462,10 @@ form.addEventListener('change',e=>{
     });
   }
 });
+// ออกจากช่อง / สลับแอป / ปิดแท็บ = เขียนสิ่งที่ค้างทันที ไม่มีตัวอักษรไหนหาย
+form.addEventListener('change',flushSave);
+addEventListener('pagehide',flushSave);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushSave(); });
 form.addEventListener('focusin',e=>{
   const d=e.target?.dataset; if(!d||d.co===undefined) return;
   const c=coList()[+d.co]; if(c) switchCoTab(coImgAt(c));
@@ -1543,6 +1551,7 @@ function changedLabels(){
   return [...new Set(out)];
 }
 function saveToSystem(){
+  flushSave();
   if(location.protocol==='file:'){ alert('บันทึกเข้าระบบได้เมื่อเปิดฟอร์มจากเว็บระบบ (pp142.pages.dev/confirmation)\nตอนนี้เปิดจากไฟล์ในเครื่อง ให้ใช้ "บันทึกไฟล์" แทน'); return; }
   if(!String(state.h.doc_no||'').trim()){ alert('ใส่เลขที่ใบยืนยันก่อนบันทึกเข้าระบบ'); $('[data-k="doc_no"]')?.focus(); return; }
   const revise=revising(), btn=revise?'บันทึกการแก้เข้างาน':'บันทึกเข้าระบบ';
@@ -1814,6 +1823,7 @@ function docFontsReady(){
 }
 docFontsReady();
 async function exportPdf(){
+  flushSave();
   missing=validate(); showAlert();
   const hard=missing.filter(m=>m.hard).length, soft=missing.length-hard;
   const back=()=>{ if(document.body.classList.contains('preview')) togglePreview(false); else rerender(); scrollTo(0,0); };

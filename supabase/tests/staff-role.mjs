@@ -1,3 +1,5 @@
+import { skipQueue } from './queue-skip.mjs'
+
 export async function staffRoleTests({ db, ok, as }) {
   const U = {
     owner: '00000000-0000-0000-0000-000000000001',
@@ -8,7 +10,7 @@ export async function staffRoleTests({ db, ok, as }) {
     insert into public.profiles (user_id,name,role,active) values
       ('${U.staff}','พนักงานพิมพ์','staff',true),('${U.loose}','พนักงานยังไม่จับคู่','staff',true);
   `)
-  const call = (uid, sql) => as(uid, () => db.query(`select ${sql}`))
+  const call = async (uid, sql) => { await skipQueue(db, as, uid, sql); return as(uid, () => db.query(`select ${sql}`)) }
   const pass = async (name, uid, sql) => {
     try { await call(uid, sql); ok(name, true) } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }

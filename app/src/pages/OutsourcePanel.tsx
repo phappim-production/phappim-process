@@ -1,3 +1,4 @@
+import { invalidateStatic } from '../data/staticCache'
 import { useState } from 'react'
 import { rpc } from '../data/useFactoryData'
 import { requestSlot } from '../data/requestId'
@@ -158,6 +159,7 @@ function PlanForm({ job: j, vendors, from, busy, now, refresh, title, saveLabel,
   async function addVendor() {
     const r = await rpc<number>('add_vendor', { p_name: newName.trim(), p_stations: span, p_contact: null })
     if (!r.ok) { setAddError(r.reason); return }
+    invalidateStatic()
     await refresh()
     setVendor(Number(r.data)); setAdding(false); setNewName(''); setAddError('')
   }

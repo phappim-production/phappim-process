@@ -5,7 +5,7 @@ import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { uploadFile } from '../data/files'
 import { contentKey, signedUrls } from '../data/mockups'
-import { confirmationPath, draftFromConfirmation, pdfProblem, sewRecipeProblem, syncConfirmationSpec, type ReceiveDraft } from '../data/confirmation'
+import { confirmationPath, draftFromConfirmation, FORM_LOCK_REASON, isFormDraft, pdfProblem, sewRecipeProblem, syncConfirmationSpec, type ReceiveDraft } from '../data/confirmation'
 import { draftLabel, formDataFromDraft, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
 import { specMockups } from '../data/jobMockups'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
@@ -37,6 +37,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
   const [drafts, setDrafts] = useState<DraftRow[] | null>(null)
   const [picked, setPicked] = useState('')
   const [openingForm, setOpeningForm] = useState(false)
+  const [seedWarning, setSeedWarning] = useState<{ no: string; reason: string } | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -90,6 +91,9 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
 
   const set = <K extends keyof ReceiveDraft>(k: K, v: ReceiveDraft[K]) => { setDraft(d => ({ ...d, [k]: v })); setError('') }
   const product = products?.find(p => p.code === draft.product)
+  const fromForm = isFormDraft(draft)
+  // สินค้าในใบที่ไม่อยู่ในรายการ (ปิดใช้แล้ว) ต้องเลือกเองได้ ไม่อย่างนั้นรับงานไม่ได้เลย
+  const productLocked = fromForm && (!products || !!product)
   // เตือนอย่างเดียว ไม่บล็อกการส่งงานเข้า
   const forecast = useMemo(() => product && draft.route && draft.qty > 0 && draft.needsSample !== null
     ? receiveForecast(jobs, now, floor, { route: draft.route, qty: draft.qty, productCode: product.code, needsSample: draft.needsSample, develop: draft.develop, due: draft.due })
@@ -140,12 +144,25 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
     })
     if (!r.ok) { setSaving(null); setError(r.reason); return }
     setSaving('กำลังสร้างร่างม็อคอัพจากจุดในใบยืนยัน…')
-    await seedFromConfirmation(r.data)
+    const seeded = await seedFromConfirmation(r.data)
     setSaving(null)
+    // งานรับเข้าแล้ว · ร่างม็อคอัพสร้างไม่ได้ไม่ใช่เหตุให้รับงานซ้ำ แค่บอกให้ไปทำเอง
+    if (!seeded.ok) { setSeedWarning({ no: draft.no.trim(), reason: seeded.reason }); return }
     onDone(draft.no.trim())
   }
 
   const label = 'grid gap-1 font-medium'
+  if (seedWarning) return (
+    <Dialog title="รับงานเข้าโรงงาน" icon={IconInbox} onClose={() => onDone(seedWarning.no)} wide>
+      <div className="mt-3 grid gap-3">
+        <p role="status" className="rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">ส่งงาน {seedWarning.no} เข้าโรงงานแล้ว</p>
+        <p role="alert" className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">
+          สร้างร่างม็อคอัพจากจุดในใบยืนยันไม่สำเร็จ ({seedWarning.reason}) · เปิดงานแล้วกด "ม็อคอัพกำกับสเปก" เพื่อสร้างเอง
+        </p>
+        <button type="button" className={primaryBtn} onClick={() => onDone(seedWarning.no)}>รับทราบ</button>
+      </div>
+    </Dialog>
+  )
   return (
     <Dialog title="รับงานเข้าโรงงาน" icon={IconInbox} onClose={onClose} wide>
       <div className="mt-3 grid gap-4">
@@ -182,13 +199,15 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
             <input value={draft.jobName} onChange={e => set('jobName', e.target.value)} placeholder="ไม่ใส่ = ใช้ชื่อสินค้า" className={fieldClass} />
           </label>
           <label className={`${label} sm:col-span-2`}>ประเภทสินค้า
-            <select value={draft.product} onChange={e => set('product', e.target.value)} className={fieldClass} disabled={!products}>
+            <select value={draft.product} onChange={e => set('product', e.target.value)} className={fieldClass} disabled={!products || productLocked} aria-describedby={productLocked ? 'product-locked' : undefined}>
               <option value="">{products ? 'เลือกสินค้า' : 'กำลังโหลดรายการสินค้า…'}</option>
               {products?.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}
             </select>
+            {productLocked && <span id="product-locked" className="text-sm font-normal text-muted">สินค้ามาจากใบยืนยัน · {FORM_LOCK_REASON}</span>}
           </label>
           <label className={label}>จำนวน{product ? ` (${product.unit})` : ''}
-            <input type="number" min={1} inputMode="numeric" value={draft.qty || ''} onChange={e => set('qty', Math.max(0, Math.floor(Number(e.target.value) || 0)))} className={fieldClass} />
+            <input type="number" min={1} inputMode="numeric" value={draft.qty || ''} onChange={e => set('qty', Math.max(0, Math.floor(Number(e.target.value) || 0)))} className={fieldClass} disabled={fromForm} aria-describedby={fromForm ? 'qty-locked' : undefined} />
+            {fromForm && <span id="qty-locked" className="text-sm font-normal text-muted">จำนวนมาจากตารางในใบยืนยัน · {FORM_LOCK_REASON}</span>}
           </label>
           <label className={label}>ผลิตเผื่อเสีย
             <input type="number" min={0} inputMode="numeric" value={draft.spare || ''} placeholder="0" onChange={e => set('spare', Math.max(0, Math.floor(Number(e.target.value) || 0)))} className={fieldClass} />

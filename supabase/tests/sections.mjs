@@ -2,6 +2,8 @@
 
 import { requiredSteps, substepSql } from './steps.mjs'
 
+import { skipQueue } from './queue-skip.mjs'
+
 export async function sectionTests({ db, ok, as }) {
   const U = {
     owner: '00000000-0000-0000-0000-000000000001', sup: '00000000-0000-0000-0000-000000000002',
@@ -13,7 +15,7 @@ export async function sectionTests({ db, ok, as }) {
     insert into public.profiles (user_id,name,role,active,section) values
       ('${U.sup1}','ผู้ควบคุมงานเฟส 1','supervisor',true,1),('${U.sup2}','ผู้ควบคุมงานเฟส 2','supervisor',true,2);
   `)
-  const call = (uid, sql) => as(uid, () => db.query(`select ${sql}`))
+  const call = async (uid, sql) => { await skipQueue(db, as, uid, sql); return as(uid, () => db.query(`select ${sql}`)) }
   const pass = async (name, uid, sql) => {
     try { await call(uid, sql); ok(name, true) } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }

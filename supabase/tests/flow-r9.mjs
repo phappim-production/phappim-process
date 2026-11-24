@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { queueSkipSql, startsDirect } from './queue-skip.mjs'
 
 const uid = n => '00000000-0000-0000-0000-' + String(n).padStart(12, '0')
 const actors = { owner: uid(1), supervisor: uid(2), admin: uid(11), qc: uid(12), production: uid(13), manager: uid(14), staff: uid(31) }
@@ -82,6 +83,7 @@ export async function flowR9Tests({ db, ok }) {
     return id
   }
   async function step(id, role, name, args, expected, prefix = []) {
+    if (startsDirect(name)) await db.query(queueSkipSql, [id, actors[role]])
     const before = await history(id)
     const result = await rpc(role, name, [...prefix, ...args])
     const delta = assertEvents(await history(id), before, expected, role, name)

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
+import { reasonCodes, staffNames, stationInfo } from '../data/lookups'
 import { thaiError } from '../data/live'
 import { corrections, eventWords, visitLines, type EventRow, type EventWords, type VisitRow } from '../data/history'
 import { Tr } from '../i18n/Tr'
@@ -27,39 +28,37 @@ const SHOW = 30
 // พม่าใช้ วัน/เดือน ตัวเลข ให้ตรงกับป้ายกำหนดส่งบนจอ
 const when = (at: string, lang: Lang = 'th') => new Date(at).toLocaleString(lang === 'my' ? 'en-GB' : 'th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: lang === 'my' ? 'numeric' : 'short', hour: '2-digit', minute: '2-digit' }).replace(',', '')
 
-async function load(jobId: string): Promise<History> {
+async function load(jobId: string): Promise<Omit<History, 'unit'>> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
-  const [job, ev, vi, sa, qc, de, rc, st, nm] = await Promise.all([
-    supabase.from('jobs').select('unit').eq('id', jobId).single(),
+  const [ev, vi, sa, qc, de, rc, st, names] = await Promise.all([
     supabase.from('events').select('id, type, phase, station_code, payload, by, at').eq('job_id', jobId).order('at').order('id'),
     supabase.from('station_visits').select('station_code, phase, visit, started_at, done_at, rework').eq('job_id', jobId),
     supabase.from('sample_results').select('round, result, note, customer_confirmed_at, by, at').eq('job_id', jobId).order('round'),
     supabase.from('qc_results').select('passed, failed, reasons, source_station, by, at').eq('job_id', jobId).order('at'),
     supabase.from('delay_reports').select('reasons, detail, new_eta, need_help, station_code, by, at').eq('job_id', jobId).order('at'),
-    supabase.from('reason_codes').select('code, name'),
-    supabase.from('stations').select('code, name, substeps'),
-    rpc<{ user_id: string; name: string }[]>('staff_names', {}),
+    reasonCodes.get(),
+    stationInfo.get(),
+    // ชื่อพนักงานโหลดไม่ได้ ยังแสดงประวัติได้ (แค่ไม่มีชื่อผู้กด)
+    staffNames.get().catch(() => new Map<string, string>()),
   ])
-  const err = job.error ?? ev.error ?? vi.error ?? sa.error ?? qc.error ?? de.error ?? rc.error ?? st.error
+  const err = ev.error ?? vi.error ?? sa.error ?? qc.error ?? de.error
   if (err) throw new Error(err.message)
   return {
-    unit: job.data?.unit ?? 'ชิ้น',
     events: (ev.data ?? []) as EventRow[],
     visits: (vi.data ?? []) as VisitRow[],
     samples: (sa.data ?? []) as SampleRow[],
     qc: (qc.data ?? []) as QcRow[],
     delays: (de.data ?? []) as DelayRow[],
-    reasons: new Map(((rc.data ?? []) as { code: string; name: string }[]).map(r => [r.code, r.name])),
-    stations: (st.data ?? []) as StationRow[],
-    // ชื่อพนักงานโหลดไม่ได้ ยังแสดงประวัติได้ (แค่ไม่มีชื่อผู้กด)
-    names: new Map(nm.ok ? nm.data.map(r => [r.user_id, r.name]) : []),
+    reasons: new Map(rc.map(r => [r.code, r.name])),
+    stations: st.map(s => ({ code: s.code, name: s.name, substeps: s.substeps ?? [] })),
+    names,
   }
 }
 
-export function JobHistory({ jobId, role, version, now, onChanged }: {
-  jobId: string; role: EmployeeRole; version: number; now: Date; onChanged: () => Promise<void>
+export function JobHistory({ jobId, unit, role, version, now, onChanged }: {
+  jobId: string; unit: string; role: EmployeeRole; version: string; now: Date; onChanged: () => Promise<void>
 }) {
-  const [state, setState] = useState<{ status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; data: History }>({ status: 'loading' })
+  const [state, setState] = useState<{ status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; data: Omit<History, 'unit'> }>({ status: 'loading' })
   const [reload, setReload] = useState(0)
 
   useEffect(() => {
@@ -80,7 +79,7 @@ export function JobHistory({ jobId, role, version, now, onChanged }: {
       </Box>
     )
   }
-  return <HistoryView data={state.data} role={role} now={now} jobId={jobId} onChanged={async () => { await onChanged(); setReload(n => n + 1) }} />
+  return <HistoryView data={{ ...state.data, unit }} role={role} now={now} jobId={jobId} onChanged={async () => { await onChanged(); setReload(n => n + 1) }} />
 }
 
 function HistoryView({ data: h, role, now, jobId, onChanged }: { data: History; role: EmployeeRole; now: Date; jobId: string; onChanged: () => Promise<void> }) {

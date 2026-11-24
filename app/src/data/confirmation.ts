@@ -117,6 +117,13 @@ export type ReviseArgs = {
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
+// ใบที่มาจากฟอร์ม: จำนวนและสินค้าอยู่ในสเปกด้วย แก้ที่หน้ารับงานอย่างเดียวจะไม่ตรงกับใบ
+export function isFormDraft(draft: Pick<ReceiveDraft, 'spec'>): boolean {
+  const s = draft.spec
+  return isRecord(s.h) && isRecord(s.p) && typeof s.product === 'string'
+}
+export const FORM_LOCK_REASON = 'แก้ในฟอร์มใบยืนยัน แล้วบันทึกเข้าระบบใหม่'
+
 /** ปรับหัวใบและจำนวนเผื่อเสียใน spec ให้ตรงกับค่าที่แอดมินแก้หน้ารับงาน ก่อนส่งเข้า receive_job */
 export function syncConfirmationSpec(draft: ReceiveDraft, productName: string): Record<string, unknown> {
   const s = draft.spec

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { boardScope, jobInScope } from './scope'
+import { boardColumnOf, boardScope, jobInScope } from './scope'
 import type { Job } from '../proto/model'
 
 const date = new Date(2026, 10, 17)
@@ -53,4 +53,34 @@ it('พนักงานสถานีเห็นและกดได้เ�
   const none = boardScope('staff', null, [])
   expect(none.columns).toEqual([])
   expect(none.sub).toMatch(/Station Assignment/)
+})
+
+it('งานขึ้นตัวอย่างเข้าขอบเขตพนักงานสถานีเฉพาะเมื่ออยู่สถานีที่จับคู่ และแสดงในคอลัมน์สถานีนั้น', () => {
+  const staff = boardScope('staff', null, ['cut', 'print'])
+  const atCut: Job = { ...job, phase: 'sample', station: 'cut', status: 'queued' }
+  const atSew: Job = { ...job, phase: 'sample', station: 'sew', status: 'queued' }
+
+  expect(jobInScope(atCut, staff)).toBe(true)
+  expect(boardColumnOf(atCut, staff)).toBe('cut')
+  expect(jobInScope(atSew, staff)).toBe(false)
+  expect(jobInScope({ ...job, phase: 'sample' }, staff)).toBe(false)
+  expect(jobInScope(atCut, boardScope('staff', null, []))).toBe(false)
+})
+
+it('งานขึ้นตัวอย่างเข้าขอบเขต QC เฉพาะเมื่อถึงสถานี QC + Packing', () => {
+  const qc = boardScope('qc', null)
+  const atQc: Job = { ...job, phase: 'sample', station: 'qc_pack', status: 'queued' }
+
+  expect(jobInScope(atQc, qc)).toBe(true)
+  expect(boardColumnOf(atQc, qc)).toBe('qc_pack')
+  expect(jobInScope({ ...job, phase: 'sample', station: 'cut', status: 'doing' }, qc)).toBe(false)
+})
+
+it('บทบาทที่มีคอลัมน์ขึ้นตัวอย่างยังเห็นงานตัวอย่างในคอลัมน์เดิม', () => {
+  const atCut: Job = { ...job, phase: 'sample', station: 'cut', status: 'queued' }
+
+  expect(boardColumnOf(atCut, boardScope('production', null))).toBe('sample')
+  expect(boardColumnOf(atCut, boardScope('supervisor', 1))).toBe('sample')
+  expect(jobInScope(atCut, boardScope('supervisor', 2))).toBe(false)
+  expect(boardColumnOf({ ...job, station: 'cut' }, boardScope('staff', null, ['cut']))).toBe('cut')
 })

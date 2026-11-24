@@ -2,6 +2,8 @@
 
 import { requiredSteps } from './steps.mjs'
 
+import { skipQueue } from './queue-skip.mjs'
+
 export async function workflowTests({ db, ok, as }) {
   const U = {
     owner: '00000000-0000-0000-0000-000000000001', sup: '00000000-0000-0000-0000-000000000002',
@@ -16,7 +18,7 @@ export async function workflowTests({ db, ok, as }) {
   `)
 
   const q = (uid, sql) => as(uid, async () => (await db.query(sql)).rows)
-  const call = async (uid, sql) => { await q(uid, `select ${sql}`) }
+  const call = async (uid, sql) => { await skipQueue(db, as, uid, sql); await q(uid, `select ${sql}`) }
   const pass = async (name, uid, sql) => {
     try { await call(uid, sql); ok(name, true) } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }

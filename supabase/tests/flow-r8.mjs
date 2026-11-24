@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { queueSkipSql, startsDirect } from './queue-skip.mjs'
 
 const uid = n => '00000000-0000-0000-0000-' + String(n).padStart(12, '0')
 const actors = { owner: uid(1), supervisor: uid(2), disabled: uid(4), admin: uid(11),
@@ -75,6 +76,7 @@ export async function flowR8Tests({ db, ok }) {
     }
   }
   const change = async (id, role, name, args, types, tail) => {
+    if (startsDirect(name)) await db.query(queueSkipSql, [id, actors[role]])
     const before = (await events(id)).length
     const result = await call(role, name, args, tail)
     const delta = (await events(id)).slice(before)

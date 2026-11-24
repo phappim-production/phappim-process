@@ -1,6 +1,8 @@
+import { skipQueue } from './queue-skip.mjs'
+
 export async function stationMachineTests({ db, ok, as }) {
   const prod = '00000000-0000-0000-0000-000000000013'
-  const call = sql => as(prod, () => db.query(`select ${sql}`))
+  const call = async sql => { await skipQueue(db, as, prod, sql); return as(prod, () => db.query(`select ${sql}`)) }
   const pass = async (name, sql) => {
     try { await call(sql); ok(name, true) } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }

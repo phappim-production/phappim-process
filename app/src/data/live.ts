@@ -1,5 +1,5 @@
 // แยกเป็น pure function เพื่อทดสอบได้โดยไม่ต้องต่อ Supabase
-import { isStationCode, thaiWorkEnd, usesFilm, type OutRun, type Vendor, type Dept, type Job, type Phase, type RouteCode, type SlaLevel, type StationCode, type StationStatus } from '../proto/model.ts'
+import { isStationCode, thaiDay, thaiWorkEnd, usesFilm, type OutRun, type Vendor, type Dept, type Job, type Phase, type RouteCode, type SlaLevel, type StationCode, type StationStatus } from '../proto/model.ts'
 import type { Booking, Machine, MachineStatus, MachineType, Need } from '../proto/sewing.ts'
 
 export type JobRow = {
@@ -163,7 +163,9 @@ export function toJobs(rows: JobRow[], products: ProductRow[], reworks: ReworkRo
     }
     if (r.current_station) job.station = r.current_station
     if (r.station_status) job.status = r.station_status
-    if (usesFilm(r.route_code) && r.dtf_film_eta) job.film = { eta: dueDate(r.dtf_film_eta), received: !!r.dtf_film_received_at }
+    // ได้รับฟิล์มโดยไม่มีวันคาดว่าได้รับ = ใช้วันที่ได้รับ ไม่อย่างนั้นหน้าจอจะบอกว่ายังไม่ได้สั่งทั้งที่ฐานข้อมูลให้เริ่มรีดได้
+    const filmDay = r.dtf_film_eta ?? (r.dtf_film_received_at ? thaiDay(new Date(r.dtf_film_received_at)) : null)
+    if (usesFilm(r.route_code) && filmDay) job.film = { eta: dueDate(filmDay), received: !!r.dtf_film_received_at }
     if (r.sew_count > 0) job.sewCount = r.sew_count
     if (r.is_rework) job.rework = { qty: r.rework_qty ?? 0, reason: reworkReason.get(r.id) ?? '' }
     if (r.hold_reason) job.holdReason = r.hold_reason

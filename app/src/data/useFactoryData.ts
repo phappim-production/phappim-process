@@ -1,13 +1,17 @@
-import { toStationMachines, type StationMachine, type StationMachineRow } from '../proto/machines'
+import { toStationMachines, type StationMachine } from '../proto/machines'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { withMockups } from './mockups'
+import { boardStatics, stationMachineRows } from './lookups'
+import { invalidateStatic } from './staticCache'
+import { changedJob, touchJob } from './jobKey'
+import { onUserChange } from './userScope'
 import type { Job, Vendor } from '../proto/model'
 import type { Booking, Machine, MachineType, Need } from '../proto/sewing'
 import {
   RPC_TIMEOUT_MS, SLOW_REPLY, withTimeout,
-  attachHolds, attachOutRuns, attachSla, attachSpecSheets, sharedTypes, thaiError, toBookings, toJobs, toMachines, toNeeds, toVendors, type MachineTypeRow, type SpecAckRow, type SpecSheetRow, type OutRunRow, type VendorRow,
-  type AssignmentRow, type BookingRow, type HoldRow, type JobRow, type MachineRow, type NeedRow, type ProductRow, type ReworkRow, type SewEventRow, type SlaFlagRow,
+  attachHolds, attachOutRuns, attachSla, attachSpecSheets, sharedTypes, thaiError, toBookings, toJobs, toMachines, toNeeds, toVendors, type SpecAckRow, type SpecSheetRow, type OutRunRow,
+  type AssignmentRow, type BookingRow, type HoldRow, type JobRow, type MachineRow, type ProductRow, type ReworkRow, type SewEventRow, type SlaFlagRow,
 } from './live'
 
 export type FactoryData = { stationMachines: StationMachine[]; vendors: Vendor[]; jobs: Job[]; machines: Machine[]; bookings: Booking[]; needs: Record<string, Need[]>; products: ProductRow[]; shared: MachineType[] }
@@ -21,6 +25,11 @@ const DAY = 86_400_000
 const WATCH = ['jobs', 'outsource_runs', 'events', 'job_materials', 'issues', 'sewing_machines', 'machine_assignments', 'machine_bookings'] as const
 // เฉพาะคอลัมน์ที่หน้าจอใช้ · ไม่ดึง spec (คำตอบทั้งใบยืนยัน) เพราะโหลดใหม่ทุกครั้งที่มีคนกด
 const JOB_COLUMNS = 'id, confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, phase, current_station, station_status, stage_entered_at, sample_round, needs_sample, develop, materials_waiting_depts, dtf_film_eta, dtf_film_received_at, sew_count, is_rework, rework_qty, hold_reason, finished_at, queue_seq, mockup_path, delivered_at, delivery_note'
+
+// งานเสร็จที่จัดส่งแล้วเก่ากว่า 14 วันไม่ต้องแสดง · งานเสร็จที่ยังไม่จัดส่งต้องอยู่จนกว่าแอดมินจะบันทึกส่ง
+export function boardJobsFilter(now: Date): string {
+  return `phase.neq.done,finished_at.gte.${new Date(now.getTime() - 14 * DAY).toISOString()},delivered_at.is.null`
+}
 
 export function isJobId(id: string) {
   return /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id)
@@ -78,23 +87,19 @@ async function forJobs(ids: string[], query: (part: string[]) => PromiseLike<Rep
 async function load(): Promise<FactoryData> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
   const client = supabase
-  const recent = new Date(Date.now() - 14 * DAY).toISOString()
   const slaCall = supabase.rpc('job_sla_flags')
-  const stationCall = supabase.from('stations').select('code, machines, machine_pool')
+  // ฐานข้อมูลที่ยังไม่มีคอลัมน์ machines (migration ยังไม่ลง) = ไม่จำกัดเครื่อง ไม่ทำให้หน้าโหลดไม่ขึ้น
+  const stationCall = stationMachineRows.get().catch(() => [])
   const holdCall = supabase.from('issues').select('job_id, opened_at').is('closed_at', null)
-  const [jobs, products, machines, assignments, bookings, needs, types, vendorRows, outRuns] = await Promise.all([
-    // งานเสร็จเก่ากว่า 14 วันไม่ต้องแสดงบนบอร์ด
-    supabase.from('job_live').select(JOB_COLUMNS).neq('phase', 'cancelled').or(`phase.neq.done,finished_at.gte.${recent}`),
-    supabase.from('product_types').select('code, name'),
+  const [statics, jobs, machines, assignments, bookings, outRuns] = await Promise.all([
+    boardStatics.get(),
+    supabase.from('job_live').select(JOB_COLUMNS).neq('phase', 'cancelled').or(boardJobsFilter(new Date())),
     supabase.from('sewing_machines').select('id, code, type_code, status, note, repair_eta, sort'),
     supabase.from('machine_assignments').select('machine_id, job_id').is('released_at', null),
     supabase.from('machine_bookings').select('id, machine_id, job_id, starts_at, ends_at').is('cancelled_at', null).gte('ends_at', new Date(Date.now() - 7 * DAY).toISOString()),
-    supabase.from('product_machine_needs').select('product_type_code, type_code, qty'),
-    supabase.from('machine_types').select('code, shared'),
-    supabase.from('vendors').select('id, name, stations, kind, phone, address, map_url, specialty, contact').eq('active', true),
     supabase.from('outsource_runs').select('id, job_id, vendor_id, stations, qty, is_rework, sent_at, arrive_at, lead_days, back_at, note').is('closed_at', null),
   ])
-  const failed = [jobs, products, machines, assignments, bookings, needs, types, vendorRows, outRuns].find(r => r.error)
+  const failed = [jobs, machines, assignments, bookings, outRuns].find(r => r.error)
   if (failed?.error) throw new Error(failed.error.message)
   const ids = (jobs.data as JobRow[]).map(r => r.id)
   const [reworks, sewEvents, specSheets, specAcks] = await Promise.all([
@@ -107,33 +112,41 @@ async function load(): Promise<FactoryData> {
   if (late?.error) throw new Error(late.error.message)
   // อ่านเวลามาตรฐานไม่ได้ (เน็ตสะดุด) ให้การ์ดสีปกติ ไม่ทำให้ทั้งหน้าโหลดไม่ขึ้น
   const sla = await slaCall
-  // ฐานข้อมูลที่ยังไม่มีคอลัมน์ machines (migration ยังไม่ลง) = ไม่จำกัดเครื่อง ไม่ทำให้หน้าโหลดไม่ขึ้น
   const stationRows = await stationCall
   const holds = await holdCall
   // อ่านสเปกกำกับไม่ได้ = การ์ดไม่มีป้ายรับทราบ ไม่ทำให้บอร์ดโหลดไม่ขึ้น
   const specs = specSheets.error || specAcks.error ? { sheets: [], acks: [] } : { sheets: specSheets.data as SpecSheetRow[], acks: specAcks.data as SpecAckRow[] }
-  const vendors = toVendors(vendorRows.data as VendorRow[])
-  const held = attachHolds(toJobs(jobs.data as JobRow[], products.data as ProductRow[], reworks.data as ReworkRow[], sewEvents.data as SewEventRow[]), holds.error ? [] : (holds.data ?? []) as HoldRow[])
+  const vendors = toVendors(statics.vendors)
+  const shared = sharedTypes(statics.types)
+  const held = attachHolds(toJobs(jobs.data as JobRow[], statics.products, reworks.data as ReworkRow[], sewEvents.data as SewEventRow[]), holds.error ? [] : (holds.data ?? []) as HoldRow[])
   return {
-    stationMachines: stationRows.error ? [] : toStationMachines((stationRows.data ?? []) as StationMachineRow[]),
+    stationMachines: toStationMachines(stationRows),
     vendors,
     jobs: await withMockups(attachSpecSheets(attachSla(attachOutRuns(held, outRuns.data as OutRunRow[], vendors),
       sla.error ? [] : (sla.data ?? []) as SlaFlagRow[]), specs.sheets, specs.acks)),
     machines: toMachines(machines.data as MachineRow[], assignments.data as AssignmentRow[]),
     bookings: toBookings(bookings.data as BookingRow[]),
-    needs: toNeeds(needs.data as NeedRow[], new Set(sharedTypes(types.data as MachineTypeRow[]))),
-    products: products.data as ProductRow[],
-    shared: sharedTypes(types.data as MachineTypeRow[]),
+    needs: toNeeds(statics.needs, new Set(shared)),
+    products: statics.products,
+    shared,
   }
 }
 
+type Ready = Extract<LoadState, { status: 'ready' }>
+// ออกจากบอร์ดไปหน้าอื่นแล้วกลับมา = แสดงข้อมูลรอบล่าสุดทันที แล้วโหลดใหม่ตามหลัง
+let lastGood: Ready | null = null
+onUserChange(() => { lastGood = null })
+
 export function useFactoryData() {
-  const [state, setState] = useState<LoadState>({ status: 'loading' })
+  const [state, setState] = useState<LoadState>(() => lastGood ?? { status: 'loading' })
   // ขาดการเชื่อมต่อ = โหลดล่าสุดไม่สำเร็จ หรือ Realtime หลุด · แยกกันเพื่อให้แถบเตือนหายเองเมื่อกลับมาครบทั้งคู่
   const [fetchOk, setFetchOk] = useState(true)
   const [channelOk, setChannelOk] = useState(true)
   const running = useRef<Promise<void> | null>(null)
   const again = useRef(false)
+  const channelLive = useRef(false)
+
+  useEffect(() => { if (state.status === 'ready') lastGood = state }, [state])
 
   // โหลดทีละรอบ · มีการเปลี่ยนระหว่างโหลด = โหลดต่ออีก 1 รอบ ไม่ยิงซ้อนกันจนจอค้างตอนเน็ตช้า
   const refresh = useCallback((): Promise<void> => {
@@ -143,6 +156,8 @@ export function useFactoryData() {
         // ปุ่มรอโหลดใหม่หลังบันทึก → โหลดค้างต้องไม่ทำให้ปุ่มหมุนตลอดไป
         const reply = await withTimeout(() => load(), RPC_TIMEOUT_MS)
         if (reply.timedOut) throw new Error('timeout')
+        // Realtime หลุด = ไม่รู้ว่างานไหนเปลี่ยน ให้รายละเอียดงานที่เปิดอยู่โหลดใหม่ทุกรอบเหมือนเดิม
+        if (!channelLive.current) touchJob('all')
         setState({ status: 'ready', data: reply.value, loadedAt: new Date() })
         setFetchOk(true)
       } catch (e) {
@@ -162,19 +177,25 @@ export function useFactoryData() {
   useEffect(() => {
     // โหลดครั้งแรกนอกรอบ render (setState เกิดหลังได้ข้อมูลเท่านั้น)
     let timer: ReturnType<typeof setTimeout> | undefined = setTimeout(() => void refresh(), 0)
+    touchJob('all')
     const client = supabase
     if (!client) return () => clearTimeout(timer)
     // หลายตารางเปลี่ยนพร้อมกันในการกดครั้งเดียว → รวมเป็นการโหลดครั้งเดียว
     const soon = () => { clearTimeout(timer); timer = setTimeout(() => void refresh(), 250) }
     let channel = client.channel('factory-live')
-    for (const table of WATCH) channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, soon)
+    for (const table of WATCH) {
+      channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, change => { touchJob(changedJob(table, change)); soon() })
+    }
+    // ต่อกลับ / กลับมาที่แท็บ = อาจพลาดการเปลี่ยนระหว่างนั้น โหลดใหม่ทั้งบอร์ดและรายละเอียดงานที่เปิดอยู่
+    const catchUp = () => { touchJob('all'); soon() }
     channel.subscribe(status => {
+      channelLive.current = status === 'SUBSCRIBED'
       setChannelOk(status === 'SUBSCRIBED')
-      if (status === 'SUBSCRIBED') soon()   // ต่อกลับได้ = โหลดใหม่ เผื่อพลาดการเปลี่ยนระหว่างหลุด
+      if (status === 'SUBSCRIBED') catchUp()
     })
-    const online = () => soon()
+    const online = () => catchUp()
     const offline = () => setFetchOk(false)
-    const visible = () => { if (document.visibilityState === 'visible') soon() }
+    const visible = () => { if (document.visibilityState === 'visible') { invalidateStatic(); catchUp() } }
     // เวลามาตรฐานเดินเองโดยไม่มีใครกด → โหลดเฉพาะสถานะเวลาทุก 5 นาที
     const tick = setInterval(() => {
       if (document.visibilityState !== 'visible') return
@@ -210,6 +231,7 @@ export async function rpc<T = unknown>(name: string, args: Record<string, unknow
     if (reply.timedOut) return { ok: false, reason: SLOW_REPLY }
     const { data, error } = reply.value
     if (error) return { ok: false, reason: thaiError(error.message) }
+    if (typeof args.p_job === 'string') touchJob(args.p_job)
     return { ok: true, data: data as T }
   } catch (e) {
     return { ok: false, reason: thaiError(e instanceof Error ? e.message : undefined) }

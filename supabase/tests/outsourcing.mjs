@@ -1,4 +1,6 @@
 
+import { skipQueue } from './queue-skip.mjs'
+
 export async function outsourcingTests({ db, ok, as }) {
   const U = {
     admin: '00000000-0000-0000-0000-000000000011', qc: '00000000-0000-0000-0000-000000000012',
@@ -6,7 +8,7 @@ export async function outsourcingTests({ db, ok, as }) {
     owner: '00000000-0000-0000-0000-000000000001',
   }
   const firstLine = e => e.message.split(String.fromCharCode(10))[0]
-  const call = (uid, sql) => as(uid, () => db.query(`select ${sql} as r`))
+  const call = async (uid, sql) => { await skipQueue(db, as, uid, sql); return as(uid, () => db.query(`select ${sql} as r`)) }
   const pass = async (name, uid, sql) => {
     try { const r = await call(uid, sql); ok(name, true); return r.rows[0]?.r } catch (e) { ok(name, false, firstLine(e)) }
   }

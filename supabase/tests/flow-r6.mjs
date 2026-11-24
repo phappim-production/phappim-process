@@ -1,5 +1,6 @@
 
 import assert from 'node:assert/strict'
+import { queueSkipSql, startsDirect } from './queue-skip.mjs'
 
 const users = {
   owner: '00000000-0000-0000-0000-000000000001',
@@ -16,6 +17,7 @@ export async function flowR6Tests({ db, ok, as }) {
   const rows = async (sql, args = []) => (await db.query(sql, args)).rows
   const one = async (sql, args) => (await rows(sql, args))[0]
   const rpc = async (role, name, ...args) => {
+    if (startsDirect(name)) await db.query(queueSkipSql, [args[0], users[role]])
     const params = args.map((_, i) => '$' + (i + 1)).join(', ')
     return (await as(users[role], () => savepoint('r6_rpc', () => db.query('select public.' + name + '(' + params + ') as result', args)))).rows[0].result
   }

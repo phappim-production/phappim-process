@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { queueSkipSql, startsDirect } from './queue-skip.mjs'
 
 const roster = {
   admin: ['admin'], production: ['production'], manager: ['manager'], owner: ['owner'],
@@ -47,6 +48,7 @@ export async function flowR12Tests({ db, ok }) {
     "!= case when station_status='out' then 1 else 0 end"), [])
 
   async function action(actor, name, args, events, jobId) {
+    if (startsDirect(name)) await db.query(queueSkipSql, [jobId, actors[actor]])
     const before = await history()
     const result = await rpc(actor, name, args)
     const after = await history()

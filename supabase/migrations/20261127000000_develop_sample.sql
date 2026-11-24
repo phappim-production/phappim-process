@@ -1,10 +1,14 @@
 -- งาน Develop: ขึ้นตัวอย่างอย่างเดียว ลูกค้ายืนยันตัวอย่างผ่าน = งานเสร็จ ไม่เข้าผลิตจริง · รายงานแยกนับ
 -- jobs.develop + receive_job(p_develop) + record_sample_result + revise_job_spec กันเปลี่ยนชนิดงาน + job_live มีคอลัมน์ใหม่
 
-alter table public.jobs add column develop boolean not null default false;
-alter table public.jobs add constraint jobs_develop_needs_sample check (not develop or needs_sample);
+alter table public.jobs add column if not exists develop boolean not null default false;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'jobs_develop_needs_sample' and conrelid = 'public.jobs'::regclass) then
+    alter table public.jobs add constraint jobs_develop_needs_sample check (not develop or needs_sample);
+  end if;
+end $$;
 
-drop view public.job_live;
+drop view if exists public.job_live;
 create view public.job_live with (security_invoker = true) as
 select j.*,
   rs.station_code                                    as current_station,
@@ -21,8 +25,8 @@ left join public.stations s on s.code = rs.station_code;
 revoke all on public.job_live from anon;
 grant select on public.job_live to authenticated;
 
-drop function public.receive_job(text, text, text, text, int, text, date, text, text, int, int, jsonb, boolean);
-create function public.receive_job(
+drop function if exists public.receive_job(text, text, text, text, int, text, date, text, text, int, int, jsonb, boolean);
+create or replace function public.receive_job(
   p_confirmation_no text, p_customer_name text, p_job_name text, p_product_type_code text,
   p_qty int, p_unit text, p_due_date date, p_route_code text, p_confirmation_pdf_path text,
   p_spare_qty int default 0, p_confirmation_rev int default 0, p_spec jsonb default '{}',
@@ -102,7 +106,14 @@ begin
     perform private.log(p_job, 'sample_result', j.phase, null,
       jsonb_build_object('round', j.sample_round, 'pass', true, 'note', nullif(trim(p_note), ''), 'develop', true));
     update public.jobs set phase = 'done', station_seq = null, station_status = null, station_started_at = null,
-      finished_at = now(), stage_entered_at = now() where id = p_job;
+      is_rework = false, rework_qty = null, finished_at = now(), stage_entered_at = now() where id = p_job;
+    -- ตัวอย่างที่ผ่านเย็บแล้วเก็บการจองจักรล่วงหน้าไว้ให้ผลิตจริง · งาน Develop ไม่ผลิตจริง จึงคืนทั้งหมด
+    update public.machine_assignments set released_at = now(), released_by = (select auth.uid())
+      where job_id = p_job and released_at is null;
+    update public.machine_bookings set ends_at = now()
+      where job_id = p_job and cancelled_at is null and starts_at < now() and ends_at > now();
+    update public.machine_bookings set cancelled_at = now(), cancelled_by = (select auth.uid())
+      where job_id = p_job and cancelled_at is null and starts_at >= now();
     perform private.log(p_job, 'done', 'done', null, jsonb_build_object('develop', true));
     return;
   end if;

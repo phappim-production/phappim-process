@@ -57,6 +57,9 @@ async function loadInbox(): Promise<InboxItem[]> {
   }))
 }
 
+// 1 แท็บ = 1 ช่อง Realtime ของกล่องจดหมาย · เมนู กระดิ่ง และหน้ากล่องจดหมายใช้ผลชุดเดียวกัน
+export type Inbox = ReturnType<typeof useInbox>
+
 export function useInbox() {
   const [state, setState] = useState<InboxState>({ status: 'loading' })
   const [busy, setBusy] = useState(false)

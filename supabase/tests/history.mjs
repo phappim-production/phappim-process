@@ -1,12 +1,14 @@
 import { requiredSteps, substepSql } from './steps.mjs'
 
+import { skipQueue } from './queue-skip.mjs'
+
 export async function historyTests({ db, ok, as }) {
   const users = {
     admin: '00000000-0000-0000-0000-000000000011',
     qc: '00000000-0000-0000-0000-000000000012',
     production: '00000000-0000-0000-0000-000000000013',
   }
-  const call = (sql, role = 'production') => as(users[role], () => db.query(`select ${sql}`))
+  const call = async (sql, role = 'production') => { await skipQueue(db, as, users[role], sql); return as(users[role], () => db.query(`select ${sql}`)) }
   const first = async (sql, args) => (await db.query(sql, args)).rows[0]
 
   async function receive(name, sample) {

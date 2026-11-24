@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { roleMatrix } from './flow-r13-matrix.mjs'
+import { queueSkipSql, startsDirect } from './queue-skip.mjs'
 
 const roster = {
   owner: ['owner'], admin: ['admin'], manager: ['manager'], production: ['production'], production2: ['production'],
@@ -73,6 +74,7 @@ export async function flowR13Tests({ db, ok }) {
     assert.deepEqual(issues, [])
   }
   async function step(actor, fn, args, types, id) {
+    if (startsDirect(fn)) await db.query(queueSkipSql, [id, ids[actor]])
     const before = await history()
     const result = await rpc(actor, fn, args)
     const after = await history()
@@ -162,7 +164,7 @@ export async function flowR13Tests({ db, ok }) {
       }
     }
 
-    await roleMatrix({ check, rows, rpc, point: transactionPoint, receive, intake, walk, roster, vendor, dates, reason })
+    await roleMatrix({ check, rows, rpc, skipQueue: (actor, id) => db.query(queueSkipSql, [id, ids[actor]]), point: transactionPoint, receive, intake, walk, roster, vendor, dates, reason })
 
     await check('A4/A5 แบ่งซ้ำ ใบลูกของใบลูก และยกเลิกเฉพาะใบลูก', async () => {
       const id = await receive('SPLIT', 'outside')

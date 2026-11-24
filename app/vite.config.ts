@@ -26,6 +26,19 @@ function confirmationForm(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    rolldownOptions: {
+      output: {
+        // ไลบรารีไม่เปลี่ยนทุกครั้งที่ขึ้นเว็บ · แยกไฟล์ให้เครื่องหน้างานไม่ต้องโหลดซ้ำหลัง deploy
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: 'supabase', test: /node_modules[\\/]@supabase[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -36,7 +49,17 @@ export default defineConfig({
       injectRegister: false,
       includeAssets: ['logo.webp', 'favicon.ico', 'favicon-32.png', 'favicon-48.png', 'apple-touch-icon.png'],
       // ฟอร์มใบยืนยัน / หน้าเก็บสเปกเป็นหน้าแยก · workbox เทียบทั้ง path และ ?query จึงต้องรับ ?… ด้วย
-      workbox: { navigateFallbackDenylist: [/^\/confirmation(\.html)?(\?|$)/, /^\/spec-check(\.html)?(\?|$)/] },
+      workbox: {
+        navigateFallbackDenylist: [/^\/confirmation(\.html)?(\?|$)/, /^\/spec-check(\.html)?(\?|$)/],
+        // ฟอนต์มาจาก Google ไม่อยู่ในไฟล์ของแอป · เก็บไว้ในเครื่องให้เปิดแอปตอนเน็ตช้า/หลุดแล้วตัวอักษรยังถูกแบบ
+        runtimeCaching: [
+          { urlPattern: /^https:\/\/fonts\.googleapis\.com\//, handler: 'StaleWhileRevalidate', options: { cacheName: 'google-fonts-css', expiration: { maxEntries: 8 } } },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\//, handler: 'CacheFirst',
+            options: { cacheName: 'google-fonts-files', cacheableResponse: { statuses: [0, 200] }, expiration: { maxEntries: 60, maxAgeSeconds: 365 * 24 * 60 * 60 } },
+          },
+        ],
+      },
       manifest: {
         name: 'ภาพพิมพ์ 142 · ติดตามการผลิต',
         short_name: 'PP142 ผลิต',

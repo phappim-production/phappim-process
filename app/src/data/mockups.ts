@@ -3,6 +3,7 @@ import type { Job } from '../proto/model'
 import { MAX_UPLOAD_BYTES, signFiles, uploadFile } from './files'
 import type { FormMockup, JobMockup } from './jobMockups'
 import { withTimeout } from './live'
+import { onUserChange } from './userScope'
 
 export const MAX_MOCKUP_BYTES = MAX_UPLOAD_BYTES
 // ลิงก์รูปอายุ 2 ชั่วโมง (Worker ไม่ออกนานกว่านี้) · บัญชีที่ถูกปิดขอลิงก์ใหม่ไม่ได้
@@ -63,17 +64,64 @@ export function attachMockupUrls(jobs: Job[], urls: ReadonlyMap<string, string>)
   })
 }
 
-const cache = new Map<string, { url: string; until: number }>()
+type Signed = { url: string; until: number }
+type UrlStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
+type SignDeps = { sign?: typeof signFiles; store?: UrlStore | null }
 
-export async function signMockups(paths: readonly string[], now = Date.now()): Promise<Map<string, string>> {
+const STORE_KEY = 'pp142.mockupUrls'
+// path ที่ Worker ไม่ออกลิงก์ให้ (ไฟล์หาย / ไม่มีสิทธิ์) ไม่ต้องขอซ้ำทุกครั้งที่บอร์ดโหลด
+const MISSING_RETRY_MS = 5 * 60 * 1000
+
+export function parseStoredUrls(text: string | null, now: number): Map<string, Signed> {
+  const out = new Map<string, Signed>()
+  if (!text) return out
+  try {
+    const raw: unknown = JSON.parse(text)
+    if (typeof raw !== 'object' || raw === null) return out
+    for (const [path, hit] of Object.entries(raw)) {
+      const { url, until } = (hit ?? {}) as Partial<Signed>
+      if (typeof url === 'string' && typeof until === 'number' && until > now) out.set(path, { url, until })
+    }
+  } catch { /* ข้อมูลเสีย = เริ่มใหม่ */ }
+  return out
+}
+
+// โหมดส่วนตัว / ปิดการเก็บข้อมูล: แค่อ่าน sessionStorage ก็ throw ได้
+function sessionStore(): UrlStore | null {
+  try { return typeof sessionStorage === 'undefined' ? null : sessionStorage } catch { return null }
+}
+
+const cache = new Map<string, Signed>()
+const missing = new Map<string, number>()
+let restored = false
+
+export function forgetMockupUrls(store: UrlStore | null = sessionStore()) {
+  cache.clear()
+  missing.clear()
+  try { store?.removeItem(STORE_KEY) } catch { /* เก็บไม่ได้ก็ไม่มีอะไรต้องลบ */ }
+}
+onUserChange(() => forgetMockupUrls())
+
+export const forgetMissingMockup = (path: string) => { missing.delete(path) }
+
+export async function signMockups(paths: readonly string[], now = Date.now(), deps: SignDeps = {}): Promise<Map<string, string>> {
+  const store = deps.store === undefined ? sessionStore() : deps.store
+  // รีเฟรชหน้าแล้วลิงก์เดิมยังใช้ได้ = เบราว์เซอร์ใช้รูปจาก cache ไม่ต้องขอลิงก์และโหลดรูปใหม่ทุกรูป
+  if (!restored || deps.store !== undefined) {
+    restored = true
+    try { for (const [p, hit] of parseStoredUrls(store?.getItem(STORE_KEY) ?? null, now)) if (!cache.has(p)) cache.set(p, hit) } catch { /* อ่านไม่ได้ = ขอลิงก์ใหม่ */ }
+  }
   // ลิงก์หมดอายุแล้วใช้ไม่ได้อยู่ดี → ทิ้ง (แท็บที่เปิดทิ้งไว้ทั้งสัปดาห์ไม่สะสมลิงก์ของงานเก่า)
   for (const [p, hit] of cache) if (hit.until <= now) cache.delete(p)
-  const need = [...new Set(paths)].filter(p => (cache.get(p)?.until ?? 0) - now < RENEW_BEFORE_MS)
+  for (const [p, retryAt] of missing) if (retryAt <= now) missing.delete(p)
+  const need = [...new Set(paths)].filter(p => !missing.has(p) && (cache.get(p)?.until ?? 0) - now < RENEW_BEFORE_MS)
   if (need.length) {
     try {
-      const reply = await withTimeout(() => signFiles('mockups', need, SIGN_SECONDS), SIGN_TIMEOUT_MS)
+      const reply = await withTimeout(() => (deps.sign ?? signFiles)('mockups', need, SIGN_SECONDS), SIGN_TIMEOUT_MS)
       if (!reply.timedOut && reply.value.ok) {
         for (const [p, url] of reply.value.urls) cache.set(p, { url, until: now + SIGN_SECONDS * 1000 })
+        for (const p of need) if (!reply.value.urls.has(p) && !cache.has(p)) missing.set(p, now + MISSING_RETRY_MS)
+        try { store?.setItem(STORE_KEY, JSON.stringify(Object.fromEntries(cache))) } catch { /* เก็บไม่ได้ = จำแค่ในแท็บนี้ */ }
       }
     } catch { /* เน็ตสะดุด: แสดงกรอบว่างไปก่อน รอบโหลดถัดไปขอใหม่ */ }
   }
@@ -118,6 +166,7 @@ export async function uploadMockup(no: string, blob: Blob): Promise<{ ok: true; 
   if (problem) return { ok: false, reason: problem }
   const path = mockupPath(no, await contentKey(blob), mockupExt(blob.type) ?? 'jpg')
   const up = await uploadFile('mockups', path, blob, blob.type)
+  if (up.ok) forgetMissingMockup(path)
   return up.ok ? { ok: true, path } : up
 }
 

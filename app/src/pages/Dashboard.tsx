@@ -2,20 +2,21 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
   COLUMNS, DEPT_NAME, ROUTES, SLA_LABEL, byQueue, isOutLate, STATION_NAME, STATUS_NAME, stationNo,
-  columnOf, filmLabel, savedStation, isDoneToday, isFilmLate, isOverdue, isWaitingFilm, missingDepts,
+  filmLabel, savedStation, isDoneToday, isFilmLate, isFilmNotOrdered, isOverdue, isWaitingFilm, missingDepts, queueHead,
   type ColumnKey, type Job, type RouteCode, type StationCode,
 } from '../proto/model'
 import { lateDays, sewFloorOf, simulate, workdayToDate } from '../proto/capacity'
 import { durationWord, relDayWord } from '../proto/format'
 import { Card, DueLabel, MockupThumb, Pill, StatTile, ViewSwitch, pillGroup, pillItem, pillOff, pillOn } from '../components/ui'
 import { thaiError } from '../data/live'
+import { jobKey, jobVersion } from '../data/jobKey'
 import { Tr } from '../i18n/Tr'
 import { useLang, useT, type Word } from '../i18n/lang'
 import type { Tone } from '../components/tone'
 import { IconAlert, IconCheck, IconClipboard, IconClock, IconFactory, IconFilm, IconImage, IconPackage, IconPause, IconPlay, IconSearch, IconSewing, IconUsers, IconX } from '../components/icons'
 import { roleSummary, type SewingView, type SummaryIcon } from '../proto/summary'
 import Overview, { StationNow } from './Overview'
-import { DASH_TAB_NAME, FACTORY_SCOPE, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
+import { DASH_TAB_NAME, FACTORY_SCOPE, boardColumnOf, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
 import { SewingFloor, TodoPanel } from './WorkPanels'
 import { pausesJob, type MachineStatus } from '../proto/sewing'
 import { BookingPanel } from './BookingPanel'
@@ -86,9 +87,9 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
   const { jobs: allJobs, machines, bookings, needs, products, shared } = data
   const noOf = (jobId: string) => allJobs.find(j => j.id === jobId)?.no ?? ''
   // โหลดใหม่ทันทีหลังกด ไม่รอ Realtime
-  async function call<T>(name: string, args: Record<string, unknown>) {
+  async function call<T>(name: string, args: Record<string, unknown>, reload = true) {
     const r = await rpc<T>(name, args)
-    if (r.ok) await refresh()
+    if (r.ok && reload) await refresh()
     return r
   }
   // เริ่มเย็บเป็น 2 คำสั่ง (ชุดตามสินค้า แล้วเพิ่มจำนวน) · เพิ่มไม่ได้ = งานเริ่มแล้ว ให้กด + ในจัดการจักร
@@ -215,7 +216,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
       switch (filter) {
         case 'overdue': return isOverdue(j, now)
         case 'hold': return j.status === 'hold'
-        case 'film': return isWaitingFilm(j)
+        case 'film': return isWaitingFilm(j) || isFilmNotOrdered(j)
         case 'doneToday': return isDoneToday(j, now)
         default: return true
       }
@@ -224,10 +225,10 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
 
   const byColumn = useMemo(() => {
     const map = new Map<ColumnKey, Job[]>(COLUMNS.map(c => [c.key, []]))
-    for (const j of visible) map.get(columnOf(j))?.push(j)
+    for (const j of visible) map.get(boardColumnOf(j, scope))?.push(j)
     for (const list of map.values()) list.sort(byQueue)  // ตามคิวเสมอ · ด่วนดูจากสี
     return map
-  }, [visible])
+  }, [visible, scope])
 
   const fromLink = open?.source === 'link' ? decideBoardJob(open.id, allJobs) : null
   const fetchId = fromLink?.status === 'fetch' ? fromLink.id : undefined
@@ -266,10 +267,11 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
   const hasFilters = filter !== 'all' || route !== 'all' || wholeFactory
   const openDay = openJob && openJob.phase !== 'done' ? forecast.finishDay.get(openJob.id) : undefined
   const openFinish = openDay === undefined ? undefined : workdayToDate(openDay, now)
+  const openVersion = openJob ? `${jobKey(openJob)}#${jobVersion(openJob.id)}` : ''
   const drawer = openJob && (
     <JobDrawer job={openJob} now={now} finish={openFinish} onClose={() => setOpenId(null)}
-      actions={<JobActions job={openJob} role={role} myStations={myScope.pressStations} version={loadedAt.getTime()} now={now} refresh={refresh} vendors={data.vendors} onCancelled={setClosedNotice} />}
-      history={<JobHistory key={openJob.id} jobId={openJob.id} role={role} version={loadedAt.getTime()} now={now} onChanged={refresh} />} />
+      actions={<JobActions job={openJob} queueHead={queueHead(openJob, allJobs)} role={role} myStations={myScope.pressStations} version={openVersion} now={now} refresh={refresh} vendors={data.vendors} onCancelled={setClosedNotice} />}
+      history={<JobHistory key={openJob.id} jobId={openJob.id} unit={openJob.unit} role={role} version={openVersion} now={now} onChanged={refresh} />} />
   )
   const receive = receiving && (
     <ReceiveJob jobs={allJobs} now={now} floor={floor} draftId={draftId} onClose={() => setReceiving(false)} onDone={async no => {
@@ -390,7 +392,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
           {focusStation ? (
             <ErrorBoundary key={`q-${focusStation}`}>
               <StationQueue station={focusStation} jobs={allJobs} role={role}
-                onSewStart={myScope.canSew && myScope.tabs.includes('sewing') ? (id, noted) => { setTab('sewing'); setSewFocus(f => ({ view: 'work', pick: id, noted, n: f.n + 1 })) } : undefined} machines={machineUse(allJobs, data.stationMachines, focusStation)} myStations={myScope.pressStations} now={now} call={call} onOpen={setOpenId} />
+                onSewStart={myScope.canSew && myScope.tabs.includes('sewing') ? (id, noted) => { setTab('sewing'); setSewFocus(f => ({ view: 'work', pick: id, noted, n: f.n + 1 })) } : undefined} machines={machineUse(allJobs, data.stationMachines, focusStation)} myStations={myScope.pressStations} now={now} call={call} reload={refresh} onOpen={setOpenId} />
             </ErrorBoundary>
           ) : (<>
           <Card className="grid gap-2 p-3 sm:p-4">
@@ -454,7 +456,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
                     <span className="text-base font-medium text-muted">{tx('{n} งาน', { n: byColumn.get(c.key)?.length ?? 0 })}</span>
                   </h2>
                   <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                    {byColumn.get(c.key)?.map(j => <li key={j.id} className="min-w-0"><JobCard job={j} now={now} onOpen={() => setOpenId(j.id)} /></li>)}
+                    {byColumn.get(c.key)?.map(j => <li key={j.id} className="min-w-0"><JobCard job={j} now={now} sampleTag={c.key !== 'sample'} onOpen={() => setOpenId(j.id)} /></li>)}
                   </ul>
                 </section>
               ))}
@@ -515,17 +517,20 @@ function PageHeader({ title, today, updated }: { title: string | Word; today: st
 function stripe(j: Job, now: Date): Tone {
   if (j.phase === 'done') return 'ok'
   if (j.status === 'hold' || isOverdue(j, now) || isOutLate(j, now) || j.sla === 'over' || j.sla === 'report') return 'danger'
-  if (isFilmLate(j, now) || j.phase === 'materials' || j.sla === 'warn') return 'warn'
+  if (isFilmLate(j, now) || j.phase === 'materials' || j.sla === 'warn' || blockedByFilmOrder(j)) return 'warn'
   if (j.status === 'doing') return 'info'
   return 'neutral'
 }
 
-function JobCard({ job: j, now, onOpen }: { job: Job; now: Date; onOpen: () => void }) {
+const blockedByFilmOrder = (j: Job) => j.station === 'dtf_press' && j.status === 'queued' && isFilmNotOrdered(j)
+
+function JobCard({ job: j, now, sampleTag, onOpen }: { job: Job; now: Date; sampleTag?: boolean; onOpen: () => void }) {
   const tx = useT()
   const label = j.status === 'out' && j.out ? `${tx('ข้างนอก')} · ${j.out.vendor}`
     : j.status === 'hold' ? tx('พักงาน')
     : j.sla ? tx(SLA_LABEL[j.sla].text)
     : isWaitingFilm(j) ? tx('รอฟิล์ม')
+    : blockedByFilmOrder(j) ? tx('ยังไม่ได้สั่งฟิล์ม')
     : j.phase === 'done' ? tx(j.delivered ? 'จัดส่งแล้ว' : 'เสร็จ · รอส่ง')
     : j.phase === 'sample' && j.station ? tx(STATION_NAME[j.station])
     : j.status ? tx(STATUS_NAME[j.status]) : null
@@ -549,6 +554,7 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: Date; onOpen: () => v
           {j.rework && <Pill tone="danger">{tx('งานแก้')}</Pill>}
         </span>
       )}
+      {sampleTag && j.phase === 'sample' && <span className="mt-0.5 flex"><Pill tone="info">{tx(j.develop ? 'ตัวอย่าง · Develop' : 'ตัวอย่าง')}</Pill></span>}
       </span>
     </button>
   )

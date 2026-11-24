@@ -1,5 +1,7 @@
 // ต้องรันหลังชุดทดสอบอื่น: พอมีจักรในระบบแล้ว สถานีเย็บจะเริ่มได้เฉพาะเมื่อจักรครบ
 
+import { skipQueue } from './queue-skip.mjs'
+
 export async function sewingTests({ db, ok, as }) {
   const U = {
     owner: '00000000-0000-0000-0000-000000000001', sup: '00000000-0000-0000-0000-000000000002',
@@ -7,7 +9,7 @@ export async function sewingTests({ db, ok, as }) {
     admin: '00000000-0000-0000-0000-000000000011', qc: '00000000-0000-0000-0000-000000000012', prod: '00000000-0000-0000-0000-000000000013',
     sup1: '00000000-0000-0000-0000-000000000021', sup2: '00000000-0000-0000-0000-000000000022',
   }
-  const call = (uid, sql) => as(uid, () => db.query(`select ${sql}`))
+  const call = async (uid, sql) => { await skipQueue(db, as, uid, sql); return as(uid, () => db.query(`select ${sql}`)) }
   const pass = async (name, uid, sql) => {
     try { const r = await call(uid, sql); ok(name, true); return r.rows[0] } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }
@@ -66,7 +68,7 @@ export async function sewingTests({ db, ok, as }) {
   const hat = await jobAt('SC-SEW-HAT', 'plain', 2, 'hat')
   await reject('เริ่มเย็บงานที่ยังไม่ถึงสถานีเย็บไม่ได้', U.sup2, `public.start_sewing('${cut}')`, /ยังไม่ถึงสถานีเย็บ/)
   await reject('ผู้ควบคุมงานเฟส 1 กดเริ่มเย็บไม่ได้', U.sup1, `public.start_sewing('${tee1}')`, /เฟส 2/)
-  await reject('สินค้าที่ไม่มีสูตรจักร เริ่มเย็บไม่ได้', U.sup2, `public.start_sewing('${hat}')`, /ยังไม่มีข้อมูล/)
+  await reject('สินค้าที่ไม่มีสูตรจักร เริ่มเย็บไม่ได้', U.sup2, `public.start_sewing('${hat}')`, /ยังไม่มีสูตรจักรเย็บ .*ตั้งค่า → จักรเย็บ/)
   await reject('กดเริ่มสถานีเย็บแบบเดิมโดยไม่มีจักร ถูกปฏิเสธ', U.sup2, `public.start_station('${tee1}')`, /จักรไม่ครบ/)
   ok('ถูกปฏิเสธแล้วงานยังรอเย็บ', await status(tee1) === 'queued')
   const r1 = await pass('จักรว่างครบ กดเริ่มเย็บได้', U.sup2, `public.start_sewing('${tee1}') as picked`)
@@ -220,7 +222,7 @@ export async function sewingTests({ db, ok, as }) {
   await reject('เริ่มวันอาทิตย์ ถูกปฏิเสธ', U.prod, `public.book_machines('${bk1}', ${at(-24)}, ${at(-20)})`, /วันอาทิตย์/)
   const atQc = await jobAt('SC-BK-QC', 'normal', 5)
   await reject('งานผลิตที่ผ่านเย็บแล้ว (อยู่ QC) จองจักรไม่ได้', U.prod, `public.book_machines('${atQc}', ${at(0)}, ${at(9)})`, /เย็บเสร็จแล้ว/)
-  await reject('สินค้าไม่มีสูตรจักร จองไม่ได้', U.prod, `public.book_machines('${hat}', ${at(0)}, ${at(9)})`, /ยังไม่มีข้อมูล/)
+  await reject('สินค้าไม่มีสูตรจักร จองไม่ได้', U.prod, `public.book_machines('${hat}', ${at(0)}, ${at(9)})`, /ยังไม่มีสูตรจักรเย็บ/)
   const r = await pass('ฝ่ายผลิตจองจักรให้งานที่ยังอยู่เฟส 1 ได้ (จันทร์ 08:00–17:00)', U.prod, `public.book_machines('${bk1}', ${at(0)}, ${at(9)}) as picked`)
   ok('จองจักรครบทุกชนิดตามสินค้า', JSON.stringify(r?.picked) === '["CV-001","FL-001","OL4-001","OL4-002","SN-001"]', JSON.stringify(r?.picked))
   ok('จองแล้วบันทึก event', (await lastEvent(bk1)).type === 'machines_booked')

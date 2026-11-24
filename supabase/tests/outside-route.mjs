@@ -1,3 +1,5 @@
+import { skipQueue } from './queue-skip.mjs'
+
 export async function outsideRouteTests({ db, ok, as }) {
   const U = {
     admin: '00000000-0000-0000-0000-000000000091', prod: '00000000-0000-0000-0000-000000000092',
@@ -10,7 +12,7 @@ export async function outsideRouteTests({ db, ok, as }) {
       ('${U.qc}','QC นอก','qc',true),('${U.staff}','พนักงาน นอก','staff',true);
     insert into public.staff_stations (user_id, station_code) values ('${U.staff}','outside');
   `)
-  const call = (uid, sql) => as(uid, () => db.query(`select ${sql} as v`))
+  const call = async (uid, sql) => { await skipQueue(db, as, uid, sql); return as(uid, () => db.query(`select ${sql} as v`)) }
   const pass = async (name, uid, sql) => {
     try { const r = await call(uid, sql); ok(name, true); return r.rows[0]?.v } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }

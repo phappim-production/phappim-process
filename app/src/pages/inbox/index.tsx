@@ -4,14 +4,14 @@ import { TONE } from '../../components/tone'
 import { IconCheck, IconInbox } from '../../components/icons'
 import { secondaryBtn } from '../../components/Dialog'
 import { filterInbox, groupByDay, kindLabel, kindTone, relativeWord, type InboxItem } from './format'
-import { useInbox } from './useInbox'
+import type { Inbox } from './useInbox'
 import { Tr } from '../../i18n/Tr'
 import { useT } from '../../i18n/lang'
 
 type Filter = 'unread' | 'all'
 
-export default function InboxPage() {
-  const { state, unreadCount, busy, actionError, markRead, markAllRead, refresh } = useInbox()
+export default function InboxPage({ inbox }: { inbox: Inbox }) {
+  const { state, unreadCount, busy, actionError, markRead, markAllRead, refresh } = inbox
   const [filter, setFilter] = useState<Filter>('all')
   const [now] = useState(() => new Date())
   const t = useT()

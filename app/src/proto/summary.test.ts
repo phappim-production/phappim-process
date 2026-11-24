@@ -54,3 +54,15 @@ it('ฝ่ายผลิตไม่มีตัวนับวัตถุด�
   expect(tiles.find(tile => tile.key === 'materials')).toBeUndefined()
   expect(tiles.find(tile => tile.key === 'doing')).toBeDefined()
 })
+
+it('ตัวนับ QC รวมงานขึ้นตัวอย่างที่มาถึงสถานี QC + Packing', () => {
+  const jobs: Job[] = [
+    { ...job, station: 'qc_pack', qty: 20 },
+    { ...job, id: 'sample', phase: 'sample', station: 'qc_pack', status: 'doing', qty: 1 },
+  ]
+
+  const tiles = roleSummary('qc', jobs, jobs, [], now)
+
+  expect(tiles.find(tile => tile.key === 'qc')).toMatchObject({ value: 2, note: '21 ชิ้น' })
+  expect(tiles.find(tile => tile.key === 'qcDoing')?.value).toBe(1)
+})

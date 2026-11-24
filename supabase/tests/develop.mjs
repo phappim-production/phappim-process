@@ -18,6 +18,9 @@ export async function developTests({ db, ok, as }) {
     p_confirmation_pdf_path => null, p_spec => '${q(JSON.stringify(spec))}'::jsonb, p_needs_sample => ${sample}, p_develop => ${develop})`
   const job = async id => (await db.query(`select * from public.jobs where id = '${id}'`)).rows[0]
   const toReview = id => db.exec(`update public.jobs set phase = 'sample_review', station_seq = null, station_status = null where id = '${id}'`)
+  const book = (id, days) => db.query(`insert into public.machine_bookings (machine_id, job_id, starts_at, ends_at)
+    select id, $1, now() + $2 * interval '1 day', now() + $2 * interval '1 day' + interval '1 hour' from public.sewing_machines order by id limit 1`, [id, days])
+  const booked = async id => (await db.query(`select count(*)::int n from public.machine_bookings where job_id = $1 and cancelled_at is null and ends_at > now()`, [id])).rows[0].n
   const result = (id, pass, note = null) => `public.record_sample_result('${id}', ${pass}, ${note ? `'${q(note)}'` : 'null'}, null)`
 
   await reject('งาน Develop ที่เลือกไม่ขึ้นตัวอย่างถูกปฏิเสธ', U.admin, receive('SC-DV-0', { sample: false, develop: true }), /งาน Develop ต้องขึ้นตัวอย่าง/)
@@ -42,19 +45,23 @@ export async function developTests({ db, ok, as }) {
 
   await toReview(dv)
   await reject('ฝ่ายผลิตบันทึกผลตัวอย่างไม่ได้', U.prod, result(dv, true), /บทบาทของคุณ/)
+  await book(dv, 400)
   await call(U.admin, result(dv, true))
   const j3 = await job(dv)
   ok('งาน Develop ตัวอย่างผ่าน → งานเสร็จ ไม่เข้าผลิตจริง', j3.phase === 'done' && j3.finished_at !== null && j3.station_seq === null && j3.station_status === null, `${j3.phase} ${j3.station_seq}`)
   const ev = (await db.query(`select type, payload from public.events where job_id = '${dv}' and type in ('sample_result','done','released') order by id`)).rows
   ok('events: ผลตัวอย่างผ่าน + เสร็จ (งาน Develop) ไม่มีปล่อยเข้าผลิต', ev.at(-2)?.type === 'sample_result' && ev.at(-1)?.type === 'done' && ev.at(-1)?.payload.develop === true, JSON.stringify(ev.map(e => e.type)))
+  ok('งาน Develop เสร็จแล้ว: การจองจักรล่วงหน้าถูกยกเลิก (ไม่มีผลิตจริง)', await booked(dv) === 0)
   await reject('งาน Develop ที่เสร็จแล้วบันทึกผลตัวอย่างซ้ำไม่ได้', U.admin, result(dv, true), /รอผลตัวอย่าง/)
   await call(U.admin, `public.mark_delivered('${dv}', 'ส่งตัวอย่างให้ลูกค้า')`)
   ok('งาน Develop ที่เสร็จแล้วบันทึกจัดส่งได้', (await job(dv)).delivered_at !== null)
 
   const normal = await call(U.admin, receive('SC-DV-2'))
   await toReview(normal)
+  await book(normal, 410)
   await call(U.admin, result(normal, true))
   const n1 = await job(normal)
+  ok('ขึ้นตัวอย่างปกติผ่าน: การจองจักรล่วงหน้าของผลิตจริงยังอยู่', await booked(normal) === 1)
   ok('ขึ้นตัวอย่างปกติผ่าน → ยังเข้าผลิตจริงเหมือนเดิม', n1.develop === false && n1.phase === 'production' && n1.station_seq === 1, `${n1.phase} ${n1.station_seq}`)
 
   const spec = (no, sample) => ({ app: 'phappim-confirm', v: 1, product: 'tshirt', h: { doc_no: no, customer: 'ลูกค้า Develop', rev: 1, sample }, p: { tshirt: {} } })

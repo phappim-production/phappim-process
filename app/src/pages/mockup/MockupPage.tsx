@@ -3,7 +3,7 @@ import { Card, Pill } from '../../components/ui'
 import { FilePick } from '../../components/FilePick'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../../components/Dialog'
 import { IconAlert, IconCheck, IconImage, IconPrinter } from '../../components/icons'
-import { canAckMockup, canApproveMockup, canEditMockup, canOpenPage, canSeeMockupDraft, type EmployeeRole } from '../../auth/access'
+import { canAckMockup, canApproveMockup, canEditMockup, canOpenPage, canReturnMockup, canSeeMockupDraft, type EmployeeRole } from '../../auth/access'
 import { STATION_NAME, type StationCode } from '../../proto/model'
 import {
   SHEET_STATUS, VIEW_NAME, VIEW_ORDER, viewImage, calloutLines, calloutWords, confirmationDraft, forStation, historyEdit, historyOf, redo, saveProblems, submitProblems,
@@ -11,7 +11,7 @@ import {
 } from '../../proto/annotation'
 import {
   ackSheet, approveSheet, discardDraft, loadMockupJob, loadSheet, newKey, parseUnsaved, pickSheets, returnSheet, saveDraft, startSheet,
-  unsavedKey, uploadOriginal, type MockupData, type SheetRow,
+  releaseLocalUrls, unsavedKey, uploadOriginal, type MockupData, type SheetRow,
 } from '../../data/mockupSheets'
 import { mockupProblem, signMockups } from '../../data/mockups'
 import { isJobId } from '../../data/useFactoryData'
@@ -265,6 +265,7 @@ function SheetWork({ data, sheet, approved, role, reload }: {
   const [conflict, setConflict] = useState(false)
   const [upload, setUpload] = useState<{ view: ViewKey; file: File | null; preview: string }>({ view: 'front', file: null, preview: '' })
   useEffect(() => () => { if (upload.preview) URL.revokeObjectURL(upload.preview) }, [upload.preview])
+  useEffect(() => releaseLocalUrls, [])
   const [decision, setDecision] = useState({ note: '', reason: '' })
   const [recover, setRecover] = useState<Draft | null>(null)
   const storeKey = unsavedKey(sheet.id, sheet.version)
@@ -454,12 +455,14 @@ function SheetWork({ data, sheet, approved, role, reload }: {
             <button type="button" className={okBtn} disabled={!!busy || !!approverBlocked} onClick={() => void decide('approve')}>
               <IconCheck className="size-5" />{busy === 'approve' ? 'กำลังอนุมัติ…' : approverBlocked ? 'อนุมัติไม่ได้' : `อนุมัติฉบับ ${sheet.rev} ใช้ผลิต`}
             </button>
-            <label className="grid gap-1 font-semibold">เหตุผลที่ส่งกลับให้แก้
-              <input value={decision.reason} onChange={e => setDecision(d => ({ ...d, reason: e.target.value }))} className={`${fieldClass} font-normal`} placeholder="เช่น ขนาดโลโก้ไม่ตรงใบยืนยัน" />
-            </label>
-            <button type="button" className={dangerBtn} disabled={!!busy || !decision.reason.trim()} onClick={() => void decide('return')}>
-              {decision.reason.trim() ? (busy === 'return' ? 'กำลังส่งกลับ…' : 'ส่งกลับให้แอดมินแก้') : 'ใส่เหตุผลก่อนส่งกลับ'}
-            </button>
+            {canReturnMockup(role) ? <>
+              <label className="grid gap-1 font-semibold">เหตุผลที่ส่งกลับให้แก้
+                <input value={decision.reason} onChange={e => setDecision(d => ({ ...d, reason: e.target.value }))} className={`${fieldClass} font-normal`} placeholder="เช่น ขนาดโลโก้ไม่ตรงใบยืนยัน" />
+              </label>
+              <button type="button" className={dangerBtn} disabled={!!busy || !decision.reason.trim()} onClick={() => void decide('return')}>
+                {decision.reason.trim() ? (busy === 'return' ? 'กำลังส่งกลับ…' : 'ส่งกลับให้แอดมินแก้') : 'ใส่เหตุผลก่อนส่งกลับ'}
+              </button>
+            </> : <p className="text-muted">ส่งกลับให้แก้: ผู้บริหารหรือฝ่ายผลิตเป็นคนกด</p>}
           </> : <p className="text-muted">รอแอดมิน ฝ่ายผลิต ผู้บริหาร หรือเจ้าของอนุมัติ</p>}
         </Card>
       )}

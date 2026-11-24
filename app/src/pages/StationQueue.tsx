@@ -9,12 +9,14 @@ import { canCloseIssue, type EmployeeRole } from '../auth/access'
 import { TONE } from '../components/tone'
 import { Tr } from '../i18n/Tr'
 import { useT, type Vars, type Word } from '../i18n/lang'
+import { QueueReasonPrompt } from './QueueReason'
+import { SKIP_QUEUE_PLACEHOLDER, skipQueueHead } from './queueSkip'
 
-export type QueueCall = (name: string, args: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; reason: string }>
+export type QueueCall = (name: string, args: Record<string, unknown>, reload?: boolean) => Promise<{ ok: true } | { ok: false; reason: string }>
 
 // เริ่มคิวหลังได้แต่ต้องใส่เหตุผล · start_in_queue ตรวจคิว + บันทึกเหตุผล + เริ่ม ในธุรกรรมเดียว
-export function StationQueue({ station, jobs, role, myStations = [], machines, onSewStart, now, call, onOpen }: {
-  station: StationCode; jobs: Job[]; role: EmployeeRole; myStations?: StationCode[]; onSewStart?: (jobId: string, noted?: boolean) => void; machines?: { used: Job[]; total: number; full: boolean } | null; now: Date; call: QueueCall; onOpen: (id: string) => void
+export function StationQueue({ station, jobs, role, myStations = [], machines, onSewStart, now, call, reload, onOpen }: {
+  station: StationCode; jobs: Job[]; role: EmployeeRole; myStations?: StationCode[]; onSewStart?: (jobId: string, noted?: boolean) => void; machines?: { used: Job[]; total: number; full: boolean } | null; now: Date; call: QueueCall; reload?: () => Promise<void>; onOpen: (id: string) => void
 }) {
   const floor = role === 'production' || role === 'supervisor' || role === 'owner'
   // สถานีเย็บจ่ายจักรต่อเนื่องกัน ฐานข้อมูลให้ฝ่ายผลิตกดเท่านั้น
@@ -39,9 +41,10 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
   async function runSteps(job: Job, steps: [string, Record<string, unknown>][], ok: Word) {
     setBusy(job.id)
     setNotice(null)
-    for (const [name, args] of steps) {
-      const r = await call(name, { p_job: job.id, ...args })
-      if (!r.ok) { setBusy(null); setNotice({ ok: false, text: { th: '{no}: {reason}', vars: { no: job.no, reason: { th: r.reason } } }, jobId: job.id }); return false }
+    for (const [i, [name, args]] of steps.entries()) {
+      // หลายคำสั่งต่อกัน: โหลดบอร์ดใหม่ครั้งเดียวหลังคำสั่งสุดท้าย · ล้มกลางทางก็โหลดสิ่งที่บันทึกไปแล้ว
+      const r = await call(name, { p_job: job.id, ...args }, i === steps.length - 1)
+      if (!r.ok) { if (i > 0) await reload?.(); setBusy(null); setNotice({ ok: false, text: { th: '{no}: {reason}', vars: { no: job.no, reason: { th: r.reason } } }, jobId: job.id }); return false }
     }
     setBusy(null)
     setNotice({ ok: true, text: ok })
@@ -237,9 +240,7 @@ function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run
   onSewStart?: (jobId: string, noted?: boolean) => void
 }) {
   const [mode, setMode] = useState<'skip' | 'insert' | null>(null)
-  const [reason, setReason] = useState('')
   const isFirst = first.id === j.id
-  const t = useT()
   const st: Word = { th: spaced(STATION_NAME[station]).trimEnd() }
   const noFilm = station === 'dtf_press' && !j.film?.received
   const startLabel = j.phase === 'sample' ? w('เริ่ม{station} (ตัวอย่าง)', { station: st }) : w('เริ่ม{station}', { station: st })
@@ -249,28 +250,19 @@ function WaitingActions({ job: j, first, station, canPress, canInsert, busy, run
   if (mode) {
     const skip = mode === 'skip'
     return (
-      <div className="grid gap-2 rounded-xl bg-warn-soft p-3">
-        <p className="flex items-start gap-2 font-semibold text-warn">
-          <IconAlert className="mt-0.5 size-5 shrink-0" />
-          {skip ? <Tr th="งานนี้ยังไม่ถึงคิว (คิวแรกคือ {first}) · ใส่เหตุผลที่ต้องเริ่มก่อน" vars={{ first: first.no }} /> : <Tr th="แทรก {no} เป็นคิวแรก ก่อน {first} · ใส่เหตุผล" vars={{ no: j.no, first: first.no }} />}
-        </p>
-        <input value={reason} onChange={e => setReason(e.target.value)} className={fieldClass} aria-label={t('เหตุผล')}
-          placeholder={t(skip ? 'เช่น ผ้างานคิวแรกยังไม่มา' : 'เช่น ลูกค้าเลื่อนวันส่งเร็วขึ้น')} />
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" disabled={busy || !reason.trim()} className={skip ? dangerBtn : primaryBtn}
-            onClick={async () => {
-              const ok = skip && sew
-                ? await run(j, [['note_queue_skip', { p_reason: reason.trim() }]], w('บันทึกเหตุผลเริ่ม {no} ก่อนคิวแล้ว · เลือกจักรต่อ', { no: j.no }))
-                : skip
-                ? await run(j, [['start_in_queue', { p_reason: reason.trim() }]], w('เริ่ม {no} ก่อนคิวแล้ว · บันทึกเหตุผลในประวัติงาน', { no: j.no }))
-                : await run(j, [['move_job_ahead', { p_before: first.id, p_reason: reason.trim() }]], w('แทรก {no} เป็นคิวแรกแล้ว', { no: j.no }))
-              if (ok) { setMode(null); setReason(''); if (skip && sew) onSewStart?.(j.id, true) }
-            }}>
-            <Tr th={!reason.trim() ? 'ใส่เหตุผลก่อน' : skip ? (sew ? 'บันทึกแล้วเลือกจักร' : 'บันทึกและเริ่ม') : 'แทรกเป็นคิวแรก'} />
-          </button>
-          <button type="button" disabled={busy} className={secondaryBtn} onClick={() => { setMode(null); setReason('') }}><Tr th="ยกเลิก" /></button>
-        </div>
-      </div>
+      <QueueReasonPrompt busy={busy} danger={skip}
+        head={skip ? skipQueueHead(first.no) : w('แทรก {no} เป็นคิวแรก ก่อน {first} · ใส่เหตุผล', { no: j.no, first: first.no })}
+        placeholder={skip ? SKIP_QUEUE_PLACEHOLDER : 'เช่น ลูกค้าเลื่อนวันส่งเร็วขึ้น'}
+        confirm={skip ? (sew ? 'บันทึกแล้วเลือกจักร' : 'บันทึกและเริ่ม') : 'แทรกเป็นคิวแรก'}
+        onCancel={() => setMode(null)}
+        onConfirm={async reason => {
+          const ok = skip && sew
+            ? await run(j, [['note_queue_skip', { p_reason: reason }]], w('บันทึกเหตุผลเริ่ม {no} ก่อนคิวแล้ว · เลือกจักรต่อ', { no: j.no }))
+            : skip
+            ? await run(j, [['start_in_queue', { p_reason: reason }]], w('เริ่ม {no} ก่อนคิวแล้ว · บันทึกเหตุผลในประวัติงาน', { no: j.no }))
+            : await run(j, [['move_job_ahead', { p_before: first.id, p_reason: reason }]], w('แทรก {no} เป็นคิวแรกแล้ว', { no: j.no }))
+          if (ok) { setMode(null); if (skip && sew) onSewStart?.(j.id, true) }
+        }} />
     )
   }
 

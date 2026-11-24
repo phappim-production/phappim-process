@@ -1,5 +1,6 @@
 import { rpc } from '../../data/useFactoryData'
 import { thaiError } from '../../data/live'
+import { invalidateStatic } from '../../data/staticCache'
 import { supabase } from '../../lib/supabase'
 import type {
   InboxSetting, Machine, MachineType, Material, NamedCode, Need, Reason, RouteStation, Segment, Sla, Station, UserRow,
@@ -45,6 +46,8 @@ async function rows<T>(query: Query): Promise<T[]> {
 async function write(query: Query) {
   const { error } = await query
   if (error) throw new Error(errorText(error))
+  // บอร์ดจำตารางตั้งค่าไว้ · บันทึกแล้วต้องเห็นผลทันทีเมื่อกลับไปหน้างาน
+  invalidateStatic()
 }
 
 export async function loadOwnUserId() {

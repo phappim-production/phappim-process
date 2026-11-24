@@ -35,7 +35,7 @@ const eventTypes = {
 
 // อ้างบทบาทจาก API และระบุสถานะที่ผ่านใน fixture นี้แยกจากผลที่ฐานตอบ
 const rules = {
-  start_station: ['owner production qc', 'ABP'],
+  start_station: ['owner production qc', 'A'],
   start_in_queue: ['owner production qc', 'ABHP'],
   note_queue_skip: ['owner production qc', 'ABHJP'],
   finish_station: ['owner production qc', 'K'],
@@ -165,9 +165,13 @@ export async function flowR5Tests({ db, ok, as }) {
   const forward = (id, company, station) => exec('admin', 'forward_out', '$1, $2, $3, ' + plan, [id, company, station])
   const build = (label, route = 'cut_only', sample = false) => receive('MATRIX-' + label, route, sample)
   // Fixture ใช้การเริ่มแบบตรงเฉพาะตอนจัดสถานะ เพื่อคง A และ B ไว้รอเป็นสองอันดับแรก
+  const direct = async (role, name, id) => {
+    await rpc('owner', 'note_queue_skip', [id, reason])
+    return rpc(role, name, [id])
+  }
   async function through(id, stations, role = 'production') {
     for (const station of stations) {
-      await rpc(role, station === 'sew' ? 'start_sewing' : 'start_station', [id])
+      await direct(role, station === 'sew' ? 'start_sewing' : 'start_station', id)
       await finish(id, station)
     }
   }
@@ -175,10 +179,10 @@ export async function flowR5Tests({ db, ok, as }) {
   const b = await build('B')
   const c = await build('C')
   await through(c, ['cut'])
-  await rpc('qc', 'start_station', [c])
+  await direct('qc', 'start_station', c)
   await rpc('qc', 'record_qc', [c, 2])
   const d = await build('D')
-  await rpc('production', 'start_station', [d])
+  await direct('production', 'start_station', d)
   await rpc('production', 'open_issue', [d, reason])
   const e = await build('E', 'cut_only', true)
   await through(e, routes.cut_only)
@@ -190,7 +194,7 @@ export async function flowR5Tests({ db, ok, as }) {
   async function setupRework(label, route, source) {
     const id = await build(label, route)
     await through(id, routes[route].slice(0, -1))
-    await rpc('qc', 'start_station', [id])
+    await direct('qc', 'start_station', id)
     await rpc('qc', 'send_rework', [id, 3, reason, source])
     return id
   }
@@ -214,19 +218,19 @@ export async function flowR5Tests({ db, ok, as }) {
   const k = await build('K', 'plain')
   const l = await build('L', 'plain')
   await through(l, ['cut'])
-  const assigned = await rpc('production', 'start_sewing', [l])
+  const assigned = await direct('production', 'start_sewing', l)
   await rpc('owner', 'set_machine_status', [assigned[0], 'broken', reason])
   // ให้มีจักรสำรองสำหรับ resume_sewing และตรวจว่าชุดเริ่มต้นของ K ได้จักรครบ
   await rpc('owner', 'set_machine_status', [assigned[0], 'ready'])
   await through(k, ['cut'])
-  await rpc('production', 'start_sewing', [k])
+  await direct('production', 'start_sewing', k)
   const m = await build('M')
-  await rpc('production', 'start_station', [m])
+  await direct('production', 'start_station', m)
   await db.exec("update public.stations set sla_days = 1 where code = 'cut'")
   await db.query("update public.jobs set station_started_at = now() - interval '15 days' where id = $1", [m])
   const n = await build('N')
   await through(n, ['cut'])
-  await rpc('qc', 'start_station', [n])
+  await direct('qc', 'start_station', n)
   await rpc('qc', 'record_qc', [n, 10])
   await finish(n, 'qc_pack')
   const o = await build('O')

@@ -8,14 +8,10 @@ import type { StationCode } from './proto/model'
 import { bottomBar, roleMenu, routeOf, type MenuIcon, type Route } from './auth/menus'
 import ReportsPage from './pages/reports'
 import SettingsPage from './pages/settings'
-import InboxPage from './pages/inbox'
 import { InboxBell } from './pages/inbox/InboxBell'
 import { unreadBadge } from './pages/inbox/format'
 import { useInbox } from './pages/inbox/useInbox'
 import JobLabel from './pages/job-label'
-import AccountPage from './pages/AccountPage'
-import WordsPage from './pages/WordsPage'
-import { AuditPage, RolesPage, SystemOverviewPage } from './pages/admin'
 import { Card, CardHeader } from './components/ui'
 import { AppUpdate } from './components/AppUpdate'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -29,6 +25,12 @@ import {
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const MockupPage = lazy(() => import('./pages/mockup/MockupPage'))
 const ArtworkSheet = lazy(() => import('./pages/mockup/ArtworkSheet'))
+const InboxPage = lazy(() => import('./pages/inbox'))
+const AccountPage = lazy(() => import('./pages/AccountPage'))
+const WordsPage = lazy(() => import('./pages/WordsPage'))
+const AuditPage = lazy(() => import('./pages/admin').then(m => ({ default: m.AuditPage })))
+const RolesPage = lazy(() => import('./pages/admin').then(m => ({ default: m.RolesPage })))
+const SystemOverviewPage = lazy(() => import('./pages/admin').then(m => ({ default: m.SystemOverviewPage })))
 
 const MENU_ICON: Record<MenuIcon, ComponentType<{ className?: string }>> = {
   gauge: IconGauge, list: IconList, columns: IconColumns, chart: IconChart, queue: IconLayers, users: IconUsers,
@@ -119,7 +121,8 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
   const bar = bottomBar(menu, path)
   const [moreOpen, setMoreOpen] = useState(false)
   const roleLabel = t(labelFor(profile.role, profile.section))
-  const { unreadCount } = useInbox()
+  const inbox = useInbox()
+  const { unreadCount } = inbox
   const inboxBadge = unreadBadge(unreadCount)
 
   return (
@@ -175,7 +178,7 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
           <span className="hidden text-sm font-semibold whitespace-nowrap text-white/75 sm:inline">{t('ระบบติดตามการผลิต')}</span>
           {/* แท็บเล็ตใช้ร่วมกันหลายคน ต้องเห็นตลอดว่าใครล็อกอินอยู่ เพราะทุกการกดบันทึกชื่อผู้กด */}
           {translated && <LangToggle compact className="ml-auto text-white hover:bg-white/10" />}
-          <span className={translated ? '' : 'ml-auto'}><InboxBell /></span>
+          <span className={translated ? '' : 'ml-auto'}><InboxBell unreadCount={unreadCount} /></span>
           <a href="#/system" className="flex min-h-12 min-w-0 items-center gap-2 rounded-xl px-2 hover:bg-white/10">
             <span className="min-w-0 text-right leading-tight">
               <span className="block truncate font-semibold">{profile.name}</span>
@@ -204,22 +207,19 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
             </Suspense>
           ) : (
             <main className="flex-1 overflow-y-auto">
-              {page === 'system' && <AccountPage name={profile.name} role={profile.role} roleLabel={roleLabel} email={email} />}
-              {page === 'reports' && <ReportsPage />}
-              {page === 'settings' && <SettingsPage key={path} tab={route.settingsTab} />}
-              {page === 'inbox' && <InboxPage />}
-              {page === 'sysOverview' && <SystemOverviewPage />}
-              {page === 'roles' && <RolesPage />}
-              {page === 'audit' && <AuditPage />}
-              {page === 'label' && <JobLabel jobId={labelId} />}
-              {page === 'words' && <WordsPage />}
-              {(page === 'mockup' || page === 'artwork') && (
-                <Suspense fallback={<p role="status" className="p-5">กำลังโหลด…</p>}>
-                  {page === 'mockup'
-                    ? <MockupPage key={labelId} jobId={labelId} role={profile.role} myStations={profile.stations} />
-                    : <ArtworkSheet key={labelId} jobId={labelId} role={profile.role} />}
-                </Suspense>
-              )}
+              <Suspense fallback={<p role="status" className="p-5 text-muted"><Tr th="กำลังโหลด…" /></p>}>
+                {page === 'system' && <AccountPage name={profile.name} role={profile.role} roleLabel={roleLabel} email={email} />}
+                {page === 'reports' && <ReportsPage />}
+                {page === 'settings' && <SettingsPage key={path} tab={route.settingsTab} />}
+                {page === 'inbox' && <InboxPage inbox={inbox} />}
+                {page === 'sysOverview' && <SystemOverviewPage />}
+                {page === 'roles' && <RolesPage />}
+                {page === 'audit' && <AuditPage />}
+                {page === 'label' && <JobLabel jobId={labelId} />}
+                {page === 'words' && <WordsPage />}
+                {page === 'mockup' && <MockupPage key={labelId} jobId={labelId} role={profile.role} myStations={profile.stations} />}
+                {page === 'artwork' && <ArtworkSheet key={labelId} jobId={labelId} role={profile.role} />}
+              </Suspense>
             </main>
           )}
           </ErrorBoundary>
