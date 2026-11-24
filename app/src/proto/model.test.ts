@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { COLUMNS, columnOf, groupColumns, savedStation, isDoneToday, isDueSoon, isFilmLate, isOverdue, isWaitingFilm, missingDepts } from './model'
+import { COLUMNS, columnOf, groupColumns, savedStation, startStation, isDoneToday, isDueSoon, isFilmLate, isOverdue, isWaitingFilm, missingDepts } from './model'
 import type { ColumnKey, Job, Phase } from './model'
 
 const today = new Date('2026-11-17T00:00:00+07:00')
@@ -104,4 +104,16 @@ it('จำสถานีที่เครื่องนี้เลือก�
   expect(savedStation(null, COLUMNS)).toBe('all')
   expect(savedStation('nope', COLUMNS)).toBe('all')
   expect(savedStation('cut', COLUMNS.filter(c => c.key === 'sew'))).toBe('all')
+})
+
+it('พนักงานสถานีเดียวเปิดมาเจอคิวสถานีตัวเอง ถ้ายังไม่เคยเลือก', () => {
+  const cutOnly = COLUMNS.filter(c => c.key === 'cut')
+  const qc = COLUMNS.filter(c => c.key === 'qc_pack' || c.key === 'done')
+  const two = COLUMNS.filter(c => c.key === 'cut' || c.key === 'print')
+  expect(startStation(null, cutOnly, true)).toBe('cut')
+  expect(startStation(null, qc, true)).toBe('qc_pack')
+  expect(startStation('all', cutOnly, true)).toBe('all')
+  expect(startStation('done', qc, true)).toBe('done')
+  expect(startStation(null, two, true)).toBe('all')
+  expect(startStation(null, cutOnly, false)).toBe('all')
 })

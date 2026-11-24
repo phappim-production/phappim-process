@@ -114,20 +114,20 @@ export function ReportIssueView({ jobs, now, stations, call, onOpen }: {
   const [notice, setNotice] = useState<Notice>(null)
   const t = useT()
   if (!stations.length) {
-    return <Card className="p-5"><p className="font-semibold"><Tr th="ยังไม่ได้จับคู่สถานี" /></p><p className="text-muted"><Tr th="ให้เจ้าของระบบจับคู่สถานีให้ที่เมนู Station Assignment" /></p></Card>
+    return <Card className="p-5"><p className="font-semibold"><Tr th="ยังไม่ได้จับคู่สถานี" /></p><p className="text-muted"><Tr th="ให้เจ้าของระบบจับคู่สถานีให้ที่เมนู จับคู่สถานี" /></p></Card>
   }
   const send = async (j: Job) => {
     setBusy(true)
     const r = await call('open_issue', { p_job: j.id, p_reason: reason.trim() })
     setBusy(false)
-    if (r.ok) { setOpen(null); setReason(''); setNotice({ ok: true, text: { th: 'แจ้งปัญหา {no} แล้ว · งานพักไว้รอฝ่ายผลิตแก้', vars: { no: j.no } } }) }
+    if (r.ok) { setOpen(null); setReason(''); setNotice({ ok: true, text: { th: 'รายงานปัญหา {no} แล้ว · งานพักไว้รอฝ่ายผลิตแก้', vars: { no: j.no } } }) }
     else setNotice({ ok: false, text: { th: '{no}: {reason}', vars: { no: j.no, reason: { th: r.reason } } } })
   }
   return (
     <>
       <NoticeLine notice={notice} />
       <Card>
-        <CardHeader icon={IconFlag} title={<Tr inline th="เลือกงานที่มีปัญหา" />} sub={t('งานที่สถานี{stations} · แจ้งแล้วงานจะพักจนฝ่ายผลิตกดแก้แล้ว', { stations: stations.map(s => ({ th: STATION_NAME[s] })) })} />
+        <CardHeader icon={IconFlag} title={<Tr inline th="เลือกงานที่มีปัญหา" />} sub={t('งานที่สถานี{stations} · รายงานแล้วงานจะพักจนฝ่ายผลิตกดแก้แล้ว', { stations: stations.map(s => ({ th: STATION_NAME[s] })) })} />
         <div className="px-4 pb-4">
           {list.length === 0 ? <p className="text-muted"><Tr th="ไม่มีงานที่สถานีของคุณตอนนี้" /></p> : (
             <ul className="grid gap-2">
@@ -140,13 +140,13 @@ export function ReportIssueView({ jobs, now, stations, call, onOpen }: {
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         <button type="button" disabled={busy || !reason.trim()} className={dangerBtn} onClick={() => void send(j)}>
-                          <Tr th={busy ? 'กำลังบันทึก…' : reason.trim() ? 'แจ้งปัญหา' : 'กรอกปัญหาก่อน'} />
+                          <Tr th={busy ? 'กำลังบันทึก…' : reason.trim() ? 'รายงานปัญหา' : 'กรอกปัญหาก่อน'} />
                         </button>
                         <button type="button" disabled={busy} className={secondaryBtn} onClick={() => { setOpen(null); setReason('') }}><Tr th="ยกเลิก" /></button>
                       </div>
                     </div>
                   ) : (
-                    <button type="button" className={dangerBtn} disabled={open !== null} onClick={() => { setOpen(j.id); setReason('') }}><IconFlag className="size-5 shrink-0" /><Tr th="แจ้งปัญหา" /></button>
+                    <button type="button" className={dangerBtn} disabled={open !== null} onClick={() => { setOpen(j.id); setReason('') }}><IconFlag className="size-5 shrink-0" /><Tr th="รายงานปัญหา" /></button>
                   )}
                 </JobRow>
               ))}
@@ -154,7 +154,7 @@ export function ReportIssueView({ jobs, now, stations, call, onOpen }: {
           )}
         </div>
       </Card>
-      <Section icon={IconAlert} title="ปัญหาที่แจ้งไว้" count={held.length} empty="ไม่มีงานติดปัญหาที่สถานีของคุณ" sub="รอฝ่ายผลิตแก้ · แก้แล้วงานจะกลับมาทำต่อได้">
+      <Section icon={IconAlert} title="ปัญหาที่รายงานไว้" count={held.length} empty="ไม่มีงานติดปัญหาที่สถานีของคุณ" sub="รอฝ่ายผลิตแก้ · แก้แล้วงานจะกลับมาทำต่อได้">
         {held.map(j => <JobRow key={j.id} job={j} now={now} onOpen={onOpen} />)}
       </Section>
     </>

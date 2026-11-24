@@ -112,9 +112,7 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
   return (
     // แผงนี้อยู่ในรายละเอียดงานที่ตั้งตัวอักษรเล็ก แต่ข้อความหลักต้อง ≥ 16 px
     <div className="grid gap-4 text-base">
-      {d.pdfPath ? <OpenPdf path={d.pdfPath} />
-        : admin ? <AttachPdf job={j} refresh={refresh} />
-        : <p className="text-muted"><Tr th="ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น (แอดมินแนบทีหลัง)" /></p>}
+      {d.pdfPath ? <OpenPdf path={d.pdfPath} /> : admin && <AttachPdf job={j} refresh={refresh} />}
       {admin && <SetMockup job={j} refresh={refresh} />}
       {admin && <ReviseConfirmation job={j} hasPdf={!!d.pdfPath} refresh={refresh} />}
       {notice && (
@@ -143,6 +141,7 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
         <Station job={j} queueHead={queueHead} detail={d} canPress={canStation} canResume={canCloseIssue(role, st)} role={role} busy={busy} now={now} act={act} />
       )}
       {canCancelJob(role) && j.phase !== 'done' && <CancelJob job={j} busy={busy} act={act} onCancelled={onCancelled} />}
+      {!d.pdfPath && !admin && <p className="text-muted"><Tr th="ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น (แอดมินแนบทีหลัง)" /></p>}
     </div>
   )
 }
@@ -671,8 +670,14 @@ function QcPanel({ job: j, passed, busy, act }: { job: Job; passed: number; busy
   return (
     <div className="grid gap-3 rounded-xl bg-paper p-3">
       <p className="font-semibold"><Tr th="ผล QC · ผ่านแล้ว {passed} จาก {qty} {unit}" vars={{ passed: passed.toLocaleString('th-TH'), qty: j.qty.toLocaleString('th-TH'), unit }} /></p>
-      <div className="flex flex-wrap gap-2">
-        <input type="number" min={1} inputMode="numeric" value={pass} onChange={e => setPass(e.target.value)} aria-label={t('จำนวนที่ผ่าน')} placeholder={t('จำนวนที่ผ่าน')} className={`${fieldClass} w-36 flex-1`} />
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <label className="grid gap-1 font-medium">
+          <Tr th="จำนวนที่ผ่าน" />
+          <span className="flex items-center gap-2">
+            <input type="number" min={1} inputMode="numeric" value={pass} onChange={e => setPass(e.target.value)} className={`${fieldClass} flex-1`} />
+            <span className="shrink-0 font-normal text-muted">{t('/ {qty} {unit}', { qty: j.qty.toLocaleString('th-TH'), unit })}</span>
+          </span>
+        </label>
         <button type="button" disabled={busy || !passQty} className={okBtn}
           onClick={async () => { if (passQty && await act('record_qc', { p_passed: passQty, p_request: request.idFor(String(passQty)) }, { th: 'บันทึกผ่าน QC {qty} {unit}', vars: { qty: passQty, unit } })) { setPass(''); request.clear() } }}>
           {pass.trim() && !passQty ? <Tr th="ใส่จำนวนเต็ม" /> : <><IconCheck className="size-5 shrink-0" /><Tr th="บันทึกผ่าน" /></>}</button>

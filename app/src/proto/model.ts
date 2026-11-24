@@ -148,6 +148,14 @@ export function savedStation(raw: string | null, columns: readonly { key: Column
   return columns.some(c => c.key === raw) ? raw as ColumnKey : 'all'
 }
 
+// พนักงานที่มีสถานีเดียวเปิดมาเจอคิวสถานีตัวเองเลย จนกว่าจะเลือกดูทุกสถานีเอง
+export function startStation(raw: string | null, columns: readonly { key: ColumnKey }[], floorRole: boolean): ColumnKey | 'all' {
+  const saved = savedStation(raw, columns)
+  if (saved !== 'all' || raw === 'all' || !floorRole) return saved
+  const own = columns.filter(c => isStationCode(c.key))
+  return own.length === 1 ? own[0].key : 'all'
+}
+
 export function columnOf(j: Job): ColumnKey {
   // กันข้อมูลเพี้ยน: งานผลิตที่ไม่มีสถานี ให้ไปอยู่สถานีแรกของเส้นทาง
   if (j.phase === 'production') return j.station ?? ROUTES[j.route].stations[0]

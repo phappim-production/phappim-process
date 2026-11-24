@@ -72,9 +72,9 @@ function AppContent() {
     }
     return (
       <AccountScreen title="ยังเข้าใช้งานไม่ได้">
-        <p role="alert" className="mb-4 text-danger">{messages[result.status]}</p>
+        <p role="alert" className="mb-4 text-danger"><Tr th={messages[result.status]} /></p>
         <div className="grid gap-2">
-          <button type="button" className={primaryButton} onClick={retry}>ตรวจสอบอีกครั้ง</button>
+          <button type="button" className={primaryButton} onClick={retry}><Tr th="ตรวจสอบอีกครั้ง" /></button>
           <SignOutButton />
         </div>
       </AccountScreen>
@@ -115,10 +115,13 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
   const redirected = requested.page === 'overview' && !canOpenPage(profile.role, 'overview')
   const route: Route = ownerHome ? { page: 'sysOverview' } : redirected ? { page: homePage(profile.role) } : requested
   const page = route.page
-  const path = ownerHome ? '#/admin' : redirected ? '#/board' : requestedPath
+  // ผู้ควบคุมงานเปิดมาเจอแท็บงานที่ต้องทำ (เฟส 2 = จักรเย็บ) จึงไฮไลต์เมนู "คิวงาน" ไม่ใช่ "สถานี"
+  const path = ownerHome ? '#/admin' : redirected ? (profile.role === 'supervisor' ? '#/queue' : '#/board') : requestedPath
   const scope = useMemo(() => boardScope(profile.role, profile.section, profile.stations), [profile.role, profile.section, profile.stations])
   const menu = roleMenu(profile.role)
-  const bar = bottomBar(menu, path)
+  // แท็บจักรเย็บไม่มีเมนูของตัวเอง ไฮไลต์ "คิวงาน" แทน
+  const menuPath = path === '#/sewing' ? '#/queue' : path
+  const bar = bottomBar(menu, menuPath)
   const [moreOpen, setMoreOpen] = useState(false)
   const roleLabel = t(labelFor(profile.role, profile.section))
   const inbox = useInbox()
@@ -141,10 +144,10 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
         <nav aria-label={t('เมนูหลัก')} className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-3 pb-3 [scrollbar-color:rgb(255_255_255/0.25)_transparent] [scrollbar-width:thin]">
           {menu.map(group => (
             <div key={group.title} className="grid gap-1">
-              <p className="px-4 pb-1 text-xs font-semibold tracking-widest text-white/60">{group.title}</p>
+              <p className="px-4 pb-1 text-xs font-semibold tracking-widest text-white/60"><Tr th={group.title} /></p>
               {group.items.map(({ name, hash, icon }) => {
                 const Icon = MENU_ICON[icon]
-                const active = hash === path
+                const active = hash === menuPath
                 const badge = hash === '#/inbox' ? inboxBadge : null
                 return (
                   <a key={hash} href={hash} aria-current={active ? 'page' : undefined}
@@ -230,8 +233,8 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
             {bar.more.map(({ name, hash, icon }) => {
               const Icon = MENU_ICON[icon]
               return (
-                <a key={hash} href={hash} onClick={() => setMoreOpen(false)} aria-current={hash === path ? 'page' : undefined}
-                  className={`flex min-h-12 items-center gap-3 rounded-xl px-4 text-base font-semibold ${hash === path ? 'bg-brand text-white' : 'hover:bg-brand-soft'}`}>
+                <a key={hash} href={hash} onClick={() => setMoreOpen(false)} aria-current={hash === menuPath ? 'page' : undefined}
+                  className={`flex min-h-12 items-center gap-3 rounded-xl px-4 text-base font-semibold ${hash === menuPath ? 'bg-brand text-white' : 'hover:bg-brand-soft'}`}>
                   <Icon className="size-5 shrink-0" /><Tr th={name} />
                 </a>
               )
@@ -241,12 +244,12 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
         <nav aria-label={t('เมนูหลัก')} className="flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden">
           {bar.shown.map(({ short, hash, icon }) => {
             const Icon = MENU_ICON[icon]
-            const active = hash === path
+            const active = hash === menuPath
             return (
               <a key={hash} href={hash} aria-current={active ? 'page' : undefined} onClick={() => setMoreOpen(false)}
                 className={`flex min-h-14 min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 text-sm ${active ? 'font-bold text-brand' : 'text-muted'}`}>
                 <span className={`grid h-8 w-12 place-items-center rounded-full ${active ? 'bg-brand text-white' : ''}`}><Icon className="size-5" /></span>
-                <span className="line-clamp-2 max-w-full px-0.5 text-center leading-tight break-words">{t(short)}</span>
+                <span className="line-clamp-2 max-w-full px-0.5 text-center leading-tight break-words"><Tr th={short} /></span>
               </a>
             )
           })}

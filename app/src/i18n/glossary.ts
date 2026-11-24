@@ -8,7 +8,7 @@ export const GLOSSARY_ACTIONS: Entry[] = [
   { th: 'พักงาน', note: 'ต้องใส่สาเหตุ เวลาที่พักไม่นับ', tone: 'neutral', icon: 'pause' },
   { th: 'เสร็จ', note: 'ส่งต่อสถานีถัดไป', tone: 'ok', icon: 'check', solid: true },
   { th: 'แก้แล้ว ทำต่อ', note: 'หัวหน้ากดหลังแก้ปัญหา', tone: 'brand', icon: 'play', solid: true },
-  { th: 'แจ้งปัญหา', note: 'ของเสีย เครื่องเสีย ของไม่ครบ', tone: 'danger', icon: 'flag' },
+  { th: 'รายงานปัญหา', note: 'ของเสีย เครื่องเสีย ของไม่ครบ', tone: 'danger', icon: 'flag' },
 ]
 
 export const GLOSSARY_STATUS: Entry[] = [

@@ -6,6 +6,7 @@ import { IconImage } from './icons'
 import { mockupThumbUrl } from '../data/mockups'
 import { useLang, useT } from '../i18n/lang'
 import { Tr } from '../i18n/Tr'
+import type { Word } from '../i18n/word'
 export type { Tone }
 
 export function ViewSwitch<T extends string>({ label, value, onChange, options, variant = 'main' }: {
@@ -75,7 +76,7 @@ export const Tag = ({ tone, children }: { tone: Tone; children: ReactNode }) => 
 
 export function RouteBadge({ route }: { route: RouteCode }) {
   const t = useT()
-  const tone: Tone = usesFilm(route) ? 'dtf' : route === 'plain' || route === 'cut_only' ? 'neutral' : 'brand'
+  const tone: Tone = usesFilm(route) ? 'dtf' : 'neutral'
   return <span className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${TONE[tone].soft}`}>{t(ROUTES[route].short)}</span>
 }
 
@@ -86,8 +87,8 @@ export function DueLabel({ job: j, now, long }: { job: Job; now: Date; long?: bo
   if (j.phase === 'done') return <span className="shrink-0">{t('ส่ง {date}', { date: day(j.due) })}</span>
   const days = dayDiff(j.due, now)
   const cls = isOverdue(j, now) ? 'font-semibold text-danger' : isDueSoon(j, now) ? 'font-semibold text-warn' : ''
-  const rel = days < 0 ? t('ล่าช้า {n} วัน', { n: -days }) : days === 0 ? t('วันนี้') : days === 1 ? t('พรุ่งนี้') : t('อีก {n} วัน', { n: days })
-  const short = days < 0 ? t('ล่าช้า {n} วัน', { n: -days }) : days === 0 ? t('ส่งวันนี้') : days === 1 ? t('ส่งพรุ่งนี้') : t('ส่ง {date}', { date: day(j.due) })
+  const rel = days < 0 ? t('เลยกำหนด {n} วัน', { n: -days }) : days === 0 ? t('วันนี้') : days === 1 ? t('พรุ่งนี้') : t('อีก {n} วัน', { n: days })
+  const short = days < 0 ? t('เลยกำหนด {n} วัน', { n: -days }) : days === 0 ? t('ส่งวันนี้') : days === 1 ? t('ส่งพรุ่งนี้') : t('ส่ง {date}', { date: day(j.due) })
   return <span className={`shrink-0 ${cls}`}>{long ? `${day(j.due)} (${rel})` : short}</span>
 }
 
@@ -102,22 +103,26 @@ export function StageDots({ steps, current, hold }: { steps: string[]; current: 
   )
 }
 
-export function StatTile({ icon: Icon, label, value, note, noteOnPhone, tone, active, onClick }: {
-  icon: ComponentType<{ className?: string }>; label: string; value: number; note?: string; noteOnPhone?: boolean; tone: Tone; active?: boolean; onClick?: () => void
+export function StatTile({ icon: Icon, label, value, note, noteOnPhone, dense, tone, active, onClick }: {
+  icon: ComponentType<{ className?: string }>; label: string; value: number; note?: string | Word; noteOnPhone?: boolean
+  dense?: boolean; tone: Tone; active?: boolean; onClick?: () => void
 }) {
   const t = TONE[value === 0 && tone !== 'brand' ? 'neutral' : tone]
-  // มือถือ: ไอคอน + ชื่อบรรทัดเดียว ตัวเลขใหญ่ด้านล่าง ไม่ให้ 4 ช่องกินครึ่งจอ
+  const noteWord = typeof note === 'string' ? { th: note } : note
+  const valueCls = `leading-none font-bold tabular-nums ${value === 0 ? 'text-ink' : t.text}`
+  // dense = จอหน้างาน: มือถือวางตัวเลขข้างชื่อ ช่องเตี้ยลง
   const body = (
     <>
       <span className="flex w-full min-w-0 items-center gap-2">
         <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${t.soft}`}><Icon className="size-5" /></span>
-        <span className="min-w-0 text-sm leading-tight font-semibold text-muted"><Tr th={label} /></span>
+        <span className="min-w-0 flex-1 text-sm leading-tight font-semibold text-muted"><Tr th={label} /></span>
+        {dense && <span className={`shrink-0 text-2xl sm:hidden ${valueCls}`}>{value}</span>}
       </span>
-      <span className={`mt-1.5 block text-3xl leading-none font-bold tabular-nums ${value === 0 ? 'text-ink' : t.text}`}>{value}</span>
-      {note && <span className={`mt-1 text-sm leading-snug text-muted ${noteOnPhone ? 'block' : 'hidden sm:block'}`}><Tr th={note} /></span>}
+      <span className={`mt-1.5 text-3xl ${valueCls} ${dense ? 'hidden sm:block' : 'block'}`}>{value}</span>
+      {noteWord && <span className={`mt-1 text-sm leading-snug text-muted ${noteOnPhone ? 'block' : 'hidden sm:block'}`}><Tr th={noteWord.th} vars={noteWord.vars} /></span>}
     </>
   )
-  const cls = `flex min-w-0 flex-col items-start rounded-2xl border bg-card p-3 text-left shadow-card sm:p-4 ${active ? 'border-brand ring-2 ring-brand/20' : 'border-line'}`
+  const cls = `flex min-w-0 flex-col items-start rounded-2xl border bg-card text-left shadow-card sm:p-4 ${dense ? 'p-2.5' : 'p-3'} ${active ? 'border-brand ring-2 ring-brand/20' : 'border-line'}`
   // การ์ดตัวเลขที่ไม่ได้ใช้กรอง ไม่ควรเป็นปุ่ม (ผู้ใช้จะคิดว่ากดได้)
   return onClick ? (
     <button type="button" onClick={onClick} aria-pressed={active} className={`${cls} hover:border-brand`}>{body}</button>

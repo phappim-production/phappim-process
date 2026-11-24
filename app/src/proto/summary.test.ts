@@ -11,7 +11,7 @@ const job: Job = {
   sampleRound: 1, materials: { admin: true, qc: true, production: true },
 }
 
-it('งานที่ทั้งพักและเลยกำหนดนับเป็นงานด่วนเพียงครั้งเดียว', () => {
+it('งานที่ทั้งพักและเลยกำหนดนับเป็นงานเดียว แต่บรรทัดรองนับทั้งพักงานและเลยกำหนด', () => {
   const jobs: Job[] = [
     { ...job, due: yesterday, status: 'hold' },
     { ...job, id: 'overdue', due: yesterday },
@@ -20,7 +20,7 @@ it('งานที่ทั้งพักและเลยกำหนดน�
 
   const urgent = roleSummary('factory', jobs, jobs, [], now).find(tile => tile.key === 'urgent')
 
-  expect(urgent).toMatchObject({ value: 2, note: 'พักงาน 1 · เลยกำหนด 1' })
+  expect(urgent).toMatchObject({ value: 2, note: { th: 'พักงาน {hold} · เลยกำหนด {late}', vars: { hold: 1, late: 2 } } })
 })
 
 it('ผลรวม QC นับจำนวนชิ้นจากงานใน QC และไม่นับยอดของงานเสร็จ', () => {
@@ -32,7 +32,7 @@ it('ผลรวม QC นับจำนวนชิ้นจากงานใ
 
   const tiles = roleSummary('qc', jobs, jobs, [], now)
 
-  expect(tiles.find(tile => tile.key === 'qc')).toMatchObject({ value: 2, note: '55 ชิ้น' })
+  expect(tiles.find(tile => tile.key === 'qc')).toMatchObject({ value: 2, note: { th: '{n} ชิ้น', vars: { n: '55' } } })
   expect(tiles.find(tile => tile.key === 'done')?.value).toBe(1)
 })
 
@@ -63,6 +63,12 @@ it('ตัวนับ QC รวมงานขึ้นตัวอย่าง
 
   const tiles = roleSummary('qc', jobs, jobs, [], now)
 
-  expect(tiles.find(tile => tile.key === 'qc')).toMatchObject({ value: 2, note: '21 ชิ้น' })
+  expect(tiles.find(tile => tile.key === 'qc')).toMatchObject({ value: 2, note: { th: '{n} ชิ้น', vars: { n: '21' } } })
   expect(tiles.find(tile => tile.key === 'qcDoing')?.value).toBe(1)
+})
+
+it('งานพักที่เลยกำหนดด้วย ไม่ทำให้บรรทัดรองขึ้นว่าเลยกำหนด 0', () => {
+  const jobs: Job[] = [{ ...job, due: yesterday, status: 'hold' }]
+  const urgent = roleSummary('staff', jobs, jobs, [], now).find(tile => tile.key === 'urgent')
+  expect(urgent).toMatchObject({ value: 1, note: { vars: { hold: 1, late: 1 } } })
 })

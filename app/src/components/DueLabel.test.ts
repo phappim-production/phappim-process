@@ -12,18 +12,18 @@ const job: Job = {
 }
 const label = (j: Job, long?: boolean) => renderToStaticMarkup(createElement(DueLabel, { job: j, now, long }))
 
-it('เลยกำหนดส่ง: การ์ดขึ้น "ล่าช้า X วัน" สีแดง', () => {
+it('เลยกำหนดส่ง: การ์ดขึ้น "เลยกำหนด X วัน" สีแดง', () => {
   const html = label(job)
-  expect(html).toContain('ล่าช้า 2 วัน')
+  expect(html).toContain('เลยกำหนด 2 วัน')
   expect(html).toContain('text-danger')
   expect(html).not.toContain('ส่งเลย')
 })
 
 it('แบบยาวในรายละเอียดงานใช้คำเดียวกัน', () => {
-  expect(label(job, true)).toContain('(ล่าช้า 2 วัน)')
+  expect(label(job, true)).toContain('(เลยกำหนด 2 วัน)')
 })
 
-it('ยังไม่ถึงกำหนด / งานเสร็จแล้ว ไม่ขึ้นคำว่าล่าช้า', () => {
+it('ยังไม่ถึงกำหนด / งานเสร็จแล้ว ไม่ขึ้นคำว่าเลยกำหนด', () => {
   expect(label({ ...job, due: new Date('2026-11-24T00:00:00+07:00') })).toContain('ส่งพรุ่งนี้')
-  expect(label({ ...job, phase: 'done' })).not.toContain('ล่าช้า')
+  expect(label({ ...job, phase: 'done' })).not.toContain('เลยกำหนด')
 })

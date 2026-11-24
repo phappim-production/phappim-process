@@ -7,25 +7,25 @@ import { MACHINE_TYPE_NAME, type Booking, type Machine } from './sewing'
 import type { Job } from './model'
 
 const manager = [
-  ['#/', 'ภาพรวมการผลิต'], ['#/jobs', 'ใบงานทั้งหมด'], ['#/board', 'ทุก Station'],
+  ['#/', 'ภาพรวมการผลิต'], ['#/jobs', 'ใบงานทั้งหมด'], ['#/board', 'ทุกสถานี'],
   ['#/reports', 'รายงาน'], ['#/reviews', 'รายการรออนุมัติ'],
 ]
 const production = [
-  ['#/dept', 'ภาพรวมแผนก'], ['#/queue', 'คิวงาน'], ['#/board', 'Station ที่ดูแล'],
+  ['#/dept', 'ภาพรวมแผนก'], ['#/queue', 'คิวงาน'], ['#/board', 'สถานีที่ดูแล'],
   ['#/issues', 'ปัญหา / งานแก้'], ['#/reports', 'รายงานแผนก'],
 ]
 const staff = [
-  ['#/mine', 'งานของฉัน'], ['#/board', 'คิวงาน Station'], ['#/history', 'ประวัติการทำงาน'], ['#/report', 'แจ้งปัญหา'],
+  ['#/mine', 'งานของฉัน'], ['#/board', 'คิวงานสถานี'], ['#/history', 'ประวัติการทำงาน'], ['#/report', 'รายงานปัญหา'],
 ]
 const menus: Record<EmployeeRole, string[][]> = {
   owner: [
-    ['#/admin', 'ภาพรวมระบบ'], ['#/users', 'ผู้ใช้งาน'], ['#/roles', 'Roles & Permissions'],
-    ['#/assign', 'Station Assignment'], ['#/audit', 'Audit Log'], ['#/settings', 'ตั้งค่าระบบ'],
-    ['#/production', 'ภาพรวมการผลิต'], ['#/board', 'ทุก Station'], ['#/reports', 'รายงาน'],
+    ['#/admin', 'ภาพรวมระบบ'], ['#/users', 'ผู้ใช้งาน'], ['#/roles', 'บทบาทและสิทธิ์'],
+    ['#/assign', 'จับคู่สถานี'], ['#/audit', 'บันทึกการเปลี่ยนแปลง'], ['#/settings', 'ตั้งค่าระบบ'],
+    ['#/production', 'ภาพรวมการผลิต'], ['#/board', 'ทุกสถานี'], ['#/reports', 'รายงาน'],
   ],
   admin: [
     ['#/', 'ภาพรวมใบงาน'], ['#/jobs', 'จัดการใบงาน'], ['#/production-queue', 'คิวการผลิต'],
-    ['#/board', 'ติดตาม Station'], ['#/reports', 'รายงาน'],
+    ['#/board', 'ติดตามสถานี'], ['#/reports', 'รายงาน'],
   ],
   manager, production, supervisor: production, staff, qc: staff,
 }

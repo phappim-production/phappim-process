@@ -11,8 +11,8 @@ const job: Job = {
   sampleRound: 1, materials: { admin: true, qc: true, production: true },
 }
 
-it('รายการต้องตามบนภาพรวมใช้คำ "ล่าช้า X วัน" ตรงกับบอร์ด', () => {
+it('รายการต้องตามบนภาพรวมใช้คำ "เลยกำหนด X วัน" ตรงกับบอร์ด', () => {
   const html = renderToStaticMarkup(createElement(AdminTodo, { jobs: [job], now, atRisk: [], onOpen: () => {} }))
-  expect(html).toContain('ล่าช้า 2 วัน')
+  expect(html).toContain('เลยกำหนด 2 วัน')
   expect(html).not.toContain('เลยกำหนดส่ง')
 })
