@@ -1,4 +1,5 @@
 import { toStationMachines, type StationMachine } from '../proto/machines'
+import { createSettler } from './settle'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { withMockups } from './mockups'
@@ -145,6 +146,7 @@ export function useFactoryData() {
   const running = useRef<Promise<void> | null>(null)
   const again = useRef(false)
   const channelLive = useRef(false)
+  const settler = useRef(createSettler())
 
   useEffect(() => { if (state.status === 'ready') lastGood = state }, [state])
 
@@ -152,6 +154,7 @@ export function useFactoryData() {
   const refresh = useCallback((): Promise<void> => {
     if (running.current) { again.current = true; return running.current }
     const once = async () => {
+      const index = settler.current.loadStarted()
       try {
         // ปุ่มรอโหลดใหม่หลังบันทึก → โหลดค้างต้องไม่ทำให้ปุ่มหมุนตลอดไป
         const reply = await withTimeout(() => load(), RPC_TIMEOUT_MS)
@@ -165,6 +168,8 @@ export function useFactoryData() {
         // โหลดได้แล้วครั้งหนึ่ง = เก็บข้อมูลเดิมไว้ แล้วขึ้นแถบเตือนแทน ไม่ล้างจอ
         setState(s => (s.status === 'ready' ? s : { status: 'error', message }))
         setFetchOk(false)
+      } finally {
+        settler.current.loadFinished(index)
       }
     }
     const run = (async () => {
@@ -217,8 +222,18 @@ export function useFactoryData() {
     }
   }, [refresh])
 
-  return { state, live: fetchOk && channelOk, refresh }
+  // หลังกดบันทึก: Realtime ต่ออยู่ = รอรอบที่ Realtime สั่ง (โหลดครั้งเดียว) · ไม่มาภายในเวลาที่กำหนดหรือหลุดอยู่ = โหลดเอง
+  const settle = useCallback((): Promise<void> => {
+    const { done } = settler.current.wait()
+    if (!channelLive.current) { void refresh(); return done }
+    const fallback = setTimeout(() => void refresh(), SETTLE_FALLBACK_MS)
+    return done.finally(() => clearTimeout(fallback))
+  }, [refresh])
+
+  return { state, live: fetchOk && channelOk, refresh, settle }
 }
+
+const SETTLE_FALLBACK_MS = 1200
 
 export type RpcResult<T> = { ok: true; data: T } | { ok: false; reason: string }
 

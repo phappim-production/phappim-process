@@ -1,6 +1,6 @@
 // ต้องรันหลังชุดทดสอบอื่น: พอมีจักรในระบบแล้ว สถานีเย็บจะเริ่มได้เฉพาะเมื่อจักรครบ
 
-import { skipQueue } from './queue-skip.mjs'
+import { queueSkips } from './queue-skip.mjs'
 
 export async function sewingTests({ db, ok, as }) {
   const U = {
@@ -9,7 +9,8 @@ export async function sewingTests({ db, ok, as }) {
     admin: '00000000-0000-0000-0000-000000000011', qc: '00000000-0000-0000-0000-000000000012', prod: '00000000-0000-0000-0000-000000000013',
     sup1: '00000000-0000-0000-0000-000000000021', sup2: '00000000-0000-0000-0000-000000000022',
   }
-  const call = async (uid, sql) => { await skipQueue(db, as, uid, sql); return as(uid, () => db.query(`select ${sql}`)) }
+  const skips = queueSkips(db, 'sewing')
+  const call = async (uid, sql) => { await skips.beforeSql(as, uid, sql); return as(uid, () => db.query(`select ${sql}`)) }
   const pass = async (name, uid, sql) => {
     try { const r = await call(uid, sql); ok(name, true); return r.rows[0] } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }
@@ -398,4 +399,5 @@ export async function sewingTests({ db, ok, as }) {
   } finally {
     await db.exec('rollback')
   }
+  skips.report()
 }

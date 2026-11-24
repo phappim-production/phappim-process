@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { roleMatrix } from './flow-r13-matrix.mjs'
-import { queueSkipSql, startsDirect } from './queue-skip.mjs'
+import { queueSkips, startsJob } from './queue-skip.mjs'
 
 const roster = {
   owner: ['owner'], admin: ['admin'], manager: ['manager'], production: ['production'], production2: ['production'],
@@ -25,6 +25,7 @@ const day = '2099-01-06'
 const dates = ['2099-01-01T03:00:00Z', 2, '2099-01-03T03:00:00Z']
 
 export async function flowR13Tests({ db, ok }) {
+  const skips = queueSkips(db, 'flow-r13')
   const rows = async (sql, args) => (await db.query(sql, args)).rows
   const one = async (sql, args) => (await rows(sql, args))[0]
   const live = id => one('select * from public.job_live where id=$1', [id])
@@ -74,7 +75,7 @@ export async function flowR13Tests({ db, ok }) {
     assert.deepEqual(issues, [])
   }
   async function step(actor, fn, args, types, id) {
-    if (startsDirect(fn)) await db.query(queueSkipSql, [id, ids[actor]])
+    if (startsJob(fn)) await skips.insert(id, ids[actor])
     const before = await history()
     const result = await rpc(actor, fn, args)
     const after = await history()
@@ -164,7 +165,7 @@ export async function flowR13Tests({ db, ok }) {
       }
     }
 
-    await roleMatrix({ check, rows, rpc, skipQueue: (actor, id) => db.query(queueSkipSql, [id, ids[actor]]), point: transactionPoint, receive, intake, walk, roster, vendor, dates, reason })
+    await roleMatrix({ check, rows, rpc, skipQueue: (actor, id) => skips.insert(id, ids[actor]), point: transactionPoint, receive, intake, walk, roster, vendor, dates, reason })
 
     await check('A4/A5 แบ่งซ้ำ ใบลูกของใบลูก และยกเลิกเฉพาะใบลูก', async () => {
       const id = await receive('SPLIT', 'outside')
@@ -418,4 +419,5 @@ export async function flowR13Tests({ db, ok }) {
   } finally {
     await db.exec('rollback')
   }
+  skips.report()
 }

@@ -3,7 +3,7 @@ import { isStationCode, type StationCode } from '../proto/model'
 import type { Callout, Draft, MockView, SheetStatus, SpecKind, Unit, ViewKey } from '../proto/annotation'
 import { VIEW_ORDER, confirmationDraft, toPayload } from '../proto/annotation'
 import { uploadFile } from './files'
-import { contentKey, forgetMissingMockup, mockupExt, mockupFolder, mockupProblem, signMockups } from './mockups'
+import { contentKey, forgetMissingMockup, mockupExt, mockupFolder, mockupProblem, signMockups, uploadMockupThumb } from './mockups'
 import { rpc, type RpcResult } from './useFactoryData'
 import { thaiError } from './live'
 
@@ -129,6 +129,7 @@ export async function uploadOriginal(no: string, file: File, view: ViewKey): Pro
   const up = await uploadFile('mockups', path, file, file.type)
   if (!up.ok) return up
   forgetMissingMockup(path)
+  await uploadMockupThumb(path, file)
   const url = (await signMockups([path])).get(path)
   return { ok: true, data: { view, path, ...size, url: url ?? localUrl(file) } }
 }

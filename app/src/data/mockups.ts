@@ -1,13 +1,16 @@
 // bucket ไม่เปิดสาธารณะ (งานลูกค้า) → ขอลิงก์ชั่วคราวทีละชุด แล้วจำไว้ใช้ซ้ำจนใกล้หมดอายุ
 import type { Job } from '../proto/model'
-import { MAX_UPLOAD_BYTES, signFiles, uploadFile } from './files'
+import { MAX_UPLOAD_BYTES, filesUrl, signFiles, uploadFile } from './files'
 import type { FormMockup, JobMockup } from './jobMockups'
 import { withTimeout } from './live'
 import { onUserChange } from './userScope'
 
 export const MAX_MOCKUP_BYTES = MAX_UPLOAD_BYTES
-// ลิงก์รูปอายุ 2 ชั่วโมง (Worker ไม่ออกนานกว่านี้) · บัญชีที่ถูกปิดขอลิงก์ใหม่ไม่ได้
-const SIGN_SECONDS = 2 * 60 * 60
+// ขอลิงก์รูป 1 ชั่วโมง (Worker ปัดหมดอายุขึ้นถึงขอบชั่วโมง ลิงก์จริงอยู่ 1–2 ชม.) · บัญชีที่ถูกปิดขอลิงก์ใหม่ไม่ได้
+const SIGN_SECONDS = 60 * 60
+const THUMB_SIDE = 240
+const THUMB_QUALITY = 0.7
+const THUMB_TIMEOUT_MS = 10_000
 const RENEW_BEFORE_MS = 30 * 60 * 1000
 // ขอลิงก์รูปช้า ต้องไม่ทำให้ข้อมูลงานทั้งหน้าโหลดไม่ขึ้น (หน้าโหลดตัดที่ 30 วิ) → ตัดที่ 8 วิ แสดงกรอบว่างไปก่อน
 const SIGN_TIMEOUT_MS = 8_000
@@ -140,7 +143,7 @@ export async function withMockups(jobs: Job[]): Promise<Job[]> {
 }
 
 // รูปจากกล้องมือถือใหญ่หลาย MB → ย่อก่อนอัปโหลด · ย่อไม่ได้ = ใช้ไฟล์เดิม
-export async function shrinkImage(file: Blob, max = 1200): Promise<Blob> {
+export async function shrinkImage(file: Blob, max = 1200, quality = 0.85): Promise<Blob> {
   try {
     const bmp = await createImageBitmap(file)
     const k = Math.min(1, max / Math.max(bmp.width, bmp.height))
@@ -153,21 +156,52 @@ export async function shrinkImage(file: Blob, max = 1200): Promise<Blob> {
     g.fillRect(0, 0, canvas.width, canvas.height)
     g.drawImage(bmp, 0, 0, canvas.width, canvas.height)
     bmp.close()
-    const out = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85))
+    const out = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
     return out ?? file
   } catch {
     return file
   }
 }
 
+export const mockupThumbPath = (path: string) => `${path}.thumb.jpg`
+
+// ลิงก์ของ Worker เปิดรูปย่อได้ด้วย v=thumb (สิทธิ์เดียวกับรูปต้นฉบับ) · ลิงก์ Supabase Storage / blob: ใช้รูปเดิม
+export function mockupThumbUrl(url: string, base = filesUrl()): string {
+  if (!base || !url.startsWith(`${base}/f/mockups/`)) return url
+  try {
+    const u = new URL(url)
+    u.searchParams.set('v', 'thumb')
+    return u.href
+  } catch {
+    return url
+  }
+}
+
+type ThumbDeps = { shrink?: (blob: Blob) => Promise<Blob>; upload?: typeof uploadFile }
+
+// รูปย่อส่งไม่สำเร็จ = การ์ดใช้รูปต้นฉบับแทน ไม่ทำให้การบันทึกรูปล้ม
+export async function uploadMockupThumb(path: string, blob: Blob, deps: ThumbDeps = {}): Promise<boolean> {
+  if (!filesUrl()) return false
+  try {
+    const small = await (deps.shrink ?? (b => shrinkImage(b, THUMB_SIDE, THUMB_QUALITY)))(blob)
+    if (small === blob || small.type !== 'image/jpeg') return false
+    const up = await withTimeout(() => (deps.upload ?? uploadFile)('mockups', mockupThumbPath(path), small, 'image/jpeg', { once: true }), THUMB_TIMEOUT_MS)
+    return !up.timedOut && up.value.ok
+  } catch {
+    return false
+  }
+}
+
 // รูปเดิมของใบเดิมมีอยู่แล้ว = ใช้ไฟล์เดิม
-export async function uploadMockup(no: string, blob: Blob): Promise<{ ok: true; path: string } | { ok: false; reason: string }> {
+export async function uploadMockup(no: string, blob: Blob, thumb: ThumbDeps = {}): Promise<{ ok: true; path: string } | { ok: false; reason: string }> {
   const problem = mockupProblem(blob)
   if (problem) return { ok: false, reason: problem }
   const path = mockupPath(no, await contentKey(blob), mockupExt(blob.type) ?? 'jpg')
   const up = await uploadFile('mockups', path, blob, blob.type)
-  if (up.ok) forgetMissingMockup(path)
-  return up.ok ? { ok: true, path } : up
+  if (!up.ok) return up
+  forgetMissingMockup(path)
+  await uploadMockupThumb(path, blob, thumb)
+  return { ok: true, path }
 }
 
 // รูปที่มีในระบบแล้วใช้ path เดิม · รูปใหม่อัปโหลดเข้าโฟลเดอร์ของใบ · รูปไหนไม่ผ่าน = ไม่ส่งทั้งชุด (เลขรูปของแต่ละแบบต้องไม่เลื่อน)

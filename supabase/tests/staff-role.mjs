@@ -1,4 +1,4 @@
-import { skipQueue } from './queue-skip.mjs'
+import { queueSkips } from './queue-skip.mjs'
 
 export async function staffRoleTests({ db, ok, as }) {
   const U = {
@@ -10,7 +10,8 @@ export async function staffRoleTests({ db, ok, as }) {
     insert into public.profiles (user_id,name,role,active) values
       ('${U.staff}','พนักงานพิมพ์','staff',true),('${U.loose}','พนักงานยังไม่จับคู่','staff',true);
   `)
-  const call = async (uid, sql) => { await skipQueue(db, as, uid, sql); return as(uid, () => db.query(`select ${sql}`)) }
+  const skips = queueSkips(db, 'staff-role')
+  const call = async (uid, sql) => { await skips.beforeSql(as, uid, sql); return as(uid, () => db.query(`select ${sql}`)) }
   const pass = async (name, uid, sql) => {
     try { await call(uid, sql); ok(name, true) } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }
@@ -51,4 +52,5 @@ export async function staffRoleTests({ db, ok, as }) {
   const waiting = await jobAt('SC-STAFF-W', 1, 'materials')
   await reject('งานที่ยังไม่ถึงสถานี พนักงานกดไม่ได้', U.staff, `public.open_issue('${waiting}', 'ทดสอบ')`, /ยังไม่อยู่ที่สถานี/)
   await pass('เจ้าของยังกดได้ทุกสถานี', U.owner, `public.start_station('${cut}')`)
+  skips.report()
 }

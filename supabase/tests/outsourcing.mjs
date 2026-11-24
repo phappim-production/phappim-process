@@ -1,5 +1,5 @@
 
-import { skipQueue } from './queue-skip.mjs'
+import { queueSkips } from './queue-skip.mjs'
 
 export async function outsourcingTests({ db, ok, as }) {
   const U = {
@@ -8,7 +8,8 @@ export async function outsourcingTests({ db, ok, as }) {
     owner: '00000000-0000-0000-0000-000000000001',
   }
   const firstLine = e => e.message.split(String.fromCharCode(10))[0]
-  const call = async (uid, sql) => { await skipQueue(db, as, uid, sql); return as(uid, () => db.query(`select ${sql} as r`)) }
+  const skips = queueSkips(db, 'outsourcing')
+  const call = async (uid, sql) => { await skips.beforeSql(as, uid, sql); return as(uid, () => db.query(`select ${sql} as r`)) }
   const pass = async (name, uid, sql) => {
     try { const r = await call(uid, sql); ok(name, true); return r.rows[0]?.r } catch (e) { ok(name, false, firstLine(e)) }
   }
@@ -102,4 +103,5 @@ export async function outsourcingTests({ db, ok, as }) {
   await reject('งานที่เริ่มแล้วส่งออกไม่ได้', U.admin, `public.send_out('${j2}', ${A}, 'cut', ${plan()})`, /ยังไม่เริ่มสถานีนี้/)
   const seqs = (await db.query('select queue_seq::text q from public.jobs')).rows.map(r => r.q)
   ok('เลขคิวยังไม่ซ้ำหลังแบ่งงาน', new Set(seqs).size === seqs.length)
+  skips.report()
 }

@@ -2,14 +2,15 @@
 
 import { requiredSteps, substepSql } from './steps.mjs'
 
-import { skipQueue } from './queue-skip.mjs'
+import { queueSkips } from './queue-skip.mjs'
 
 export async function productionTests({ db, ok, as }) {
   const U = {
     prod: '00000000-0000-0000-0000-000000000013', admin: '00000000-0000-0000-0000-000000000011',
     qc: '00000000-0000-0000-0000-000000000012', mgr: '00000000-0000-0000-0000-000000000014',
   }
-  const call = async (uid, sql) => { await skipQueue(db, as, uid, sql); return as(uid, () => db.query(`select ${sql}`)) }
+  const skips = queueSkips(db, 'production')
+  const call = async (uid, sql) => { await skips.beforeSql(as, uid, sql); return as(uid, () => db.query(`select ${sql}`)) }
   const pass = async (name, uid, sql) => {
     try { const r = await call(uid, sql); ok(name, true); return r } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }
@@ -56,4 +57,5 @@ export async function productionTests({ db, ok, as }) {
   await pass('ฝ่ายผลิตแก้ไขย้อนหลังได้ (บันทึกเหตุผล)', U.prod, `public.correct_event('${p}', ${ev}, 'กดเริ่มผิดเวลา')`)
   ok('ทุกการกดของฝ่ายผลิตบันทึกชื่อผู้กดใน events',
     (await db.query(`select count(*)::int n from public.events where job_id = '${s}' and by is distinct from '${U.prod}' and type <> 'qc_recorded'`)).rows[0].n === 0)
+  skips.report()
 }

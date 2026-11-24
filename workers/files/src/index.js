@@ -1,16 +1,21 @@
 export const MAX_BYTES = 20 * 1024 * 1024
+export const THUMB_MAX_BYTES = 1024 * 1024
+const THUMB_SUFFIX = '.thumb.jpg'
 
+// เวลาหมดอายุปัดขึ้นถึงขอบช่วง: ขอซ้ำในช่วงเดียวกันได้ลิงก์เดิม เบราว์เซอร์ใช้ cache ได้ · อายุจริง ≤ maxAskSeconds + linkBucketSeconds (PDF ≤ 10 นาที รูป ≤ 2 ชม.)
 const KINDS = {
   confirmations: {
     path: /^[A-Za-z0-9_-]{1,200}\/[A-Za-z0-9]{1,64}\.pdf$/,
     types: { pdf: 'application/pdf' },
-    maxLinkSeconds: 10 * 60,
+    maxAskSeconds: 9 * 60,
+    linkBucketSeconds: 60,
     wrongType: 'ไฟล์ใบยืนยันต้องเป็น PDF',
   },
   mockups: {
     path: /^[A-Za-z0-9_-]{1,200}\/(?:sheet\/)?[A-Za-z0-9]{1,64}\.(?:jpg|png|webp)$/,
     types: { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' },
-    maxLinkSeconds: 2 * 60 * 60,
+    maxAskSeconds: 60 * 60,
+    linkBucketSeconds: 60 * 60,
     wrongType: 'รูปม็อคอัพต้องเป็นไฟล์ภาพ (JPG / PNG / WEBP)',
   },
 }
@@ -22,6 +27,21 @@ export function typeOfPath(kind, path) {
   const rule = KINDS[kind]
   if (!rule || typeof path !== 'string' || !rule.path.test(path)) return null
   return rule.types[path.slice(path.lastIndexOf('.') + 1)] ?? null
+}
+
+export const thumbPathOf = path => `${path}${THUMB_SUFFIX}`
+
+export function originalOfThumb(kind, path) {
+  if (kind !== 'mockups' || typeof path !== 'string' || !path.endsWith(THUMB_SUFFIX)) return null
+  const original = path.slice(0, -THUMB_SUFFIX.length)
+  return typeOfPath(kind, original) ? original : null
+}
+
+export function linkExpiry(kind, nowSeconds, askedSeconds) {
+  const rule = KINDS[kind]
+  const asked = Number.isFinite(askedSeconds) ? Math.floor(askedSeconds) : rule.maxAskSeconds
+  const seconds = Math.max(30, Math.min(rule.maxAskSeconds, asked))
+  return Math.ceil((nowSeconds + seconds) / rule.linkBucketSeconds) * rule.linkBucketSeconds
 }
 
 export function contentMatches(type, bytes) {
@@ -107,6 +127,8 @@ async function callRpc(env, fetcher, token, fn, args) {
 async function upload(request, env, fetcher, kind, path) {
   const token = bearer(request)
   if (!token) return fail(request, env, 401, 'ให้ล็อกอินก่อนอัปโหลดไฟล์')
+  const original = originalOfThumb(kind, path)
+  if (original) return uploadThumb(request, env, fetcher, token, kind, path, original)
   const expected = typeOfPath(kind, path)
   if (!expected) return fail(request, env, 400, KINDS[kind]?.wrongType ?? 'ไม่รู้จักประเภทไฟล์')
   const type = (request.headers.get('Content-Type') ?? '').split(';')[0].trim().toLowerCase()
@@ -148,6 +170,42 @@ async function upload(request, env, fetcher, kind, path) {
   return json(request, env, 200, { path, size: head.size, existed })
 }
 
+// รูปย่อใช้สิทธิ์ของรูปต้นฉบับ (ถามฐานข้อมูลด้วย path ต้นฉบับ) และต้องมีต้นฉบับในที่เก็บแล้ว · ไม่จดในฐานข้อมูล
+async function uploadThumb(request, env, fetcher, token, kind, path, original) {
+  const wrongType = 'รูปย่อต้องเป็นไฟล์ JPG'
+  const type = (request.headers.get('Content-Type') ?? '').split(';')[0].trim().toLowerCase()
+  if (type !== 'image/jpeg') return fail(request, env, 415, wrongType)
+  const lengthHeader = request.headers.get('Content-Length')
+  const declared = lengthHeader === null ? NaN : Number(lengthHeader)
+  if (!Number.isSafeInteger(declared)) return fail(request, env, 411, 'ไม่ทราบขนาดไฟล์ ให้เลือกไฟล์แล้วอัปโหลดอีกครั้ง')
+  if (declared > THUMB_MAX_BYTES) return fail(request, env, 413, 'รูปย่อใหญ่เกิน 1 MB')
+  if (declared <= 0) return fail(request, env, 400, 'ไฟล์ว่างเปล่า ให้เลือกไฟล์ใหม่')
+
+  const allowed = await callRpc(env, fetcher, token, 'file_upload_allowed', {
+    p_kind: kind, p_path: original, p_size: declared, p_type: typeOfPath(kind, original),
+  })
+  if (!allowed.ok) return fail(request, env, allowed.status, allowed.error)
+
+  let bytes
+  try { bytes = new Uint8Array(await request.arrayBuffer()) } catch {
+    return fail(request, env, 400, 'ไฟล์มาไม่ครบ (เน็ตหลุดระหว่างส่ง) ให้กดอัปโหลดอีกครั้ง')
+  }
+  if (bytes.byteLength > THUMB_MAX_BYTES) return fail(request, env, 413, 'รูปย่อใหญ่เกิน 1 MB')
+  if (bytes.byteLength !== declared) return fail(request, env, 400, 'ไฟล์มาไม่ครบ (เน็ตหลุดระหว่างส่ง) ให้กดอัปโหลดอีกครั้ง')
+  if (!contentMatches(type, bytes)) return fail(request, env, 415, wrongType)
+  if (!await env.FILES.head(`${kind}/${original}`)) return fail(request, env, 409, 'ยังไม่มีรูปต้นฉบับในที่เก็บ ให้อัปโหลดรูปต้นฉบับก่อน')
+
+  const key = `${kind}/${path}`
+  let head = await env.FILES.head(key)
+  const existed = !!head
+  if (!head) {
+    await env.FILES.put(key, bytes, { httpMetadata: { contentType: type } })
+    head = await env.FILES.head(key)
+    if (!head) return fail(request, env, 503, 'ที่เก็บไฟล์ยังไม่ยืนยันไฟล์ ลองอีกครั้ง')
+  }
+  return json(request, env, 200, { path, size: head.size, existed })
+}
+
 async function sign(request, env, fetcher, now) {
   const token = bearer(request)
   if (!token) return fail(request, env, 401, 'ให้ล็อกอินก่อนเปิดไฟล์')
@@ -158,11 +216,9 @@ async function sign(request, env, fetcher, now) {
   if (!rule || !Array.isArray(body.paths)) return fail(request, env, 400, 'คำขอไม่ถูกต้อง')
   const paths = [...new Set(body.paths.filter(p => typeOfPath(kind, p)))].slice(0, 200)
   if (!paths.length) return json(request, env, 200, { urls: {} })
-  const asked = Number(body.seconds)
-  const seconds = Math.max(30, Math.min(rule.maxLinkSeconds, Number.isFinite(asked) ? Math.floor(asked) : rule.maxLinkSeconds))
   const allowed = await callRpc(env, fetcher, token, 'file_read_allowed', { p_kind: kind, p_paths: paths })
   if (!allowed.ok) return fail(request, env, allowed.status, allowed.error)
-  const exp = Math.floor(now() / 1000) + seconds
+  const exp = linkExpiry(kind, Math.floor(now() / 1000), Number(body.seconds))
   const base = new URL(request.url).origin
   const urls = {}
   for (const p of Array.isArray(allowed.data) ? allowed.data : []) {
@@ -182,7 +238,11 @@ async function serve(request, env, now, kind, path, url) {
   }
   const left = exp - Math.floor(now() / 1000)
   if (left <= 0) return textPage(410, 'ลิงก์หมดอายุแล้ว กลับไปกดเปิดไฟล์จากใบงานอีกครั้ง')
-  const obj = request.method === 'HEAD' ? await env.FILES.head(`${kind}/${path}`) : await env.FILES.get(`${kind}/${path}`)
+  const read = key => (request.method === 'HEAD' ? env.FILES.head(key) : env.FILES.get(key))
+  // ลิงก์รูปต้นฉบับเปิดรูปย่อได้ด้วย ?v=thumb · รูปเก่าที่ยังไม่มีรูปย่อได้รูปต้นฉบับแทน ไม่ขึ้นรูปเสีย
+  const wantThumb = kind === 'mockups' && url.searchParams.get('v') === 'thumb'
+  const thumb = wantThumb ? await read(`${kind}/${thumbPathOf(path)}`) : null
+  const obj = thumb ?? await read(`${kind}/${path}`)
   if (!obj) return textPage(404, 'ไม่พบไฟล์ในที่เก็บ แจ้งแอดมินให้แนบไฟล์ใหม่')
   return new Response(request.method === 'HEAD' ? null : obj.body, {
     status: 200,
@@ -190,7 +250,8 @@ async function serve(request, env, now, kind, path, url) {
       'Content-Type': obj.httpMetadata?.contentType ?? 'application/octet-stream',
       'Content-Length': String(obj.size),
       'Content-Disposition': 'inline',
-      'Cache-Control': `private, max-age=${Math.min(left, 3600)}`,
+      'Cache-Control': `private, max-age=${left}, immutable`,
+      ...(wantThumb ? { 'X-File-Variant': thumb ? 'thumb' : 'original' } : {}),
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
       'Cross-Origin-Resource-Policy': 'cross-origin',

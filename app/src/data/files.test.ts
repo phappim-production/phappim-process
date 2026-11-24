@@ -110,6 +110,33 @@ describe('ที่เก็บไฟล์ R2 ผ่าน Worker', () => {
       vi.unstubAllGlobals()
     }
   })
+
+  it('อัปโหลดรูปม็อคอัพแล้วส่งรูปย่อตาม path ต้นฉบับ · รูปย่อล้มเหลวไม่ทำให้การอัปโหลดล้ม', async () => {
+    const calls: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => { calls.push(url); return url.endsWith('.thumb.jpg') ? reply(503, { error: 'x' }) : reply(200, {}) }))
+    try {
+      const small = new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: 'image/jpeg' })
+      const up = await uploadMockup('SC-1', new Blob(['big picture'], { type: 'image/png' }), { shrink: () => Promise.resolve(small) })
+      expect(up).toEqual({ ok: true, path: expect.stringMatching(/^SC-1\/[a-f0-9]{16}\.png$/) })
+      const path = up.ok ? up.path : ''
+      expect(calls).toEqual([`https://files.test/upload/mockups/${path}`, `https://files.test/upload/mockups/${path}.thumb.jpg`])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('อัปโหลดรูปต้นฉบับไม่ผ่าน ไม่ส่งรูปย่อ', async () => {
+    const calls: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => { calls.push(url); return reply(403, { error: 'บทบาทของคุณทำขั้นนี้ไม่ได้' }) }))
+    try {
+      const shrink = vi.fn((b: Blob) => Promise.resolve(b))
+      await expect(uploadMockup('SC-1', new Blob(['p'], { type: 'image/png' }), { shrink })).resolves.toEqual({ ok: false, reason: 'บทบาทของคุณทำขั้นนี้ไม่ได้' })
+      expect(calls).toHaveLength(1)
+      expect(shrink).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })
 
 describe('ยังไม่เปิดใช้ R2 = Supabase Storage แบบเดิม', () => {

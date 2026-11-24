@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MAX_BYTES, contentMatches, createHandler, hmacHex, typeOfPath } from '../src/index.js'
+import { MAX_BYTES, THUMB_MAX_BYTES, contentMatches, createHandler, hmacHex, originalOfThumb, thumbPathOf, typeOfPath } from '../src/index.js'
 import { fakeR2, fileBytes } from './fake-r2.mjs'
 
 const ORIGIN = 'https://pp142.pages.dev'
@@ -195,16 +195,141 @@ test('ลิงก์เปิดไฟล์: ได้เฉพาะไฟล
   assert.match(await gone.text(), /หมดอายุ/)
 })
 
-test('ลิงก์ PDF นานสุด 10 นาที · รูปนานสุด 2 ชั่วโมง แม้ขอนานกว่า', async () => {
-  const { put, sign, db } = setup()
-  await put('confirmations', PDF, fileBytes('application/pdf', 100))
-  db.referenced.add(`confirmations/${PDF}`)
+test('ลิงก์ PDF ไม่เกิน 10 นาทีทุกเวลาที่ขอ · รูปอย่างน้อย 2 ชม. ไม่เกิน 4 ชม. แม้ขอนานกว่า', async () => {
+  const start = Date.UTC(2026, 10, 21, 2)
+  for (const offset of [0, 1_000, 59_000, 61_000, 3_599_000, 7_199_000, 7_200_000 + 30_500]) {
+    const { put, sign, db } = setup({ start: start + offset })
+    await put('confirmations', PDF, fileBytes('application/pdf', 100))
+    db.referenced.add(`confirmations/${PDF}`)
+    db.referenced.add(`mockups/${JPG}`)
+    const now = Math.floor((start + offset) / 1000)
+    for (const seconds of [99_999, undefined, 600]) {
+      const pdf = await (await sign('confirmations', [PDF], { seconds })).json()
+      assert.ok(pdf.expires - now <= 600 && pdf.expires - now >= 540, `PDF offset ${offset} ${seconds}: ${pdf.expires - now}`)
+    }
+    const short = await (await sign('confirmations', [PDF], { seconds: 1 })).json()
+    assert.ok(short.expires - now >= 30 && short.expires - now < 90)
+    const pic = await (await sign('mockups', [JPG], { seconds: 99_999 })).json()
+    assert.ok(pic.expires - now >= 3600 && pic.expires - now <= 7200, `รูป offset ${offset}: ${pic.expires - now}`)
+    assert.equal(pic.expires % 3600, 0)
+  }
+})
+
+test('ลิงก์เดิมในช่วง 1 ชม. เดียวกัน (เบราว์เซอร์ใช้รูปจาก cache ได้) · ข้ามช่วงได้ลิงก์ใหม่', async () => {
+  const { put, sign, db, tick } = setup({ start: Date.UTC(2026, 10, 21, 2, 0, 1) })
+  await put('mockups', JPG, fileBytes('image/jpeg', 100), { type: 'image/jpeg' })
   db.referenced.add(`mockups/${JPG}`)
-  const pdf = await (await sign('confirmations', [PDF], { seconds: 99_999 })).json()
-  const pic = await (await sign('mockups', [JPG], { seconds: 99_999 })).json()
-  const now = Math.floor(Date.UTC(2026, 10, 21, 2) / 1000)
-  assert.equal(pdf.expires - now, 600)
-  assert.equal(pic.expires - now, 7200)
+  const urlNow = async () => (await (await sign('mockups', [JPG])).json()).urls[JPG]
+  const first = await urlNow()
+  tick(60_000)
+  assert.equal(await urlNow(), first)
+  tick(3600_000 - 62_000)
+  assert.equal(await urlNow(), first)
+  tick(2_000)
+  const next = await urlNow()
+  assert.notEqual(next, first)
+  assert.equal(Number(new URL(next).searchParams.get('exp')) - Number(new URL(first).searchParams.get('exp')), 3600)
+})
+
+test('ไฟล์ที่เปิดได้ส่งหัว cache แบบส่วนตัว จนถึงเวลาหมดอายุของลิงก์พอดี', async () => {
+  const { put, sign, open, db, tick } = setup({ start: Date.UTC(2026, 10, 21, 2, 30) })
+  await put('mockups', JPG, fileBytes('image/jpeg', 100), { type: 'image/jpeg' })
+  await put('confirmations', PDF, fileBytes('application/pdf', 100))
+  db.referenced.add(`mockups/${JPG}`)
+  db.referenced.add(`confirmations/${PDF}`)
+  const pic = await (await sign('mockups', [JPG])).json()
+  const nowSec = Math.floor(Date.UTC(2026, 10, 21, 2, 30) / 1000)
+  assert.equal((await open(pic.urls[JPG])).headers.get('Cache-Control'), `private, max-age=${pic.expires - nowSec}, immutable`)
+  tick(10_000)
+  assert.equal((await open(pic.urls[JPG])).headers.get('Cache-Control'), `private, max-age=${pic.expires - nowSec - 10}, immutable`)
+  const pdf = await (await sign('confirmations', [PDF], { seconds: 300 })).json()
+  const cc = (await open(pdf.urls[PDF])).headers.get('Cache-Control')
+  assert.match(cc, /^private, max-age=\d+, immutable$/)
+  assert.ok(Number(/max-age=(\d+)/.exec(cc)[1]) <= 600)
+  assert.equal((await open(`${BASE}/f/mockups/${JPG}?exp=1&sig=x`)).headers.get('Cache-Control'), 'no-store')
+})
+
+const THUMB = `${JPG}.thumb.jpg`
+
+test('path รูปย่อ: ได้จากรูปต้นฉบับเท่านั้น · PDF / path แปลก / รูปย่อของรูปย่อ ไม่ใช่รูปย่อ', () => {
+  assert.equal(thumbPathOf(JPG), THUMB)
+  assert.equal(originalOfThumb('mockups', THUMB), JPG)
+  assert.equal(originalOfThumb('mockups', 'SC-1/sheet/ab12.png.thumb.jpg'), 'SC-1/sheet/ab12.png')
+  for (const [kind, path] of [['confirmations', `${PDF}.thumb.jpg`], ['mockups', `${THUMB}.thumb.jpg`], ['mockups', '../x/ab.jpg.thumb.jpg'],
+    ['mockups', 'SC-1/ab.thumb.jpg'], ['mockups', JPG], ['mockups', 'SC-1/ab.gif.thumb.jpg']]) {
+    assert.equal(originalOfThumb(kind, path), null, `${kind} ${path}`)
+  }
+  assert.equal(typeOfPath('mockups', THUMB), null)
+})
+
+test('อัปโหลดรูปย่อได้เมื่ออัปโหลดรูปต้นฉบับได้ และมีต้นฉบับในที่เก็บแล้ว · ไม่จดในฐานข้อมูล · ส่งซ้ำไม่เขียนทับ', async () => {
+  const { put, env, db } = setup()
+  assert.equal((await put('mockups', JPG, fileBytes('image/jpeg', 5000), { type: 'image/jpeg' })).status, 200)
+  db.calls.length = 0
+  const res = await put('mockups', THUMB, fileBytes('image/jpeg', 300), { type: 'image/jpeg' })
+  assert.equal(res.status, 200, await res.clone().text())
+  assert.deepEqual(await res.json(), { path: THUMB, size: 300, existed: false })
+  assert.equal(env.FILES.store.get(`mockups/${THUMB}`).type, 'image/jpeg')
+  assert.deepEqual(db.calls, ['file_upload_allowed'])
+  assert.equal(db.records.has(`mockups/${THUMB}`), false)
+  const again = await put('mockups', THUMB, fileBytes('image/jpeg', 400), { type: 'image/jpeg' })
+  assert.equal((await again.json()).existed, true)
+  assert.equal(env.FILES.store.get(`mockups/${THUMB}`).bytes.byteLength, 300)
+})
+
+test('อัปโหลดรูปย่อไม่ได้: ไม่มีสิทธิ์อัปโหลดต้นฉบับ / ไม่มีต้นฉบับ / ไม่ใช่ JPG / ใหญ่เกิน 1 MB / path ต้นฉบับผิด', async () => {
+  const { put, env, db } = setup()
+  await put('mockups', JPG, fileBytes('image/jpeg', 5000), { type: 'image/jpeg' })
+  const small = fileBytes('image/jpeg', 300)
+  const opts = extra => ({ type: 'image/jpeg', ...extra })
+  assert.equal((await put('mockups', THUMB, small, opts({ token: 'qc' }))).status, 403)
+  assert.equal((await put('mockups', THUMB, small, opts({ token: 'off' }))).status, 403)
+  assert.equal((await put('mockups', THUMB, small, opts({ token: '' }))).status, 401)
+  db.expired.add('admin')
+  assert.equal((await put('mockups', THUMB, small, opts())).status, 401)
+  db.expired.clear()
+  const orphan = await put('mockups', 'SC-1/0000000000000009.png.thumb.jpg', small, opts())
+  assert.equal(orphan.status, 409)
+  assert.match((await orphan.json()).error, /ต้นฉบับ/)
+  assert.equal((await put('mockups', THUMB, fileBytes('image/png', 300), { type: 'image/png' })).status, 415)
+  assert.equal((await put('mockups', THUMB, fileBytes('image/png', 300), opts())).status, 415)
+  const big = await put('mockups', THUMB, fileBytes('image/jpeg', THUMB_MAX_BYTES + 1), opts())
+  assert.equal(big.status, 413)
+  assert.equal((await put('mockups', `${THUMB}.thumb.jpg`, small, opts())).status, 400)
+  assert.equal((await put('confirmations', `${PDF}.thumb.jpg`, small, opts())).status, 400)
+  assert.equal((await put('mockups', THUMB, small, opts({ origin: 'https://evil.example' }))).status, 403)
+  assert.deepEqual(env.FILES.puts, [`mockups/${JPG}`])
+})
+
+test('ลิงก์รูป + ?v=thumb: มีรูปย่อได้รูปย่อ · ยังไม่มีได้รูปต้นฉบับ (ไม่ขึ้นรูปเสีย) · ลายเซ็นผิดยังเปิดไม่ได้', async () => {
+  const { put, sign, open, db } = setup()
+  const OLD = 'SC-1/0000000000000001.png'
+  await put('mockups', JPG, fileBytes('image/jpeg', 5000), { type: 'image/jpeg' })
+  await put('mockups', THUMB, fileBytes('image/jpeg', 300), { type: 'image/jpeg' })
+  await put('mockups', OLD, fileBytes('image/png', 4000), { type: 'image/png' })
+  db.referenced.add(`mockups/${JPG}`)
+  db.referenced.add(`mockups/${OLD}`)
+  const { urls } = await (await sign('mockups', [JPG, OLD, THUMB])).json()
+  assert.deepEqual(Object.keys(urls).sort(), [JPG, OLD].sort())
+  const full = await open(urls[JPG])
+  assert.equal((await full.arrayBuffer()).byteLength, 5000)
+  assert.equal(full.headers.get('X-File-Variant'), null)
+  const small = await open(`${urls[JPG]}&v=thumb`)
+  assert.equal(small.status, 200)
+  assert.equal(small.headers.get('X-File-Variant'), 'thumb')
+  assert.equal(small.headers.get('Content-Type'), 'image/jpeg')
+  assert.equal((await small.arrayBuffer()).byteLength, 300)
+  const head = await open(`${urls[JPG]}&v=thumb`, 'HEAD')
+  assert.equal(head.headers.get('Content-Length'), '300')
+  const fallback = await open(`${urls[OLD]}&v=thumb`)
+  assert.equal(fallback.status, 200)
+  assert.equal(fallback.headers.get('X-File-Variant'), 'original')
+  assert.equal(fallback.headers.get('Content-Type'), 'image/png')
+  assert.equal((await fallback.arrayBuffer()).byteLength, 4000)
+  const forged = new URL(`${urls[JPG]}&v=thumb`); forged.searchParams.set('sig', '0'.repeat(64))
+  assert.equal((await open(forged.href)).status, 403)
+  const direct = new URL(urls[JPG]); direct.pathname = `/f/mockups/${THUMB}`
+  assert.equal((await open(direct.href)).status, 404)
 })
 
 test('แก้ลิงก์ (เปลี่ยนเวลา / path / ลายเซ็น) เปิดไม่ได้', async () => {

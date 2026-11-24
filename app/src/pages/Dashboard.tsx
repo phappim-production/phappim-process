@@ -48,7 +48,7 @@ const filterField = 'min-h-12 w-full min-w-0 rounded-xl border border-line bg-ca
 export default function Dashboard({ view, routeKey, tab, overviewView, today, role, scope = FACTORY_SCOPE }: {
   view: View; routeKey?: string; tab?: DashTab; overviewView?: OverviewView; today: string; role: EmployeeRole; scope?: BoardScope
 }) {
-  const { state, live, refresh } = useFactoryData()
+  const { state, live, refresh, settle } = useFactoryData()
   if (state.status === 'loading') {
     return <main className="flex-1 p-5"><p role="status" className="text-muted"><Tr th="กำลังโหลดข้อมูลงาน…" /></p></main>
   }
@@ -70,7 +70,7 @@ export default function Dashboard({ view, routeKey, tab, overviewView, today, ro
           <OfflineText at={state.loadedAt.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })} />
         </p>
       )}
-      <DashboardView key={routeKey} view={view} startTab={tab} overviewView={overviewView} today={today} role={role} myScope={scope} data={state.data} loadedAt={state.loadedAt} refresh={refresh} />
+      <DashboardView key={routeKey} view={view} startTab={tab} overviewView={overviewView} today={today} role={role} myScope={scope} data={state.data} loadedAt={state.loadedAt} refresh={settle} />
     </>
   )
 }
@@ -86,7 +86,6 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
   const now = useNow(30_000)
   const { jobs: allJobs, machines, bookings, needs, products, shared } = data
   const noOf = (jobId: string) => allJobs.find(j => j.id === jobId)?.no ?? ''
-  // โหลดใหม่ทันทีหลังกด ไม่รอ Realtime
   async function call<T>(name: string, args: Record<string, unknown>, reload = true) {
     const r = await rpc<T>(name, args)
     if (r.ok && reload) await refresh()

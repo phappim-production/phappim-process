@@ -4,7 +4,7 @@ import { thaiError } from './live'
 export type FileKind = 'confirmations' | 'mockups'
 export type UploadResult = { ok: true } | { ok: false; reason: string }
 export type SignResult = { ok: true; urls: Map<string, string> } | { ok: false; reason: string }
-type Deps = { fetcher?: typeof fetch; wait?: (ms: number) => Promise<void> }
+type Deps = { fetcher?: typeof fetch; wait?: (ms: number) => Promise<void>; once?: boolean }
 
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 const OFFLINE = 'เชื่อมต่อระบบไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง'
@@ -65,9 +65,9 @@ export async function uploadFile(kind: FileKind, path: string, blob: Blob, type:
         method: 'PUT', body: blob, headers: { Authorization: `Bearer ${token}`, 'Content-Type': type },
       })
       if (res.ok) return { ok: true }
-      if (res.status < 500 || attempt >= RETRY_MS.length) return { ok: false, reason: await workerError(res) }
+      if (res.status < 500 || deps.once || attempt >= RETRY_MS.length) return { ok: false, reason: await workerError(res) }
     } catch {
-      if (attempt >= RETRY_MS.length) return { ok: false, reason: OFFLINE }
+      if (deps.once || attempt >= RETRY_MS.length) return { ok: false, reason: OFFLINE }
     }
     await wait(RETRY_MS[attempt] ?? 0)
   }

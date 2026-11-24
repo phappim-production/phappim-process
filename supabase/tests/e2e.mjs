@@ -2,14 +2,15 @@
 
 import { requiredSteps, substepSql } from './steps.mjs'
 
-import { skipQueue } from './queue-skip.mjs'
+import { queueSkips } from './queue-skip.mjs'
 
 export async function teamTests({ db, ok, as }) {
   const U = {
     admin: '00000000-0000-0000-0000-000000000011', qc: '00000000-0000-0000-0000-000000000012',
     prod: '00000000-0000-0000-0000-000000000013',
   }
-  const call = async (uid, sql) => { await skipQueue(db, as, uid, sql); return as(uid, () => db.query(`select ${sql}`)) }
+  const skips = queueSkips(db, 'e2e')
+  const call = async (uid, sql) => { await skips.beforeSql(as, uid, sql); return as(uid, () => db.query(`select ${sql}`)) }
   const step = async (name, uid, sql) => {
     try { await call(uid, sql); return true } catch (e) { ok(`${name} (ติดที่: ${sql.split('(')[0]})`, false, e.message.split('\n')[0]); return false }
   }
@@ -86,4 +87,5 @@ export async function teamTests({ db, ok, as }) {
     await step('พัก', U.prod, `public.open_issue('${C}', 'ผ้าไม่พอ')`) && (await live(C)).station_status === 'hold'
     && await step('แก้แล้ว', U.prod, `public.close_issue('${C}')`) && (await live(C)).station_status === 'doing')
   await reject('ทีมจริง: แอดมินกดเสร็จสถานีไม่ได้', U.admin, `public.finish_station('${C}')`, /บทบาท/)
+  skips.report()
 }

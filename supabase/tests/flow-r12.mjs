@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { queueSkipSql, startsDirect } from './queue-skip.mjs'
+import { queueSkips, startsJob } from './queue-skip.mjs'
 
 const roster = {
   admin: ['admin'], production: ['production'], manager: ['manager'], owner: ['owner'],
@@ -16,6 +16,7 @@ const blocked = /ผลิตข้างนอกทั้งหมด|บท�
 const script = name => readFileSync(new URL('../scripts/' + name + '.sql', import.meta.url), 'utf8')
 
 export async function flowR12Tests({ db, ok }) {
+  const skips = queueSkips(db, 'flow-r12')
   const rows = async (sql, args) => (await db.query(sql, args)).rows
   const one = async (sql, args) => (await rows(sql, args))[0]
   const live = id => one('select * from public.job_live where id=$1', [id])
@@ -48,7 +49,7 @@ export async function flowR12Tests({ db, ok }) {
     "!= case when station_status='out' then 1 else 0 end"), [])
 
   async function action(actor, name, args, events, jobId) {
-    if (startsDirect(name)) await db.query(queueSkipSql, [jobId, actors[actor]])
+    if (startsJob(name)) await skips.insert(jobId, actors[actor])
     const before = await history()
     const result = await rpc(actor, name, args)
     const after = await history()
@@ -393,4 +394,5 @@ export async function flowR12Tests({ db, ok }) {
   } finally {
     await db.exec('rollback')
   }
+  skips.report()
 }

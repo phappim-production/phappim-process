@@ -1,8 +1,9 @@
-import { skipQueue } from './queue-skip.mjs'
+import { queueSkips } from './queue-skip.mjs'
 
 export async function sewingPickTests({ db, ok, as }) {
   const prod = '00000000-0000-0000-0000-000000000013'
-  const call = async sql => { await skipQueue(db, as, prod, sql); return as(prod, () => db.query(`select ${sql}`)) }
+  const skips = queueSkips(db, 'sewing-pick')
+  const call = async sql => { await skips.beforeSql(as, prod, sql); return as(prod, () => db.query(`select ${sql}`)) }
   const pass = async (name, sql) => {
     try { await call(sql); ok(name, true) } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }
@@ -43,4 +44,5 @@ export async function sewingPickTests({ db, ok, as }) {
   } finally {
     await db.exec(`delete from public.product_machine_needs where product_type_code in ('pick1', 'pick2')`)
   }
+  skips.report()
 }

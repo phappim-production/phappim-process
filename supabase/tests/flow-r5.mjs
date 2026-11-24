@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { queueSkips } from './queue-skip.mjs'
 
 const users = {
   owner: '00000000-0000-0000-0000-000000000001',
@@ -165,8 +166,9 @@ export async function flowR5Tests({ db, ok, as }) {
   const forward = (id, company, station) => exec('admin', 'forward_out', '$1, $2, $3, ' + plan, [id, company, station])
   const build = (label, route = 'cut_only', sample = false) => receive('MATRIX-' + label, route, sample)
   // Fixture ใช้การเริ่มแบบตรงเฉพาะตอนจัดสถานะ เพื่อคง A และ B ไว้รอเป็นสองอันดับแรก
+  const skips = queueSkips(db, 'flow-r5')
   const direct = async (role, name, id) => {
-    await rpc('owner', 'note_queue_skip', [id, reason])
+    await skips.before(id, () => rpc('owner', 'note_queue_skip', [id, reason]))
     return rpc(role, name, [id])
   }
   async function through(id, stations, role = 'production') {
@@ -364,6 +366,7 @@ export async function flowR5Tests({ db, ok, as }) {
     const full = await probe(db, as, 'qc', name, args, async () => {}, false)
     ok('R5 ผ่านครบ 10/10 แล้ว ' + name + ' ต้องบอกให้กดเสร็จ', full.matches && /ผ่านครบ 10\/10/.test(full.message), full.message)
   }
+  skips.report()
 }
 
 function core(row) {

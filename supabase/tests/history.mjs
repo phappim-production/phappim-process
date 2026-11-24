@@ -1,6 +1,6 @@
 import { requiredSteps, substepSql } from './steps.mjs'
 
-import { skipQueue } from './queue-skip.mjs'
+import { queueSkips } from './queue-skip.mjs'
 
 export async function historyTests({ db, ok, as }) {
   const users = {
@@ -8,7 +8,8 @@ export async function historyTests({ db, ok, as }) {
     qc: '00000000-0000-0000-0000-000000000012',
     production: '00000000-0000-0000-0000-000000000013',
   }
-  const call = async (sql, role = 'production') => { await skipQueue(db, as, users[role], sql); return as(users[role], () => db.query(`select ${sql}`)) }
+  const skips = queueSkips(db, 'history')
+  const call = async (sql, role = 'production') => { await skips.beforeSql(as, users[role], sql); return as(users[role], () => db.query(`select ${sql}`)) }
   const first = async (sql, args) => (await db.query(sql, args)).rows[0]
 
   async function receive(name, sample) {
@@ -106,4 +107,5 @@ export async function historyTests({ db, ok, as }) {
   const after = await visit(next, 2)
   ok('C6: ใช้เวลาเริ่ม visit ถัดไปแม้เวลาเท่ากัน โดยเรียง id',
     !!before?.done_at && before.done_at === after?.started_at && after.done_at === null)
+  skips.report()
 }

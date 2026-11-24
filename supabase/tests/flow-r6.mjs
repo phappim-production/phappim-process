@@ -1,6 +1,6 @@
 
 import assert from 'node:assert/strict'
-import { queueSkipSql, startsDirect } from './queue-skip.mjs'
+import { queueSkips, startsJob } from './queue-skip.mjs'
 
 const users = {
   owner: '00000000-0000-0000-0000-000000000001',
@@ -14,10 +14,11 @@ const reason = 'เหตุผลทดสอบรอบ 6'
 const roles = Object.keys(users)
 
 export async function flowR6Tests({ db, ok, as }) {
+  const skips = queueSkips(db, 'flow-r6')
   const rows = async (sql, args = []) => (await db.query(sql, args)).rows
   const one = async (sql, args) => (await rows(sql, args))[0]
   const rpc = async (role, name, ...args) => {
-    if (startsDirect(name)) await db.query(queueSkipSql, [args[0], users[role]])
+    if (startsJob(name)) await skips.insert(args[0], users[role])
     const params = args.map((_, i) => '$' + (i + 1)).join(', ')
     return (await as(users[role], () => savepoint('r6_rpc', () => db.query('select public.' + name + '(' + params + ') as result', args)))).rows[0].result
   }
@@ -429,4 +430,5 @@ await isolated('R6 ส่งออกและรับกลับหลัง�
     const eventCount = (await events(id)).filter(event => event.type === 'delay_report').length
     assert.deepEqual([n, eventCount], [1, 1])
   })
+  skips.report()
 }
