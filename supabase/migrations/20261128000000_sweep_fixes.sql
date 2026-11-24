@@ -928,3 +928,73 @@ begin
   return jsonb_build_object('changed', true, 'rev', p_rev, 'mockup_rev', sheet.rev, 'mockup_stale', stale,
     'parts', case when split then to_jsonb(parts) end);
 end $$;
+
+create or replace function public.move_job_ahead(p_job uuid, p_before uuid, p_reason text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare j public.jobs; b public.jobs; prev numeric; target numeric;
+begin
+  perform private.require_role('supervisor', 'manager');
+  if coalesce(btrim(p_reason), '') = '' then
+    raise exception 'ใส่เหตุผลที่แทรกงานด่วน เช่น ลูกค้าเลื่อนวันส่งเร็วขึ้น' using errcode = 'P0001';
+  end if;
+  if p_job = p_before then raise exception 'เลือกงานที่จะแทรกก่อนให้เป็นงานอื่น' using errcode = 'P0001'; end if;
+  -- แทรกทีละคำขอ: สองคนแทรกช่องเดียวกันพร้อมกันจะได้เลขเดียวกัน
+  perform pg_advisory_xact_lock(hashtext('pp142.job_queue'));
+  -- จัดเลขคิวใหม่ก่อนล็อกแถวงาน: ล็อกทั้งตารางขณะถือแถวอยู่ = deadlock กับคนที่กดเริ่มงานเดียวกัน · เลขคิวเปลี่ยนได้เฉพาะคนที่ถือล็อกคิว จึงอ่านก่อนล็อกแถวได้
+  select queue_seq into b.queue_seq from public.jobs where id = p_before;
+  select max(queue_seq) into prev from public.jobs where queue_seq < b.queue_seq and id <> p_job;
+  if prev is not null and b.queue_seq - prev < 2 then perform private.queue_renumber(); end if;
+  j := private.lock_job(p_job);
+  b := private.lock_job(p_before);
+  if j.phase in ('done', 'cancelled') then raise exception 'งานนี้เสร็จหรือยกเลิกแล้ว แทรกคิวไม่ได้' using errcode = 'P0001'; end if;
+  if b.phase in ('done', 'cancelled') then perform private.stale('งานที่จะแทรกก่อนเสร็จหรือยกเลิกแล้ว'); end if;
+  if j.queue_seq < b.queue_seq then raise exception 'งาน % อยู่ก่อนงาน % ในคิวแล้ว', j.confirmation_no, b.confirmation_no using errcode = 'P0001'; end if;
+  select max(queue_seq) into prev from public.jobs where queue_seq < b.queue_seq and id <> p_job;
+  if prev is not null and b.queue_seq - prev < 2 then perform private.stale('เลขคิวเพิ่งถูกจัดใหม่'); end if;
+  target := case when prev is null then b.queue_seq - 1024 else floor((prev + b.queue_seq) / 2) end;
+  update public.jobs set queue_seq = target where id = p_job;
+  perform private.log(p_job, 'queue_insert', j.phase, private.station_at(j.route_code, j.station_seq),
+    jsonb_build_object('before', b.confirmation_no, 'reason', btrim(p_reason), 'from', j.queue_seq, 'to', target));
+end $$;
+
+create or replace function public.split_job(p_job uuid, p_qty int, p_request uuid default null) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare j public.jobs; new_id uuid := gen_random_uuid(); new_no text; n int; nxt numeric; target numeric; prev text;
+begin
+  perform private.require_role('admin');
+  perform pg_advisory_xact_lock(hashtext('pp142.job_queue'));
+  -- จัดเลขคิวใหม่ก่อนล็อกแถวงาน (เหตุผลเดียวกับ move_job_ahead)
+  select queue_seq into j.queue_seq from public.jobs where id = p_job;
+  select min(queue_seq) into nxt from public.jobs where queue_seq > j.queue_seq;
+  if nxt is not null and nxt - j.queue_seq < 2 then perform private.queue_renumber(); end if;
+  j := private.lock_job(p_job);
+  prev := private.claim_request(p_request, 'split_job');
+  if prev is not null then return nullif(prev, '')::uuid; end if;
+  if j.phase <> 'production' or j.station_status is distinct from 'queued' then
+    raise exception 'แบ่งงานได้เฉพาะงานผลิตจริงที่ยังไม่เริ่มสถานีนี้' using errcode = 'P0001';
+  end if;
+  if j.is_rework then raise exception 'งานแก้แบ่งไม่ได้ (ส่งแก้ตามจำนวนที่ QC ส่งกลับ)' using errcode = 'P0001'; end if;
+  if private.station_at(j.route_code, j.station_seq) = 'qc_pack' then raise exception 'งานที่ QC + Packing แบ่งไม่ได้' using errcode = 'P0001'; end if;
+  if p_qty is null or p_qty < 1 or p_qty >= j.qty then
+    raise exception 'จำนวนที่แบ่งต้องอยู่ระหว่าง 1 ถึง % %', j.qty - 1, j.unit using errcode = 'P0001';
+  end if;
+  n := 2;
+  while exists (select 1 from public.jobs where confirmation_no = j.confirmation_no || '-' || n) loop n := n + 1; end loop;
+  new_no := j.confirmation_no || '-' || n;
+  -- คิวถัดจากงานเดิมทันที (ไม่ต่อท้ายคิว · ทั้งสองส่วนเป็นงานเดียวกันที่รับเข้ามาพร้อมกัน)
+  select min(queue_seq) into nxt from public.jobs where queue_seq > j.queue_seq;
+  if nxt is not null and nxt - j.queue_seq < 2 then perform private.stale('เลขคิวเพิ่งถูกจัดใหม่'); end if;
+  -- งานสุดท้ายของคิว: ใช้เลขถัดไปจาก sequence ไม่อย่างนั้นแบ่งซ้ำแล้วได้เลขชนกับงานที่รับเข้าถัดไป
+  target := case when nxt is null then nextval('public.job_queue_seq') else floor((j.queue_seq + nxt) / 2) end;
+
+  insert into public.jobs select (jsonb_populate_record(null::public.jobs, to_jsonb(j) || jsonb_build_object(
+    'id', new_id, 'confirmation_no', new_no, 'qty', p_qty, 'spare_qty', 0, 'sew_count', 0,
+    'queue_seq', target, 'created_at', now(), 'created_by', auth.uid(), 'stage_entered_at', now()))).*;
+  update public.jobs set qty = qty - p_qty where id = p_job;
+  perform private.log(p_job, 'job_split', j.phase, private.station_at(j.route_code, j.station_seq),
+    jsonb_build_object('child', new_no, 'qty', p_qty, 'left', j.qty - p_qty));
+  perform private.log(new_id, 'job_split_from', j.phase, private.station_at(j.route_code, j.station_seq),
+    jsonb_build_object('parent', j.confirmation_no, 'qty', p_qty, 'parent_left', j.qty - p_qty));
+  perform private.finish_request(p_request, new_id::text);
+  return new_id;
+end $$;
