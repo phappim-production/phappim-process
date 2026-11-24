@@ -336,7 +336,7 @@ export function calloutWords(c: Callout, d: Pick<Draft, 'specs'>, jobSpec?: unkn
 export function confirmationDraft(spec: unknown, mockupPath: string | null): Draft | null {
   if (!isObj(spec) || !Array.isArray(spec.callouts)) return null
   const paths = Array.isArray(spec.mockups) ? spec.mockups.map(m => (isObj(m) ? text(m.path) : '')) : []
-  const frontPath = paths[0] || mockupPath || ''
+  const frontPath = mockupPath || paths[0] || ''
   if (!frontPath) return null
   paths[0] = frontPath
   const readSize = (v: unknown) => {

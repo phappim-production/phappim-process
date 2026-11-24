@@ -4,10 +4,17 @@ import { cardPath, formMockups, specMockups, specVariants } from '../src/data/jo
 
 test('รูปของงาน: ใช้รายการในสเปก · สเปกรุ่นก่อนหรือลบรูปหมดใช้ mockup_path รูปเดียว', () => {
   const spec = { mockups: [{ name: 'หน้า', path: 'SC-1/a.jpg' }, { name: '', path: '' }, 'x', { name: 'แดง', path: 'SC-1/b.jpg' }] }
-  assert.deepEqual(specMockups(spec, 'SC-1/z.jpg'), [{ name: 'หน้า', path: 'SC-1/a.jpg' }, { name: 'แดง', path: 'SC-1/b.jpg' }])
+  assert.deepEqual(specMockups(spec, 'SC-1/a.jpg'), [{ name: 'หน้า', path: 'SC-1/a.jpg' }, { name: 'แดง', path: 'SC-1/b.jpg' }])
+  assert.deepEqual(specMockups(spec, null), [{ name: 'หน้า', path: 'SC-1/a.jpg' }, { name: 'แดง', path: 'SC-1/b.jpg' }])
   assert.deepEqual(specMockups({ mockups: [] }, 'SC-1/z.jpg'), [{ name: '', path: 'SC-1/z.jpg' }])
   assert.deepEqual(specMockups({ h: {} }, 'SC-1/z.jpg'), [{ name: '', path: 'SC-1/z.jpg' }])
   assert.deepEqual(specMockups(null, null), [])
+})
+
+test('เปลี่ยนรูปบนการ์ดที่รายละเอียดงานแล้ว รูป 1 ใช้รูปบนการ์ด ไม่ย้อนกลับเป็นรูปเก่าในสเปก', () => {
+  const spec = { mockups: [{ name: 'หน้า', path: 'SC-1/a.jpg' }, { name: 'แดง', path: 'SC-1/b.jpg' }] }
+  assert.deepEqual(specMockups(spec, 'SC-1/new.jpg'), [{ name: 'หน้า', path: 'SC-1/new.jpg' }, { name: 'แดง', path: 'SC-1/b.jpg' }])
+  assert.equal(cardPath(specMockups(spec, 'SC-1/new.jpg'), 'SC-1'), 'SC-1/new.jpg')
 })
 
 test('รูปจากฟอร์ม: แยกรูปเดิมในระบบ (path) กับรูปใหม่ (data) · ไม่ใช่รายการ = ฟอร์มรุ่นเก่า', () => {

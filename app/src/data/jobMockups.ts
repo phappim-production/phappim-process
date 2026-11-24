@@ -17,8 +17,11 @@ export function specMockups(spec: unknown, mockupPath: string | null): JobMockup
   const list = isObj(spec) && Array.isArray(spec.mockups)
     ? spec.mockups.flatMap(m => (isObj(m) && text(m.path) ? [{ name: text(m.name), path: text(m.path) }] : []))
     : []
-  if (list.length) return list
-  return mockupPath ? [{ name: '', path: mockupPath }] : []
+  const first = list[0]
+  if (!first) return mockupPath ? [{ name: '', path: mockupPath }] : []
+  // เปลี่ยนรูปที่รายละเอียดงานแก้แค่ mockup_path สเปกยังชี้รูปเก่า · รูป 1 ต้องตามรูปบนการ์ด
+  if (mockupPath && first.path !== mockupPath) return [{ name: first.name, path: mockupPath }, ...list.slice(1)]
+  return list
 }
 
 /** รายการรูปจากฟอร์ม · null = ฟอร์มรุ่นเก่าที่ส่งรูปแรกรูปเดียว */

@@ -159,3 +159,20 @@ test('ฟอร์มใบยืนยัน: ชี้จุดกำกับ
   assert.match(doc, /<td>รูป 1<\/td>/)
   assert.match(doc, /<td>รูป 2<\/td>/)
 })
+
+test('ฟอร์มใบยืนยัน: ติ๊ก "มาตรฐาน" ในตารางได้ค่ามาตรฐานของคอลัมน์ ไม่ใช่ค่า on ของช่องติ๊ก', () => {
+  const js = scripts.join('\n')
+  const change = js.slice(js.indexOf("form.addEventListener('change'"), js.indexOf("form.addEventListener('focusin'"))
+  const table = change.indexOf('if(d.t')
+  assert.ok(table > 0)
+  assert.match(change.slice(table, change.indexOf('{', table)), /t\.type!=='checkbox'/)
+  assert.match(change, /d\.std!==undefined\)\{ scope\('p'\)\[d\.t\]\[\+d\.r\]\[d\.c\]=t\.checked\?d\.std:''/)
+})
+
+test('ฟอร์มใบยืนยัน: เปลี่ยนเลขที่ใบแล้วรูปของใบเดิมไม่ถูกตัดทิ้งเงียบๆ (เลขรูปของแบบและจุดกำกับจะชี้ผิดรูป)', () => {
+  const js = scripts.join('\n')
+  const save = js.slice(js.indexOf('function saveToSystem'), js.indexOf("const url='/#/board?confirmation=save'"))
+  assert.doesNotMatch(save, /payload\.mockups=payload\.mockups\.filter/)
+  assert.match(save, /if\(foreign\.length\)\{ alert\(/)
+  assert.ok(save.indexOf('foreign.length') < save.indexOf('const payload='))
+})

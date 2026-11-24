@@ -208,7 +208,7 @@ async function runA1(ctx) {
     await t.clickButton('กลับไปแก้ไข')
 
     await t.ev(() => { window.open = () => null })
-    await waitFor(() => t.ev(() => !readingImgs && !!thumb), 'ย่อรูปในฟอร์ม')
+    await waitFor(() => t.ev(() => !readingImgs && state.imgs.length > 0 && state.imgs.every(m => !!shrunk.get(m.src))), 'ย่อรูปในฟอร์ม')
     await t.clickButton('บันทึกเข้าระบบ')
     await t.waitText('ส่งใบ TEST-A1-TSHIRT แล้ว')
     const outboxHash = await t.ev(() => document.querySelector('#toast a')?.getAttribute('href'))

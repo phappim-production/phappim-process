@@ -1435,7 +1435,7 @@ form.addEventListener('input',e=>{
 form.addEventListener('change',e=>{
   const t=e.target, d=t.dataset;
   if(d.product!==undefined){ state.product=t.value; state.pickOpen=false; scope('p'); return rerender(); }
-  if(d.t){ const r=scope('p')[d.t][+d.r]; if(d.c.startsWith('q:')) r.q[d.c.slice(2)]=t.value; else r[d.c]=t.value;
+  if(d.t&&t.type!=='checkbox'){ const r=scope('p')[d.t][+d.r]; if(d.c.startsWith('q:')) r.q[d.c.slice(2)]=t.value; else r[d.c]=t.value;
     if(d.c==='img') return rerender(); updateTotals(); save(); return; }
   if(d.co!==undefined){ const c=coList()[+d.co]; if(!c) return;
     if(d.cf==='img'){ c.img=+t.value||0; coTab=c.img; return rerender(); }
@@ -1562,6 +1562,9 @@ function saveToSystem(){
   if(readingImgs||state.imgs.some((m,i)=>!sysPath(m,i)&&shrunk.get(m.src)===undefined)){ alert('กำลังเตรียมรูปม็อคอัพ รอ 1–2 วินาที แล้วกด "'+btn+'" อีกครั้ง'); return; }
   const broken=state.imgs.map((m,i)=>!sysPath(m,i)&&!shrunk.get(m.src)?i+1:0).filter(Boolean);
   if(broken.length){ alert('เปิดรูปที่ '+broken.join(', ')+' ไม่ได้ ลบรูปนั้นแล้วเลือกไฟล์รูปใหม่'); return; }
+  // รูปของใบเลขอื่นส่งไปกับใบเลขใหม่ไม่ได้ · ถ้าตัดทิ้งเงียบๆ เลขรูปของแต่ละแบบและจุดกำกับจะชี้ผิดรูป
+  const foreign=String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()?state.imgs.map((m,i)=>sysPath(m,i)?i+1:0).filter(Boolean):[];
+  if(foreign.length){ alert('รูปที่ '+foreign.join(', ')+' เป็นรูปของใบ '+(state.mockup_no||'เลขเดิม')+' ใช้กับใบเลขที่ใหม่ไม่ได้\nลบรูปนั้นแล้วแนบไฟล์รูปใหม่ หรือเปลี่ยนเลขที่ใบกลับเป็นเลขเดิม'); return; }
   const payload={ app:'phappim-confirm', v:1, ...state, imgs:[], summary:{ qty:totalQty() } };
   // ช่องที่ถูกซ่อนเพราะเปลี่ยนตัวเลือก (เช่น ผ้าเช็ดหน้า ↔ ผ้าพันคอ) ไม่ส่งเข้าระบบ ไม่อย่างนั้นหน้างานเห็นสเปกที่ลูกค้าไม่ได้เลือก
   const shown=scope('p'), part={...shown};
@@ -1574,7 +1577,7 @@ function saveToSystem(){
   payload.mockups=state.imgs.map((m,i)=>{ const path=sysPath(m,i); return path?{ name:m.name||'', path }:{ name:m.name||'', data:shrunk.get(m.src) }; });
   if(revise){ payload.revise_job=true; payload.changes=changes; }
   // รูปเดิมจากระบบใช้ได้เฉพาะใบเลขเดิม (เปลี่ยนเลขใบเพื่อทำใบใหม่ = ไม่เอารูปใบเดิมไป)
-  if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()){ delete payload.mockup_path; payload.mockups=payload.mockups.filter(m=>!m.path); }
+  if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()) delete payload.mockup_path;
   delete payload.mockup_no; delete payload.job_no; delete payload.job_base; delete payload.job_imgs;
   try{ localStorage.setItem(OUTBOX, JSON.stringify(payload)); }catch(e){ alert('บันทึกไม่สำเร็จ (พื้นที่เบราว์เซอร์เต็ม) ให้ใช้ "บันทึกไฟล์" แทน'); return; }
   showAfterSave(state.h.doc_no, revise);

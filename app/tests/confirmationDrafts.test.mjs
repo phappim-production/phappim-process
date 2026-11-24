@@ -94,3 +94,11 @@ test('หน้ารับงาน: ปรับหัวใบและเผ
   })
   assert.equal(synced.p.tshirt.spare, 5)
 })
+
+test('หน้ารับงาน: แอดมินลบจำนวนเผื่อเสีย → spec ไม่เก็บค่าเดิมไว้ (แก้ใบทีหลังจะไม่ดึงเผื่อเสียกลับมาเอง)', () => {
+  const synced = syncConfirmationSpec({
+    no: 'SC69-1', rev: 0, customer: 'ลูกค้า', jobName: 'งาน', product: 'tshirt', qty: 50, spare: 0, due: '2026-12-20', route: 'normal', needsSample: false,
+    spec: { h: { doc_no: 'SC69-1' }, p: { tshirt: { spare: '5' } }, product: 'tshirt' },
+  }, 'เสื้อยืด')
+  assert.equal(synced.p.tshirt.spare, '')
+})

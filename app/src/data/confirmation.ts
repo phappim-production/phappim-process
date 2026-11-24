@@ -119,7 +119,7 @@ export function syncConfirmationSpec(draft: ReceiveDraft, productName: string): 
   }
   const part = s.p[draft.product]
   const p = isRecord(part)
-    ? { ...s.p, [draft.product]: { ...part, spare: draft.spare > 0 ? draft.spare : (part.spare ?? '') } }
+    ? { ...s.p, [draft.product]: { ...part, spare: draft.spare > 0 ? draft.spare : '' } }
     : s.p
   return { ...s, h, p }
 }
