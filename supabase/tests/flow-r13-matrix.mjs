@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
-export async function roleMatrix({ check, rows, rpc, point, receive, intake, walk, roster, vendor, dates, reason }) {
+export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, intake, walk, roster, vendor, dates, reason }) {
   const routes = await readFile(new URL('../../docs/api-workflow.md', import.meta.url), 'utf8')
   const documented = routes.slice(0, routes.indexOf('| \x60job_live\x60 (view)')).split(/\r?\n/)
     .filter(line => line.startsWith('| \x60'))
@@ -14,11 +14,15 @@ export async function roleMatrix({ check, rows, rpc, point, receive, intake, wal
   const floor = [...production, 'phase2']
   const all = Object.keys(roster).filter(actor => actor !== 'disabled')
   const result = []
+  const begin = async (actor, name, id) => {
+    await skipQueue(actor, id)
+    return rpc(actor, name, [id])
+  }
   await check('A2 ตารางสิทธิ์คำสั่งตามเอกสาร', async () => {
     const queued = await receive('MATRIX-QUEUED', 'plain')
     const later = await receive('MATRIX-NEXT', 'plain')
     const doing = await receive('MATRIX-DOING', 'plain')
-    await rpc('production', 'start_station', [doing])
+    await begin('production', 'start_station', doing)
     const hold = await receive('MATRIX-HOLD', 'cut_only')
     await rpc('admin', 'open_issue', [hold, reason])
     const out = await receive('MATRIX-OUT', 'plain')
@@ -30,23 +34,23 @@ export async function roleMatrix({ check, rows, rpc, point, receive, intake, wal
     const sample = await receive('MATRIX-SAMPLE', 'cut_only', true)
     await walk(sample, ['cut', 'qc_pack'], 'sample')
     const sew = await receive('MATRIX-SEW', 'plain')
-    await rpc('production', 'start_station', [sew])
+    await begin('production', 'start_station', sew)
     await rpc('production', 'finish_station', [sew, 'cut'])
     const sewDoing = await receive('MATRIX-SEW-DOING', 'plain')
-    await rpc('production', 'start_station', [sewDoing])
+    await begin('production', 'start_station', sewDoing)
     await rpc('production', 'finish_station', [sewDoing, 'cut'])
-    const sewingMachines = await rpc('production', 'start_sewing', [sewDoing])
+    const sewingMachines = await begin('production', 'start_sewing', sewDoing)
     const holding = await receive('MATRIX-SEW-HOLD', 'plain')
-    await rpc('production', 'start_station', [holding])
+    await begin('production', 'start_station', holding)
     await rpc('production', 'finish_station', [holding, 'cut'])
-    await rpc('production', 'start_sewing', [holding])
+    await begin('production', 'start_sewing', holding)
     await rpc('production', 'report_sewing_issue', [holding, reason, true])
     const [extra] = await rows("insert into public.sewing_machines(code,type_code) select prefix||'-914',code from public.machine_types where code='single' returning code")
     const [broken] = await rows("insert into public.sewing_machines(code,type_code) select prefix||'-915',code from public.machine_types where code='single' returning code")
     const qcDoing = await receive('MATRIX-QC', 'cut_only')
-    await rpc('production', 'start_station', [qcDoing])
+    await begin('production', 'start_station', qcDoing)
     await rpc('production', 'finish_station', [qcDoing, 'cut'])
-    await rpc('staffQc', 'start_station', [qcDoing])
+    await begin('staffQc', 'start_station', qcDoing)
     const done = await receive('MATRIX-DONE', 'cut_only')
     await walk(done, ['cut', 'qc_pack'], 'production')
     const delivered = await receive('MATRIX-DELIVERED', 'cut_only')

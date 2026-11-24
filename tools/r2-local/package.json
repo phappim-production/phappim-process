@@ -1,0 +1,9 @@
+{
+  "name": "pp142-r2-local",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"*.test.mjs\"",
+    "backfill-thumbs": "node backfill-thumbs.mjs"
+  }
+}

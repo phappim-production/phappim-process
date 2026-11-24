@@ -7,3 +7,18 @@ export function newRequestId(): string {
   const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('')
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
 }
+
+export type RequestSlot = { idFor: (content: string) => string; clear: () => void }
+
+// รหัสเดิมใช้กับการส่งซ้ำของเนื้อหาเดิมเท่านั้น · ครั้งก่อนหมดเวลาแต่บันทึกแล้ว ถ้าแก้ค่าแล้วส่งรหัสเดิม ฐานข้อมูลจะทิ้งค่าที่แก้
+export function requestSlot(make: () => string = newRequestId): RequestSlot {
+  let content: string | null = null
+  let id = ''
+  return {
+    idFor(next) {
+      if (next !== content) { content = next; id = make() }
+      return id
+    },
+    clear() { content = null },
+  }
+}

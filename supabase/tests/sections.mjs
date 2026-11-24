@@ -2,6 +2,8 @@
 
 import { requiredSteps, substepSql } from './steps.mjs'
 
+import { queueSkips } from './queue-skip.mjs'
+
 export async function sectionTests({ db, ok, as }) {
   const U = {
     owner: '00000000-0000-0000-0000-000000000001', sup: '00000000-0000-0000-0000-000000000002',
@@ -13,7 +15,8 @@ export async function sectionTests({ db, ok, as }) {
     insert into public.profiles (user_id,name,role,active,section) values
       ('${U.sup1}','ผู้ควบคุมงานเฟส 1','supervisor',true,1),('${U.sup2}','ผู้ควบคุมงานเฟส 2','supervisor',true,2);
   `)
-  const call = (uid, sql) => as(uid, () => db.query(`select ${sql}`))
+  const skips = queueSkips(db, 'sections')
+  const call = async (uid, sql) => { await skips.beforeSql(as, uid, sql); return as(uid, () => db.query(`select ${sql}`)) }
   const pass = async (name, uid, sql) => {
     try { await call(uid, sql); ok(name, true) } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }
@@ -75,4 +78,5 @@ export async function sectionTests({ db, ok, as }) {
     `public.correct_event('00000000-0000-0000-0000-0000000000ff', ${ev}, 'x')`, /ไม่พบงาน/)
   await reject('ผู้ควบคุมงานเฟส 2 รับงานใหม่ไม่ได้ (แอดมินเป็นคนส่งงานเข้า)', U.sup2,
     `public.receive_job('SC-SEC-NEW', 'ลูกค้าทดสอบ', 'งานใหม่', 'tshirt', 10, 'ตัว', '2026-12-31', 'normal', 'confirmations/SC-SEC-NEW.pdf')`, /แอดมินเป็นคนส่งงานเข้าโรงงาน/)
+  skips.report()
 }

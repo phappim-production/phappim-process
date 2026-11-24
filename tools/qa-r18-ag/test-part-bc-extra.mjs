@@ -46,7 +46,7 @@ async function main() {
       const rSel = [...dlg.querySelectorAll('select')].find(s => [...s.options].some(o => o.value === 'normal'))
       rSel.value = 'normal'; rSel.dispatchEvent(new Event('change', { bubbles: true }))
     })
-    await t.ev(() => document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[1].click())
+    await t.ev(() => document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[2].click())
     await t.clickButton(/^รับงาน$/, { exact: true, inside: '[role="dialog"]' })
     await t.waitText('ส่งงาน SC69-BC1 เข้าโรงงานแล้ว')
     const jobId = (await sql(stack, `select id from public.jobs where confirmation_no = 'SC69-BC1'`)).rows[0].id

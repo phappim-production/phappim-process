@@ -158,7 +158,7 @@ describe('หน้าคิวและรายการต้องทำ', (
         status: 'ready', loadedAt: now,
         data: { vendors: [], jobs: [job('waiting', { queue: 1 })], machines: [], bookings: [], needs: {}, shared: [], products: [], stationMachines: [] },
       },
-      live: true, refresh: async () => {},
+      live: true, refresh: async () => {}, settle: async () => {},
     })
     vi.stubGlobal('window', { location: { hash: '#/board?station=cut' }, history: { replaceState: vi.fn() } })
     vi.stubGlobal('localStorage', { setItem: vi.fn() })

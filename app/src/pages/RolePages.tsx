@@ -80,7 +80,7 @@ export function IssuesView({ jobs, now, role, stations, call, onOpen, heldOnly }
         sub="เรียงตามเวลาที่พักนานสุดก่อน · แก้แล้วกดให้สถานีทำต่อ">
         {held.map(j => (
           <JobRow key={j.id} job={j} now={now} onOpen={onOpen}>
-            <p className="text-sm text-muted"><Tr th="พักมา {time}" vars={{ time: durationWord(now.getTime() - j.since.getTime()) }} /></p>
+            <p className="text-sm text-muted"><Tr th="พักมา {time}" vars={{ time: durationWord(now.getTime() - (j.heldSince ?? j.since).getTime()) }} /></p>
             {canCloseIssue(role, j.station)
               ? <button type="button" disabled={busy !== null} className={primaryBtn} onClick={() => void resume(j)}>
                   {busy === j.id ? 'กำลังบันทึก…' : j.station === 'sew' ? 'แก้แล้ว เย็บต่อ' : 'แก้แล้ว ทำต่อ'}

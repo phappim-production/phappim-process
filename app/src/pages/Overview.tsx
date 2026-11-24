@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { OverviewView } from '../auth/menus'
 import { DEFAULT_SEW_PRODUCT, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, hasSewMinutes, lateDays, lineRate, linesFor, machineSets, simulate, verdict, workdayToDate, type Forecast, type SewFloor } from '../proto/capacity'
 import { MACHINE_TYPE_NAME } from '../proto/sewing'
-import { ROUTES, STATION_NAME, WORK_END, byQueue, isOutLate, stationCounts, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
+import { ROUTES, STATION_NAME, WORK_END, byQueue, filmLabel, isFilmNotOrdered, isOutLate, stationCounts, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
 import { dayDiff, duration, shortDate, stageSteps, stageText } from '../proto/format'
 import { Card, CardHeader, DueLabel, MockupThumb, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
 import { TONE, type Tone } from '../components/tone'
@@ -57,7 +57,7 @@ export default function Overview({ initialView = 'follow', jobs, now, forecast, 
         <div className="grid gap-4">
           <VerdictHero forecast={forecast} atRisk={atRisk.length} />
           <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
-            <NewJobCheck jobs={jobs} now={now} floor={floor} products={products} />
+            <NewJobCheck shown={view === 'plan'} jobs={jobs} now={now} floor={floor} products={products} />
             <StationLoadCard forecast={forecast} />
           </div>
         </div>
@@ -124,16 +124,18 @@ function HeroStat({ label, value, note }: { label: string; value: string; note: 
   )
 }
 
-function NewJobCheck({ jobs, now, floor, products }: { jobs: Job[]; now: Date; floor: SewFloor; products: Product[] }) {
+function NewJobCheck({ shown, jobs, now, floor, products }: { shown: boolean; jobs: Job[]; now: Date; floor: SewFloor; products: Product[] }) {
   const [route, setRoute] = useState<RouteCode>('normal')
   const [product, setProduct] = useState(DEFAULT_SEW_PRODUCT)
   const [qty, setQty] = useState(300)
   const [due, setDue] = useState('')
 
   const qtyOk = Number.isFinite(qty) && qty >= 1
-  const r = useMemo(() => simulate(jobs, now, { route, qty: Math.max(1, qty || 0), productCode: product }, floor), [jobs, now, route, qty, product, floor])
+  // แท็บนี้ถูกซ่อนเป็นส่วนใหญ่ · จำลองคิวเฉพาะตอนที่เปิดดู (ช่องที่กรอกไว้ยังอยู่)
+  const r = useMemo(() => shown ? simulate(jobs, now, { route, qty: Math.max(1, qty || 0), productCode: product }, floor) : null, [shown, jobs, now, route, qty, product, floor])
   // ตารางเทียบวันเสร็จตามจำนวน (เส้นทางเดียวกัน) ไว้ตอบลูกค้าได้ทันที
-  const quotes = useMemo(() => [100, 500, 1000, 2000].map(q => ({ q, d: workdayToDate(simulate(jobs, now, { route, qty: q, productCode: product }, floor).extraFinishDay ?? 0, now) })), [jobs, now, route, product, floor])
+  const quotes = useMemo(() => !shown ? [] : [100, 500, 1000, 2000].map(q => ({ q, d: workdayToDate(simulate(jobs, now, { route, qty: q, productCode: product }, floor).extraFinishDay ?? 0, now) })), [shown, jobs, now, route, product, floor])
+  if (!r) return null
   const finish = workdayToDate(r.extraFinishDay ?? 0, now)
   const dueDate = due ? new Date(`${due}T${WORK_END}`) : null
   const late = dueDate ? lateDays(finish, dueDate) : null
@@ -365,6 +367,9 @@ export function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Dat
       const late = isFilmLate(j, now)
       items.push({ id: j.id + 'f', tone: late ? 'danger' : 'warn', tag: late ? 'ฟิล์มเลย ETA' : 'รอฟิล์ม', text: late ? `ETA ${shortDate(j.film.eta)} · ตามร้านฟิล์ม` : `ETA ${shortDate(j.film.eta)}`, job: j })
     }
+    // ถึงสถานีรีดฟิล์มแล้วยังไม่ได้สั่ง = งานค้างเพราะแอดมิน (แดง) · ยังไม่ถึง = เตือนให้สั่งทันก่อนถึง (ส้ม)
+    else if (isFilmNotOrdered(j)) items.push({ id: j.id + 'n', tone: j.station === 'dtf_press' ? 'danger' : 'warn', tag: 'ยังไม่ได้สั่งฟิล์ม',
+      text: j.station === 'dtf_press' ? `${filmLabel(j.route)} · งานรอที่สถานีรีดฟิล์มแล้ว สั่งแล้วบันทึกวันคาดว่าได้รับ` : `${filmLabel(j.route)} · สั่งแล้วบันทึกวันคาดว่าได้รับในรายละเอียดงาน`, job: j })
     else if (j.phase === 'materials' && !j.materials.admin) items.push({ id: j.id + 'm', tone: 'warn', tag: 'วัตถุดิบ', text: 'ฝ่ายแอดมินยังไม่ติ๊ก', job: j })
     else if (j.phase === 'sample_review') items.push({ id: j.id + 's', tone: 'info', tag: 'ตามลูกค้า', text: `ยืนยันตัวอย่าง · รอมา ${duration(now.getTime() - j.since.getTime())}`, job: j })
     // ยังไม่เลยกำหนดแต่คาดว่าไม่ทัน → แจ้งลูกค้าล่วงหน้า หรือให้หัวหน้าพิจารณาแทรกคิว

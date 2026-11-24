@@ -282,7 +282,9 @@ const revising=()=>!!state.job_no&&state.job_no===String(state.h.doc_no||'').tri
 const docLocked=(f,s)=>s==='h'&&f.id==='doc_no'&&revising();
 const needsAddress = d => d==='จัดส่งตามที่อยู่' || d==='รถบริษัทไปส่ง';
 const SAMPLE_YES = 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)';
-const sampleNote = () => state.h.sample===SAMPLE_YES ? 'ขึ้นตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง' : state.h.sample ? 'งานนี้ไม่ขึ้นตัวอย่าง ผลิตจริงตามใบนี้' : 'ยังไม่ได้เลือกว่าขึ้นตัวอย่างหรือไม่';
+// หน้าระบบอ่านคำว่า Develop ในช่องนี้ไปตั้งงานที่จบที่ตัวอย่าง ห้ามเปลี่ยนคำนี้
+const SAMPLE_DEV = 'ขึ้นตัวอย่าง (งาน Develop · จบที่ตัวอย่าง ไม่ผลิตจริง)';
+const sampleNote = () => state.h.sample===SAMPLE_YES ? 'ขึ้นตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง' : state.h.sample===SAMPLE_DEV ? 'งาน Develop: ทำตัวอย่างให้ลูกค้ายืนยัน จบที่ตัวอย่าง ไม่ผลิตจริง' : state.h.sample ? 'งานนี้ไม่ขึ้นตัวอย่าง ผลิตจริงตามใบนี้' : 'ยังไม่ได้เลือกว่าขึ้นตัวอย่างหรือไม่';
 const ADULT = ['SS','S','M','L','XL','2XL','3XL','4XL','5XL','6XL','7XL','8XL','9XL','10XL'];
 const KIDS  = ['เด็ก SS','เด็ก S','เด็ก M','เด็ก L','เด็ก XL'];
 
@@ -295,8 +297,8 @@ const HEADER = [
     { id:'admin', type:'text', label:'แอดมินผู้ดูแล', req:true },
     { id:'admin_phone', type:'text', label:'เบอร์แอดมิน (ผู้ประสานงาน)' },
     // ขึ้นตัวอย่างเฉพาะงานที่ตกลงและลูกค้าจ่ายค่าตัวอย่าง · หน้ารับงานอ่านช่องนี้ไปตั้งค่างาน
-    { id:'sample', type:'radio', label:'ขึ้นตัวอย่าง', options:[SAMPLE_YES,'ไม่ขึ้นตัวอย่าง'], req:true, hint:'ขึ้นตัวอย่างเฉพาะงานที่ตกลงกับลูกค้าแล้ว (มีค่าใช้จ่ายเพิ่ม)' },
-    { id:'sample_date', type:'date', label:'วันนัดส่งตัวอย่าง', when:v=>v.sample===SAMPLE_YES },
+    { id:'sample', type:'radio', label:'ขึ้นตัวอย่าง', options:[SAMPLE_YES,SAMPLE_DEV,'ไม่ขึ้นตัวอย่าง'], req:true, hint:'ขึ้นตัวอย่างเฉพาะงานที่ตกลงกับลูกค้าแล้ว (มีค่าใช้จ่ายเพิ่ม)' },
+    { id:'sample_date', type:'date', label:'วันนัดส่งตัวอย่าง', when:v=>v.sample===SAMPLE_YES||v.sample===SAMPLE_DEV },
     { id:'due_date', type:'date', label:'กำหนดส่งงาน', req:true },
   ]},
   { title: 'ข้อมูลลูกค้า', fields: [
@@ -995,14 +997,18 @@ function startOver(keepOrder){
 function fresh(){ return { h:{ issue_date: today() }, product:'tshirt', pickOpen:true, p:{}, imgs:[], callouts:[], co_size:null, co_sizes:[] }; }
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function load(){ try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.h&&s.p&&PRODUCTS[s.product]){ s.pickOpen=false; s.imgs=Array.isArray(s.imgs)?s.imgs:[]; s.callouts=Array.isArray(s.callouts)?s.callouts:[]; s.co_sizes=Array.isArray(s.co_sizes)?s.co_sizes:[]; return s; } }catch(e){} return null; }
-let warnedQuota=false;
+let warnedQuota=false, saveTimer=0;
 function save(){
+  clearTimeout(saveTimer); saveTimer=0;
   try{ localStorage.setItem(LS, JSON.stringify(state)); }
   catch(e){
     try{ const {imgs,...rest}=state; localStorage.setItem(LS, JSON.stringify({...rest,imgs:[]})); }catch(e2){}
     if(!warnedQuota&&state.imgs.length){ warnedQuota=true; toast('ภาพใหญ่เกินกว่าจะจำอัตโนมัติ กด "บันทึกไฟล์" เพื่อเก็บภาพไว้'); }
   }
 }
+// พิมพ์ทีละตัวอักษรไม่เขียน state ทั้งก้อน (รวมรูป base64 หลาย MB) ลงเครื่องทุกครั้ง · รอหยุดพิมพ์ 0.4 วิ แล้วเขียนครั้งเดียว
+function saveSoon(){ clearTimeout(saveTimer); saveTimer=setTimeout(save,400); }
+function flushSave(){ if(saveTimer) save(); }
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.remove('link'); t.classList.add('on'); clearTimeout(toast.h); toast.h=setTimeout(()=>t.classList.remove('on'),2800); }
 function fileBase(){ const h=state.h; return ['ใบยืนยัน',h.doc_no,num(h.rev)>0?'แก้ไข'+h.rev:'',h.customer].filter(Boolean).join(' ').replace(/[\\/:*?"<>|]/g,'-'); }
 function prod(){ return PRODUCTS[state.product]; }
@@ -1419,9 +1425,9 @@ form.addEventListener('input',e=>{
     form.querySelectorAll(`select[data-c="img"] option[value="${i+1}"]`).forEach(o=>{ o.textContent=imgName(i+1); });
     const tab=form.querySelector(`.co-tab[data-r="${i}"]`);
     if(tab){ const cnt=coList().filter(c=>coImgAt(c)===i).length; tab.textContent=imgName(i+1)+(cnt?` (${cnt})`:''); }
-    save(); } return; }
+    saveSoon(); } return; }
   if(d.co!==undefined){ const c=coList()[+d.co]; if(!c) return; c[d.cf]=t.value;
-    const box=form.querySelector(`.co-box[data-co-i="${d.co}"]`); if(box) box.innerHTML=coBoxInner(c,+d.co,coRefs()); save(); return; }
+    const box=form.querySelector(`.co-box[data-co-i="${d.co}"]`); if(box) box.innerHTML=coBoxInner(c,+d.co,coRefs()); saveSoon(); return; }
   if(t.id==='psearch'){ const q=t.value.trim().toLowerCase();
     form.querySelectorAll('.pcat').forEach(c=>{ let any=false;
       c.querySelectorAll('[data-name]').forEach(l=>{ const ok=!q||l.dataset.name.toLowerCase().includes(q); l.style.display=ok?'':'none'; any=any||ok; });
@@ -1430,12 +1436,12 @@ form.addEventListener('input',e=>{
   else if(d.t){ const r=scope('p')[d.t][+d.r]; if(d.c.startsWith('q:')) r.q[d.c.slice(2)]=t.value; else r[d.c]=t.value; }
   else if(d.pl){ const v=scope('p'); v[d.pl]=v[d.pl]||{}; (v[d.pl][d.pos]=v[d.pl][d.pos]||{})[d.pf]=t.value; }
   t.closest('.field')?.classList.remove('missing');
-  updateTotals(); save();
+  updateTotals(); saveSoon();
 });
 form.addEventListener('change',e=>{
   const t=e.target, d=t.dataset;
   if(d.product!==undefined){ state.product=t.value; state.pickOpen=false; scope('p'); return rerender(); }
-  if(d.t){ const r=scope('p')[d.t][+d.r]; if(d.c.startsWith('q:')) r.q[d.c.slice(2)]=t.value; else r[d.c]=t.value;
+  if(d.t&&t.type!=='checkbox'){ const r=scope('p')[d.t][+d.r]; if(d.c.startsWith('q:')) r.q[d.c.slice(2)]=t.value; else r[d.c]=t.value;
     if(d.c==='img') return rerender(); updateTotals(); save(); return; }
   if(d.co!==undefined){ const c=coList()[+d.co]; if(!c) return;
     if(d.cf==='img'){ c.img=+t.value||0; coTab=c.img; return rerender(); }
@@ -1456,6 +1462,10 @@ form.addEventListener('change',e=>{
     });
   }
 });
+// ออกจากช่อง / สลับแอป / ปิดแท็บ = เขียนสิ่งที่ค้างทันที ไม่มีตัวอักษรไหนหาย
+form.addEventListener('change',flushSave);
+addEventListener('pagehide',flushSave);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushSave(); });
 form.addEventListener('focusin',e=>{
   const d=e.target?.dataset; if(!d||d.co===undefined) return;
   const c=coList()[+d.co]; if(c) switchCoTab(coImgAt(c));
@@ -1541,6 +1551,7 @@ function changedLabels(){
   return [...new Set(out)];
 }
 function saveToSystem(){
+  flushSave();
   if(location.protocol==='file:'){ alert('บันทึกเข้าระบบได้เมื่อเปิดฟอร์มจากเว็บระบบ (pp142.pages.dev/confirmation)\nตอนนี้เปิดจากไฟล์ในเครื่อง ให้ใช้ "บันทึกไฟล์" แทน'); return; }
   if(!String(state.h.doc_no||'').trim()){ alert('ใส่เลขที่ใบยืนยันก่อนบันทึกเข้าระบบ'); $('[data-k="doc_no"]')?.focus(); return; }
   const revise=revising(), btn=revise?'บันทึกการแก้เข้างาน':'บันทึกเข้าระบบ';
@@ -1562,6 +1573,9 @@ function saveToSystem(){
   if(readingImgs||state.imgs.some((m,i)=>!sysPath(m,i)&&shrunk.get(m.src)===undefined)){ alert('กำลังเตรียมรูปม็อคอัพ รอ 1–2 วินาที แล้วกด "'+btn+'" อีกครั้ง'); return; }
   const broken=state.imgs.map((m,i)=>!sysPath(m,i)&&!shrunk.get(m.src)?i+1:0).filter(Boolean);
   if(broken.length){ alert('เปิดรูปที่ '+broken.join(', ')+' ไม่ได้ ลบรูปนั้นแล้วเลือกไฟล์รูปใหม่'); return; }
+  // รูปของใบเลขอื่นส่งไปกับใบเลขใหม่ไม่ได้ · ถ้าตัดทิ้งเงียบๆ เลขรูปของแต่ละแบบและจุดกำกับจะชี้ผิดรูป
+  const foreign=String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()?state.imgs.map((m,i)=>sysPath(m,i)?i+1:0).filter(Boolean):[];
+  if(foreign.length){ alert('รูปที่ '+foreign.join(', ')+' เป็นรูปของใบ '+(state.mockup_no||'เลขเดิม')+' ใช้กับใบเลขที่ใหม่ไม่ได้\nลบรูปนั้นแล้วแนบไฟล์รูปใหม่ หรือเปลี่ยนเลขที่ใบกลับเป็นเลขเดิม'); return; }
   const payload={ app:'phappim-confirm', v:1, ...state, imgs:[], summary:{ qty:totalQty() } };
   // ช่องที่ถูกซ่อนเพราะเปลี่ยนตัวเลือก (เช่น ผ้าเช็ดหน้า ↔ ผ้าพันคอ) ไม่ส่งเข้าระบบ ไม่อย่างนั้นหน้างานเห็นสเปกที่ลูกค้าไม่ได้เลือก
   const shown=scope('p'), part={...shown};
@@ -1574,7 +1588,7 @@ function saveToSystem(){
   payload.mockups=state.imgs.map((m,i)=>{ const path=sysPath(m,i); return path?{ name:m.name||'', path }:{ name:m.name||'', data:shrunk.get(m.src) }; });
   if(revise){ payload.revise_job=true; payload.changes=changes; }
   // รูปเดิมจากระบบใช้ได้เฉพาะใบเลขเดิม (เปลี่ยนเลขใบเพื่อทำใบใหม่ = ไม่เอารูปใบเดิมไป)
-  if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()){ delete payload.mockup_path; payload.mockups=payload.mockups.filter(m=>!m.path); }
+  if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()) delete payload.mockup_path;
   delete payload.mockup_no; delete payload.job_no; delete payload.job_base; delete payload.job_imgs;
   try{ localStorage.setItem(OUTBOX, JSON.stringify(payload)); }catch(e){ alert('บันทึกไม่สำเร็จ (พื้นที่เบราว์เซอร์เต็ม) ให้ใช้ "บันทึกไฟล์" แทน'); return; }
   showAfterSave(state.h.doc_no, revise);
@@ -1761,7 +1775,7 @@ function renderDoc(){
   x+=`<div class="close">${mockNoted?'':`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`}
     <div class="d-accept"><b>${esc(ACCEPT_TITLE)}</b>${esc(ACCEPT_TEXT)}</div>
     <ol class="d-terms">${TERMS.map(t=>`<li>${esc(t)}</li>`).join('')}</ol>
-    <div class="d-note"><b>ข้อตกลง:</b> ลูกค้าตรวจสอบรายละเอียดทั้งหมดในใบนี้แล้ว ${state.h.sample===SAMPLE_YES?'ฝ่ายผลิตจะผลิตตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง':'งานนี้ไม่ขึ้นตัวอย่าง ฝ่ายผลิตผลิตจริงตามใบนี้'}
+    <div class="d-note"><b>ข้อตกลง:</b> ลูกค้าตรวจสอบรายละเอียดทั้งหมดในใบนี้แล้ว ${state.h.sample===SAMPLE_YES?'ฝ่ายผลิตจะผลิตตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง':state.h.sample===SAMPLE_DEV?'งานนี้เป็นงาน Develop ฝ่ายผลิตทำตัวอย่างให้ลูกค้ายืนยัน งานจบที่ตัวอย่าง ไม่ผลิตจริง (ผลิตจริงต้องทำใบยืนยันใหม่)':'งานนี้ไม่ขึ้นตัวอย่าง ฝ่ายผลิตผลิตจริงตามใบนี้'}
     และผลิตตามรายละเอียดในใบนี้เท่านั้น <b>รายการที่ไม่ได้ระบุในใบนี้ถือว่าไม่มี / ไม่ต้องทำ</b> การแก้ไขหลังเซ็นต้องออกใบยืนยันฉบับใหม่ และอาจมีผลต่อกำหนดส่ง</div>
     <div class="sign">${sig('ลูกค้ายืนยันรายละเอียด')}${sig('แอดมินผู้ทำใบ')}${sig('ผู้ควบคุมงาน (รับงานเข้าโรงงาน)')}</div></div>`;
 
@@ -1809,6 +1823,7 @@ function docFontsReady(){
 }
 docFontsReady();
 async function exportPdf(){
+  flushSave();
   missing=validate(); showAlert();
   const hard=missing.filter(m=>m.hard).length, soft=missing.length-hard;
   const back=()=>{ if(document.body.classList.contains('preview')) togglePreview(false); else rerender(); scrollTo(0,0); };

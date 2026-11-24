@@ -1,12 +1,16 @@
 // bucket ไม่เปิดสาธารณะ (งานลูกค้า) → ขอลิงก์ชั่วคราวทีละชุด แล้วจำไว้ใช้ซ้ำจนใกล้หมดอายุ
 import type { Job } from '../proto/model'
-import { MAX_UPLOAD_BYTES, signFiles, uploadFile } from './files'
+import { MAX_UPLOAD_BYTES, filesUrl, signFiles, uploadFile } from './files'
 import type { FormMockup, JobMockup } from './jobMockups'
 import { withTimeout } from './live'
+import { onUserChange } from './userScope'
 
 export const MAX_MOCKUP_BYTES = MAX_UPLOAD_BYTES
-// ลิงก์รูปอายุ 2 ชั่วโมง (Worker ไม่ออกนานกว่านี้) · บัญชีที่ถูกปิดขอลิงก์ใหม่ไม่ได้
-const SIGN_SECONDS = 2 * 60 * 60
+// ขอลิงก์รูป 1 ชั่วโมง (Worker ปัดหมดอายุขึ้นถึงขอบชั่วโมง ลิงก์จริงอยู่ 1–2 ชม.) · บัญชีที่ถูกปิดขอลิงก์ใหม่ไม่ได้
+const SIGN_SECONDS = 60 * 60
+const THUMB_SIDE = 240
+const THUMB_QUALITY = 0.7
+const THUMB_TIMEOUT_MS = 10_000
 const RENEW_BEFORE_MS = 30 * 60 * 1000
 // ขอลิงก์รูปช้า ต้องไม่ทำให้ข้อมูลงานทั้งหน้าโหลดไม่ขึ้น (หน้าโหลดตัดที่ 30 วิ) → ตัดที่ 8 วิ แสดงกรอบว่างไปก่อน
 const SIGN_TIMEOUT_MS = 8_000
@@ -63,17 +67,64 @@ export function attachMockupUrls(jobs: Job[], urls: ReadonlyMap<string, string>)
   })
 }
 
-const cache = new Map<string, { url: string; until: number }>()
+type Signed = { url: string; until: number }
+type UrlStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
+type SignDeps = { sign?: typeof signFiles; store?: UrlStore | null }
 
-export async function signMockups(paths: readonly string[], now = Date.now()): Promise<Map<string, string>> {
+const STORE_KEY = 'pp142.mockupUrls'
+// path ที่ Worker ไม่ออกลิงก์ให้ (ไฟล์หาย / ไม่มีสิทธิ์) ไม่ต้องขอซ้ำทุกครั้งที่บอร์ดโหลด
+const MISSING_RETRY_MS = 5 * 60 * 1000
+
+export function parseStoredUrls(text: string | null, now: number): Map<string, Signed> {
+  const out = new Map<string, Signed>()
+  if (!text) return out
+  try {
+    const raw: unknown = JSON.parse(text)
+    if (typeof raw !== 'object' || raw === null) return out
+    for (const [path, hit] of Object.entries(raw)) {
+      const { url, until } = (hit ?? {}) as Partial<Signed>
+      if (typeof url === 'string' && typeof until === 'number' && until > now) out.set(path, { url, until })
+    }
+  } catch { /* ข้อมูลเสีย = เริ่มใหม่ */ }
+  return out
+}
+
+// โหมดส่วนตัว / ปิดการเก็บข้อมูล: แค่อ่าน sessionStorage ก็ throw ได้
+function sessionStore(): UrlStore | null {
+  try { return typeof sessionStorage === 'undefined' ? null : sessionStorage } catch { return null }
+}
+
+const cache = new Map<string, Signed>()
+const missing = new Map<string, number>()
+let restored = false
+
+export function forgetMockupUrls(store: UrlStore | null = sessionStore()) {
+  cache.clear()
+  missing.clear()
+  try { store?.removeItem(STORE_KEY) } catch { /* เก็บไม่ได้ก็ไม่มีอะไรต้องลบ */ }
+}
+onUserChange(() => forgetMockupUrls())
+
+export const forgetMissingMockup = (path: string) => { missing.delete(path) }
+
+export async function signMockups(paths: readonly string[], now = Date.now(), deps: SignDeps = {}): Promise<Map<string, string>> {
+  const store = deps.store === undefined ? sessionStore() : deps.store
+  // รีเฟรชหน้าแล้วลิงก์เดิมยังใช้ได้ = เบราว์เซอร์ใช้รูปจาก cache ไม่ต้องขอลิงก์และโหลดรูปใหม่ทุกรูป
+  if (!restored || deps.store !== undefined) {
+    restored = true
+    try { for (const [p, hit] of parseStoredUrls(store?.getItem(STORE_KEY) ?? null, now)) if (!cache.has(p)) cache.set(p, hit) } catch { /* อ่านไม่ได้ = ขอลิงก์ใหม่ */ }
+  }
   // ลิงก์หมดอายุแล้วใช้ไม่ได้อยู่ดี → ทิ้ง (แท็บที่เปิดทิ้งไว้ทั้งสัปดาห์ไม่สะสมลิงก์ของงานเก่า)
   for (const [p, hit] of cache) if (hit.until <= now) cache.delete(p)
-  const need = [...new Set(paths)].filter(p => (cache.get(p)?.until ?? 0) - now < RENEW_BEFORE_MS)
+  for (const [p, retryAt] of missing) if (retryAt <= now) missing.delete(p)
+  const need = [...new Set(paths)].filter(p => !missing.has(p) && (cache.get(p)?.until ?? 0) - now < RENEW_BEFORE_MS)
   if (need.length) {
     try {
-      const reply = await withTimeout(() => signFiles('mockups', need, SIGN_SECONDS), SIGN_TIMEOUT_MS)
+      const reply = await withTimeout(() => (deps.sign ?? signFiles)('mockups', need, SIGN_SECONDS), SIGN_TIMEOUT_MS)
       if (!reply.timedOut && reply.value.ok) {
         for (const [p, url] of reply.value.urls) cache.set(p, { url, until: now + SIGN_SECONDS * 1000 })
+        for (const p of need) if (!reply.value.urls.has(p) && !cache.has(p)) missing.set(p, now + MISSING_RETRY_MS)
+        try { store?.setItem(STORE_KEY, JSON.stringify(Object.fromEntries(cache))) } catch { /* เก็บไม่ได้ = จำแค่ในแท็บนี้ */ }
       }
     } catch { /* เน็ตสะดุด: แสดงกรอบว่างไปก่อน รอบโหลดถัดไปขอใหม่ */ }
   }
@@ -92,7 +143,7 @@ export async function withMockups(jobs: Job[]): Promise<Job[]> {
 }
 
 // รูปจากกล้องมือถือใหญ่หลาย MB → ย่อก่อนอัปโหลด · ย่อไม่ได้ = ใช้ไฟล์เดิม
-export async function shrinkImage(file: Blob, max = 1200): Promise<Blob> {
+export async function shrinkImage(file: Blob, max = 1200, quality = 0.85): Promise<Blob> {
   try {
     const bmp = await createImageBitmap(file)
     const k = Math.min(1, max / Math.max(bmp.width, bmp.height))
@@ -105,20 +156,52 @@ export async function shrinkImage(file: Blob, max = 1200): Promise<Blob> {
     g.fillRect(0, 0, canvas.width, canvas.height)
     g.drawImage(bmp, 0, 0, canvas.width, canvas.height)
     bmp.close()
-    const out = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85))
+    const out = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
     return out ?? file
   } catch {
     return file
   }
 }
 
+export const mockupThumbPath = (path: string) => `${path}.thumb.jpg`
+
+// ลิงก์ของ Worker เปิดรูปย่อได้ด้วย v=thumb (สิทธิ์เดียวกับรูปต้นฉบับ) · ลิงก์ Supabase Storage / blob: ใช้รูปเดิม
+export function mockupThumbUrl(url: string, base = filesUrl()): string {
+  if (!base || !url.startsWith(`${base}/f/mockups/`)) return url
+  try {
+    const u = new URL(url)
+    u.searchParams.set('v', 'thumb')
+    return u.href
+  } catch {
+    return url
+  }
+}
+
+type ThumbDeps = { shrink?: (blob: Blob) => Promise<Blob>; upload?: typeof uploadFile }
+
+// รูปย่อส่งไม่สำเร็จ = การ์ดใช้รูปต้นฉบับแทน ไม่ทำให้การบันทึกรูปล้ม
+export async function uploadMockupThumb(path: string, blob: Blob, deps: ThumbDeps = {}): Promise<boolean> {
+  if (!filesUrl()) return false
+  try {
+    const small = await (deps.shrink ?? (b => shrinkImage(b, THUMB_SIDE, THUMB_QUALITY)))(blob)
+    if (small === blob || small.type !== 'image/jpeg') return false
+    const up = await withTimeout(() => (deps.upload ?? uploadFile)('mockups', mockupThumbPath(path), small, 'image/jpeg', { once: true }), THUMB_TIMEOUT_MS)
+    return !up.timedOut && up.value.ok
+  } catch {
+    return false
+  }
+}
+
 // รูปเดิมของใบเดิมมีอยู่แล้ว = ใช้ไฟล์เดิม
-export async function uploadMockup(no: string, blob: Blob): Promise<{ ok: true; path: string } | { ok: false; reason: string }> {
+export async function uploadMockup(no: string, blob: Blob, thumb: ThumbDeps = {}): Promise<{ ok: true; path: string } | { ok: false; reason: string }> {
   const problem = mockupProblem(blob)
   if (problem) return { ok: false, reason: problem }
   const path = mockupPath(no, await contentKey(blob), mockupExt(blob.type) ?? 'jpg')
   const up = await uploadFile('mockups', path, blob, blob.type)
-  return up.ok ? { ok: true, path } : up
+  if (!up.ok) return up
+  forgetMissingMockup(path)
+  await uploadMockupThumb(path, blob, thumb)
+  return { ok: true, path }
 }
 
 // รูปที่มีในระบบแล้วใช้ path เดิม · รูปใหม่อัปโหลดเข้าโฟลเดอร์ของใบ · รูปไหนไม่ผ่าน = ไม่ส่งทั้งชุด (เลขรูปของแต่ละแบบต้องไม่เลื่อน)

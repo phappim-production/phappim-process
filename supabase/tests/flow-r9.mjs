@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { queueSkips, startsJob } from './queue-skip.mjs'
 
 const uid = n => '00000000-0000-0000-0000-' + String(n).padStart(12, '0')
 const actors = { owner: uid(1), supervisor: uid(2), admin: uid(11), qc: uid(12), production: uid(13), manager: uid(14), staff: uid(31) }
@@ -25,6 +26,7 @@ const roleFor = station => station === 'qc_pack' ? 'qc' : 'production'
 const core = job => [job.phase, job.current_station, job.station_status]
 
 export async function flowR9Tests({ db, ok }) {
+  const skips = queueSkips(db, 'flow-r9')
   const rows = async (sql, args) => (await db.query(sql, args)).rows
   const one = async (sql, args) => (await rows(sql, args))[0]
   const live = id => one('select * from public.job_live where id=$1', [id])
@@ -82,6 +84,7 @@ export async function flowR9Tests({ db, ok }) {
     return id
   }
   async function step(id, role, name, args, expected, prefix = []) {
+    if (startsJob(name)) await skips.insert(id, actors[role])
     const before = await history(id)
     const result = await rpc(role, name, [...prefix, ...args])
     const delta = assertEvents(await history(id), before, expected, role, name)
@@ -386,4 +389,5 @@ export async function flowR9Tests({ db, ok }) {
   } finally {
     await db.exec('rollback')
   }
+  skips.report()
 }

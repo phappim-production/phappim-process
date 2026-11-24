@@ -5,7 +5,7 @@ import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { uploadFile } from '../data/files'
 import { contentKey, signedUrls } from '../data/mockups'
-import { confirmationPath, draftFromConfirmation, pdfProblem, sewRecipeProblem, syncConfirmationSpec, type ReceiveDraft } from '../data/confirmation'
+import { confirmationPath, draftFromConfirmation, FORM_LOCK_REASON, isFormDraft, pdfProblem, sewRecipeProblem, syncConfirmationSpec, type ReceiveDraft } from '../data/confirmation'
 import { draftLabel, formDataFromDraft, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
 import { specMockups } from '../data/jobMockups'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
@@ -19,7 +19,7 @@ type Product = { code: string; name: string; unit: string }
 // vite.config.ts คัดลอกฟอร์มขึ้นเว็บนี้ · Cloudflare เสิร์ฟโดยไม่มี .html
 const CONFIRMATION_FORM = '/confirmation'
 
-const EMPTY: ReceiveDraft = { no: '', rev: 0, customer: '', jobName: '', product: '', qty: 0, spare: 0, due: '', route: null, needsSample: null, spec: {} }
+const EMPTY: ReceiveDraft = { no: '', rev: 0, customer: '', jobName: '', product: '', qty: 0, spare: 0, due: '', route: null, needsSample: null, develop: false, spec: {} }
 
 // PDF ที่ลูกค้าเซ็นไม่บังคับ แนบทีหลังได้ที่รายละเอียดงาน
 export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
@@ -37,6 +37,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
   const [drafts, setDrafts] = useState<DraftRow[] | null>(null)
   const [picked, setPicked] = useState('')
   const [openingForm, setOpeningForm] = useState(false)
+  const [seedWarning, setSeedWarning] = useState<{ no: string; reason: string } | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -90,10 +91,13 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
 
   const set = <K extends keyof ReceiveDraft>(k: K, v: ReceiveDraft[K]) => { setDraft(d => ({ ...d, [k]: v })); setError('') }
   const product = products?.find(p => p.code === draft.product)
+  const fromForm = isFormDraft(draft)
+  // สินค้าในใบที่ไม่อยู่ในรายการ (ปิดใช้แล้ว) ต้องเลือกเองได้ ไม่อย่างนั้นรับงานไม่ได้เลย
+  const productLocked = fromForm && (!products || !!product)
   // เตือนอย่างเดียว ไม่บล็อกการส่งงานเข้า
   const forecast = useMemo(() => product && draft.route && draft.qty > 0 && draft.needsSample !== null
-    ? receiveForecast(jobs, now, floor, { route: draft.route, qty: draft.qty, productCode: product.code, needsSample: draft.needsSample, due: draft.due })
-    : null, [jobs, now, floor, product, draft.route, draft.qty, draft.needsSample, draft.due])
+    ? receiveForecast(jobs, now, floor, { route: draft.route, qty: draft.qty, productCode: product.code, needsSample: draft.needsSample, develop: draft.develop, due: draft.due })
+    : null, [jobs, now, floor, product, draft.route, draft.qty, draft.needsSample, draft.develop, draft.due])
   const pdfIssue = pdfProblem(pdf)
   const dueWarning = dueDateWarning(draft.due, now)
   const recipeIssue = product ? sewRecipeProblem(draft.route, floor.needsOf(product.code)) : null
@@ -136,16 +140,29 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
       p_confirmation_no: draft.no.trim(), p_customer_name: draft.customer.trim(), p_job_name: draft.jobName.trim() || product.name,
       p_product_type_code: product.code, p_qty: draft.qty, p_unit: product.unit, p_due_date: draft.due, p_route_code: draft.route,
       p_confirmation_pdf_path: path, p_spare_qty: draft.spare, p_confirmation_rev: draft.rev, p_spec: syncConfirmationSpec(draft, product.name),
-      p_needs_sample: draft.needsSample,
+      p_needs_sample: draft.needsSample, p_develop: draft.develop,
     })
     if (!r.ok) { setSaving(null); setError(r.reason); return }
     setSaving('กำลังสร้างร่างม็อคอัพจากจุดในใบยืนยัน…')
-    await seedFromConfirmation(r.data)
+    const seeded = await seedFromConfirmation(r.data)
     setSaving(null)
+    // งานรับเข้าแล้ว · ร่างม็อคอัพสร้างไม่ได้ไม่ใช่เหตุให้รับงานซ้ำ แค่บอกให้ไปทำเอง
+    if (!seeded.ok) { setSeedWarning({ no: draft.no.trim(), reason: seeded.reason }); return }
     onDone(draft.no.trim())
   }
 
   const label = 'grid gap-1 font-medium'
+  if (seedWarning) return (
+    <Dialog title="รับงานเข้าโรงงาน" icon={IconInbox} onClose={() => onDone(seedWarning.no)} wide>
+      <div className="mt-3 grid gap-3">
+        <p role="status" className="rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">ส่งงาน {seedWarning.no} เข้าโรงงานแล้ว</p>
+        <p role="alert" className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">
+          สร้างร่างม็อคอัพจากจุดในใบยืนยันไม่สำเร็จ ({seedWarning.reason}) · เปิดงานแล้วกด "ม็อคอัพกำกับสเปก" เพื่อสร้างเอง
+        </p>
+        <button type="button" className={primaryBtn} onClick={() => onDone(seedWarning.no)}>รับทราบ</button>
+      </div>
+    </Dialog>
+  )
   return (
     <Dialog title="รับงานเข้าโรงงาน" icon={IconInbox} onClose={onClose} wide>
       <div className="mt-3 grid gap-4">
@@ -182,13 +199,15 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
             <input value={draft.jobName} onChange={e => set('jobName', e.target.value)} placeholder="ไม่ใส่ = ใช้ชื่อสินค้า" className={fieldClass} />
           </label>
           <label className={`${label} sm:col-span-2`}>ประเภทสินค้า
-            <select value={draft.product} onChange={e => set('product', e.target.value)} className={fieldClass} disabled={!products}>
+            <select value={draft.product} onChange={e => set('product', e.target.value)} className={fieldClass} disabled={!products || productLocked} aria-describedby={productLocked ? 'product-locked' : undefined}>
               <option value="">{products ? 'เลือกสินค้า' : 'กำลังโหลดรายการสินค้า…'}</option>
               {products?.map(p => <option key={p.code} value={p.code}>{p.name}</option>)}
             </select>
+            {productLocked && <span id="product-locked" className="text-sm font-normal text-muted">สินค้ามาจากใบยืนยัน · {FORM_LOCK_REASON}</span>}
           </label>
           <label className={label}>จำนวน{product ? ` (${product.unit})` : ''}
-            <input type="number" min={1} inputMode="numeric" value={draft.qty || ''} onChange={e => set('qty', Math.max(0, Math.floor(Number(e.target.value) || 0)))} className={fieldClass} />
+            <input type="number" min={1} inputMode="numeric" value={draft.qty || ''} onChange={e => set('qty', Math.max(0, Math.floor(Number(e.target.value) || 0)))} className={fieldClass} disabled={fromForm} aria-describedby={fromForm ? 'qty-locked' : undefined} />
+            {fromForm && <span id="qty-locked" className="text-sm font-normal text-muted">จำนวนมาจากตารางในใบยืนยัน · {FORM_LOCK_REASON}</span>}
           </label>
           <label className={label}>ผลิตเผื่อเสีย
             <input type="number" min={0} inputMode="numeric" value={draft.spare || ''} placeholder="0" onChange={e => set('spare', Math.max(0, Math.floor(Number(e.target.value) || 0)))} className={fieldClass} />
@@ -212,13 +231,16 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
         {/* ขึ้นตัวอย่างเฉพาะงานที่ลูกค้าจ่ายค่าตัวอย่าง · ไม่มีค่าตั้งต้น ต้องเลือกเอง */}
         <fieldset className="grid gap-2">
           <legend className="mb-1 font-medium">ขึ้นตัวอย่าง (ตามที่ตกลงกับลูกค้าในใบยืนยัน)</legend>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {([[true, 'ขึ้นตัวอย่าง', 'ลูกค้าจ่ายค่าตัวอย่าง · ขึ้นตัวอย่างก่อนผลิตจริง'], [false, 'ไม่ขึ้นตัวอย่าง', 'เข้าสถานีแรกผลิตจริงทันที']] as const).map(([v, title, hint]) => (
-              <label key={title} className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border p-3 ${draft.needsSample === v ? 'border-brand bg-brand-soft' : 'border-line'}`}>
-                <input type="radio" name="needs-sample" className="mt-1 size-5 shrink-0" checked={draft.needsSample === v} onChange={() => set('needsSample', v)} />
+          <div className="grid gap-2 sm:grid-cols-3">
+            {([[true, false, 'ขึ้นตัวอย่าง', 'ลูกค้าจ่ายค่าตัวอย่าง · ขึ้นตัวอย่างก่อนผลิตจริง'], [true, true, 'ขึ้นตัวอย่าง (งาน Develop)', 'ทำตัวอย่างอย่างเดียว · ลูกค้ายืนยันผ่าน = งานเสร็จ ไม่ผลิตจริง'], [false, false, 'ไม่ขึ้นตัวอย่าง', 'เข้าสถานีแรกผลิตจริงทันที']] as const).map(([v, dev, title, hint]) => {
+              const on = draft.needsSample === v && draft.develop === dev
+              return (
+              <label key={title} className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border p-3 ${on ? 'border-brand bg-brand-soft' : 'border-line'}`}>
+                <input type="radio" name="needs-sample" className="mt-1 size-5 shrink-0" checked={on} onChange={() => { setDraft(d => ({ ...d, needsSample: v, develop: dev })); setError('') }} />
                 <span className="grid"><span className="font-medium">{title}</span><span className="text-sm text-muted">{hint}</span></span>
               </label>
-            ))}
+              )
+            })}
           </div>
         </fieldset>
 

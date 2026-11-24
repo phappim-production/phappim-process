@@ -3,7 +3,7 @@ import { isStationCode, type StationCode } from '../proto/model'
 import type { Callout, Draft, MockView, SheetStatus, SpecKind, Unit, ViewKey } from '../proto/annotation'
 import { VIEW_ORDER, confirmationDraft, toPayload } from '../proto/annotation'
 import { uploadFile } from './files'
-import { contentKey, mockupExt, mockupFolder, mockupProblem, signMockups } from './mockups'
+import { contentKey, forgetMissingMockup, mockupExt, mockupFolder, mockupProblem, signMockups, uploadMockupThumb } from './mockups'
 import { rpc, type RpcResult } from './useFactoryData'
 import { thaiError } from './live'
 
@@ -105,6 +105,20 @@ export async function imageSize(blob: Blob): Promise<{ width: number; height: nu
   }
 }
 
+const localUrls = new Set<string>()
+
+// ลิงก์ blob: ค้างในหน่วยความจำจนกว่าจะคืน · คืนเมื่อออกจากหน้าแก้ม็อคอัพ
+export function releaseLocalUrls() {
+  for (const url of localUrls) URL.revokeObjectURL(url)
+  localUrls.clear()
+}
+
+function localUrl(file: Blob): string {
+  const url = URL.createObjectURL(file)
+  localUrls.add(url)
+  return url
+}
+
 // เก็บไฟล์ต้นฉบับตามที่อัปโหลด ไม่ย่อ ไม่แปลง (ต่างจากรูปการ์ดงานที่ย่อเป็น JPEG)
 export async function uploadOriginal(no: string, file: File, view: ViewKey): Promise<RpcResult<MockView & { url: string }>> {
   const problem = mockupProblem(file)
@@ -114,8 +128,10 @@ export async function uploadOriginal(no: string, file: File, view: ViewKey): Pro
   const path = `${mockupFolder(no)}/sheet/${await contentKey(file)}.${mockupExt(file.type) ?? 'jpg'}`
   const up = await uploadFile('mockups', path, file, file.type)
   if (!up.ok) return up
+  forgetMissingMockup(path)
+  await uploadMockupThumb(path, file)
   const url = (await signMockups([path])).get(path)
-  return { ok: true, data: { view, path, ...size, url: url ?? URL.createObjectURL(file) } }
+  return { ok: true, data: { view, path, ...size, url: url ?? localUrl(file) } }
 }
 
 export const startSheet = (job: string, reason?: string) => rpc<string>('start_mockup_sheet', { p_job: job, p_reason: reason ?? null })

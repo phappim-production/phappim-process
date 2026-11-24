@@ -48,7 +48,7 @@ async function receiveJob(t, { no, customer, product = 'tshirt', qty = 10, route
     const rtSel = [...dlg.querySelectorAll('select')].find(s => [...s.options].some(o => o.value === rt))
     rtSel.value = rt
     rtSel.dispatchEvent(new Event('change', { bubbles: true }))
-    const sampRadio = [...dlg.querySelectorAll('input[name="needs-sample"]')][samp ? 0 : 1]
+    const sampRadio = [...dlg.querySelectorAll('input[name="needs-sample"]')][samp ? 0 : 2]
     if (sampRadio) sampRadio.click()
   }, customer, product, qty, route, sample)
   await t.clickButton(/^รับงาน$/, { exact: true, inside: '[role="dialog"]' })

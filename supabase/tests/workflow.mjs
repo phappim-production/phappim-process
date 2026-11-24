@@ -2,6 +2,8 @@
 
 import { requiredSteps } from './steps.mjs'
 
+import { queueSkips } from './queue-skip.mjs'
+
 export async function workflowTests({ db, ok, as }) {
   const U = {
     owner: '00000000-0000-0000-0000-000000000001', sup: '00000000-0000-0000-0000-000000000002',
@@ -16,7 +18,8 @@ export async function workflowTests({ db, ok, as }) {
   `)
 
   const q = (uid, sql) => as(uid, async () => (await db.query(sql)).rows)
-  const call = async (uid, sql) => { await q(uid, `select ${sql}`) }
+  const skips = queueSkips(db, 'workflow')
+  const call = async (uid, sql) => { await skips.beforeSql(as, uid, sql); await q(uid, `select ${sql}`) }
   const pass = async (name, uid, sql) => {
     try { await call(uid, sql); ok(name, true) } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }
@@ -239,4 +242,5 @@ export async function workflowTests({ db, ok, as }) {
   ok('รายงานเวลาต่อสถานีมีข้อมูล', (await q(U.mgr, `select * from public.station_visits where job_id = '${A}' and done_at is not null`)).length > 10)
   await reject('บันทึกแก้ไขต้องมีเหตุผล', U.sup, `public.correct_event('${A}', (select min(id) from public.events where job_id = '${A}'), '')`, /เหตุผล/)
   await pass('หัวหน้าบันทึกแก้ไขย้อนหลังได้', U.sup, `public.correct_event('${A}', (select min(id) from public.events where job_id = '${A}'), 'ใส่เลขที่ใบผิด')`)
+  skips.report()
 }

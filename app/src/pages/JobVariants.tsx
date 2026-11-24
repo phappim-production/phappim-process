@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { specMockups, specVariants, type Variant } from '../data/jobMockups'
-import { signMockups } from '../data/mockups'
+import { mockupThumbUrl, signMockups } from '../data/mockups'
 import { Tr } from '../i18n/Tr'
 import { useT } from '../i18n/lang'
 import { IconImage } from '../components/icons'
@@ -26,7 +26,7 @@ function Thumb({ pic, size }: { pic: Pic | undefined; size: string }) {
   if (!pic?.url) return <span className={box}><IconImage className="size-6" /></span>
   return (
     <a href={pic.url} target="_blank" rel="noreferrer" className={box} aria-label={t('เปิดรูป {n} เต็มจอ', { n: pic.no })}>
-      <img src={pic.url} alt="" loading="lazy" decoding="async" className="size-full object-contain" />
+      <img src={mockupThumbUrl(pic.url)} alt="" loading="lazy" decoding="async" className="size-full object-contain" />
     </a>
   )
 }

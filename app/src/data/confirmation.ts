@@ -12,6 +12,7 @@ export type ReceiveDraft = {
   due: string            // YYYY-MM-DD
   route: RouteCode | null       // null = ยังไม่ได้เลือก · แอดมินกำหนดเองทุกงาน (เทคนิคพิมพ์ไม่ได้บอกเส้นทางตายตัว)
   needsSample: boolean | null   // null = ยังไม่ได้เลือก (ต้องเลือกก่อนรับงาน)
+  develop: boolean
   spec: Record<string, unknown>
 }
 
@@ -59,6 +60,17 @@ export function sampleChoice(h: Answers): boolean | null {
   return null
 }
 
+export function developChoice(h: Answers): boolean {
+  return /^ขึ้นตัวอย่าง.*Develop/.test(text(h.sample))
+}
+
+// ต้องตรงกับตัวเลือกช่อง "ขึ้นตัวอย่าง" ในฟอร์มใบยืนยันทุกตัวอักษร ฟอร์มเทียบข้อความนี้ตอนแก้ใบ
+const SAMPLE_TEXT = {
+  yes: 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)',
+  develop: 'ขึ้นตัวอย่าง (งาน Develop · จบที่ตัวอย่าง ไม่ผลิตจริง)',
+  no: 'ไม่ขึ้นตัวอย่าง',
+}
+
 /** null = ไม่ใช่ไฟล์จากฟอร์มใบยืนยัน */
 export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
   if (!raw || typeof raw !== 'object') return null
@@ -86,6 +98,7 @@ export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
     due: /^\d{4}-\d{2}-\d{2}$/.test(text(d.h.due_date)) ? text(d.h.due_date) : '',
     route: null,
     needsSample: sampleChoice(d.h),
+    develop: developChoice(d.h),
     spec,
   }
 }
@@ -104,6 +117,13 @@ export type ReviseArgs = {
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
+// ใบที่มาจากฟอร์ม: จำนวนและสินค้าอยู่ในสเปกด้วย แก้ที่หน้ารับงานอย่างเดียวจะไม่ตรงกับใบ
+export function isFormDraft(draft: Pick<ReceiveDraft, 'spec'>): boolean {
+  const s = draft.spec
+  return isRecord(s.h) && isRecord(s.p) && typeof s.product === 'string'
+}
+export const FORM_LOCK_REASON = 'แก้ในฟอร์มใบยืนยัน แล้วบันทึกเข้าระบบใหม่'
+
 /** ปรับหัวใบและจำนวนเผื่อเสียใน spec ให้ตรงกับค่าที่แอดมินแก้หน้ารับงาน ก่อนส่งเข้า receive_job */
 export function syncConfirmationSpec(draft: ReceiveDraft, productName: string): Record<string, unknown> {
   const s = draft.spec
@@ -115,11 +135,11 @@ export function syncConfirmationSpec(draft: ReceiveDraft, productName: string): 
     customer: draft.customer.trim(),
     job_name: draft.jobName.trim() || productName,
     due_date: draft.due || s.h.due_date,
-    sample: draft.needsSample === true ? 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)' : draft.needsSample === false ? 'ไม่ขึ้นตัวอย่าง' : s.h.sample,
+    sample: draft.needsSample === null ? s.h.sample : !draft.needsSample ? SAMPLE_TEXT.no : draft.develop ? SAMPLE_TEXT.develop : SAMPLE_TEXT.yes,
   }
   const part = s.p[draft.product]
   const p = isRecord(part)
-    ? { ...s.p, [draft.product]: { ...part, spare: draft.spare > 0 ? draft.spare : (part.spare ?? '') } }
+    ? { ...s.p, [draft.product]: { ...part, spare: draft.spare > 0 ? draft.spare : '' } }
     : s.p
   return { ...s, h, p }
 }

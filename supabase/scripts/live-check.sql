@@ -121,7 +121,7 @@ begin
   perform pg_temp.ok('ตัด: เริ่ม', prd, format($$select public.start_in_queue(%L,'ทดสอบระบบสด')::text$$, j1));
   perform pg_temp.ok('ตัด: เสร็จ', prd, format($$select public.finish_station(%L,'cut')::text$$, j1));
   perform pg_temp.err('เย็บ: QC เริ่มเย็บไม่ได้', qcu, format($$select public.start_sewing(%L)$$, j1), 'บทบาท|ฝ่ายผลิต');
-  perform pg_temp.ok('เย็บ: เริ่มเย็บ (ระบบเลือกจักร)', prd, format($$select public.start_sewing(%L)::text$$, j1));
+  perform pg_temp.ok('เย็บ: เริ่มเย็บ (ระบบเลือกจักร)', prd, format($$select public.start_in_queue(%L,'ทดสอบระบบสด')::text$$, j1));
   perform pg_temp.chk('เย็บ: งานได้จักร', exists (select 1 from public.machine_assignments where job_id=j1 and released_at is null), '');
   perform pg_temp.ok('เย็บ: เย็บเสร็จ', prd, format($$select public.finish_sewing(%L)::text$$, j1));
   perform pg_temp.chk('เย็บ: คืนจักรครบ', not exists (select 1 from public.machine_assignments where job_id=j1 and released_at is null), '');
@@ -129,7 +129,7 @@ begin
   perform pg_temp.err('QC: ผ่านไม่ครบกดเสร็จไม่ได้', qcu, format($$select public.finish_station(%L,'qc_pack')$$, j1), 'QC|ผ่าน|ครบ');
   perform pg_temp.ok('QC: ส่งแก้ 2 ชิ้นกลับเย็บ', qcu, format($$select public.send_rework(%L,2,'ทดสอบงานแก้','sew')::text$$, j1));
   perform pg_temp.chk('งานแก้กลับไปที่เย็บ', (select current_station from public.job_live where id=j1)='sew', (select current_station from public.job_live where id=j1));
-  perform pg_temp.ok('เย็บแก้: เริ่ม', prd, format($$select public.start_sewing(%L)::text$$, j1));
+  perform pg_temp.ok('เย็บแก้: เริ่ม', prd, format($$select public.start_in_queue(%L,'ทดสอบระบบสด')::text$$, j1));
   perform pg_temp.ok('เย็บแก้: เสร็จ', prd, format($$select public.finish_sewing(%L)::text$$, j1));
   perform pg_temp.ok('QC รอบแก้: เริ่ม', qcu, format($$select public.start_in_queue(%L,'ทดสอบระบบสด')::text$$, j1));
   perform pg_temp.ok('QC: บันทึกผ่าน 10', qcu, format($$select public.record_qc(%L,10,gen_random_uuid())::text$$, j1));
@@ -173,7 +173,7 @@ begin
   perform pg_temp.ok('ได้รับฟิล์ม', adm, format($$select public.receive_film(%L)::text$$, j2));
   perform pg_temp.ok('ตัวอย่าง รีดฟิล์ม: เริ่ม', prd, format($$select public.start_in_queue(%L,'ทดสอบระบบสด')::text$$, j2));
   perform pg_temp.ok('ตัวอย่าง รีดฟิล์ม: เสร็จ', prd, format($$select public.finish_station(%L,'dtf_press')::text$$, j2));
-  perform pg_temp.ok('ตัวอย่าง เย็บ: เริ่ม', prd, format($$select public.start_sewing(%L)::text$$, j2));
+  perform pg_temp.ok('ตัวอย่าง เย็บ: เริ่ม', prd, format($$select public.start_in_queue(%L,'ทดสอบระบบสด')::text$$, j2));
   perform pg_temp.ok('ตัวอย่าง เย็บ: เสร็จ', prd, format($$select public.finish_sewing(%L)::text$$, j2));
   perform pg_temp.ok('ตัวอย่าง QC: เริ่ม', qcu, format($$select public.start_in_queue(%L,'ทดสอบระบบสด')::text$$, j2));
   perform pg_temp.ok('ตัวอย่าง QC: เสร็จ (ส่งตัวอย่าง)', qcu, format($$select public.finish_station(%L,'qc_pack')::text$$, j2));

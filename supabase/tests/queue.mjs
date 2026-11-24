@@ -173,6 +173,7 @@ async function queueRound4({ db, ok, as, U, call, reject, pass }) {
   await call(U.prod, `public.open_issue('${older}', 'รอผ้า')`)
   await workflow(repair, 'start_station', 'finish_station', 'start_station')
   await call(U.qc, `public.send_rework('${repair}', 1, 'ตัดคลาด', 'cut')`)
+  await call(U.prod, `public.note_queue_skip('${sample}', 'งานแก้กลับเข้าคิวตัดก่อนหน้า')`)
   await workflow(sample, 'start_station', 'finish_station', 'start_station', 'finish_station')
   await call(U.admin, `public.record_sample_result('${sample}', false, 'สีเพี้ยน')`)
   const repairAfter = await row(repair)

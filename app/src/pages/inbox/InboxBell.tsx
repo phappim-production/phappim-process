@@ -1,9 +1,7 @@
 import { unreadBadge } from './format'
-import { useInbox } from './useInbox'
 import { useT } from '../../i18n/lang'
 
-export function InboxBell() {
-  const { unreadCount } = useInbox()
+export function InboxBell({ unreadCount }: { unreadCount: number }) {
   const badge = unreadBadge(unreadCount)
   const t = useT()
 

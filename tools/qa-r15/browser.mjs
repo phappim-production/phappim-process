@@ -688,7 +688,7 @@ async function intakeChecks() {
       await t.selectOption('[role="dialog"] select:has(option[value="plain"])', 'plain')
       await t.waitText('ลำดับสถานี:')
       if (await t.ev(() => !document.querySelector('input[name="needs-sample"]:checked'))) {
-        await t.ev(() => document.querySelectorAll('input[name="needs-sample"]')[1].click())
+        await t.ev(() => document.querySelectorAll('input[name="needs-sample"]')[2].click())
       }
       const quantity = await t.ev(() => [...document.querySelectorAll('[role="dialog"] input')]
         .some(i => i.closest('label')?.textContent.includes('จำนวน')))

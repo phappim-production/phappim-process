@@ -1,6 +1,9 @@
+import { queueSkips } from './queue-skip.mjs'
+
 export async function stationMachineTests({ db, ok, as }) {
   const prod = '00000000-0000-0000-0000-000000000013'
-  const call = sql => as(prod, () => db.query(`select ${sql}`))
+  const skips = queueSkips(db, 'station-machines')
+  const call = async sql => { await skips.beforeSql(as, prod, sql); return as(prod, () => db.query(`select ${sql}`)) }
   const pass = async (name, sql) => {
     try { await call(sql); ok(name, true) } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }
@@ -44,4 +47,5 @@ export async function stationMachineTests({ db, ok, as }) {
   } finally {
     await db.exec(`update public.stations set machines = null`)
   }
+  skips.report()
 }

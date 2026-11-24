@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import { Card, CardHeader, DueLabel, MockupThumb, Pill, RouteBadge, ViewSwitch } from '../components/ui'
 import { TONE } from '../components/tone'
 import { IconClipboard, IconClock, IconSewing } from '../components/icons'
@@ -65,9 +65,11 @@ const SEWING_VIEWS = [
 // กดเริ่มเย็บได้เมื่อจักรครบทุกชนิดว่างจริง (ฐานข้อมูลบังคับกฎเดียวกัน)
 export type SewingView = (typeof SEWING_VIEWS)[number][0] | 'machines'
 
+const NO_BOOKINGS: Booking[] = []
+
 type StartResult = { ok: true; picked: string[]; warning?: string } | { ok: false; reason: string }
 
-export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen, onStart, onStatus, onEta, booking, sewing, initialView, initialPick, initialPickNoted, onSkip, shared = [] }: {
+export function SewingFloor({ jobs, machines, bookings = NO_BOOKINGS, needs, now, onOpen, onStart, onStatus, onEta, booking, sewing, initialView, initialPick, initialPickNoted, onSkip, shared = [] }: {
   jobs: Job[]; machines: Machine[]; bookings?: Booking[]; needs: Record<string, Need[]>; now: Date; onOpen: (id: string) => void
   booking?: ReactNode
   sewing?: ReactNode
@@ -82,9 +84,9 @@ export function SewingFloor({ jobs, machines, bookings = [], needs, now, onOpen,
 }) {
   const [view, setView] = useState<'work' | 'booking'>(() => initialView === 'booking' ? 'booking' : 'work')
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
-  const queue = sewQueue(jobs, machines)
+  const queue = useMemo(() => sewQueue(jobs, machines)
     .map(q => ({ job: q.job, check: checkStartSewing(q.job, machines, needs, bookings, now) }))
-    .sort((a, b) => byQueue(a.job, b.job))
+    .sort((a, b) => byQueue(a.job, b.job)), [jobs, machines, needs, bookings, now])
   const startable = queue.filter(q => q.check.ok).length
 
   const [starting, setStarting] = useState<string | null>(null)

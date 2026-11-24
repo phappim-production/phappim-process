@@ -118,7 +118,7 @@ async function run() {
         }
         const rtSel = [...dlg.querySelectorAll('select')].find(s => [...s.options].some(o => o.value === 'normal'))
         if (rtSel) { rtSel.value = 'normal'; rtSel.dispatchEvent(new Event('change', { bubbles: true })) }
-        const noSample = [...dlg.querySelectorAll('input[name="needs-sample"]')][1]
+        const noSample = [...dlg.querySelectorAll('input[name="needs-sample"]')][2]
         if (noSample) noSample.click()
       })
       await t.clickButton(/^รับงาน$/, { exact: true, inside: '[role="dialog"]' })

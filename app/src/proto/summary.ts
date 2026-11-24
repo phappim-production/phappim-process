@@ -19,6 +19,8 @@ export type SummaryTile = {
 }
 
 const active = (jobs: Job[]) => jobs.filter(j => j.phase !== 'done')
+// รวมงานขึ้นตัวอย่างที่มาถึง QC (บอร์ดของ QC แสดงงานนี้ในคอลัมน์เดียวกัน)
+const atQc = (j: Job) => columnOf(j) === 'qc_pack' || (j.phase === 'sample' && j.station === 'qc_pack')
 const doing = (jobs: Job[]) => active(jobs).filter(j => j.status === 'doing')
 // เลยกำหนดส่ง หรือ พักงานอยู่ = ต้องจัดการก่อน (นับงานละครั้ง)
 const urgent = (jobs: Job[], now: Date) => active(jobs).filter(j => j.status === 'hold' || isOverdue(j, now))
@@ -69,7 +71,7 @@ export function roleSummary(kind: SummaryKind, jobs: Job[], allJobs: Job[], mach
         machineTile(machines),
       ]
     case 'qc': {
-      const waitingQc = active(jobs).filter(j => columnOf(j) === 'qc_pack')
+      const waitingQc = active(jobs).filter(atQc)
       return [
         { key: 'qc', label: 'รอ QC + Packing', value: waitingQc.length, tone: 'brand', icon: 'clipboard', tab: 'board',
           note: `${waitingQc.reduce((n, j) => n + j.qty, 0).toLocaleString('th-TH')} ชิ้น` },

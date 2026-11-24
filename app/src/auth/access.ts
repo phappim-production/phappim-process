@@ -79,5 +79,7 @@ export function canOpenPage(role: EmployeeRole, page: PageKey): boolean {
 // ตรงกับ start/save/approve/ack_mockup_sheet ในฐานข้อมูล · แอดมินทำร่างและอนุมัติใช้ผลิตเองได้
 export const canEditMockup = (role: EmployeeRole) => role === 'admin' || role === 'owner'
 export const canApproveMockup = (role: EmployeeRole) => ['owner', 'admin', 'manager', 'production'].includes(role)
+// ตรงกับ return_mockup_sheet: แอดมินเป็นคนทำม็อคอัพ จึงส่งกลับให้ตัวเองแก้ไม่ได้
+export const canReturnMockup = (role: EmployeeRole) => ['owner', 'manager', 'production'].includes(role)
 export const canAckMockup = (role: EmployeeRole) => ['owner', 'production', 'supervisor', 'qc', 'staff'].includes(role)
 export const canSeeMockupDraft = (role: EmployeeRole) => ['owner', 'manager', 'admin', 'production', 'supervisor'].includes(role)

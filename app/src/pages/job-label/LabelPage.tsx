@@ -13,7 +13,7 @@ import { printWhenFontsReady } from '../../lib/printFonts'
 import './label.css'
 
 type LabelJob = Pick<JobRow, 'id' | 'confirmation_no' | 'customer_name' | 'job_name' | 'product_type_code' |
-  'qty' | 'unit' | 'due_date' | 'route_code' | 'needs_sample' | 'sample_round' | 'phase' | 'mockup_path'>
+  'qty' | 'unit' | 'due_date' | 'route_code' | 'needs_sample' | 'develop' | 'sample_round' | 'phase' | 'mockup_path'>
 type Station = { seq: number; station_code: string }
 type Label = {
   job: LabelJob
@@ -31,7 +31,7 @@ type LoadState =
 
 const day = new Intl.DateTimeFormat('th-TH-u-ca-buddhist', { dateStyle: 'medium', timeZone: 'Asia/Bangkok' })
 const quantity = new Intl.NumberFormat('th-TH')
-const columns = 'id, confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, needs_sample, sample_round, phase, mockup_path'
+const columns = 'id, confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, needs_sample, develop, sample_round, phase, mockup_path'
 
 async function loadLabel(jobId: string, signal: AbortSignal): Promise<Label | null> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')

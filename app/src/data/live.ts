@@ -1,5 +1,5 @@
 // แยกเป็น pure function เพื่อทดสอบได้โดยไม่ต้องต่อ Supabase
-import { isStationCode, thaiWorkEnd, usesFilm, type OutRun, type Vendor, type Dept, type Job, type Phase, type RouteCode, type SlaLevel, type StationCode, type StationStatus } from '../proto/model.ts'
+import { isStationCode, thaiDay, thaiWorkEnd, usesFilm, type OutRun, type Vendor, type Dept, type Job, type Phase, type RouteCode, type SlaLevel, type StationCode, type StationStatus } from '../proto/model.ts'
 import type { Booking, Machine, MachineStatus, MachineType, Need } from '../proto/sewing.ts'
 
 export type JobRow = {
@@ -18,6 +18,7 @@ export type JobRow = {
   stage_entered_at: string
   sample_round: number
   needs_sample?: boolean     // ไม่มีในแถวเก่า = ขึ้นตัวอย่าง
+  develop?: boolean
   materials_waiting_depts: Dept[] | null
   dtf_film_eta: string | null
   dtf_film_received_at: string | null
@@ -78,11 +79,25 @@ export type SpecAckRow = { sheet_id: string; station_code: string }
 export function attachSpecSheets(jobs: Job[], sheets: SpecSheetRow[], acks: SpecAckRow[]): Job[] {
   if (!sheets.length) return jobs
   const byJob = new Map(sheets.map(s => [s.job_id, s]))
+  const ackedBy = new Map<string, Set<string>>()
+  for (const a of acks) ackedBy.set(a.sheet_id, (ackedBy.get(a.sheet_id) ?? new Set<string>()).add(a.station_code))
   return jobs.map(j => {
     const s = byJob.get(j.id)
     if (!s) return j
-    const acked = [...new Set(acks.filter(a => a.sheet_id === s.id).map(a => a.station_code))].filter(isStationCode)
+    const acked = [...(ackedBy.get(s.id) ?? [])].filter(isStationCode)
     return { ...j, specSheet: { id: s.id, rev: s.rev, acked } }
+  })
+}
+
+export type HoldRow = { job_id: string; opened_at: string }
+
+export function attachHolds(jobs: Job[], holds: HoldRow[]): Job[] {
+  if (!holds.length) return jobs
+  const opened = new Map<string, string>()
+  for (const h of holds) if ((opened.get(h.job_id) ?? '') < h.opened_at) opened.set(h.job_id, h.opened_at)
+  return jobs.map(j => {
+    const at = j.status === 'hold' ? opened.get(j.id) : undefined
+    return at ? { ...j, heldSince: new Date(at) } : j
   })
 }
 
@@ -143,11 +158,14 @@ export function toJobs(rows: JobRow[], products: ProductRow[], reworks: ReworkRo
       since: new Date(r.stage_entered_at),
       sampleRound: r.sample_round,
       needsSample: r.needs_sample ?? true,
+      develop: r.develop === true,
       materials: Object.fromEntries(DEPTS.map(d => [d, !waiting.has(d)])) as Record<Dept, boolean>,
     }
     if (r.current_station) job.station = r.current_station
     if (r.station_status) job.status = r.station_status
-    if (usesFilm(r.route_code) && r.dtf_film_eta) job.film = { eta: dueDate(r.dtf_film_eta), received: !!r.dtf_film_received_at }
+    // ได้รับฟิล์มโดยไม่มีวันคาดว่าได้รับ = ใช้วันที่ได้รับ ไม่อย่างนั้นหน้าจอจะบอกว่ายังไม่ได้สั่งทั้งที่ฐานข้อมูลให้เริ่มรีดได้
+    const filmDay = r.dtf_film_eta ?? (r.dtf_film_received_at ? thaiDay(new Date(r.dtf_film_received_at)) : null)
+    if (usesFilm(r.route_code) && filmDay) job.film = { eta: dueDate(filmDay), received: !!r.dtf_film_received_at }
     if (r.sew_count > 0) job.sewCount = r.sew_count
     if (r.is_rework) job.rework = { qty: r.rework_qty ?? 0, reason: reworkReason.get(r.id) ?? '' }
     if (r.hold_reason) job.holdReason = r.hold_reason

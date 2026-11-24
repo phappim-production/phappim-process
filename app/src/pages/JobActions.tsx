@@ -13,7 +13,9 @@ import { DEPT_NAME, OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, statio
 import { OutsourcePanel } from './OutsourcePanel'
 import { FilePick } from '../components/FilePick'
 import { relDayWord, slaAmountWord, spaced, wholeCount } from '../proto/format'
-import { newRequestId } from '../data/requestId'
+import { requestSlot } from '../data/requestId'
+import { reasonCodes, stationInfo } from '../data/lookups'
+import { touchJob } from '../data/jobKey'
 import { bookingDay } from '../proto/sewing'
 import { canCancelJob, canCloseIssue, type EmployeeRole } from '../auth/access'
 import { Pill } from '../components/ui'
@@ -21,6 +23,8 @@ import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../compo
 import { IconAlert, IconCheck, IconClock, IconFilm, IconPackage, IconPause, IconPlay } from '../components/icons'
 import { Tr } from '../i18n/Tr'
 import { useT, type Word } from '../i18n/lang'
+import { QueueReasonPrompt } from './QueueReason'
+import { SKIP_QUEUE_PLACEHOLDER, skipQueueHead } from './queueSkip'
 
 type Material = { id: number; name: string; dept: Dept; key: string | null; checked_at: string | null }
 type Reason = { code: string; grp: string; name: string }
@@ -35,30 +39,31 @@ type Detail = {
 type Notice = { ok: boolean; text: Word } | null
 const CONFIRMATION_FORM = '/confirmation'
 
-async function loadDetail(job: Job): Promise<Detail> {
+async function loadDetail(id: string, station: StationCode | undefined, phase: Job['phase']): Promise<Detail> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
-  const [live, materials, station, reasons] = await Promise.all([
-    supabase.from('job_live').select('visit, qc_passed, sla, dtf_film_ordered_at, confirmation_pdf_path').eq('id', job.id).single(),
-    supabase.from('job_materials').select('id, name, dept, key, checked_at').eq('job_id', job.id).order('id'),
-    job.station ? supabase.from('stations').select('substeps').eq('code', job.station).single() : Promise.resolve({ data: null, error: null }),
-    supabase.from('reason_codes').select('code, grp, name').eq('active', true).order('sort'),
+  const [live, materials, stations, reasons] = await Promise.all([
+    supabase.from('job_live').select('visit, qc_passed, sla, dtf_film_ordered_at, confirmation_pdf_path').eq('id', id).single(),
+    // ขั้นวัตถุดิบยกเลิกแล้ว เหลือเฉพาะงานเก่าที่ยังค้างขั้นนี้
+    phase === 'materials' ? supabase.from('job_materials').select('id, name, dept, key, checked_at').eq('job_id', id).order('id') : Promise.resolve({ data: [], error: null }),
+    station ? stationInfo.get() : Promise.resolve([]),
+    reasonCodes.get(),
   ])
-  const failed = [live, materials, station, reasons].find(r => r.error)
+  const failed = [live, materials].find(r => r.error)
   if (failed?.error) throw new Error(failed.error.message)
   const row = live.data as { visit: number; qc_passed: number; sla: Sla | null; dtf_film_ordered_at: string | null; confirmation_pdf_path: string | null }
-  const subs = await supabase.from('job_substeps').select('substep_key, value').eq('job_id', job.id).eq('visit', row.visit)
+  const subs = await supabase.from('job_substeps').select('substep_key, value').eq('job_id', id).eq('visit', row.visit)
   if (subs.error) throw new Error(subs.error.message)
   return {
     qcPassed: row.qc_passed, sla: row.sla ?? {}, filmOrdered: !!row.dtf_film_ordered_at, pdfPath: row.confirmation_pdf_path,
     materials: materials.data as Material[],
-    steps: ((station.data as { substeps: Substep[] } | null)?.substeps) ?? [],
+    steps: stations.find(s => s.code === station)?.substeps ?? [],
     done: new Map((subs.data as { substep_key: string; value: unknown }[]).map(s => [s.substep_key, s.value])),
-    reasons: reasons.data as Reason[],
+    reasons: reasons.filter(r => r.active),
   }
 }
 
-export function JobActions({ job: j, role, myStations = [], version, now, refresh, vendors = [], onCancelled }: {
-  job: Job; role: EmployeeRole; myStations?: StationCode[]; version: number; now: Date; refresh: () => Promise<void>; vendors?: Vendor[]
+export function JobActions({ job: j, queueHead, role, myStations = [], version, now, refresh: reloadBoard, vendors = [], onCancelled }: {
+  job: Job; queueHead?: Job; role: EmployeeRole; myStations?: StationCode[]; version: string | number; now: Date; refresh: () => Promise<void>; vendors?: Vendor[]
   onCancelled?: (text: string) => void
 }) {
   const [detail, setDetail] = useState<{ shape: string; data?: Detail; error?: string } | null>(null)
@@ -67,14 +72,19 @@ export function JobActions({ job: j, role, myStations = [], version, now, refres
   // ย้ายขั้น/สถานี/สถานะ = ขั้นย่อยเดิมใช้ไม่ได้ ต้องรอโหลดใหม่ · แค่ version เปลี่ยน = แสดงของเดิมไปก่อน ไม่กระพริบ
   const shape = `${j.id}/${j.phase}/${j.station ?? ''}/${j.status ?? ''}/${j.rework ? 'r' : ''}/${j.sampleRound}`
 
+  const { id, station, phase } = j
+
   useEffect(() => {
     let alive = true
-    loadDetail(j).then(
+    loadDetail(id, station, phase).then(
       data => { if (alive) setDetail({ shape, data }) },
       (e: unknown) => { if (alive) setDetail({ shape, error: thaiError(e instanceof Error ? e.message : undefined) }) },
     )
     return () => { alive = false }
-  }, [shape, version, j])
+  }, [shape, version, id, station, phase])
+
+  // คำสั่งที่ไม่ได้ส่ง p_job (รับของกลับ แนบไฟล์) ก็ต้องทำให้รายละเอียดงานนี้โหลดใหม่
+  const refresh = async () => { touchJob(id); await reloadBoard() }
 
   // ฟังก์ชันส่วนใหญ่รับ p_job · check_material รับ id ของรายการวัตถุดิบแทน
   async function act(name: string, args: Record<string, unknown>, ok: Word | string, withJob = true) {
@@ -122,7 +132,7 @@ export function JobActions({ job: j, role, myStations = [], version, now, refres
       {j.phase === 'sample_review' && (
         <SampleResult job={j} admin={admin} busy={busy}
           onSave={(pass, note, day) => act('record_sample_result', { p_pass: pass, p_note: note || null, p_customer_confirmed_at: day || null },
-            pass ? 'ตัวอย่างผ่าน · งานไปผลิตจริงที่สถานีแรก' : `ตัวอย่างไม่ผ่าน · ขึ้นตัวอย่างรอบ ${j.sampleRound + 1}`)} />
+            pass ? (j.develop ? 'ตัวอย่างผ่าน · งาน Develop เสร็จแล้ว (ไม่ผลิตจริง) · บันทึกจัดส่งเมื่อส่งตัวอย่างให้ลูกค้า' : 'ตัวอย่างผ่าน · งานไปผลิตจริงที่สถานีแรก') : `ตัวอย่างไม่ผ่าน · ขึ้นตัวอย่างรอบ ${j.sampleRound + 1}`)} />
       )}
       {inStation && st === 'sew' && (<>
         {(d.sla.station_over || d.sla.segment_over || d.sla.station_warn || d.sla.segment_warn) && <SlaBanner sla={d.sla} />}
@@ -130,7 +140,7 @@ export function JobActions({ job: j, role, myStations = [], version, now, refres
         {j.phase === 'production' && canStation && <SlaReport sla={d.sla} reasons={d.reasons} busy={busy} now={now} act={act} />}
       </>)}
       {inStation && st !== 'sew' && (
-        <Station job={j} detail={d} canPress={canStation} canResume={canCloseIssue(role, st)} role={role} busy={busy} now={now} act={act} />
+        <Station job={j} queueHead={queueHead} detail={d} canPress={canStation} canResume={canCloseIssue(role, st)} role={role} busy={busy} now={now} act={act} />
       )}
       {canCancelJob(role) && j.phase !== 'done' && <CancelJob job={j} busy={busy} act={act} onCancelled={onCancelled} />}
     </div>
@@ -487,7 +497,7 @@ function SampleResult({ job: j, admin, busy, onSave }: {
             </button>
           </div>
         ) : (
-          <Confirm text={confirm ? 'ยืนยันตัวอย่างผ่าน? งานจะไปผลิตจริงทั้งก้อน' : `ยืนยันไม่ผ่าน? งานจะกลับไปขึ้นตัวอย่างรอบ ${j.sampleRound + 1}`}
+          <Confirm text={confirm ? (j.develop ? 'ยืนยันตัวอย่างผ่าน? งาน Develop จะจบ (เสร็จ · รอส่ง) ไม่ผลิตจริง' : 'ยืนยันตัวอย่างผ่าน? งานจะไปผลิตจริงทั้งก้อน') : `ยืนยันไม่ผ่าน? งานจะกลับไปขึ้นตัวอย่างรอบ ${j.sampleRound + 1}`}
             busy={busy} danger={!confirm} onYes={async () => { if (await onSave(confirm, note.trim(), day)) setConfirm(null) }} onNo={() => setConfirm(null)} />
         )}
       </div>
@@ -511,13 +521,14 @@ function Confirm({ text, busy, danger, yesLabel = 'ยืนยัน', noLabel 
 
 type Act = (name: string, args: Record<string, unknown>, ok: Word | string) => Promise<boolean>
 
-function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act }: {
-  job: Job; detail: Detail; canPress: boolean; canResume: boolean; role: EmployeeRole; busy: boolean; now: Date; act: Act
+function Station({ job: j, queueHead, detail: d, canPress, canResume, role, busy, now, act }: {
+  job: Job; queueHead?: Job; detail: Detail; canPress: boolean; canResume: boolean; role: EmployeeRole; busy: boolean; now: Date; act: Act
 }) {
   const st = j.station!
   const t = useT()
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [holdText, setHoldText] = useState<string | null>(null)
+  const [skipping, setSkipping] = useState(false)
   const ctx = {
     station: st, phase: j.phase, rework: !!j.rework, done: new Set(d.done.keys()),
     filmReceived: !!j.film?.received, qcPassed: d.qcPassed, qty: j.qty,
@@ -547,15 +558,25 @@ function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act 
         {!canPress && !(canResume && j.status === 'hold') && <p className="mb-3 text-sm text-muted">{t(role === 'qc' ? 'ฝ่าย QC กดได้เฉพาะสถานี QC + Packing' : role === 'staff' ? 'งานนี้ไม่ได้อยู่สถานีของคุณ กดได้เฉพาะสถานีที่จับคู่ไว้' : 'บทบาทนี้ดูได้อย่างเดียว')}</p>}
 
         {j.status === 'queued' && canPress && st === 'outside' && <p className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn"><Tr th={OUTSIDE_START_BLOCK} /></p>}
-        {j.status === 'queued' && canPress && st !== 'outside' && (
-          <button type="button" disabled={busy || noFilm} className={`${primaryBtn} w-full`}
-            title={noFilm ? t('ยังไม่ได้รับ{film}', { film }) : undefined}
-            onClick={() => void act('start_station', {}, { th: 'เริ่ม{station}แล้ว', vars: { station: before } })}>
-            {!noFilm && <IconPlay className="size-5 shrink-0" />}
-            {noFilm ? <Tr th="เริ่มไม่ได้ · ยังไม่ได้รับ{film} (แอดมินบันทึกเมื่อได้รับ)" vars={{ film }} />
-              : <Tr th={no ? '{no}. เริ่ม{station}' : 'เริ่ม{station}'} vars={{ no: no ?? '', station: before }} />}
+        {j.status === 'queued' && canPress && st !== 'outside' && (noFilm ? (
+          <button type="button" disabled className={`${primaryBtn} w-full`} title={t('ยังไม่ได้รับ{film}', { film })}>
+            <Tr th="เริ่มไม่ได้ · ยังไม่ได้รับ{film} (แอดมินบันทึกเมื่อได้รับ)" vars={{ film }} />
           </button>
-        )}
+        ) : queueHead && skipping ? (
+          <QueueReasonPrompt busy={busy} danger head={skipQueueHead(queueHead.no)} placeholder={SKIP_QUEUE_PLACEHOLDER} confirm="บันทึกและเริ่ม"
+            onCancel={() => setSkipping(false)}
+            onConfirm={async reason => { if (await act('start_in_queue', { p_reason: reason }, { th: 'เริ่ม {no} ก่อนคิวแล้ว · บันทึกเหตุผลในประวัติงาน', vars: { no: j.no } })) setSkipping(false) }} />
+        ) : queueHead ? (
+          <button type="button" disabled={busy} className={`${secondaryBtn} w-full`} onClick={() => setSkipping(true)}>
+            <IconPlay className="size-5 shrink-0" /><Tr th="เริ่มก่อนคิว" />
+          </button>
+        ) : (
+          <button type="button" disabled={busy} className={`${primaryBtn} w-full`}
+            onClick={() => void act('start_in_queue', { p_reason: null }, { th: 'เริ่ม{station}แล้ว', vars: { station: before } })}>
+            <IconPlay className="size-5 shrink-0" />
+            <Tr th={no ? '{no}. เริ่ม{station}' : 'เริ่ม{station}'} vars={{ no: no ?? '', station: before }} />
+          </button>
+        ))}
 
         {j.status === 'hold' && (
           <div className="grid gap-2">
@@ -606,16 +627,16 @@ function Station({ job: j, detail: d, canPress, canResume, role, busy, now, act 
 }
 
 function SlaReport({ sla: s, reasons, busy, now, act }: { sla: Sla; reasons: Reason[]; busy: boolean; now: Date; act: Act }) {
-  const [reportRequest, setReportRequest] = useState(newRequestId)
+  const [reportRequest] = useState(requestSlot)
   const needReport = (s.station_over && !s.station_reported) || (s.segment_over && !s.segment_reported)
   if (!needReport && !s.station_warn && !s.segment_warn) return null
   return (
     <DelayReport reasons={reasons} busy={busy} now={now} required={!!needReport}
       onSend={async (codes, detail, eta, help) => {
         const ok = await act('submit_delay_report', {
-          p_reasons: codes, p_detail: detail, p_new_eta: eta.toISOString(), p_need_help: help || null, p_request: reportRequest,
+          p_reasons: codes, p_detail: detail, p_new_eta: eta.toISOString(), p_need_help: help || null, p_request: reportRequest.idFor(JSON.stringify([codes, detail, eta.toISOString(), help])),
         }, 'ส่งรายงานปัญหาแล้ว')
-        if (ok) setReportRequest(newRequestId())
+        if (ok) reportRequest.clear()
         return ok
       }} />
   )
@@ -641,7 +662,7 @@ function SlaBanner({ sla: s }: { sla: Sla }) {
 function QcPanel({ job: j, passed, busy, act }: { job: Job; passed: number; busy: boolean; act: Act }) {
   const t = useT()
   const [pass, setPass] = useState('')
-  const [request, setRequest] = useState(newRequestId)
+  const [request] = useState(requestSlot)
   const passQty = wholeCount(pass) || null
   const [rework, setRework] = useState<{ qty: string; reason: string; source: string } | null>(null)
   const reworkQty = rework ? wholeCount(rework.qty) || null : null
@@ -653,7 +674,7 @@ function QcPanel({ job: j, passed, busy, act }: { job: Job; passed: number; busy
       <div className="flex flex-wrap gap-2">
         <input type="number" min={1} inputMode="numeric" value={pass} onChange={e => setPass(e.target.value)} aria-label={t('จำนวนที่ผ่าน')} placeholder={t('จำนวนที่ผ่าน')} className={`${fieldClass} w-36 flex-1`} />
         <button type="button" disabled={busy || !passQty} className={okBtn}
-          onClick={async () => { if (passQty && await act('record_qc', { p_passed: passQty, p_request: request }, { th: 'บันทึกผ่าน QC {qty} {unit}', vars: { qty: passQty, unit } })) { setPass(''); setRequest(newRequestId()) } }}>
+          onClick={async () => { if (passQty && await act('record_qc', { p_passed: passQty, p_request: request.idFor(String(passQty)) }, { th: 'บันทึกผ่าน QC {qty} {unit}', vars: { qty: passQty, unit } })) { setPass(''); request.clear() } }}>
           {pass.trim() && !passQty ? <Tr th="ใส่จำนวนเต็ม" /> : <><IconCheck className="size-5 shrink-0" /><Tr th="บันทึกผ่าน" /></>}</button>
       </div>
       {rework === null

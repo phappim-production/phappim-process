@@ -2,12 +2,15 @@
 
 import { requiredSteps, substepSql as sub } from './steps.mjs'
 
+import { queueSkips } from './queue-skip.mjs'
+
 export async function routeTests({ db, ok, as }) {
   const U = {
     admin: '00000000-0000-0000-0000-000000000011', qc: '00000000-0000-0000-0000-000000000012',
     prod: '00000000-0000-0000-0000-000000000013',
   }
-  const call = (uid, sql) => as(uid, () => db.query(`select ${sql}`))
+  const skips = queueSkips(db, 'routes')
+  const call = async (uid, sql) => { await skips.beforeSql(as, uid, sql); return as(uid, () => db.query(`select ${sql}`)) }
   const step = async (name, uid, sql) => {
     try { await call(uid, sql); return true } catch (e) { ok(`${name} (ติดที่: ${sql.split('(')[0]})`, false, e.message.split('\n')[0]); return false }
   }
@@ -112,4 +115,5 @@ export async function routeTests({ db, ok, as }) {
   await reject('ปกติ: งานไม่ใช้ฟิล์ม สั่งฟิล์มไม่ได้', U.admin, `public.order_film('${N}', '2026-12-01')`, /ไม่ต้องสั่งฟิล์ม/)
   ok('ปกติ: ไม่มีรายการสั่งฟิล์มในวัตถุดิบ',
     (await db.query(`select count(*)::int n from public.job_materials where job_id = $1 and key like '%_film'`, [N])).rows[0].n === 0)
+  skips.report()
 }

@@ -1,5 +1,5 @@
 // 1 การ์ด = 1 สิ่งที่ต้องทำต่อ
-import { DEPT_NAME, byQueue, filmLabel, isOutLate, isOverdue, isWaitingFilm, missingDepts, STATION_NAME, type Job } from './model.ts'
+import { DEPT_NAME, byQueue, filmLabel, isFilmNotOrdered, isOutLate, isOverdue, isWaitingFilm, missingDepts, STATION_NAME, type Job } from './model.ts'
 import { spaced } from './format.ts'
 import { thai, word, type Word } from '../i18n/word.ts'
 
@@ -32,6 +32,7 @@ export function nextAction(j: Job, now: Date): NextAction | null {
   const station = { th: spaced(at).trimEnd() }
   if (j.status === 'hold') return make(word('แก้ปัญหา {station}: {reason}', { station: { th: at }, reason: j.holdReason ?? { th: 'ไม่ระบุสาเหตุ' } }), 'danger', 0)
   if (j.station === 'dtf_press' && isWaitingFilm(j)) return make(word('รอ{film}ก่อนเริ่มรีด', { film: { th: filmLabel(j.route) } }), 'warn', 2)
+  if (j.station === 'dtf_press' && j.status === 'queued' && isFilmNotOrdered(j)) return make(word('ยังไม่ได้สั่ง{film} · แจ้งแอดมินสั่งก่อน ยังเริ่มรีดไม่ได้', { film: { th: filmLabel(j.route) } }), 'warn', 2)
   const prefix = j.phase === 'sample' ? { th: 'ตัวอย่าง · ' } : ''
   if (j.status === 'queued' && j.station === 'outside') return make(word('{prefix}แอดมินส่งออกบริษัทภายนอก', { prefix }), 'neutral', 5)
   if (j.status === 'queued') return make(word('{prefix}เริ่ม{station}', { prefix, station }), 'neutral', 5)

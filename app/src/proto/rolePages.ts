@@ -8,7 +8,7 @@ export function inStations(jobs: Job[], stations: readonly StationCode[] | null)
 
 export function problemLists(jobs: Job[], stations: readonly StationCode[] | null) {
   const mine = inStations(jobs.filter(j => j.phase !== 'done'), stations)
-  const held = mine.filter(j => j.status === 'hold').sort((a, b) => a.since.getTime() - b.since.getTime())
+  const held = mine.filter(j => j.status === 'hold').sort((a, b) => (a.heldSince ?? a.since).getTime() - (b.heldSince ?? b.since).getTime())
   const rework = mine.filter(j => j.rework && j.status !== 'hold').sort(byQueue)
   const overSla = mine.filter(j => (j.sla === 'over' || j.sla === 'report') && j.status !== 'hold').sort(byQueue)
   return { held, rework, overSla }

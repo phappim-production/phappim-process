@@ -1,4 +1,5 @@
-import { expect, it } from 'vitest'
+import { attachHolds } from '../data/live'
+import { describe, expect, it } from 'vitest'
 import type { Job } from './model'
 import { myStationsOf, problemLists, queueBoard, reportable } from './rolePages'
 
@@ -51,4 +52,15 @@ it('สถานีของฉัน: QC = QC + Packing · พนักงา�
   expect(myStationsOf('qc', [])).toEqual(['qc_pack'])
   expect(myStationsOf('staff', ['cut'])).toEqual(['cut'])
   expect(myStationsOf('staff', undefined)).toEqual([])
+})
+
+describe('งานพัก: เรียงและนับเวลาจากตอนที่พัก ไม่ใช่ตอนเข้าสถานี', () => {
+  it('งานที่เข้าสถานีก่อนแต่เพิ่งพัก อยู่หลังงานที่พักมานานกว่า', () => {
+    const early = job({ id: 'a', status: 'hold', since: new Date('2026-11-16T02:00:00Z'), heldSince: new Date('2026-11-18T03:00:00Z') })
+    const late = job({ id: 'b', status: 'hold', since: new Date('2026-11-17T02:00:00Z'), heldSince: new Date('2026-11-17T04:00:00Z') })
+    expect(problemLists([early, late], null).held.map(j => j.id)).toEqual(['b', 'a'])
+    expect(attachHolds([job({ id: 'a', status: 'hold' }), job({ id: 'c', status: 'doing' })], [
+      { job_id: 'a', opened_at: '2026-11-17T01:00:00Z' }, { job_id: 'a', opened_at: '2026-11-18T03:00:00Z' }, { job_id: 'c', opened_at: '2026-11-18T03:00:00Z' },
+    ]).map(j => j.heldSince?.toISOString())).toEqual(['2026-11-18T03:00:00.000Z', undefined])
+  })
 })

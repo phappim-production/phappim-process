@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { queueSkips, startsJob } from './queue-skip.mjs'
 
 const uid = n => '00000000-0000-0000-0000-' + String(n).padStart(12, '0')
 const actors = { owner: uid(1), supervisor: uid(2), disabled: uid(4), admin: uid(11),
@@ -20,6 +21,7 @@ const routes = {
 }
 
 export async function flowR8Tests({ db, ok }) {
+  const skips = queueSkips(db, 'flow-r8')
   const rows = async (sql, args) => (await db.query(sql, args)).rows
   const one = async (sql, args) => (await rows(sql, args))[0]
   async function isolated(name, run) {
@@ -75,6 +77,7 @@ export async function flowR8Tests({ db, ok }) {
     }
   }
   const change = async (id, role, name, args, types, tail) => {
+    if (startsJob(name)) await skips.insert(id, actors[role])
     const before = (await events(id)).length
     const result = await call(role, name, args, tail)
     const delta = (await events(id)).slice(before)
@@ -446,6 +449,7 @@ export async function flowR8Tests({ db, ok }) {
   } finally {
     await db.exec('rollback')
   }
+  skips.report()
   await cleanupCheck(db, ok)
 }
 

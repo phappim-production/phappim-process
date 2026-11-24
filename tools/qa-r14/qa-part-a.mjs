@@ -32,7 +32,6 @@ function makeTracker(chrome) {
       for (const t of tabs) {
         const seen = await t.ev(() => ({ url: location.href, dialog: (document.querySelector('[role=dialog]')?.innerText ?? '').replace(/s+/g, ' ').slice(0, 1500), buttons: [...document.querySelectorAll('button')].filter(b => b.getClientRects().length).map(b => (b.disabled ? '[x] ' : '') + b.textContent.replace(/\s+/g, ' ').trim()).slice(0, 40) })).catch(() => null)
         console.log(`  ที่หน้า ${JSON.stringify(seen)}`)
-        await t.screenshot(`fail-${id}`).catch(() => {})
       }
     }
   }
@@ -105,7 +104,7 @@ async function receiveViaUi(t, { no, customer, product, qty, due = '2099-01-15',
   await t.waitText('ลำดับสถานี:')
   await t.ev(needSample => {
     const radios = [...document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')]
-    const target = radios[needSample ? 0 : 1]
+    const target = radios.find(r => r.closest('label')?.querySelector('.font-medium')?.textContent.trim() === (needSample ? 'ขึ้นตัวอย่าง' : 'ไม่ขึ้นตัวอย่าง'))
     if (!target) throw new Error('ไม่พบปุ่มขึ้นตัวอย่าง')
     target.click()
   }, sample)
@@ -208,7 +207,7 @@ async function runA1(ctx) {
     await t.clickButton('กลับไปแก้ไข')
 
     await t.ev(() => { window.open = () => null })
-    await waitFor(() => t.ev(() => !readingImgs && !!thumb), 'ย่อรูปในฟอร์ม')
+    await waitFor(() => t.ev(() => !readingImgs && state.imgs.length > 0 && state.imgs.every(m => !!shrunk.get(m.src))), 'ย่อรูปในฟอร์ม')
     await t.clickButton('บันทึกเข้าระบบ')
     await t.waitText('ส่งใบ TEST-A1-TSHIRT แล้ว')
     const outboxHash = await t.ev(() => document.querySelector('#toast a')?.getAttribute('href'))
@@ -229,7 +228,7 @@ async function runA1(ctx) {
       const rtSel = [...dlg.querySelectorAll('select')].find(s => [...s.options].some(o => o.value === 'normal'))
       rtSel.value = 'normal'
       rtSel.dispatchEvent(new Event('change', { bubbles: true }))
-      document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[1].click()
+      document.querySelectorAll('[role="dialog"] input[name="needs-sample"]')[2].click()
     })
     await second.waitText('ลำดับสถานี:')
     await second.clickButton(/^รับงาน$/, { exact: true, inside: '[role="dialog"]' })

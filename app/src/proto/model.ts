@@ -65,6 +65,7 @@ export type Job = {
   since: Date                // เวลาที่เข้าขั้นปัจจุบัน
   sampleRound: number
   needsSample?: boolean      // false = ลูกค้าไม่จ่ายค่าตัวอย่าง เข้าผลิตจริงเลย
+  develop?: boolean          // งาน Develop: ลูกค้ายืนยันตัวอย่างผ่าน = งานเสร็จ ไม่ผลิตจริง
   materials: Record<Dept, boolean>
   film?: { eta: Date; received: boolean }  // เฉพาะเส้นทางที่สั่งฟิล์ม (DTF / DTG / สกรีน)
   sewCount?: number
@@ -73,6 +74,7 @@ export type Job = {
   mockupUrl?: string         // ลิงก์ชั่วคราวสำหรับแสดงรูป · ไม่มี = แสดงกรอบว่าง
   rework?: { qty: number; reason: string }
   holdReason?: string
+  heldSince?: Date
   doneAt?: Date
   delivered?: { at: Date; note: string }  // แอดมินบันทึกส่งให้ลูกค้าแล้ว (เฉพาะงานเสร็จ)
   queue?: number             // jobs.queue_seq · แทรกงานด่วนได้
@@ -182,6 +184,13 @@ export function queueNo(job: Job, jobs: Job[]): number | undefined {
   return i < 0 ? undefined : i + 1
 }
 
+// คิวแรกของสถานีเมื่องานนี้ยังไม่ถึงคิว (เริ่มก่อนต้องมีเหตุผล) · เป็นคิวแรกเอง / ไม่ได้รอเริ่ม = undefined
+export function queueHead(job: Job, jobs: Job[]): Job | undefined {
+  if (!job.station || job.status !== 'queued' || !inStation(job)) return undefined
+  const first = waitingAt(jobs, job.station)[0]
+  return first && first.id !== job.id ? first : undefined
+}
+
 export function stationCounts(jobs: Job[], now: Date) {
   return COLUMNS.filter(c => c.key in STATION_NAME).map(c => {
     const here = jobs.filter(j => (j.phase === 'sample' || j.phase === 'production') && j.station === c.key)
@@ -212,6 +221,14 @@ export function isDueSoon(j: Job, now: Date) {
 export function isWaitingFilm(j: Job) {
   if (!usesFilm(j.route) || !j.film || j.film.received || j.phase === 'done') return false
   return true
+}
+// เส้นทางฟิล์มที่แอดมินยังไม่ได้บันทึกสั่ง และงานยังไม่ผ่านสถานีรีดฟิล์ม
+export function isFilmNotOrdered(j: Job) {
+  if (!usesFilm(j.route) || j.film || j.phase === 'done') return false
+  if (j.develop && j.phase === 'sample_review') return false
+  if (j.phase !== 'production' || !j.station) return true
+  const stations = ROUTES[j.route].stations
+  return stations.indexOf(j.station) <= stations.indexOf('dtf_press')
 }
 export function isFilmLate(j: Job, now: Date) {
   return isWaitingFilm(j) && thaiDay(j.film!.eta) < thaiDay(now)

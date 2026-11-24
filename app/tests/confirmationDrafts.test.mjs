@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { draftLabel, formDataFromDraft, formDataFromJob, OUTBOX_KEY, takeOutbox } from '../src/data/confirmationDrafts.ts'
-import { syncConfirmationSpec } from '../src/data/confirmation.ts'
+import { developChoice, sampleChoice, syncConfirmationSpec } from '../src/data/confirmation.ts'
 import { eventLine } from '../src/data/history.ts'
 
 const memory = init => {
@@ -82,6 +83,7 @@ test('หน้ารับงาน: ปรับหัวใบและเผ
     due: '2026-12-20',
     route: 'normal',
     needsSample: true,
+    develop: false,
     spec: { h: { doc_no: 'OLD', customer: 'เก่า', sample: 'ไม่ขึ้นตัวอย่าง' }, p: { tshirt: { spare: 1 } }, product: 'tshirt' },
   }, 'เสื้อยืด')
   assert.deepEqual(synced.h, {
@@ -93,4 +95,25 @@ test('หน้ารับงาน: ปรับหัวใบและเผ
     sample: 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)',
   })
   assert.equal(synced.p.tshirt.spare, 5)
+})
+
+test('หน้ารับงาน: ช่องขึ้นตัวอย่างใน spec ตามตัวเลือกที่แอดมินกด (ขึ้นตัวอย่าง / งาน Develop / ไม่ขึ้น) ไม่ค้างค่าจากใบ', () => {
+  const base = { no: 'SC69-3', rev: 0, customer: 'ลูกค้า', jobName: 'งาน', product: 'tshirt', qty: 5, spare: 0, due: '2026-12-20', route: 'normal' }
+  const sampleOf = (needsSample, develop, sample) => syncConfirmationSpec({ ...base, needsSample, develop, spec: { h: { doc_no: 'SC69-3', sample }, p: { tshirt: {} }, product: 'tshirt' } }, 'เสื้อยืด').h.sample
+  const dev = sampleOf(true, true, 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)')
+  assert.equal(dev, 'ขึ้นตัวอย่าง (งาน Develop · จบที่ตัวอย่าง ไม่ผลิตจริง)')
+  assert.ok(readFileSync(new URL('../../production-confirmation.html', import.meta.url), 'utf8').includes(`'${dev}'`), 'ข้อความต้องตรงกับตัวเลือกในฟอร์ม')
+  assert.equal(developChoice({ sample: dev }), true)
+  assert.equal(sampleChoice({ sample: dev }), true)
+  assert.equal(sampleOf(true, false, 'ขึ้นตัวอย่าง (งาน Develop · จบที่ตัวอย่าง ไม่ผลิตจริง)'), 'ขึ้นตัวอย่าง (ลูกค้าจ่ายค่าตัวอย่าง)')
+  assert.equal(sampleOf(false, false, 'ขึ้นตัวอย่าง (งาน Develop · จบที่ตัวอย่าง ไม่ผลิตจริง)'), 'ไม่ขึ้นตัวอย่าง')
+  assert.equal(sampleOf(null, false, 'ขึ้นตัวอย่าง (งาน Develop · จบที่ตัวอย่าง ไม่ผลิตจริง)'), 'ขึ้นตัวอย่าง (งาน Develop · จบที่ตัวอย่าง ไม่ผลิตจริง)')
+})
+
+test('หน้ารับงาน: แอดมินลบจำนวนเผื่อเสีย → spec ไม่เก็บค่าเดิมไว้ (แก้ใบทีหลังจะไม่ดึงเผื่อเสียกลับมาเอง)', () => {
+  const synced = syncConfirmationSpec({
+    no: 'SC69-1', rev: 0, customer: 'ลูกค้า', jobName: 'งาน', product: 'tshirt', qty: 50, spare: 0, due: '2026-12-20', route: 'normal', needsSample: false, develop: false,
+    spec: { h: { doc_no: 'SC69-1' }, p: { tshirt: { spare: '5' } }, product: 'tshirt' },
+  }, 'เสื้อยืด')
+  assert.equal(synced.p.tshirt.spare, '')
 })

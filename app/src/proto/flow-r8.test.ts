@@ -52,8 +52,8 @@ describe('R8 Storage จำลอง', () => {
     storage.createSignedUrls.mockResolvedValueOnce({ data: [{ path, signedUrl: '/local/old' }] })
       .mockResolvedValueOnce({ data: [{ path, signedUrl: '/local/new' }] })
     expect((await signMockups([path, path], now.getTime())).get(path)).toBe('/local/old')
-    expect(storage.createSignedUrls).toHaveBeenNthCalledWith(1, [path], 7_200)
-    expect((await signMockups([path], now.getTime() + 2 * 3_600_000)).get(path)).toBe('/local/new')
+    expect(storage.createSignedUrls).toHaveBeenNthCalledWith(1, [path], 3_600)
+    expect((await signMockups([path], now.getTime() + 3_600_000)).get(path)).toBe('/local/new')
   })
 })
 

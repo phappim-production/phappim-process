@@ -1,3 +1,5 @@
+import { queueSkips } from './queue-skip.mjs'
+
 export async function outsideRouteTests({ db, ok, as }) {
   const U = {
     admin: '00000000-0000-0000-0000-000000000091', prod: '00000000-0000-0000-0000-000000000092',
@@ -10,7 +12,8 @@ export async function outsideRouteTests({ db, ok, as }) {
       ('${U.qc}','QC นอก','qc',true),('${U.staff}','พนักงาน นอก','staff',true);
     insert into public.staff_stations (user_id, station_code) values ('${U.staff}','outside');
   `)
-  const call = (uid, sql) => as(uid, () => db.query(`select ${sql} as v`))
+  const skips = queueSkips(db, 'outside-route')
+  const call = async (uid, sql) => { await skips.beforeSql(as, uid, sql); return as(uid, () => db.query(`select ${sql} as v`)) }
   const pass = async (name, uid, sql) => {
     try { const r = await call(uid, sql); ok(name, true); return r.rows[0]?.v } catch (e) { ok(name, false, e.message.split('\n')[0]) }
   }
@@ -82,4 +85,5 @@ export async function outsideRouteTests({ db, ok, as }) {
   const normal = await pass('งานเส้นทางปกติยังกดเริ่มได้', U.admin, `public.receive_job('SC-OX-3','ลูกค้า','เสื้อ','tshirt',5,'ตัว',current_date + 14,'normal','',0,0,'{}'::jsonb,false)`)
   await pass('ฝ่ายผลิตเริ่มพิมพ์ได้ตามปกติ', U.prod, `public.start_in_queue('${normal}', 'ทดสอบ')`)
   ok('งานปกติกำลังทำ', (await state(normal)).status === 'doing')
+  skips.report()
 }

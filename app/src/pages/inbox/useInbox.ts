@@ -31,15 +31,18 @@ let channelSeq = 0
 
 async function loadInbox(): Promise<InboxItem[]> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
-  const [msgs, reads] = await Promise.all([
-    supabase
-      .from('inbox_messages')
-      .select('id, kind, job_id, title, body, created_at')
-      .order('created_at', { ascending: false })
-      .limit(200),
-    supabase.from('inbox_reads').select('message_id'),
-  ])
-  const err = msgs.error ?? reads.error
+  const msgs = await supabase
+    .from('inbox_messages')
+    .select('id, kind, job_id, title, body, created_at')
+    .order('created_at', { ascending: false })
+    .limit(200)
+  if (msgs.error) throw new Error(msgs.error.message)
+  // ถามเฉพาะข้อความที่แสดง · ประวัติการอ่านโตทุกวันและ API ตัดที่ 1,000 แถว
+  const shown = (msgs.data ?? []).map(m => (m as { id: number }).id)
+  const reads = shown.length
+    ? await supabase.from('inbox_reads').select('message_id').in('message_id', shown)
+    : { data: [], error: null }
+  const err = reads.error
   if (err) throw new Error(err.message)
 
   const readIds = new Set((reads.data as ReadRow[]).map(r => r.message_id))
@@ -53,6 +56,9 @@ async function loadInbox(): Promise<InboxItem[]> {
     read: readIds.has(m.id),
   }))
 }
+
+// 1 แท็บ = 1 ช่อง Realtime ของกล่องจดหมาย · เมนู กระดิ่ง และหน้ากล่องจดหมายใช้ผลชุดเดียวกัน
+export type Inbox = ReturnType<typeof useInbox>
 
 export function useInbox() {
   const [state, setState] = useState<InboxState>({ status: 'loading' })

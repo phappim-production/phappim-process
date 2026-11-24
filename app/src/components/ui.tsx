@@ -3,6 +3,7 @@ import { ROUTES, isDueSoon, isOverdue, usesFilm, type Job, type RouteCode } from
 import { dayDiff, shortDate } from '../proto/format'
 import { TONE, type Tone } from './tone'
 import { IconImage } from './icons'
+import { mockupThumbUrl } from '../data/mockups'
 import { useLang, useT } from '../i18n/lang'
 import { Tr } from '../i18n/Tr'
 export type { Tone }
@@ -127,7 +128,7 @@ export function StatTile({ icon: Icon, label, value, note, noteOnPhone, tone, ac
 
 const THUMB_SIZE = { sm: 'size-14', md: 'size-20', lg: 'aspect-square w-full max-w-72' } as const
 
-// ไม่มีรูป = กรอบว่างขนาดเท่ากัน การ์ดจึงเรียงตรงกัน
+// ไม่มีรูป = กรอบว่างขนาดเท่ากัน การ์ดจึงเรียงตรงกัน · กรอบเล็กใช้รูปย่อ กรอบใหญ่ (กว้างถึง 288 px) ใช้รูปเต็มให้คมบนแท็บเล็ต
 export function MockupThumb({ job, size = 'sm' }: { job: Pick<Job, 'no' | 'mockupUrl'>; size?: keyof typeof THUMB_SIZE }) {
   const box = `${THUMB_SIZE[size]} shrink-0 overflow-hidden rounded-xl border border-line bg-paper`
   if (!job.mockupUrl) {
@@ -137,6 +138,6 @@ export function MockupThumb({ job, size = 'sm' }: { job: Pick<Job, 'no' | 'mocku
       </span>
     )
   }
-  return <img src={job.mockupUrl} alt={`รูปม็อคอัพงาน ${job.no}`} loading="lazy" decoding="async" className={`${box} object-contain`} />
+  return <img src={size === 'lg' ? job.mockupUrl : mockupThumbUrl(job.mockupUrl)} alt={`รูปม็อคอัพงาน ${job.no}`} loading="lazy" decoding="async" className={`${box} object-contain`} />
 }
 
