@@ -1,7 +1,7 @@
 # สำรองฐานข้อมูลทุกสัปดาห์ (แผนฟรีของ Supabase ไม่ควรพึ่งระบบสำรองของผู้ให้บริการ)
 # ไฟล์สำรองเก็บเป็น Artifact ของ GitHub 90 วัน → ดาวน์โหลดเก็บไว้อีกที่เป็นระยะ · วิธีกู้: docs/สำรองและกู้ข้อมูล.md
 # ต้องตั้ง Secret: SUPABASE_DB_URL (ใช้ Session pooler connection string · ดู SETUP.md)
-# repo ต้องเป็น Private เพราะไฟล์สำรองมีข้อมูลลูกค้าและบัญชีผู้ใช้ (รหัสผ่านเก็บแบบแฮช)
+# ไฟล์สำรองมีข้อมูลลูกค้าและบัญชีผู้ใช้ → เข้ารหัส (gpg AES256) ก่อนอัปโหลดเสมอ · repo สาธารณะใครก็ดาวน์โหลด Artifact ได้ · ไม่มี Secret BACKUP_PASSPHRASE = ไม่สำรอง
 # ไฟล์ใน R2 ไม่อยู่ที่นี่ (ใหญ่เกินโควตา Artifact) · สำรองลงเครื่องด้วย tools/r2-backup
 name: db-backup
 on:
@@ -15,7 +15,9 @@ jobs:
       - name: pg_dump
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
+          if [ ${#BACKUP_PASSPHRASE} -lt 16 ]; then echo "ตั้ง Secret BACKUP_PASSPHRASE (อย่างน้อย 16 ตัว) ก่อน · ห้ามอัปโหลดไฟล์สำรองที่ไม่เข้ารหัส"; exit 1; fi
           stamp=$(date -u +%Y%m%d)
           # private.file_settings ไม่สำรอง เพราะเป็นค่าลับของ Worker
           docker run --rm -e DB_URL -e stamp="$stamp" -v "$PWD:/out" postgres:17 sh -ec '
@@ -24,9 +26,14 @@ jobs:
             pg_dump "$DB_URL" --data-only --table=auth.users --table=auth.identities --no-owner --no-privileges -Fc -f /out/pp142-$stamp-auth.dump
             for f in /out/*.dump; do pg_restore --list "$f" > /dev/null; done
           '
-          ls -la *.dump
+          for f in *.dump; do
+            printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --symmetric --cipher-algo AES256 -o "$f.gpg" "$f"
+          done
+          rm -f *.dump
+          ls -la *.dump.gpg
       - uses: actions/upload-artifact@v4
         with:
           name: pp142-db-backup
-          path: '*.dump'
+          path: '*.dump.gpg'
+          if-no-files-found: error
           retention-days: 90

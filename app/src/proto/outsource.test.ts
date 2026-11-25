@@ -33,7 +33,7 @@ describe('ส่งงานออกบริษัทภายนอก', () =
   it('ผูกรอบส่งออกเข้ากับงาน และรู้ว่าเลยกำหนด', () => {
     const rows: OutRunRow[] = [{ id: 7, job_id: 'j', vendor_id: 3, stations: ['sew'], qty: 300, is_rework: false,
       sent_at: now.toISOString(), arrive_at: now.toISOString(), lead_days: '2', back_at: '2026-11-17T10:00:00+07:00', note: null }]
-    const [j] = attachOutRuns([{ ...base, station: 'sew', status: 'out' }], rows, [{ id: 3, name: 'บ.B เย็บ', stations: ['sew'], kind: 'outsource', phone: '092-782-6916', mapUrl: 'https://maps.app.goo.gl/x' }])
+    const [j] = attachOutRuns([{ ...base, station: 'sew', status: 'out' }], rows, [{ id: 3, name: 'บ.B เย็บ', stations: ['sew'], kind: 'outsource', phone: '081-000-0001', mapUrl: 'https://maps.app.goo.gl/x' }])
     expect(j.out).toMatchObject({ id: 7, vendor: 'บ.B เย็บ', qty: 300, leadDays: 2 })
     expect(isOutLate(j, now)).toBe(true)
   })
@@ -79,28 +79,28 @@ describe('แผงส่งออกในรายละเอียดงา�
 // ข้อมูลจากชีต Supplier: เบอร์มีชื่อคน/ตัวอักษรปน และบางเบอร์ไม่มี 0 นำหน้า
 describe('ข้อมูลติดต่อบริษัท', () => {
   it('แปลงเบอร์ในชีตเป็นลิงก์โทร', () => {
-    expect(telHref('0969859098 ดาว')).toBe('tel:0969859098')
-    expect(telHref('081-750-8199')).toBe('tel:0817508199')
-    expect(telHref(' 095-1657595')).toBe('tel:0951657595')
-    expect(telHref('0958384065A')).toBe('tel:0958384065')
-    expect(telHref('915109999')).toBe('tel:0915109999')
-    expect(telHref('026283577')).toBe('tel:026283577')
+    expect(telHref('0810000002 คุณเอ')).toBe('tel:0810000002')
+    expect(telHref('081-000-0003')).toBe('tel:0810000003')
+    expect(telHref(' 081-0000004')).toBe('tel:0810000004')
+    expect(telHref('0810000005A')).toBe('tel:0810000005')
+    expect(telHref('810000006')).toBe('tel:0810000006')
+    expect(telHref('020000007')).toBe('tel:020000007')
     expect(telHref('คุณบี')).toBeUndefined()
     expect(telHref(undefined)).toBeUndefined()
   })
 
   it('ปุ่มโทรและแผนที่ · ไม่มีข้อมูลไม่แสดง', () => {
-    const html = renderToStaticMarkup(createElement(ContactLinks, { phone: '0927826916', mapUrl: 'https://maps.app.goo.gl/x' }))
-    expect(html).toContain('href="tel:0927826916"')
+    const html = renderToStaticMarkup(createElement(ContactLinks, { phone: '0810000001', mapUrl: 'https://maps.app.goo.gl/x' }))
+    expect(html).toContain('href="tel:0810000001"')
     expect(html).toContain('เปิดแผนที่')
     expect(renderToStaticMarkup(createElement(ContactLinks, {}))).toBe('')
   })
 
   it('งานข้างนอกแสดงปุ่มโทรบริษัท', () => {
     const html = renderToStaticMarkup(createElement(OutsourcePanel, {
-      job: { ...base, status: 'out', out: run({ phone: '0927826916', mapUrl: 'https://maps.app.goo.gl/x' }) }, vendors: [], admin: true, now, refresh: async () => {},
+      job: { ...base, status: 'out', out: run({ phone: '0810000001', mapUrl: 'https://maps.app.goo.gl/x' }) }, vendors: [], admin: true, now, refresh: async () => {},
     }))
-    expect(html).toContain('tel:0927826916')
+    expect(html).toContain('tel:0810000001')
   })
 })
 
