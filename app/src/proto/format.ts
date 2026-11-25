@@ -55,9 +55,21 @@ export function stageSteps(j: Job) {
   return { steps, current }
 }
 
-// แอดมินพิมพ์ปี พ.ศ. ในช่องวันที่ได้ (เช่น 2569) · เกิน 1 ปีจึงถือว่าพิมพ์ปีผิด
+// ช่องวันที่เก็บปี ค.ศ. · พิมพ์ปี พ.ศ. (เช่น 2569) ลงไปได้ ฐานข้อมูลรับเฉพาะ ค.ศ. 2000–2399
+export function yearOutOfRange(iso: string): boolean {
+  const year = Number(/^(\d+)-/.exec(iso)?.[1])
+  return Number.isFinite(year) && (year < 2000 || year > 2399)
+}
+export const YEAR_PROBLEM = 'ปีไม่ถูกต้อง · ระบบใช้ปี ค.ศ. (พ.ศ. 2569 = ค.ศ. 2026) เลือกวันจากปฏิทินใหม่'
+
+export function thaiFullDate(iso: string): string {
+  return new Date(`${iso}T12:00:00+07:00`).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+// เกิน 1 ปีจากวันนี้ก็มักเป็นปีที่พิมพ์ผิด แต่ยังรับงานได้ถ้ายืนยัน
 export function dueDateWarning(due: string, now: Date): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) return null
+  if (yearOutOfRange(due)) return YEAR_PROBLEM
   const today = thaiDay(now)
   if (due < today) return 'กำหนดส่งเป็นวันที่ผ่านมาแล้ว · งานจะขึ้นเลยกำหนดทันที ตรวจวันและปีอีกครั้ง'
   if (Date.parse(due) - Date.parse(today) > 366 * 86_400_000) return 'กำหนดส่งเกิน 1 ปีจากวันนี้ · ตรวจว่าใส่ปี ค.ศ. ไม่ใช่ พ.ศ.'

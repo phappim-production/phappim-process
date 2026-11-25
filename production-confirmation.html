@@ -1886,6 +1886,11 @@ function validate(){
     if(values.some(x=>!Number.isInteger(x))) out.push({ ...where, why:'จำนวนชิ้นต้องเป็นจำนวนเต็ม (ไม่มีทศนิยม)' });
     else if(f.id!=='spare'&&totalQty()>MAX_QTY) out.push({ ...where, why:`รวม ${totalQty().toLocaleString()} มากเกินไป ตรวจว่าพิมพ์ตัวเลขถูกไหม (ไม่เกิน ${MAX_QTY.toLocaleString()})` });
   });
+  // ช่องวันที่เก็บปี ค.ศ. · พิมพ์ปี พ.ศ. ลงไปได้ (2569) แล้ว PDF จะพิมพ์เป็น 3112 และระบบไม่รับ
+  [['issue_date','วันที่ออกใบ'],['sample_date','วันนัดส่งตัวอย่าง'],['due_date','กำหนดส่งงาน']].forEach(([id,label])=>{
+    const y=+String(state.h[id]||'').split('-')[0];
+    if(y&&(y<2000||y>2399)&&(id!=='sample_date'||sampleDateShown(state.h))) out.push({id:`fld_h_${id}`,sec:2,label:`ข้อมูลใบงาน › ${label}`,why:'ปีไม่ถูกต้อง · ระบบใช้ปี ค.ศ. (พ.ศ. 2569 = ค.ศ. 2026) เลือกวันจากปฏิทินใหม่',hard:true});
+  });
   if(state.h.issue_date&&state.h.due_date&&state.h.due_date<state.h.issue_date) out.push({id:'fld_h_due_date',sec:2,label:'ข้อมูลใบงาน › กำหนดส่งงาน',why:'อยู่ก่อนวันที่ออกใบ',hard:true});
   { const v=scope('p'), sec=layout().find(x=>x.s==='p'&&x.fields?.some(f=>f.id==='collar'&&f.options.includes('ไม่มีปก')));
     if(sec&&wantsCollar(v)&&(!v.collar||v.collar==='ไม่มีปก')) out.push({ id:'fld_p_collar', sec:sec.no, label:`${sec.title} › ปก`, why:'เลือกคอปก / เสื้อโปโลไว้ ให้เลือกชนิดปก' }); }

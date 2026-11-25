@@ -11,7 +11,7 @@ import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
 import { DEPT_NAME, OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, stationNo, usesFilm, type Dept, type Job, type StationCode, type Vendor } from '../proto/model'
 import { OutsourcePanel } from './OutsourcePanel'
 import { FilePick } from '../components/FilePick'
-import { relDayWord, spaced, wholeCount } from '../proto/format'
+import { relDayWord, spaced, thaiFullDate, wholeCount } from '../proto/format'
 import { leadDueDate } from '../proto/leadTime'
 import { requestSlot } from '../data/requestId'
 import { reasonCodes, stationInfo } from '../data/lookups'
@@ -128,7 +128,7 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
         onCheck={(m, on) => act('check_material', { p_material_id: m.id, p_checked: on }, on ? `ติ๊ก "${m.name}" แล้ว` : `ยกเลิกติ๊ก "${m.name}" แล้ว`, false)} />}
       {usesFilm(j.route) && !j.film?.received && j.phase !== 'done' && (
         <Film job={j} ordered={d.filmOrdered} admin={admin} busy={busy} now={now}
-          onOrder={eta => act('order_film', { p_eta: eta }, `บันทึกสั่ง${filmLabel(j.route)} · คาดว่าได้รับ ${eta}`)}
+          onOrder={eta => act('order_film', { p_eta: eta }, `บันทึกสั่ง${filmLabel(j.route)} · คาดว่าได้รับ ${thaiFullDate(eta)}`)}
           onReceive={() => act('receive_film', {}, `บันทึกได้รับ${spaced(filmLabel(j.route))}แล้ว · เริ่มรีดฟิล์มได้`)} />
       )}
       {j.phase === 'sample_review' && (

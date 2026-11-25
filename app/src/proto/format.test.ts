@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { dayDiff, dueDateWarning, duration, relDay, spaced, stageSteps, stageText, wholeCount } from './format'
+import { YEAR_PROBLEM, dayDiff, dueDateWarning, duration, relDay, spaced, stageSteps, stageText, thaiFullDate, wholeCount, yearOutOfRange } from './format'
 import type { Job, Phase, RouteCode } from './model'
 
 const date = new Date('2026-11-17T00:00:00+07:00')
@@ -106,4 +106,18 @@ it('ช่องจำนวนรับเฉพาะจำนวนเต็�
   expect(wholeCount('1e2')).toBeNull()
   expect(wholeCount('-2')).toBeNull()
   expect(wholeCount('')).toBeNull()
+})
+
+it('ปีในช่องวันที่ต้องเป็น ค.ศ. 2000–2399 · พิมพ์ปี พ.ศ. ถูกจับได้', () => {
+  expect(yearOutOfRange('2569-11-30')).toBe(true)
+  expect(yearOutOfRange('1999-12-31')).toBe(true)
+  expect(yearOutOfRange('2026-11-30')).toBe(false)
+  expect(yearOutOfRange('2399-12-31')).toBe(false)
+  expect(yearOutOfRange('')).toBe(false)
+  expect(dueDateWarning('2569-11-30', new Date('2026-11-25T10:00:00+07:00'))).toBe(YEAR_PROBLEM)
+})
+
+it('วันที่เต็มแสดงปี พ.ศ. ตามเวลาไทย', () => {
+  expect(thaiFullDate('2026-11-30')).toBe('30 พ.ย. 2569')
+  expect(thaiFullDate('2027-01-04')).toBe('4 ม.ค. 2570')
 })
