@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest'
-import { canCancelJob, canCloseIssue, canReportDelay, ROLE_LABELS, type EmployeeRole } from './access'
+import { canCancelJob, canCloseIssue, canReportDelay, ROLE_CAN, ROLE_LABELS, type EmployeeRole } from './access'
+import { MY } from '../i18n/my'
 
 // ต้องตรงกับ close_issue / resume_sewing ในฐานข้อมูล
 it('ปิดปัญหาได้เฉพาะฝ่ายผลิต ผู้บริหาร เจ้าของ · แอดมินกับ QC ไม่ได้', () => {
@@ -28,4 +29,8 @@ it('รายงานล่าช้า: พนักงานส่งได�
   expect(canReportDelay('staff', false)).toBe(false)
   for (const role of ['owner', 'admin', 'production', 'supervisor', 'qc'] as EmployeeRole[]) expect(canReportDelay(role, false), role).toBe(true)
   expect(canReportDelay('manager', true)).toBe(false)
+})
+
+it('หน้าบัญชีของพนักงานสถานีและ QC บอกหน้าที่เป็นภาษาพม่าได้ครบ', () => {
+  expect([...ROLE_CAN.staff, ...ROLE_CAN.qc].filter(th => !(th in MY))).toEqual([])
 })

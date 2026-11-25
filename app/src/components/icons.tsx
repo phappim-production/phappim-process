@@ -66,3 +66,4 @@ export const IconTruck = icon(<><path d="M2.5 6.5h11v10h-11z" /><path d="M13.5 1
 export const IconCompare = icon(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M12 2v20M7.5 10l-2 2 2 2M16.5 10l2 2-2 2" /></>)
 export const IconZoom = icon(<><circle cx="11" cy="11" r="7" /><path d="m20.5 20.5-4.5-4.5M11 8v6M8 11h6" /></>)
 export const IconChevronLeft = icon(<path d="m15 18-6-6 6-6" />)
+export const IconDownload = icon(<><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></>)

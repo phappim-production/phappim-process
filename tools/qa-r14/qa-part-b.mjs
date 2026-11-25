@@ -6,7 +6,7 @@ import { openChrome, waitFor } from './chrome.mjs'
 import { createFixtures } from './fixtures.mjs'
 
 const SUMMARY_PATH = fileURLToPath(new URL('./part-b-results.json', import.meta.url))
-const WIDTHS = [375, 768, 1440]
+const WIDTHS = [375, 412, 768, 1440]
 
 const ROLE_PAGES = {
   owner: ['#/admin', '#/users', '#/roles', '#/assign', '#/audit', '#/settings', '#/production', '#/board', '#/reports', '#/inbox', '#/system'],
@@ -167,7 +167,7 @@ async function main() {
     await resetStack(stack)
     const ids = await seedRichDataset(stack, t, fixtures)
 
-    await check('B1', 'ทุกหน้า x ทุกบทบาท ที่ 375 / 768 / 1440 px (ไม่ล้น, ปุ่ม >= 48px, ตัวอักษร >= 16px, ไม่มี NaN/undefined)', async () => {
+    await check('B1', 'ทุกหน้า x ทุกบทบาท ที่ 375 / 412 / 768 / 1440 px (ไม่ล้น, ปุ่ม >= 48px, ตัวอักษร >= 16px, ไม่มี NaN/undefined)', async () => {
       const uxIssues = []
       for (const [role, pages] of Object.entries(ROLE_PAGES)) {
         for (const w of WIDTHS) {
