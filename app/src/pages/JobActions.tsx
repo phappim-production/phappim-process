@@ -157,13 +157,13 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
   )
 }
 
-// ข้อความอยู่บนสุดของแผง ปุ่มที่กดอาจอยู่ล่างจอ · error ต้องเลื่อนให้เห็นทั้งกล่อง พ้นหัวลิ้นชักที่ติดด้านบน
+// ข้อความอยู่บนสุดของแผง ปุ่มที่กดอาจอยู่ล่างจอ · error ต้องเลื่อนให้เห็นทั้งกล่อง (ลิ้นชักเว้นที่ให้หัวที่ติดด้านบนแล้ว)
 function NoticeBox({ notice }: { notice: NonNullable<Notice> }) {
   const box = useRef<HTMLParagraphElement>(null)
   useEffect(() => { if (!notice.ok) box.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }, [notice])
   return (
     <p ref={box} role={notice.ok ? 'status' : 'alert'}
-      className={`scroll-mt-36 rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>
+      className={`rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>
       <Tr th={notice.text.th} vars={notice.text.vars} />
     </p>
   )

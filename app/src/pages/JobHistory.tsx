@@ -165,7 +165,7 @@ function HistoryView({ data: h, role, now, jobId, onChanged }: { data: History; 
       )}
 
       {visits.length > 0 && (
-        <Box title="เวลาที่ใช้ต่อสถานี (ไม่นับเวลาพัก)">
+        <Box title="เวลาที่ใช้ต่อสถานี (ไม่นับเวลาพักและรออนุมัติชิ้นแรก)">
           <ul className="divide-y divide-line">
             {visits.map((v, i) => (
               <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-2">
