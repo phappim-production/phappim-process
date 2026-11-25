@@ -8,13 +8,58 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#0b3e3d" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- หลังขึ้นรุ่นใหม่ แท็บที่ค้างไว้อาจโหลดไฟล์รุ่นเก่าที่ถูกลบไปแล้ว → ล้างแคชของแอปแล้วโหลดใหม่เอง 1 ครั้ง แทนจอขาว -->
+    <script>
+      (function () {
+        var KEY = 'pp142-boot-recover'
+        var failed = false
+        function mounted() { return !document.getElementById('boot') }
+        function showFailure() {
+          var box = document.getElementById('boot')
+          if (!box) return
+          box.setAttribute('role', 'alert')
+          box.innerHTML = '<p class="text-lg font-bold text-danger">เปิดระบบไม่สำเร็จ</p>'
+            + '<p class="text-muted">ระบบอาจเพิ่งอัปเดตรุ่นใหม่ กดโหลดใหม่ ถ้ายังไม่หายให้แจ้งเจ้าของระบบ</p>'
+            + '<p class="text-muted">ဖွင့်လို့ မရဘူး · ပြန်ဖွင့်ကြည့်ပါ</p>'
+            + '<button type="button" id="boot-reload" class="mt-2 min-h-12 rounded-xl bg-danger px-5 font-semibold text-white">โหลดใหม่ · ပြန်ဖွင့်မယ်</button>'
+          document.getElementById('boot-reload').onclick = function () { recover(true) }
+        }
+        function recover(byUser) {
+          var last = 0
+          try { last = Number(sessionStorage.getItem(KEY)) || 0 } catch (e) { last = Date.now() }
+          if (!byUser && Date.now() - last < 60000) return showFailure()
+          try { sessionStorage.setItem(KEY, String(Date.now())) } catch (e) {}
+          var jobs = []
+          if ('serviceWorker' in navigator) {
+            jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister() })) }))
+          }
+          if (window.caches) {
+            jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k) })) }))
+          }
+          Promise.all(jobs).catch(function () {}).then(function () { location.reload() })
+        }
+        function fail() {
+          if (failed || mounted()) return
+          failed = true
+          recover(false)
+        }
+        window.addEventListener('error', function (e) {
+          var t = e.target
+          var asset = t && (t.tagName === 'SCRIPT' || (t.tagName === 'LINK' && t.rel === 'modulepreload'))
+          if (asset || e instanceof ErrorEvent) fail()
+        }, true)
+        window.addEventListener('unhandledrejection', function () { fail() })
+        // เน็ตช้ายังโหลดอยู่ได้ · แค่บอกทางออก ไม่ล้างแคช (React ขึ้นทีหลังจะแทนที่ข้อความนี้เอง)
+        setTimeout(function () { if (!mounted()) showFailure() }, 30000)
+      })()
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&amp;family=Noto+Sans+Myanmar:wght@400;600;700&amp;family=Noto+Sans+Thai:wght@400;600;700&amp;family=Prompt:wght@300;500;600;700&amp;display=swap" crossorigin />
     <title>ติดตามการผลิต · ภาพพิมพ์ 142</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div id="boot" role="status" class="mx-auto grid max-w-md gap-2 p-6 text-center text-lg"><p class="text-muted">กำลังเปิดระบบ… · ဖွင့်နေတယ်…</p></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
