@@ -505,7 +505,7 @@ const COLOR_MATCH = R('color_match','การเทียบสี',['ตาม
 /* ผ้าชนิดที่ 2 ขึ้นไปในงานเดียว: 1 แถว = ผ้า 1 ชนิด/สี · ผ้าหลักกรอกช่องด้านบน */
 const FABRICS_MORE = () => ({ id:'fabric_rows', type:'itemTable', label:'ผ้าเพิ่ม (งานที่ใช้ผ้ามากกว่า 1 ชนิด / สี)', none:'ใช้ผ้าชนิดเดียว', addLabel:'+ เพิ่มผ้า',
   hint:'ผ้าหลักกรอกด้านบน · แถวนี้สำหรับผ้าชนิดหรือสีที่ 2 ขึ้นไป เช่น ปก แขน ตัวหลัง ขอบ · ใช้ผ้าชนิดเดียว = เว้นว่าง',
-  cols:[ { c:'part', label:'ใช้ส่วนไหน', t:'text' }, { c:'fabric', label:'ชนิดผ้า (ถ้าต่าง)', t:'text', opt:true }, { c:'color', label:'สีผ้า', t:'text' },
+  cols:[ { c:'part', label:'ใช้ส่วนไหน', t:'text', lead:true }, { c:'fabric', label:'ชนิดผ้า (ถ้าต่าง)', t:'text', opt:true }, { c:'color', label:'สีผ้า', t:'text', factory:true },
     { c:'print', label:'พิมพ์สี / หมายเหตุ', t:'text', opt:true, factory:true } ] });
 /* กระเป๋า: 1 แถว = 1 ใบ */
 const POCKET_SHIRT = ['อกซ้าย','อกขวา','อกทั้งสองข้าง','ล่างซ้าย','ล่างขวา','ล่างทั้งสองข้าง','หน้าท้อง (กระเป๋าจิงโจ้)','ข้างลำตัว (ซ่อนในตะเข็บ)','แขนซ้าย','แขนขวา','ด้านใน (ซับใน)'];
@@ -1129,7 +1129,7 @@ let warnedQuota=false, saveTimer=0;
 // เปิดดูจากระบบ (ฝ่ายผลิต / หน้างาน) ห้ามเขียนทับใบที่แอดมินกรอกค้างในเครื่องเดียวกัน
 let viewOnly=false;
 // ใบที่ส่งลูกค้าเซ็นแสดงเฉพาะรายการที่เจ้าของกำหนด (วัสดุ ไซซ์ จำนวน แพ็คกิ้ง) · ฝ่ายผลิตเปิดดูจากระบบเห็นครบ ข้อมูลที่บันทึกเข้าระบบไม่ถูกตัด
-const CUSTOMER_FIELDS=new Set(['fabric','fabric_color','fabric_rows','material','colors','lining_fabric','filling','handle_mat','sizes','size_chart','measure_rows','items','qty','dims','head_size']);
+const CUSTOMER_FIELDS=new Set(['fabric','fabric_rows','material','filling','handle_mat','sizes','size_chart','measure_rows','items','qty','dims','head_size']);
 const PACK_SEC='แพ็คกิ้ง';
 const customerCopy=()=>!viewOnly;
 const customerSees=(f,sec)=>f.type==='images'||sec.title===PACK_SEC||CUSTOMER_FIELDS.has(f.id);
@@ -1973,7 +1973,8 @@ function renderDoc(){
         const chart=sizeChart(f,v); if(rs.length&&chart.length) body+=`<div class="tlabel">ขนาดสำเร็จ</div>`+chart.map(l=>`<p>${esc(l)}</p>`).join('');
       }
       if(f.type==='itemTable'){
-        const rs=rows(v,f.id,!!f.none).filter(r=>f.cols.some(c=>!isNone(r[c.c])));
+        const own=forCustomer?f.cols.filter(c=>!c.factory&&!c.lead):f.cols;
+        const rs=rows(v,f.id,!!f.none).filter(r=>own.some(c=>!isNone(r[c.c])));
         const lab=f.none||f.printLabel?`<div class="tlabel">${esc(fieldLabel(f,v))}</div>`:'';
         // ไม่มีรายการ = ไม่พิมพ์หัวข้อนี้ · คอลัมน์ที่ว่างทุกแถวไม่แสดง ยกเว้นยอดรวม
         const cell=(c,r)=>c.t==='img'?(imgName(+r[c.c])?'รูป '+(+r[c.c]):''):isNone(r[c.c])?'':r[c.c];
@@ -2026,7 +2027,7 @@ function estimatePages(){
   let n=$('#pageNote'); if(!n){ n=document.createElement('div'); n.id='pageNote'; d.parentNode.insertBefore(n,d); }
   n.className='page-note'+(pages>2?' warn':'');
   n.textContent=pages>2?`ประมาณ ${pages} หน้า A4 · เกินเป้า 2 หน้า ลองลดจำนวนภาพ หรือรวมแถวในตาราง`:`ประมาณ ${pages} หน้า A4 · ทุกหน้ามีโลโก้ เลขที่ใบ ลูกค้า และชื่องาน`;
-  if(customerCopy()) n.textContent+=' · ฉบับลูกค้า: แสดงเฉพาะเลขที่ใบ ประเภทสินค้า วันที่สั่งงาน ผู้ประสานงาน การจัดส่ง วัสดุ ไซซ์ จำนวน แพ็คกิ้ง ภาพ และช่องเซ็น (ระบบยังได้รับครบทุกช่อง)';
+  if(customerCopy()) n.textContent+=' · ฉบับลูกค้า: แสดงเฉพาะเลขที่ใบ ประเภทสินค้า วันที่สั่งงาน ผู้ประสานงาน การจัดส่ง วัสดุ (ไม่มีสี) ไซซ์ จำนวน แพ็คกิ้ง ภาพ และช่องเซ็น (ระบบยังได้รับครบทุกช่อง)';
 }
 function setPageStyle(){
   const h=state.h, q=t=>String(t||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/[\r\n]+/g,' ');
