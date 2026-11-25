@@ -11,14 +11,16 @@
 | `app/` | หน้าเว็บ (React + Vite + TypeScript + Tailwind, PWA) |
 | `supabase/migrations/` | โครงสร้างฐานข้อมูล + ข้อมูลตั้งค่าเริ่มต้น (รันตามลำดับชื่อไฟล์) |
 | `supabase/tests/` | ทดสอบฐานข้อมูลในเครื่อง (`npm test`) |
+| `workers/files/` | Cloudflare Worker เก็บไฟล์ใน R2 (PDF ใบยืนยัน · รูปม็อคอัพ · รูปยืนยันงานสถานี) · ตั้งค่าตาม [`docs/เปิดใช้-R2.md`](docs/เปิดใช้-R2.md) |
+| `tools/qa-r14/` | ระบบจำลองทั้งระบบในเครื่อง (PGlite + Worker) สำหรับทดสอบในเบราว์เซอร์ · ดู README ในโฟลเดอร์ |
 | `.github/workflows/` | งานอัตโนมัติ: ตรวจโค้ด (ci) · กันระบบพัก (keep-alive) · สำรองข้อมูล (db-backup) |
-| `production-confirmation.html` | ฟอร์มใบยืนยันการผลิต (ใช้ได้แล้ว แยกจากระบบหลัก) |
+| `production-confirmation.html` | ฟอร์มใบยืนยันการผลิต (ไฟล์เดียว · build คัดลอกขึ้นเว็บที่ `/confirmation` · ปุ่ม "บันทึกเข้าระบบ" ส่งเข้าหน้าระบบ) |
 
 ---
 
 ## 1. GitHub (เก็บโค้ด)
 1. สมัคร/เข้าสู่ระบบที่ github.com
-2. สร้าง repository ใหม่ ชื่อเช่น `phappim-process` · **เลือก Private** (ไฟล์สำรองข้อมูลมีข้อมูลลูกค้า) · ไม่ต้องติ๊กสร้าง README
+2. สร้าง repository ใหม่ ชื่อเช่น `phappim-process` · repo ของระบบนี้เป็น **Public** ตั้งแต่ 25 พ.ย. 2569 (ใช้ GitHub Actions ฟรีไม่จำกัด) · **ห้าม commit ข้อมูลลูกค้า/ซัพพลายเออร์จริง หรือ key/token** · ไฟล์สำรองข้อมูลเข้ารหัสด้วย `BACKUP_PASSPHRASE` ก่อนเก็บ · ไม่ต้องติ๊กสร้าง README
 3. ส่งลิงก์ repo ให้ Claude เพื่ออัปโหลดโค้ด (หรือ push เองตามคำสั่งที่ GitHub แสดง)
 
 ## 2. Supabase (ฐานข้อมูล + ล็อกอิน)
@@ -74,7 +76,7 @@ npm run dev
    | Root directory | `app` |
    | Build command | `npm run build` |
    | Build output directory | `dist` |
-4. Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (ค่าจากข้อ 2.7) (เวอร์ชัน Node กำหนดไว้แล้วในไฟล์ `app/.node-version` = 22 ไม่ต้องตั้ง `NODE_VERSION`)
+4. Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (ค่าจากข้อ 2.7) · `VITE_FILES_URL` = ที่อยู่ Worker ไฟล์ R2 (ว่าง = ใช้ Supabase Storage แบบเดิม · ดู [`docs/เปิดใช้-R2.md`](docs/เปิดใช้-R2.md)) (เวอร์ชัน Node กำหนดไว้แล้วในไฟล์ `app/.node-version` = 22 ไม่ต้องตั้ง `NODE_VERSION`)
 5. Deploy → ได้ลิงก์ `https://<ชื่อ>.pages.dev` · ทุกครั้งที่ push โค้ดขึ้น GitHub จะ deploy ใหม่อัตโนมัติ
 6. กลับไป Supabase **Authentication → URL Configuration** ใส่ Site URL เป็นลิงก์ `.pages.dev`
 
@@ -94,7 +96,7 @@ npm run dev
 ---
 
 ## เฟส 0 เสร็จเมื่อ
-- [x] repo บน GitHub เป็น Private และมีโค้ดครบ · แท็บ Actions → `ci` เป็นสีเขียว
+- [x] repo บน GitHub มีโค้ดครบ (เดิม Private · เปลี่ยนเป็น Public 25 พ.ย.) · แท็บ Actions → `ci` เป็นสีเขียว
 - [x] Supabase มีตารางและข้อมูลตั้งค่าครบ (37 สินค้า, 8 สถานี, 3 เส้นทาง)
 - [x] ล็อกอินบนลิงก์ `.pages.dev` แล้วเห็นบทบาท owner และรายการตั้งค่า
 - [x] `keep-alive` และ `db-backup` รันผ่าน
@@ -105,3 +107,6 @@ npm run dev
 cd supabase/tests && npm install && npm test
 ```
 ใช้ PGlite (Postgres ใน Node) ไม่ต้องมี Docker · ตรวจ migrations, จำนวนข้อมูลตั้งค่า, สิทธิ์ (RLS) และกฎข้อมูล
+
+## ทดสอบหน้าเว็บทั้งระบบในเครื่อง (สำหรับผู้พัฒนา)
+ระบบจริงมีงานลูกค้าจริงตั้งแต่ 21 พ.ย. 2569 · **ทดสอบบนเครื่องตัวเองเท่านั้น ห้ามใช้เว็บจริงหรือบัญชีจริง** · ใช้ระบบจำลองใน [`tools/qa-r14/README.md`](tools/qa-r14/README.md) (build ให้ชี้ `127.0.0.1` แล้วรัน `node tools/qa-r14/server.mjs`)

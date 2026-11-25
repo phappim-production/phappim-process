@@ -19,6 +19,8 @@
 | `app/src/lib/supabase.ts` | client ของ Supabase |
 | `supabase/migrations/` | ฐานข้อมูล (PostgreSQL) · กฎ workflow อยู่ในฟังก์ชัน SQL |
 | `supabase/tests/run.mjs` | ทดสอบ migrations + กฎ บน PGlite (ไม่ต้องมี Docker) |
+| `workers/files/` | Cloudflare Worker เก็บไฟล์ใน R2 (PDF ใบยืนยัน · ม็อคอัพ · รูปสถานี) |
+| `tools/qa-r14/` | ระบบจำลองทั้งระบบในเครื่อง + ชุดทดสอบในเบราว์เซอร์ (ดู README ในโฟลเดอร์) · **ทดสอบที่นี่เท่านั้น ห้ามใช้เว็บจริง** |
 | `production-confirmation.html` | ฟอร์มใบยืนยันการผลิต (ไฟล์เดียว แก้ที่นี่ที่เดียว) · build คัดลอกขึ้นเว็บที่ `/confirmation` · ปุ่ม "บันทึกเข้าระบบ" ส่งผ่าน localStorage ให้หน้าระบบบันทึก (`app/src/data/confirmationDrafts.ts`) |
 | `docs/` | แผนงาน · ใบสั่งงาน · เอกสารเก็บข้อมูลหน้างาน |
 
@@ -26,7 +28,7 @@
 ```bash
 cd app && npm ci && npm run build      # typecheck + build
 cd app && npm run lint                 # oxlint
-cd app && npm test                     # Vitest (หลัง C1)
+cd app && npm test                     # Vitest + node --test
 cd supabase/tests && npm ci && npm test   # ทดสอบฐานข้อมูล
 ```
 
