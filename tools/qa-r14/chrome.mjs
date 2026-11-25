@@ -264,7 +264,7 @@ function makeHelper(tab, origin) {
     await send('Page.navigate', { url })
     if (wait) {
       await waitFor(() => ev(() => {
-        if (document.readyState !== 'complete') return false
+        if (document.readyState !== 'complete' || document.getElementById('boot')) return false
         const text = document.body.innerText.trim()
         if (!text.length) return false
         return !text.includes('กำลังตรวจสอบบัญชี') && !text.includes('กำลังโหลดข้อมูลงาน')
