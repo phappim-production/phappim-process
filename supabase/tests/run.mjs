@@ -195,6 +195,8 @@ const { outsideRouteTests } = await import('./outside-route.mjs')
 await outsideRouteTests({ db, ok, as })
 const { sweepFixTests } = await import('./sweep-fixes.mjs')
 await sweepFixTests({ db, ok, as })
+const { stationPhotoTests } = await import('./station-photos.mjs')
+await stationPhotoTests({ db, ok, as })
 const { flowR5Tests } = await import('./flow-r5.mjs')
 await flowR5Tests({ db, ok, as })
 

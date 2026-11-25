@@ -176,7 +176,7 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-2 bg-brand px-3 py-2 text-white sm:gap-3 sm:px-4 lg:hidden print:hidden">
+        <header className="flex items-center gap-2 border-b-2 border-gold bg-brand px-3 py-2 text-white sm:gap-3 sm:px-4 lg:hidden print:hidden">
           <img src="/logo.webp" alt="ภาพพิมพ์ 142" className="h-8 w-auto shrink-0 rounded-md ring-1 ring-white/25 sm:h-9" />
           <span className="hidden text-sm font-semibold whitespace-nowrap text-white/75 sm:inline">{t('ระบบติดตามการผลิต')}</span>
           {/* แท็บเล็ตใช้ร่วมกันหลายคน ต้องเห็นตลอดว่าใครล็อกอินอยู่ เพราะทุกการกดบันทึกชื่อผู้กด */}

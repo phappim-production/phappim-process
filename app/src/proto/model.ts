@@ -81,6 +81,18 @@ export type Job = {
   out?: OutRun
   sla?: SlaLevel             // ไม่มี = ยังไม่ใกล้ครบหรือไม่จับเวลา
   specSheet?: { id: string; rev: number; acked: StationCode[] }
+  photos?: PhotoGate         // ไม่มี = รอบนี้ไม่ต้องส่งรูป (ยังไม่เปิดใช้ หรือเริ่มก่อนเปิดใช้)
+}
+
+export type FirstPieceStatus = 'pending' | 'approved' | 'rejected'
+export type PhotoGate = {
+  station: StationCode
+  needsFirstPiece: boolean
+  firstPiece?: { status: FirstPieceStatus; id: number; at: Date; reason?: string }
+  finishPhotos: number
+  folder: string
+  visit: number
+  remindMinutes: number
 }
 
 // ส้ม = ใกล้ครบ · แดง = เกินแล้ว (report = ยังไม่ส่งรายงานปัญหา กดเสร็จไม่ได้ · over = รายงานแล้ว)

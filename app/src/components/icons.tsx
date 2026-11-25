@@ -55,3 +55,15 @@ export const IconFlame = icon(<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2
 export const IconScissors = icon(<><circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12" /></>)
 export const IconSparkles = icon(<><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" /></>)
 export const IconImage = icon(<><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21" /></>)
+export const IconCamera = icon(<><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" /><circle cx="12" cy="13" r="3" /></>)
+
+// ไอคอนประจำสถานี วาดจากเครื่องมือจริงของแต่ละสถานี
+export const IconStPrint = icon(<><path d="M7 8V3.5h10V8" /><rect x="3" y="8" width="18" height="8.5" rx="2" /><path d="M7 14h10v6.5H7z" /><path d="M12 15.4c-.9 1-1.3 1.8-1.3 2.4a1.3 1.3 0 0 0 2.6 0c0-.6-.4-1.4-1.3-2.4z" /><path d="M17.5 11h.01" /></>)
+export const IconStPress = icon(<><rect x="3" y="4" width="14" height="4" rx="1.2" /><path d="M17 6h4M10 8v1.5" /><rect x="3" y="16" width="18" height="4" rx="1.2" /><path d="M7 11c.9.8.9 1.7 0 2.5M11 11c.9.8.9 1.7 0 2.5M15 11c.9.8.9 1.7 0 2.5" /></>)
+export const IconStEmb = icon(<><circle cx="10.5" cy="13.5" r="7" /><circle cx="10.5" cy="13.5" r="4.6" /><path d="M9 6.5V4h3v2.5M15 9l6-6" /><path d="m8 14.6 1.25-2 1.25 2 1.25-2 1.25 2" /></>)
+export const IconStSew = icon(<><path d="M3 20.5h18" /><path d="M5 20.5V8.5A3.5 3.5 0 0 1 8.5 5H18a2 2 0 0 1 2 2v4h-5V9.5H9v11" /><path d="M17 11v4M15.5 15h3M7.5 8.5h.01" /></>)
+export const IconStQc = icon(<><path d="M20 8 12 4 4 8v8.5l8 4 8-4z" /><path d="m4 8 8 4 8-4M12 12v8.5" /><path d="m14.6 15.4 1.4 1.4 2.6-2.9" /></>)
+export const IconTruck = icon(<><path d="M2.5 6.5h11v10h-11z" /><path d="M13.5 10h4l3 3.5v3h-7z" /><circle cx="6.5" cy="17.5" r="1.8" /><circle cx="17" cy="17.5" r="1.8" /></>)
+export const IconCompare = icon(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M12 2v20M7.5 10l-2 2 2 2M16.5 10l2 2-2 2" /></>)
+export const IconZoom = icon(<><circle cx="11" cy="11" r="7" /><path d="m20.5 20.5-4.5-4.5M11 8v6M8 11h6" /></>)
+export const IconChevronLeft = icon(<path d="m15 18-6-6 6-6" />)

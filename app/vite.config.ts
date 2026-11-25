@@ -65,7 +65,7 @@ export default defineConfig({
         short_name: 'PP142 ผลิต',
         description: 'ระบบติดตามการผลิตแบบ Real-time ของภาพพิมพ์ 142',
         lang: 'th',
-        theme_color: '#0f4a42',
+        theme_color: '#0b3e3d',
         background_color: '#f2f4f3',
         display: 'standalone',
         start_url: '/',

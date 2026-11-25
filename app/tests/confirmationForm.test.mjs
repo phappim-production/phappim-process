@@ -132,7 +132,7 @@ test('ฟอร์มใบยืนยัน: ชี้จุดกำกับ
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
   const imgName = n => { const m = state.imgs[n - 1]; return m ? `รูป ${n}${m.name ? ' · ' + m.name : ''}` : '' }
   const { coEditorHTML, coDocHTML } = new Function(
-    'state', 'coTab', 'scope', 'unitOf', 'OTHER', 'isNone', 'form', 'esc', 'imgName', 'MOCKUP_NOTE',
+    'state', 'coTab', 'scope', 'unitOf', 'OTHER', 'isNone', 'form', 'esc', 'imgName', 'MOCKUP_NOTE', 'allFields', 'visible',
     fnSrc + '\nreturn { coEditorHTML, coDocHTML }',
   )(
     state,
@@ -145,6 +145,8 @@ test('ฟอร์มใบยืนยัน: ชี้จุดกำกับ
     esc,
     imgName,
     'หมายเหตุทดสอบ',
+    () => [],
+    () => true,
   )
   assert.match(coEditorHTML(), /class="co-tabs"/)
   assert.match(coEditorHTML(), /รูป 1 · ด้านหน้า \(1\)/)
@@ -246,4 +248,25 @@ test('ฟอร์มใบยืนยัน: flush ครบทุกทาง
     const at = js.indexOf(`function ${name}(`)
     assert.match(js.slice(at, js.indexOf('\nfunction ', at + 1)), /[^a-zA-Z]save\(\);/, name)
   }
+})
+
+test('ฟอร์มใบยืนยัน: ปุ่ม "เปิดฟอร์มใบยืนยัน (ใบใหม่)" เปิด ?new=1 แล้วฟอร์มเริ่มใบใหม่จริง · ใบที่ยังไม่ได้บันทึกเข้าระบบต้องถามก่อนล้าง', () => {
+  const receive = readFileSync(new URL('../src/pages/ReceiveJob.tsx', import.meta.url), 'utf8')
+  assert.match(receive, /NEW_CONFIRMATION_FORM = '\/confirmation\?new=1'/)
+  assert.match(receive, /href=\{NEW_CONFIRMATION_FORM\}[^>]*>เปิดฟอร์มใบยืนยัน \(ใบใหม่\)</)
+  const js = scripts.join('\n')
+  const start = js.indexOf('const formSig =')
+  const end = js.indexOf('function takeNewRequest')
+  assert.ok(start > 0 && end > start)
+  const { formSig, formHasData, newFormNeedsAsk } = new Function(js.slice(start, end) + '\nreturn { formSig, formHasData, newFormNeedsAsk }')()
+  const blank = { h: { issue_date: '2026-11-24' }, p: {}, product: 'tshirt', callouts: [], imgs: [] }
+  assert.equal(formHasData(blank), false)
+  const filled = { ...blank, h: { doc_no: 'SC690999', customer: 'ร้าน ก' }, p: { qty: 10 } }
+  assert.equal(newFormNeedsAsk(filled), true)
+  const sent = { ...filled, sent_sig: formSig(filled) }
+  assert.equal(newFormNeedsAsk(sent), false)
+  assert.equal(newFormNeedsAsk({ ...sent, p: { qty: 12 } }), true)
+  assert.match(js, /state\.sent_sig=formSig\(state\); save\(\);\s*showAfterSave/)
+  const boot = js.slice(js.lastIndexOf('renderForm();'))
+  assert.ok(boot.indexOf('takeNewRequest();') > 0 && boot.indexOf('takeNewRequest();') < boot.indexOf('takeInbox();'))
 })

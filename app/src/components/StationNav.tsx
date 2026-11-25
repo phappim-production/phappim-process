@@ -1,14 +1,16 @@
 import { useEffect, useRef, type ComponentType } from 'react'
 import { STATION_NAME, STATION_ORDER, type ColumnKey, type Job, type StationCode } from '../proto/model'
-import { IconAlert, IconCheck, IconFactory, IconFilm, IconFlame, IconPackage, IconPrinter, IconScissors, IconSewing, IconSparkles, IconUsers } from './icons'
+import { IconAlert, IconCheck, IconFactory, IconFilm, IconScissors, IconStEmb, IconStPress, IconStPrint, IconStQc, IconStSew, IconTruck } from './icons'
 import { Tr } from '../i18n/Tr'
 import { useT } from '../i18n/lang'
+import { STATION_THEME } from './stationTheme'
+import { StationPattern } from './StationPattern'
 
 // สั่งผลิตข้างนอกไม่มีคนในโรงงานทำ จึงไม่นับเลขสถานี 1–7 ที่คนหน้างานจำ
 const STATION_PHASE: Record<StationCode, 1 | 2> = { outside: 1, print: 1, press: 1, cut: 1, dtf_press: 1, emb: 1, sew: 2, qc_pack: 2 }
 
 const STATION_ICON: Record<StationCode, ComponentType<{ className?: string }>> = {
-  outside: IconUsers, print: IconPrinter, press: IconFlame, cut: IconScissors, dtf_press: IconFilm, emb: IconSparkles, sew: IconSewing, qc_pack: IconPackage,
+  outside: IconTruck, print: IconStPrint, press: IconStPress, cut: IconScissors, dtf_press: IconFilm, emb: IconStEmb, sew: IconStSew, qc_pack: IconStQc,
 }
 
 const isStation = (key: ColumnKey | 'all'): key is StationCode => key !== 'all' && key in STATION_NAME
@@ -33,15 +35,16 @@ export function StationRail({ columns, counts, urgent, station, onPick }: {
   const chip = (key: ColumnKey | 'all', name: string) => {
     const on = station === key
     const Icon = isStation(key) ? STATION_ICON[key] : key === 'done' ? IconCheck : IconFactory
+    const theme = isStation(key) ? STATION_THEME[key] : null
     const n = counts(key)
     const hot = key === 'all' ? 0 : urgent(key)
     return (
       <li key={key} className="shrink-0">
         <button type="button" onClick={() => onPick(key)} aria-pressed={on}
-          className={`flex min-h-16 min-w-20 flex-col items-center justify-center gap-0.5 rounded-xl border-2 px-2.5 py-1.5 text-center ${on ? 'border-brand bg-brand text-white' : 'border-line bg-card hover:border-brand'}`}>
+          className={`flex min-h-16 min-w-20 flex-col items-center justify-center gap-0.5 rounded-xl border-2 px-2.5 py-1.5 text-center ${on ? `border-transparent ${theme?.solid ?? 'bg-brand'} text-white` : 'border-line bg-card hover:border-brand'}`}>
           <span className="flex items-center gap-1 text-sm font-semibold">
-            {numbered(key) && <span className={`grid size-5 place-items-center rounded-full text-xs ${on ? 'bg-white text-brand' : 'bg-brand-soft text-brand'}`}>{STATION_ORDER.indexOf(key) + 1}</span>}
-            <Icon className="size-4" />
+            {numbered(key) && <span className={`grid size-5 place-items-center rounded-full text-xs ${on ? `bg-white ${theme?.text ?? 'text-brand'}` : `${theme?.soft ?? 'bg-brand-soft'} ${theme?.text ?? 'text-brand'}`}`}>{STATION_ORDER.indexOf(key) + 1}</span>}
+            <Icon className={`size-4 ${on ? '' : theme?.text ?? ''}`} />
           </span>
           <span className="text-sm font-semibold whitespace-nowrap">{t(name)}</span>
           <span className="flex items-baseline gap-1 text-sm">
@@ -79,19 +82,21 @@ export function StationHeader({ station, jobs, stations, machines, onPick }: {
     ['กำลังทำ', count('doing'), 'text-info'], ['รอคิว', count('queued'), 'text-ink'],
     ['ติดปัญหา', count('hold'), count('hold') ? 'text-danger' : 'text-ink'], ['ข้างนอก', count('out'), 'text-ink'],
   ]
+  const theme = STATION_THEME[station]
   const step = (s: StationCode | undefined, dir: 'prev' | 'next') => s ? (
-    <button type="button" onClick={() => onPick(s)} className="min-h-12 rounded-xl border border-line px-3 font-semibold text-brand hover:border-brand">
+    <button type="button" onClick={() => onPick(s)} className="min-h-12 rounded-xl bg-white/12 px-3 font-semibold text-white ring-1 ring-white/30 hover:bg-white/20">
       {dir === 'prev' ? `‹ ${STATION_ORDER.indexOf(s) + 1} ${t(STATION_NAME[s])}` : `${STATION_ORDER.indexOf(s) + 1} ${t(STATION_NAME[s])} ›`}
     </button>
   ) : <span />
   return (
-    <section aria-label={t('สถานี{station}', { station: { th: STATION_NAME[station] } })} className="grid gap-3 rounded-2xl border border-line bg-card p-4 shadow-card">
-      <div className="flex items-center gap-3">
-        <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand"><Icon className="size-8" /></span>
+    <section aria-label={t('สถานี{station}', { station: { th: STATION_NAME[station] } })} className={`relative grid gap-3 overflow-hidden rounded-2xl p-4 text-white shadow-card ${theme.solid}`}>
+      <StationPattern kind={theme.pattern} />
+      <div className="relative flex items-center gap-3">
+        <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25"><Icon className="size-8" /></span>
         <div className="min-w-0">
-          <p className="text-sm text-muted">{numbered(station) ? t('สถานีที่ {n} จาก {total} · เฟส {phase}', { n: STATION_ORDER.indexOf(station) + 1, total: STATION_ORDER.length, phase: STATION_PHASE[station] }) : t('โรงงานนอกทำ · แอดมินส่งออกและรับเข้า')}</p>
-          <h2 className="flex items-center gap-2 truncate text-2xl font-bold">
-            {numbered(station) && <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand text-lg text-white">{STATION_ORDER.indexOf(station) + 1}</span>}
+          <p className="text-sm text-white/85">{numbered(station) ? t('สถานีที่ {n} จาก {total} · เฟส {phase}', { n: STATION_ORDER.indexOf(station) + 1, total: STATION_ORDER.length, phase: STATION_PHASE[station] }) : t('โรงงานนอกทำ · แอดมินส่งออกและรับเข้า')}</p>
+          <h2 className="flex items-center gap-2 truncate font-display text-2xl font-semibold">
+            {numbered(station) && <span className={`grid size-9 shrink-0 place-items-center rounded-full bg-white text-lg ${theme.text}`}>{STATION_ORDER.indexOf(station) + 1}</span>}
             <Tr th={STATION_NAME[station]} />
           </h2>
         </div>
@@ -102,15 +107,15 @@ export function StationHeader({ station, jobs, stations, machines, onPick }: {
           </span>
         )}
       </div>
-      <dl className="grid grid-cols-4 gap-2">
+      <dl className="relative grid grid-cols-4 gap-2">
         {stats.map(([label, n, tone]) => (
-          <div key={label} className="flex flex-col-reverse rounded-xl bg-paper px-1 py-2 text-center">
+          <div key={label} className="flex flex-col-reverse rounded-xl bg-card px-1 py-2 text-center">
             <dt className="text-sm text-muted">{t(label)}</dt>
-            <dd className={`text-2xl font-bold tabular-nums ${tone}`}>{n}</dd>
+            <dd className={`font-display text-2xl font-medium tabular-nums ${tone}`}>{n}</dd>
           </div>
         ))}
       </dl>
-      {(prev || next) && <div className="flex items-center justify-between gap-2">{step(prev, 'prev')}{step(next, 'next')}</div>}
+      {(prev || next) && <div className="relative flex items-center justify-between gap-2">{step(prev, 'prev')}{step(next, 'next')}</div>}
     </section>
   )
 }

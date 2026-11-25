@@ -3,6 +3,7 @@ import { secondaryBtn } from '../../components/Dialog'
 import { Card, CardHeader, Pill } from '../../components/ui'
 import { KIND_LABEL, type Substep } from '../../data/stationSteps'
 import { saveSegment, saveStation, type Loaded } from './data'
+import { StationPhotoSettings } from './photos'
 import { Collection, SelectField, TextField, type Controls } from './editor'
 import {
   EDITABLE_KINDS, isProtectedStep, moveStep, nextStepKey, readSla, readStation, requireText, slaDraft,
@@ -44,6 +45,7 @@ export function StationsTab({ data, controls }: TabProps<'stations'>) {
   const stations = new Map(data.stations.map(station => [station.code, station.name]))
   return (
     <>
+      <StationPhotoSettings canEdit />
       <p className="rounded-xl border border-warn/30 bg-warn-soft px-4 py-3 text-warn">
         ระบบไม่บังคับติ๊กขั้นย่อยแล้ว หน้างานกดแค่ เริ่ม → เสร็จ · ขั้นย่อยเก็บไว้อ้างอิง ยกเว้นขั้น &quot;ได้รับฟิล์ม&quot; ที่แอดมินต้องบันทึกก่อนเริ่มรีดฟิล์ม
       </p>

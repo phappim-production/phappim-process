@@ -18,6 +18,13 @@ const KINDS = {
     linkBucketSeconds: 60 * 60,
     wrongType: 'รูปม็อคอัพต้องเป็นไฟล์ภาพ (JPG / PNG / WEBP)',
   },
+  station_photos: {
+    path: /^[A-Za-z0-9_-]{1,200}\/[a-z_]{1,20}\/[0-9]{1,4}\/[A-Za-z0-9]{1,64}\.jpg$/,
+    types: { jpg: 'image/jpeg' },
+    maxAskSeconds: 60 * 60,
+    linkBucketSeconds: 60 * 60,
+    wrongType: 'รูปจากสถานีต้องเป็นไฟล์ JPG',
+  },
 }
 
 const TOO_BIG = 'ไฟล์ใหญ่เกิน 20 MB ให้ย่อไฟล์ก่อน'
@@ -149,7 +156,7 @@ async function upload(request, env, fetcher, kind, path) {
   }
   if (bytes.byteLength > MAX_BYTES) return fail(request, env, 413, TOO_BIG)
   if (bytes.byteLength !== declared) return fail(request, env, 400, 'ไฟล์มาไม่ครบ (เน็ตหลุดระหว่างส่ง) ให้กดอัปโหลดอีกครั้ง')
-  if (!contentMatches(type, bytes)) return fail(request, env, 415, `เนื้อไฟล์ไม่ใช่ ${kind === 'confirmations' ? 'PDF' : 'ภาพ JPG / PNG / WEBP'} ให้บันทึกไฟล์ใหม่แล้วเลือกอีกครั้ง`)
+  if (!contentMatches(type, bytes)) return fail(request, env, 415, `เนื้อไฟล์ไม่ใช่ ${kind === 'confirmations' ? 'PDF' : kind === 'station_photos' ? 'ภาพ JPG' : 'ภาพ JPG / PNG / WEBP'} ให้บันทึกไฟล์ใหม่แล้วเลือกอีกครั้ง`)
 
   const key = `${kind}/${path}`
   let head = await env.FILES.head(key)

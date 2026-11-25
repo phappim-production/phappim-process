@@ -158,6 +158,11 @@ export function eventWords(e: EventRow, n: Names, unit = 'ชิ้น'): EventW
           stale && word('ม็อคอัพกำกับสเปกฉบับ {rev} ยังเป็นค่าเก่า {n} จุด', { rev: num(p.mockup_rev), n: num(p.mockup_stale) })),
       }
     }
+    case 'first_piece_sent':
+      return { title: p.resend === true ? word('ส่งรูปชิ้นแรกใหม่{at} · รออนุมัติ', { at }) : word('ส่งรูปชิ้นแรก{at} · รออนุมัติ', { at }), detail: word('{n} รูป', { n: num(p.photos) }), tone: 'warn' }
+    case 'first_piece_ok': return { title: word('ชิ้นแรกผ่าน{at} · ทำทั้งล็อตได้', { at }), tone: 'ok' }
+    case 'first_piece_rejected': return { title: word('ชิ้นแรกไม่ผ่าน{at}', { at }), detail: reason, tone: 'danger' }
+    case 'finish_photo': return { title: word('ส่งรูปงานเสร็จ{at}', { at }), detail: word('{n} รูป', { n: num(p.photos) }), tone: 'ok' }
     case 'mockup': return { title: p.replaced ? word('เปลี่ยนรูปม็อคอัพ') : word('เพิ่มรูปม็อคอัพ'), tone: 'ok' }
     case 'mockup_approved':
       return { title: word('อนุมัติม็อคอัพกำกับสเปก ฉบับ {rev}', { rev: num(p.rev) }), detail: joined(p.replaced_rev != null && word('แทนฉบับ {rev}', { rev: num(p.replaced_rev) }), free(str(p.note))), tone: 'ok' }

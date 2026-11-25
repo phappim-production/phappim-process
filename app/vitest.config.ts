@@ -4,5 +4,6 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     env: { TZ: 'UTC' },
+    css: { include: [/src[\\/]index\.css/] },
   },
 })

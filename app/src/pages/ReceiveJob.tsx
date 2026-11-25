@@ -18,6 +18,7 @@ import { FilePick } from '../components/FilePick'
 type Product = { code: string; name: string; unit: string }
 // vite.config.ts คัดลอกฟอร์มขึ้นเว็บนี้ · Cloudflare เสิร์ฟโดยไม่มี .html
 const CONFIRMATION_FORM = '/confirmation'
+const NEW_CONFIRMATION_FORM = '/confirmation?new=1'
 
 const EMPTY: ReceiveDraft = { no: '', rev: 0, customer: '', jobName: '', product: '', qty: 0, spare: 0, due: '', route: null, needsSample: null, develop: false, spec: {} }
 
@@ -174,7 +175,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
             </select>
           </label>
           <div className="grid gap-2 sm:grid-cols-2">
-            <a href={CONFIRMATION_FORM} target="_blank" rel="noopener" className={`${secondaryBtn} text-center`}>เปิดฟอร์มใบยืนยัน (ใบใหม่)</a>
+            <a href={NEW_CONFIRMATION_FORM} target="_blank" rel="noopener" className={`${secondaryBtn} text-center`}>เปิดฟอร์มใบยืนยัน (ใบใหม่)</a>
             <button type="button" className={secondaryBtn} disabled={!picked || openingForm} onClick={() => void openInForm()}
               title={picked ? undefined : 'เลือกใบยืนยันก่อน'}>{openingForm ? 'กำลังเปิดใบยืนยัน…' : picked ? 'แก้ใบนี้ในฟอร์ม' : 'แก้ใบในฟอร์ม (เลือกใบก่อน)'}</button>
           </div>

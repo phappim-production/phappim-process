@@ -9,7 +9,7 @@
 <style>
 :root{
   --bg:#f4f5f2; --card:#fff; --ink:#1d2420; --muted:#5f6a63; --line:#dfe3dd;
-  --accent:#0f4a42; --accent-soft:#e3efec; --warn:#b4231b; --warn-soft:#fdecea; --caution:#9a5b00; --caution-soft:#fff4e0; --gold:#c08a3e;
+  --accent:#0b3e3d; --accent-soft:#e3efee; --warn:#b4231b; --warn-soft:#fdecea; --caution:#9a5b00; --caution-soft:#fff4e0; --gold:#c08a3e;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Sarabun",system-ui,sans-serif;font-size:15px;line-height:1.5}
@@ -52,12 +52,14 @@ body.preview main.layout{grid-template-columns:minmax(0,1fr)}
 .card h2{font-size:16px;margin:0 0 12px;display:flex;gap:8px;align-items:center}
 .card h2 .n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px}
 /* minmax(0,1fr): 1fr ยืดตามตารางกว้างจนหัวข้อล้นจอมือถือ · ตารางเลื่อนใน .tbl-wrap เอง */
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 20px}
 .field.wide{grid-column:1/-1}
 .lab{font-weight:600;font-size:14px;margin-bottom:4px}
 .lab small{font-weight:400;color:var(--muted)}
-.lab-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
-.na-btn{flex-shrink:0;min-height:36px;margin-bottom:4px;color:var(--muted)}
+.lab-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.lab-main{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.lab-row .lab{margin-bottom:0}
+.na-btn{flex-shrink:0;min-height:32px;padding:4px 10px;font-size:13px;color:var(--muted)}
 .lab-tools{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .unit-sw{display:inline-flex;flex-shrink:0;margin-bottom:4px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .unit-sw button{min-height:36px;min-width:48px;padding:4px 10px;border:none;background:var(--card);font-size:13px;cursor:pointer}
@@ -69,11 +71,14 @@ body.preview main.layout{grid-template-columns:minmax(0,1fr)}
 input[type=text],input[type=number],input[type=date],textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff}
 input:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
 input:disabled{background:#f2f3f1;color:#9aa39d}
-.opts{display:flex;flex-wrap:wrap;gap:6px}
-.opt{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer;background:#fff;user-select:none}
+.opts{--opt-min:190px;display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--opt-min),1fr));gap:8px}
+.opt{display:flex;align-items:flex-start;gap:8px;min-height:44px;border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer;background:var(--card);user-select:none}
+.opt>span{flex:1;min-width:0;line-height:1.4}
+.opts.has-desc{--opt-min:220px}
 .opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
-.opt input{accent-color:var(--accent);margin:0}
+.opt input{accent-color:var(--accent);margin:3px 0 0;flex:none}
 .opt.big{padding:10px 16px;font-size:15px}
+.opt .desc{display:block;font-weight:400;color:var(--muted);font-size:12px;line-height:1.35;margin-top:1px}
 .other{margin-top:6px}
 .dims{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
 .dims label{display:flex;flex-direction:column;font-size:13px;color:var(--muted);width:120px}
@@ -195,6 +200,8 @@ table.dt tfoot td{font-weight:700;background:#f7f8f6}
   .bar{position:static}
   .bar .btn{padding:6px 10px;font-size:14px}
   .grid{grid-template-columns:minmax(0,1fr)}
+  .opts{--opt-min:140px}
+  .opts.has-desc{--opt-min:100%}
   .pl-row,.pl-head{grid-template-columns:1fr}
   .pl-head{display:none}
   .doc{width:auto;min-height:0;padding:16px;margin:0 0 16px}
@@ -357,6 +364,115 @@ const POS_SHIRT = ['หน้าอกซ้าย','หน้าอกขวา
 const POS_PANTS = ['ขาซ้ายด้านหน้า','ขาขวาด้านหน้า','ขอบเอว','ด้านหลัง','ปลายขา'];
 const ALLOVER = /ทั้งตัว|ทั้งใบ|เต็มผืน/;
 // ต้องมีคำว่า "ไม่มีลาย" เพราะหน้าเว็บ/ฐานข้อมูลใช้คำนี้ตัดสินว่าไม่มีงานพิมพ์
+// คำอธิบายสั้นใต้ตัวเลือก (แสดงในฟอร์มอย่างเดียว ไม่พิมพ์ใน PDF) · คีย์ = ข้อความตัวเลือกตรงทุกตัวอักษร
+// ชื่อตัวเลือกที่เปลี่ยน (ชื่อเดิมผิด) · ใบที่บันทึกไว้ก่อนเปลี่ยนแปลงเป็นชื่อใหม่ตอนเปิด
+const RENAMED_OPTS = {
+  'แขนจั๊ม (Raglan)': 'แขนแร็กแลน (Raglan)',
+  'ม้วนริม 0.6 มม.': 'ม้วนริม 0.6 ซม.',
+  'ม้วนริม 0.3 มม.': 'ม้วนริม 0.3 ซม.',
+};
+function upgradeOpts(p){
+  Object.values(p&&typeof p==='object'?p:{}).forEach(part=>{ if(!part||typeof part!=='object') return;
+    Object.keys(part).forEach(k=>{ const x=part[k];
+      if(typeof x==='string'&&RENAMED_OPTS[x]) part[k]=RENAMED_OPTS[x];
+      else if(Array.isArray(x)) part[k]=x.map(y=>typeof y==='string'&&RENAMED_OPTS[y]?RENAMED_OPTS[y]:y); }); });
+  return p;
+}
+const OPT_DESC = {
+  'ผ้าเดียวกับตัว': 'ขอบคอใช้ผ้าเดียวกับตัวเสื้อ',
+  'ผ้าเดียวกับตัว (พิมพ์ลาย)': 'ขอบคอใช้ผ้าเดียวกับตัว พิมพ์ลายต่อเนื่องกับตัว',
+  'ผ้าริบ': 'ผ้ายืดเป็นร่องเล็ก ๆ แบบคอเสื้อยืดทั่วไป คอไม่ย้วย',
+  'ผ้าริบสีพื้น': 'ผ้ายืดเป็นร่องเล็ก ๆ สีเดียว ไม่พิมพ์ลาย',
+  'ลาแขนปกติ': 'พับปลายแขนแล้วเย็บจักรลา ไม่ต่อขอบ',
+  'จั๊มปลายแขน (ริบ)': 'ต่อขอบผ้าริบที่ปลายแขน รัดแขน',
+  'ปลายแขนจั๊ม (ริบ)': 'ต่อขอบผ้าริบที่ปลายแขน รัดแขน',
+  'ลาปลายขา': 'พับปลายขาแล้วเย็บจักรลา',
+  'ปกผ้าเดียวกับตัว': 'ตัดปกจากผ้าเดียวกับตัวเสื้อ',
+  'ปกริบทอ': 'ปกที่ทอสำเร็จเป็นชิ้น (ปกโปโลทั่วไป) มักมีริ้วสี',
+  'ปกจีน': 'ปกตั้งแคบ ไม่พับลง',
+  'ปกฮาวาย (ปกเปิด)': 'ปกแบะเปิด ไม่ติดกระดุมเม็ดบนสุด',
+  'ปกเชิ้ต': 'ปกพับมีขาตั้ง แบบเสื้อเชิ้ต',
+  'ปกสูท': 'ปกแบะแบบเสื้อสูท',
+  'สาบสีเดียวกับตัว': 'แถบติดกระดุมสีเดียวกับตัว',
+  'แต่งสีสาบ': 'แถบติดกระดุมคนละสีกับตัว',
+  'โพ้งปกติ': 'เย็บจักรโพ้ง (Overlock) กันผ้าลุ่ย',
+  'โพ้ง + ลาทับ': 'โพ้งแล้วเย็บลาทับอีกรอบ ตะเข็บแบน แข็งแรงกว่า',
+  'ลา 1 เข็ม': 'พับขอบเย็บจักรลา เห็นด้าย 1 เส้นด้านนอก',
+  'ลา 2 เข็ม': 'พับขอบเย็บจักรลา เห็นด้าย 2 เส้นขนาน',
+  'โพ้งริม': 'เก็บขอบด้วยจักรโพ้ง ไม่พับขอบ',
+  'โพ้งริม (ริมเล็ก)': 'เก็บขอบด้วยจักรโพ้งเส้นเล็ก ไม่พับขอบ',
+  'โพ้งขอบ': 'เก็บขอบด้วยจักรโพ้ง ไม่พับขอบ',
+  'โพ้งขอบ 4 ด้าน': 'เก็บขอบด้วยจักรโพ้ง ไม่พับขอบ',
+  'พับริมเย็บ': 'พับขอบเข้าแล้วเย็บ',
+  'พับริมเย็บ 4 ด้าน': 'พับขอบเข้าแล้วเย็บ',
+  'ตัดร้อน': 'ตัดด้วยความร้อน ขอบไม่ลุ่ย ไม่ต้องเย็บ',
+  'ตัดร้อน (ไม่เย็บ)': 'ตัดด้วยความร้อน ขอบไม่ลุ่ย (ผ้าใยสังเคราะห์)',
+  'ตัดลุ่ย (ไม่เก็บขอบ)': 'ปล่อยขอบเป็นเส้นด้าย ไม่เก็บขอบ',
+  'ตัดลุ่ย (ฟรินจ์)': 'ปล่อยขอบเป็นพู่ด้าย ไม่เก็บขอบ',
+  'ตัดเลเซอร์': 'ตัดด้วยเลเซอร์ ขอบเรียบ ไม่ต้องเย็บ',
+  'ตัดเลเซอร์ (ไม่เย็บ)': 'ตัดด้วยเลเซอร์ ขอบเรียบ',
+  'ม้วนริม 0.6 ซม.': 'ม้วนขอบเป็นเส้นเล็ก ริมกว้างประมาณ 6 มม.',
+  'ม้วนริม 0.3 ซม.': 'ม้วนขอบเป็นเส้นเล็ก ริมกว้างประมาณ 3 มม.',
+  'ม้วนริม (ประมาณ 0.4–0.6 ซม.)': 'ม้วนขอบเป็นเส้นเล็กแล้วเย็บ ดูเรียบร้อย',
+  'เย็บกลับด้าน (ซ่อนตะเข็บ)': 'เย็บด้านในแล้วกลับผ้า ไม่เห็นตะเข็บด้านนอก',
+  'โพ้งตะเข็บด้านใน': 'โพ้งขอบตะเข็บด้านในกันลุ่ย',
+  'กุ๊นขอบ': 'หุ้มขอบผ้าด้วยแถบผ้าหรือเทปอีกสี',
+  'คอตตอน 100%': 'ผ้าฝ้ายล้วน นุ่ม · เหมาะสกรีน / DTF',
+  'TC (คอตตอน/โพลี)': 'ผ้าผสมฝ้ายกับโพลีเอสเตอร์ ยับน้อยกว่าคอตตอน',
+  'ผ้า TC': 'ผ้าผสมฝ้ายกับโพลีเอสเตอร์ ยับน้อยกว่าคอตตอน',
+  'TC': 'ผ้าผสมฝ้ายกับโพลีเอสเตอร์ ยับน้อยกว่าคอตตอน',
+  'TK (โพลี 65 / ฝ้าย 35)': 'ผ้าผสมโพลีเอสเตอร์ 65% ฝ้าย 35%',
+  'TK': 'ผ้าผสมโพลีเอสเตอร์ 65% ฝ้าย 35%',
+  'ลาครอส (Lacoste)': 'ผ้าทอลายตาข่ายเล็ก ๆ แบบเสื้อโปโลทั่วไป',
+  'ผ้าดิบ': 'ผ้าฝ้ายยังไม่ฟอก สีครีมธรรมชาติ',
+  'ผ้าแคนวาส': 'ผ้าฝ้ายเนื้อหนา ทอแน่น',
+  'ผ้าสปันบอนด์ (Non-woven)': 'ผ้าใยสังเคราะห์อัด ไม่ได้ทอ (ถุงแจก)',
+  'ผ้าร่ม': 'ผ้าใยสังเคราะห์เนื้อบาง กันละอองน้ำ',
+  'ผ้าร่ม (กันน้ำ)': 'ผ้าใยสังเคราะห์เนื้อบาง กันละอองน้ำ',
+  'ผ้ารังผึ้ง': 'ผ้ากีฬาลายหกเหลี่ยม ยืดได้หลายทิศ ระบายอากาศดี',
+  'ไมโครเรียบ': 'ผ้ากีฬาโพลีเอสเตอร์ผิวเรียบ ใช้ได้ 2 หน้า ราคาประหยัด',
+  'ไมโครเรียบ (พิมพ์ลาย)': 'ผ้ากีฬาโพลีเอสเตอร์ผิวเรียบ พิมพ์ลายซับลิเมชั่นได้',
+  'ผ้าเม็ดข้าวสาร': 'ผ้ากีฬามีรูเล็ก ๆ ด้านหนึ่ง อีกด้านเรียบ ระบายอากาศดี',
+  'ผ้าจูติ': 'ผ้าถักรูเล็กด้านหน้า หลังเรียบ เนื้อหนา',
+  'ผ้าริ้วเงา': 'ผ้าไมโครลายเส้นริ้ว ผิวมันเงา',
+  'ผ้าโทเร': 'ผ้าทอใยสังเคราะห์ ผิวเงา ทนทาน (ชุดพละ)',
+  'ผ้าวาเลนติโน่': 'ผ้าทอโพลีเอสเตอร์เนื้อหนา ไม่เงา ยับยาก (ชุดเครื่องแบบ)',
+  'ผ้าไหมอิตาลี': 'โพลีเอสเตอร์ผิวลื่นคล้ายไหม (ไม่ใช่ไหมแท้) พริ้ว ยับยาก',
+  'ผ้าเรยอน': 'เย็น ทิ้งตัว ซับเหงื่อ',
+  'Dry Tech': 'ผ้าโปโลแห้งไว ไม่อมเหงื่อ',
+  'Recycle Polyester (rPET)': 'โพลีเอสเตอร์ที่ผลิตจากขวดพลาสติกรีไซเคิล',
+  'ผ้าวอร์ม 1 หน้า (Tricot)': 'ด้านนอกเรียบ ด้านในขูดขนนุ่ม',
+  'ผ้าวอร์ม 2 หน้า (Interlock)': 'เรียบทั้งด้านนอกและด้านใน ไม่ขูดขน เนื้อหนา',
+  'ผ้านาโน (Microfiber)': 'ผ้าห่มขนนุ่มไมโครไฟเบอร์ ขนไม่ร่วงง่าย',
+  'ผ้านิวตัน (NEWTON)': 'สัมผัสแบบใยธรรมชาติ (Modal) ทอแน่น นุ่ม ยับยาก',
+  'ผ้าอินฟินิตี้ (INFINITY)': 'สัมผัสแบบเรยอน ไม่ย้วย ไม่ต้องรีด',
+  'ผ้าปาเก้ (PAKE)': 'ทอแน่น ไม่เป็นขน สีไม่ตก อยู่ทรง',
+  'ผ้าอัลตราสมูท (ULTRASMOOTH)': 'นุ่มลื่น ยืด 4 ทิศ ระบายอากาศดี',
+  'ผ้าโซลอน': 'ผ้าทอโพลีเอสเตอร์ สีสด เนื้อดี',
+  'Photo HD': 'พิมพ์ดิจิทัลไม่จำกัดสี ไล่เฉดสีได้',
+  'รีดแพค': 'รีดเก็บงาน ตรวจคุณภาพ พับ แพ็คใส่ถุง',
+  'แซกรางดุม / ติดกระดุม': 'เย็บรังกระดุม (รูกระดุม) และติดกระดุม',
+  'สกรีน UV DTF': 'พิมพ์ UV ลงฟิล์มแล้วติดวัสดุ ลายนูน',
+  'พิมพ์/ตัดเฟล็ก': 'ฟิล์มรีดร้อนตัดตัวอักษร เหมาะชื่อ / เบอร์',
+  'แขนแร็กแลน (Raglan)': 'ตะเข็บแขนเฉียงจากคอถึงใต้รักแร้ (ไม่ใช่ปลายแขนรัด)',
+  'ปลายแขนพับ': 'พับผ้าตัวเสื้อแล้วเย็บ ไม่ต่อขอบ (แขนปล่อย)',
+  'ขายาว ขาจั๊ม': 'ปลายขาเย็บรัดกระชับ',
+  'ขายาว ขาปล่อย': 'ปลายขาปล่อยตรง พริ้ว',
+  'ขอบแขนจั๊ม': 'ปลายแขนรัดกระชับด้วยผ้ายืด',
+  'ชายเสื้อจั๊ม': 'ชายเสื้อรัดกระชับด้วยผ้ายืด',
+  'ผ้าตาข่าย': 'ผ้ามีรูตาข่าย ระบายอากาศ',
+  'เทปก้างปลา': 'เทปผ้าทอลายก้างปลา เส้นแบน เหนียว',
+  'กระดุมแป๊ก': 'กระดุมโลหะกดติด 2 ชิ้น',
+  'ตีนตุ๊กแก': 'แถบหนามเกาะติด (Velcro)',
+  'ปั๊มจม': 'ปั๊มให้ลายยุบลงในเนื้อผ้า ไม่ใช้สี',
+  'ปีกตรง (Snapback)': 'ปีกแบนตรง (ตัวปรับด้านหลังเลือกอีกช่อง)',
+  'ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)': 'พิมพ์ลายลงผ้าทั้งชิ้นก่อนตัดเย็บ · ผ้าโพลีเอสเตอร์สีขาว',
+  'ซับลิเมชั่น เฉพาะจุด': 'รีดลายเฉพาะจุด · ผ้าโพลีเอสเตอร์สีอ่อน',
+  'DTF (ฟิล์มรีดร้อน)': 'พิมพ์ลงฟิล์มแล้วรีดติดผ้า · ใช้กับผ้าสีได้',
+  'DTG': 'พิมพ์หมึกลงผ้าโดยตรง · เหมาะผ้าฝ้าย',
+  'ซิลค์สกรีน': 'สกรีนผ่านบล็อกทีละสี · คุ้มเมื่อจำนวนมาก สีน้อย',
+  'งานปัก': 'ปักด้ายลงผ้า (ส่งร้านปักภายนอก)',
+};
 const CUSTOMER_FABRIC = 'ลูกค้าส่งผ้ามาเอง (ไม่มีลายที่ต้องพิมพ์ · ตัด/เย็บอย่างเดียว)';
 const hasPrint = v => [].concat(v.print_method||[]).some(m=>!/ไม่มีลาย/.test(m));
 const spotPrint = v => [].concat(v.print_method||[]).some(m=>!/ไม่มีลาย/.test(m)&&!ALLOVER.test(m));
@@ -407,7 +523,7 @@ const TECH_DETAIL = [
 ];
 const PERSONAL = [
   C('personal','ข้อความรายตัว',['ชื่อรายตัว','เบอร์รายตัว','ตำแหน่ง/แผนก'],{ hint:'ถ้ามี ต้องแนบรายชื่อพร้อมไซซ์', when:hasPrint }),
-  T('personal_pos','ตำแหน่ง ขนาด และเทคนิคของข้อความรายตัว',{ req:true, wide:true, when:v=>(v.personal||[]).length>0 }),
+  T('personal_pos','ตำแหน่ง ขนาด และเทคนิคของข้อความรายตัว',{ req:true, wide:true, when:v=>hasPrint(v)&&(v.personal||[]).length>0 }),
 ];
 const IMG_COL = { c:'img', label:'รูป', t:'img', opt:true };
 // 1 รหัสงานมีได้หลายแบบ (ลาย / สี) · ยอดงาน = ผลรวมของตาราง · id items ให้หน้าระบบนับยอดแบบเดียวกับสินค้าผืน
@@ -418,7 +534,7 @@ const SPARE = unit => N('spare','ผลิตเผื่อเสีย',unit,{
 
 function printSec(methods, positions, x={}){
   return { title: x.title||'งานพิมพ์ / ตกแต่ง', fields:[
-    C('print_method','เทคนิค (เลือกได้หลายแบบ)',[...methods, CUSTOMER_FABRIC],{ req:true, other:true, hint:x.hint, def:x.def }),
+    C('print_method','เทคนิค (เลือกได้หลายแบบ)',[...methods, ...(x.customerFabric===false?[]:[CUSTOMER_FABRIC])],{ req:true, other:true, hint:x.hint, def:x.def }),
     ...(positions?[{ id:'placements', type:'placements', label:'ตำแหน่ง เทคนิค และขนาดของแต่ละจุด', lenUnit:'ซม.', req:true, positions, hint:'ซ้าย/ขวา = ฝั่งของคนใส่ (มองเสื้อจากด้านหน้า อกซ้ายจะอยู่ทางขวามือของคนดู)', when:spotPrint }]:[]),
     ...(x.extra||[]),
     ...TECH_DETAIL.filter(t=>!(x.extra||[]).some(e=>e.id===t.id)),
@@ -499,7 +615,7 @@ function garment(o){
     { title:'ผ้า', fields:[
       R('fabric','ชนิดผ้า',o.fabrics,{ other:true, hint:o.fabricHint }),
       T('fabric_color','สีผ้าพื้น',{ req:true, hint:o.colorHint }), FABRICS_MORE(),
-      N('fabric_width','หน้าผ้า','นิ้ว'),
+      N('fabric_width','หน้าผ้า','นิ้ว',{ hint:'ความกว้างของม้วนผ้า · ใส่เมื่อมีผลกับการตัด' }),
       ...(o.fabricExtra||[]),
     ]},
     { title:'แบบและแพทเทิร์น', fields:[...o.style, ...(o.pockets===false?[]:[POCKETS(o.pockets||POCKET_SHIRT)]), ...(o.styleAfter||[])] },
@@ -524,30 +640,31 @@ const PRODUCTS = {
   tshirt: garment({ name:'เสื้อยืด (คอกลม / คอวี)',
     fabrics:['คอตตอน 100%','TC (คอตตอน/โพลี)','TK (โพลี 65 / ฝ้าย 35)','ไมโครสปอร์ต (โพลีเอสเตอร์ 100%)','ไมโครเรียบ','ผ้าเม็ดข้าวสาร','ผ้าจูติ'],
     fabricHint:'ขั้นต่ำ 10 ตัว · เลือกเนื้อผ้าพิเศษได้เมื่อสั่ง 100 ตัวขึ้นไป', colorHint:'งานซับลิเมชั่นใช้ผ้าขาว · DTF/สกรีนใช้ผ้าสีได้',
-    style:[ FIT,
+    style:[
       R('neck','คอเสื้อ',['คอกลม','คอวี'],{ other:true }),
-      R('neck_fabric','ผ้าคอ',['ผ้าเดียวกับตัว','ผ้าริบ','ผ้าจั๊ม']),
-      T('neck_color','สีคอ',{ ph:'เว้นว่าง = สีเดียวกับตัว' }),
-      R('sleeve','แขน',['แขนสั้น','แขนยาว','แขนกุด','แขนจั๊ม (Raglan)'],{ other:true }),
+      R('neck_fabric','ผ้าขอบคอ',['ผ้าเดียวกับตัว','ผ้าริบ','ผ้าจั๊ม'],{ hint:'แถบผ้ารอบคอเสื้อ (ไม่ใช่ปก)' }),
+      T('neck_color','สีขอบคอ',{ ph:'เว้นว่าง = สีเดียวกับตัว' }),
+      R('sleeve','แขน',['แขนสั้น','แขนยาว','แขนกุด','แขนแร็กแลน (Raglan)'],{ other:true }),
       R('sleeve_end','ปลายแขน',['ลาแขนปกติ','จั๊มปลายแขน (ริบ)'],{ when:v=>v.sleeve!=='แขนกุด' }),
+      FIT,
     ],
     sew:[ R('side_seam','ตะเข็บข้าง',['โพ้งปกติ','โพ้ง + ลาทับ']), R('hem','ชายเสื้อ',['ลา 1 เข็ม','ลา 2 เข็ม','โพ้งริม']), THREAD ],
   }),
   sport: garment({ name:'เสื้อกีฬา / เสื้อองค์กรพิมพ์ลาย', measure:v=>v.set==='เสื้อ + กางเกง'?'set':'top',
     fabrics:['ไมโครเรียบ','ไมโครสปอร์ต','ผ้าเม็ดข้าวสาร','ผ้าจูติ','ผ้ารังผึ้ง'], fabricHint:'ขั้นต่ำ 10 ตัว · พิมพ์ซับลิเมชั่นเต็มตัว 360°',
-    style:[ R('cut','แบบเสื้อ',['คอกลม แขนสั้น','คอวี แขนสั้น','คอปก แขนสั้น','แขนกุด','เสื้อกล้ามวิ่ง','แขนยาว'],{ other:true }), FIT,
-      R('neck_fabric','ผ้าคอ',['ผ้าเดียวกับตัว (พิมพ์ลาย)','ผ้าริบสีพื้น']),
+    style:[ R('cut','แบบเสื้อ',['คอกลม แขนสั้น','คอวี แขนสั้น','คอปก แขนสั้น','แขนกุด','เสื้อกล้ามวิ่ง','แขนยาว'],{ other:true }),
+      R('neck_fabric','ผ้าขอบคอ',['ผ้าเดียวกับตัว (พิมพ์ลาย)','ผ้าริบสีพื้น'],{ hint:'แถบผ้ารอบคอเสื้อ (ไม่ใช่ปก)' }), FIT,
       R('set','ชุด',['เสื้ออย่างเดียว','เสื้อ + กางเกง']),
       T('pants_spec','สเปกกางเกง',{ req:true, wide:true, ph:'เช่น ขาสั้น เอวยางยืด มีเชือก กระเป๋าข้าง', when:v=>v.set==='เสื้อ + กางเกง' }) ],
     printDef:['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)'],
   }),
   jersey: garment({ name:'เสื้อเจอร์ซีย์',
     fabrics:['ไมโครเรียบ','ไมโครสปอร์ต','ไมโครหนา','ผ้าตาข่าย','ผ้าริ้วเงา','ผ้ารังผึ้ง','ผ้าเม็ดข้าวสาร','ผ้าจูติ'], fabricHint:'ขั้นต่ำ 10 ตัว · พิมพ์ซับลิเมชั่นเต็มตัว 360° · ใช้หลายผ้า กรอกเพิ่มที่ "ผ้าเพิ่ม"',
-    style:[ R('sleeve','แขน',['แขนสั้น','แขนยาว']),
-      R('neck','คอเสื้อ',['คอกลม','คอวี','คอปก'],{ other:true }), FIT,
-      R('neck_fabric','ผ้าคอ',['ผ้าเดียวกับตัว (พิมพ์ลาย)','ผ้าริบสีพื้น','ซกคอสำเร็จ (ริบทอลาย)']),
-      T('neck_color','สีคอ / ลายริ้ว',{ ph:'เช่น ดำริ้วขาว · เว้นว่าง = สีเดียวกับตัว' }),
-      R('sleeve_end','ปลายแขน',['ลาแขนปกติ','จั๊มปลายแขน (ริบ)']) ],
+    style:[ R('neck','คอเสื้อ',['คอกลม','คอวี','คอปก'],{ other:true }),
+      R('neck_fabric','ผ้าขอบคอ',['ผ้าเดียวกับตัว (พิมพ์ลาย)','ผ้าริบสีพื้น','ซกคอสำเร็จ (ริบทอลาย)'],{ hint:'แถบผ้ารอบคอเสื้อ (ไม่ใช่ปก)' }),
+      T('neck_color','สีขอบคอ / ลายริ้ว',{ ph:'เช่น ดำริ้วขาว · เว้นว่าง = สีเดียวกับตัว' }),
+      R('sleeve','แขน',['แขนสั้น','แขนยาว']),
+      R('sleeve_end','ปลายแขน',['ลาแขนปกติ','จั๊มปลายแขน (ริบ)']), FIT ],
     printDef:['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)'],
   }),
   running: garment({ name:'เสื้อวิ่ง / ชุดงานวิ่ง',
@@ -562,15 +679,16 @@ const PRODUCTS = {
   }),
   polo: garment({ name:'เสื้อโปโล',
     fabrics:['TK','ลาครอส (Lacoste)','Dry Tech','Recycle Polyester (rPET)','ไมโครเรียบ (พิมพ์ลาย)'], fabricHint:'ขั้นต่ำ 10 ตัว',
-    style:[ FIT,
+    style:[
       R('collar','ปก',['ปกผ้าเดียวกับตัว','ปกริบทอ','ปกจีน'],{ other:true }),
       T('collar_color','สีปก / ขลิบปก',{ ph:'เว้นว่าง = สีเดียวกับตัว' }),
       R('sleeve','แขน',['แขนสั้น','แขนยาว']),
       R('sleeve_end','ปลายแขน',['ปลายแขนจั๊ม (ริบ)','ปลายแขนพับ']),
-      R('placket','สาบเสื้อ',['สาบสีเดียวกับตัว','แต่งสีสาบ']),
+      R('placket','สาบเสื้อ',['สาบสีเดียวกับตัว','แต่งสีสาบ'],{ hint:'แถบผ้าที่หน้าอกที่ติดกระดุม' }),
       T('placket_color','สีสาบ',{ req:true, when:v=>v.placket==='แต่งสีสาบ' }),
       R('buttons','กระดุม',['2 เม็ด','3 เม็ด'],{ other:true }),
       T('button_color','สีกระดุม',{ ph:'เว้นว่าง = ตามสีผ้า' }),
+      FIT,
       ],
     printDef:['งานปัก'],
     sew:[ R('hem','ชายเสื้อ',['ชายตรง','ชายหน้าสั้นหลังยาว','ผ่าข้างชายเสื้อ']), THREAD ],
@@ -626,12 +744,12 @@ const PRODUCTS = {
   }),
   student: garment({ name:'เสื้อนักศึกษา',
     fabrics:['ผ้าโทเร','ผ้าวาเลนติโน่','ผ้า TC','ผ้าคอตตอน','ไมโครเรียบ (พิมพ์ลาย)'],
-    style:[ R('cut','แบบเสื้อ',['เสื้อเชิ้ต','เสื้อโปโล','เสื้อยืดคอกลม'],{ other:true }), FIT, R('sleeve','แขน',['แขนสั้น','แขนยาว']) ],
+    style:[ R('cut','แบบเสื้อ',['เสื้อเชิ้ต','เสื้อโปโล','เสื้อยืดคอกลม'],{ other:true }), R('sleeve','แขน',['แขนสั้น','แขนยาว']), FIT ],
     methods:['งานปัก','ซับลิเมชั่น + ตัดเลเซอร์','ซิลค์สกรีน','DTF (ฟิล์มรีดร้อน)'], printDef:['งานปัก'],
   }),
   mourning: garment({ name:'เสื้อดำ / เสื้อไว้ทุกข์',
     fabrics:['คอตตอน 100%','TC (คอตตอน/โพลี)','ไมโครเรียบ'],
-    style:[ R('cut','แบบเสื้อ',['เสื้อยืดคอกลม','เสื้อยืดคอวี','เสื้อโปโล']), FIT, R('sleeve','แขน',['แขนสั้น','แขนยาว']) ],
+    style:[ R('cut','แบบเสื้อ',['เสื้อยืดคอกลม','เสื้อยืดคอวี','เสื้อโปโล']), R('sleeve','แขน',['แขนสั้น','แขนยาว']), FIT ],
     printDef:['ไม่มีลาย'],
   }),
   kids: garment({ name:'ชุดเด็ก / เสื้อผ้าเด็กอ่อน', measure:v=>/กางเกง|ชุดนอน/.test(v.item||'')?'set':'top',
@@ -686,12 +804,12 @@ const PRODUCTS = {
     { title:'เก็บขอบและรางสอด', fields:[
       R('edge','การเก็บขอบ',['พับริมเย็บ 4 ด้าน','โพ้งขอบ 4 ด้าน','ตัดร้อน (ไม่เย็บ)'],{ other:true }),
       N('edge_w','ความกว้างพับริม','ซม.',{ when:v=>v.edge==='พับริมเย็บ 4 ด้าน' }),
-      C('rail','รางสอด',['ด้านบน','ด้านล่าง','ด้านซ้าย','ด้านขวา'],{ hint:'ไม่ติ๊ก = ไม่มีรางสอด' }),
+      C('rail','รางสอด',['ด้านบน','ด้านล่าง','ด้านซ้าย','ด้านขวา'],{ hint:'ขอบผ้าพับเย็บเป็นช่องไว้สอดไม้ / ท่อ · ไม่ติ๊ก = ไม่มีรางสอด' }),
       N('rail_w','ขนาดรางสอด','ซม.',{ req:true, when:v=>(v.rail||[]).length>0 }),
       R('rail_end','ปลายราง',['เปิดสองด้าน','เย็บปิดหนึ่งด้าน'],{ when:v=>(v.rail||[]).length>0 }),
       THREAD ]},
     { title:'อุปกรณ์', fields:[
-      R('eyelet','ตาไก่',['ไม่มี','4 มุม','รอบผืนตามระยะ','เฉพาะด้านบน']),
+      R('eyelet','ตาไก่',['ไม่มี','4 มุม','รอบผืนตามระยะ','เฉพาะด้านบน'],{ hint:'ห่วงโลหะเจาะรูที่ขอบผ้า ไว้ร้อยเชือกแขวน' }),
       N('eyelet_gap','ระยะห่างตาไก่','ซม.',{ req:true, when:v=>/ตามระยะ|ด้านบน/.test(v.eyelet||'') }),
       R('eyelet_color','สีตาไก่',['เงิน','ทอง','ดำ'],{ when:v=>v.eyelet&&v.eyelet!=='ไม่มี' }),
       C('acc','อุปกรณ์เสริม',['เชือก','ไม้/ท่อแขวน','หูเทป','เวลโคร'],{ other:true }),
@@ -719,8 +837,8 @@ const PRODUCTS = {
     itemsSec('ผืน',{ hint:'ขนาดยอดนิยม 50 × 50, 60 × 60, 100 × 100 ซม.' }),
     printSec(M_FLAT,null,{ title:'งานพิมพ์', def:['ซับลิเมชั่น พิมพ์เต็มผืน'], extra:[ R('sides','จำนวนหน้า',['หน้าเดียว','สองหน้าประกบ']) ] }),
     { title:'การเย็บ', fields:[
-      R('sew_style','รูปแบบการเย็บ',['ม้วนริม 0.6 มม.','ม้วนริม 0.3 มม.'],{ other:true, when:v=>v.item==='ผ้าเช็ดหน้า' }),
-      R('edge','การเก็บขอบ',['โพ้งริม (ริมเล็ก)','พับริมเย็บ','ตัดลุ่ย (ฟรินจ์)','ตัดเลเซอร์'],{ other:true, when:v=>v.item!=='ผ้าเช็ดหน้า' }),
+      R('sew_style','รูปแบบการเย็บ',['ม้วนริม 0.6 ซม.','ม้วนริม 0.3 ซม.'],{ other:true, when:v=>v.item==='ผ้าเช็ดหน้า' }),
+      R('edge','การเก็บขอบ',['ม้วนริม (ประมาณ 0.4–0.6 ซม.)','พับริมเย็บ','โพ้งริม (ริมเล็ก)','ตัดลุ่ย (ฟรินจ์)','ตัดเลเซอร์'],{ other:true, when:v=>v.item!=='ผ้าเช็ดหน้า' }),
       THREAD ]},
     packSec(['พับใส่ถุงแยกผืน','พับใส่ซอง + การ์ด','ไม่ใส่ถุง']),
   ]},
@@ -816,7 +934,7 @@ const PRODUCTS = {
     { title:'แพ็คกิ้ง', fields:[
       R('fold','การพับ',['พับแยกใบ','วางซ้อนไม่พับ']),
       R('bag','ใส่ถุง',['ถุงแยกใบ','มัดรวมทุก 10 ใบ','ไม่ใส่ถุง']),
-      T('box_note','หมายเหตุการแพ็ค',{ wide:true }) ]},
+      T('box_note','หมายเหตุการแพ็ค / จัดส่ง',{ wide:true }) ]},
   ]},
   spunbond: { cat:'bag', name:'ถุงสปันบอนด์', unit:'ใบ', sections:[
     { title:'แบบและขนาด', fields:[
@@ -873,7 +991,7 @@ const PRODUCTS = {
       R('closure','การปิดปาก',['ไม่มี','ซิป','กระดุมแป๊ก','หูรูด']),
       POCKETS(POCKET_BAG,{ label:'ช่องใส่ของ', kinds:['ช่องแปะแบบเปิด','ช่องซิป','ช่องใส่ปากกา'] }),
       VARIANTS('ใบ'), SPARE('ใบ') ]},
-    printSec(['สกรีนบนกระจูด','ป้ายหนังติดโลโก้','ป้ายผ้า / งานปักบนซับ','ไม่มีลาย'],['ด้านหน้า','ด้านหลัง','ป้ายที่หู'],{ title:'ตกแต่ง / โลโก้' }),
+    printSec(['สกรีนบนกระจูด','ป้ายหนังติดโลโก้','ป้ายผ้า / งานปักบนซับ','ไม่มีลาย'],['ด้านหน้า','ด้านหลัง','ป้ายที่หู'],{ title:'ตกแต่ง / โลโก้', customerFabric:false }),
     packSec(['ถุงแยกใบ','ใส่กล่อง','มัดรวม']),
   ]},
 
@@ -881,7 +999,7 @@ const PRODUCTS = {
     { title:'ทรงและผ้า', fields:[
       R('style','ทรง',['หมวกแก๊ป','หมวกแก๊ปตาข่าย (Trucker)','หมวกบักเก็ต','หมวกปีกรอบ (Safari)','หมวกไวเซอร์ (ไม่มีกระหม่อม)'],{ other:true }),
       R('panels','จำนวนแผ่น',['5 แผ่น','6 แผ่น'],{ when:v=>/แก๊ป/.test(v.style||'') }),
-      R('crown','กระหม่อม',['ทรงสูง (มีฟองน้ำหน้า)','ทรงต่ำ (ไม่มีฟองน้ำ)'],{ when:v=>/แก๊ป/.test(v.style||'') }),
+      R('crown','กระหม่อม',['ทรงสูง (มีฟองน้ำหน้า)','ทรงต่ำ (ไม่มีฟองน้ำ)'],{ hint:'ส่วนที่ครอบศีรษะของหมวก', when:v=>/แก๊ป/.test(v.style||'') }),
       R('brim','ปีก',['ปีกโค้ง','ปีกตรง (Snapback)'],{ when:v=>/แก๊ป|ไวเซอร์/.test(v.style||'') }),
       R('fabric','ผ้า',['ผ้าคอตตอนทวิล','ผ้าโพลีเอสเตอร์','ผ้าไมโคร (ซับลิเมชั่น)','ผ้าร่ม','ผ้าลูกฟูก'],{ other:true }), FABRICS_MORE(),
       T('colors','สีหมวก (ตัว / ปีก / ตาข่าย / กระดุมบน)',{ req:true, wide:true }),
@@ -927,7 +1045,7 @@ const PRODUCTS = {
       D('dims','ขนาด',['กว้าง','สูง','หนา (มม.)'],{ hint:'หนาเป็นมิลลิเมตร' }),
       R('base','ฐาน',['ฐานอะคริลิค','ฐานไม้','ไม่มีฐาน']) ]},
     itemsSec('ชิ้น',{ size:false, nameLabel:'ข้อความ / ชื่อผู้ได้รับรางวัล', title:'รายการและจำนวน' }),
-    printSec(['พิมพ์ UV สี','สลักเลเซอร์','สติกเกอร์'],null,{ title:'การพิมพ์ / สลัก' }),
+    printSec(['พิมพ์ UV สี','สลักเลเซอร์','สติกเกอร์'],null,{ title:'การพิมพ์ / สลัก', customerFabric:false }),
     packSec(['กล่องกระดาษ','กล่องกำมะหยี่','ห่อบับเบิ้ล']),
   ]},
   premium: { cat:'other', name:'ของพรีเมียมอื่นๆ (แก้ว ปฏิทิน ร่ม สมุด ฯลฯ)', unit:'ชิ้น', route:'งานจัดหา/ของพรีเมียม: สั่งสินค้า → พิมพ์/สกรีน → QC+Packing', sections:[
@@ -935,7 +1053,7 @@ const PRODUCTS = {
       R('item','ชนิดสินค้า',['แก้วน้ำ / แก้วเปลี่ยนสี','ปฏิทิน','ร่ม','สมุด / หนังสือ','หน้ากากอนามัย','Power bank'],{ other:true }),
       A('spec','สเปกสินค้า',{ req:true, hint:'รุ่น ขนาด วัสดุ สี ความจุ จำนวนหน้า ฯลฯ' }) ]},
     itemsSec('ชิ้น',{ size:false, nameLabel:'แบบ / สี', title:'จำนวน' }),
-    printSec(['ซิลค์สกรีน','พิมพ์ UV','ซับลิเมชั่น','สลักเลเซอร์','พิมพ์ออฟเซ็ท'],null,{
+    printSec(['ซิลค์สกรีน','พิมพ์ UV','ซับลิเมชั่น','สลักเลเซอร์','พิมพ์ออฟเซ็ท'],null,{ customerFabric:false,
       extra:[ T('print_pos','ตำแหน่งและขนาดโลโก้',{ req:true, wide:true }) ] }),
     packSec(['กล่องแยกชิ้น','ถุงแยกชิ้น','แพ็คตามที่ซัพพลายเออร์ส่งมา']),
   ]},
@@ -996,7 +1114,7 @@ function startOver(keepOrder){
 }
 function fresh(){ return { h:{ issue_date: today() }, product:'tshirt', pickOpen:true, p:{}, imgs:[], callouts:[], co_size:null, co_sizes:[] }; }
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function load(){ try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.h&&s.p&&PRODUCTS[s.product]){ s.pickOpen=false; s.imgs=Array.isArray(s.imgs)?s.imgs:[]; s.callouts=Array.isArray(s.callouts)?s.callouts:[]; s.co_sizes=Array.isArray(s.co_sizes)?s.co_sizes:[]; return s; } }catch(e){} return null; }
+function load(){ try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.h&&s.p&&PRODUCTS[s.product]){ upgradeOpts(s.p); s.pickOpen=false; s.imgs=Array.isArray(s.imgs)?s.imgs:[]; s.callouts=Array.isArray(s.callouts)?s.callouts:[]; s.co_sizes=Array.isArray(s.co_sizes)?s.co_sizes:[]; return s; } }catch(e){} return null; }
 let warnedQuota=false, saveTimer=0;
 function save(){
   clearTimeout(saveTimer); saveTimer=0;
@@ -1033,6 +1151,7 @@ function scope(s){
 const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num = x => { const n=parseFloat(x); return isFinite(n)?n:0; };
 const visible = (f,v) => !f.when || f.when(v);
+const sampleDateShown = h => h.sample===SAMPLE_YES||h.sample===SAMPLE_DEV;
 
 function sizeCols(v){ return (v.size_sets||[]).flatMap(n=>SIZESETS[n]||[]); }
 function allFields(){ return allSecs().flatMap(sec=>sec.fields); }
@@ -1124,7 +1243,7 @@ function fieldHTML(f,s,v){
       const opts=f.options.concat(f.other?[OTHER]:[]);
       const on=o=>f.type==='radio'?val===o:(val||[]).includes(o);
       const lock=sampleLocked(f,s);
-      b=`<div class="opts">`+opts.map(o=>`<label class="opt"><input type="${f.type==='radio'?'radio':'checkbox'}" name="${s}_${f.id}" ${a} value="${esc(o)}" ${on(o)?'checked':''} ${lock?'disabled':''}><span>${esc(o)}</span></label>`).join('')+`</div>`;
+      b=`<div class="opts${opts.some(o=>OPT_DESC[o])?' has-desc':''}">`+opts.map(o=>`<label class="opt"><input type="${f.type==='radio'?'radio':'checkbox'}" name="${s}_${f.id}" ${a} value="${esc(o)}" ${on(o)?'checked':''} ${lock?'disabled':''}><span>${esc(o)}${OPT_DESC[o]?`<small class="desc">${esc(OPT_DESC[o])}</small>`:''}</span></label>`).join('')+`</div>`;
       if(lock) b+=`<div class="hint">รับงานแบบนี้แล้ว เปลี่ยนในใบแก้ไม่ได้ · ถ้าต้องเปลี่ยน ให้ผู้บริหารยกเลิกงานแล้วรับใบใหม่</div>`;
       if(f.other&&on(OTHER)) b+=`<input type="text" class="other" data-s="${s}" data-k="${f.id}__other" value="${esc(v[f.id+'__other'])}" placeholder="ระบุ ${esc(f.label)}...">`;
       break; }
@@ -1171,7 +1290,7 @@ function fieldHTML(f,s,v){
         `<div class="imgs">${state.imgs.map((m,i)=>`<figure><span class="imgno">รูป ${i+1}</span><img src="${m.src}" alt=""><input class="cap" data-imgcap="${i}" value="${esc(m.name)}" aria-label="ชื่อใต้รูป" placeholder="ชื่อใต้รูป เช่น ผ้าตาข่าย">${i>0?`<button type="button" class="btn small main-btn" data-act="mainimg" data-r="${i}" title="ตั้งเป็นรูป 1 (แสดงบนการ์ดงานและใบปะงาน)">ตั้งเป็นรูป 1</button>`:''}<button class="btn x" data-act="delimg" data-r="${i}" title="ลบภาพ">✕</button></figure>`).join('')}</div>`+coEditorHTML();
       break;
   }
-  const wide=f.wide||(WIDE.includes(f.type))||(f.type==='radio'&&(f.options.length>3||f.other));
+  const wide=f.wide||WIDE.includes(f.type)||f.type==='radio';
   const na=naAllowed(f)&&isNA(f,v);
   if(na) b=`<div class="na-box">ไม่ใช้กับงานนี้ · ไม่พิมพ์ลง PDF และไม่ส่งเข้าระบบ</div>`;
   const naBtn=naAllowed(f)
@@ -1181,8 +1300,9 @@ function fieldHTML(f,s,v){
   const u=unitOf(f,v), sw=lenDefault(f)&&!na
     ? `<div class="unit-sw" role="group" aria-label="หน่วยของ ${esc(f.label)}">${LEN_UNITS.map(x=>`<button type="button" data-act="unit" data-s="${s}" data-uk="${f.id}" data-u="${x}" aria-pressed="${x===u}">${x}</button>`).join('')}</div>` : '';
   const lab=`<div class="lab">${esc(fieldLabel(f,v))}${f.req&&!na?'<i class="req">*</i>':''}${f.unit&&!sw?` <small>(${esc(f.unit)})</small>`:''}</div>`;
-  const tools=sw+bumpBtn+naBtn;
-  return `<div class="field${wide?' wide':''}" id="fld_${s}_${f.id}">${tools?`<div class="lab-row">${lab}<div class="lab-tools">${tools}</div></div>`:lab}${f.hint&&!na?`<div class="hint">${esc(f.hint)}</div>`:''}${b}</div>`;
+  const tools=sw+bumpBtn;
+  const head=tools||naBtn?`<div class="lab-row"><div class="lab-main">${lab}${naBtn}</div>${tools?`<div class="lab-tools">${tools}</div>`:''}</div>`:lab;
+  return `<div class="field${wide?' wide':''}" id="fld_${s}_${f.id}">${head}${f.hint&&!na?`<div class="hint">${esc(f.hint)}</div>`:''}${b}</div>`;
 }
 
 function updateTotals(){
@@ -1295,7 +1415,7 @@ function coSizeOf(idx=0){
   return { w:4, h:3 };
 }
 const CO_FIELDS=[
-  ['fit','ทรง'],['neck','คอเสื้อ'],['neck_fabric','ผ้าคอ'],['neck_color','สีคอ'],['sleeve','แขน'],['sleeve_end','ปลายแขน'],
+  ['fit','ทรง'],['neck','คอเสื้อ'],['neck_fabric','ผ้าขอบคอ'],['neck_color','สีขอบคอ'],['sleeve','แขน'],['sleeve_end','ปลายแขน'],
   ['fabric','ชนิดผ้า'],['fabric_color','สีผ้าพื้น'],['gsm','น้ำหนักผ้า'],['fabric_width','หน้าผ้า'],['print_method','เทคนิคพิมพ์'],
   ['side_seam','ตะเข็บข้าง'],['hem','ชายเสื้อ'],['thread','สีด้าย'],['neck_label','ป้ายคอ'],['size_label','ป้ายไซซ์'],
   ['color_match','การเทียบสี'],['art_file','ไฟล์งาน'],['notes','หมายเหตุ'],['edge','ริม'],['sew_style','รูปแบบการเย็บ'],
@@ -1304,12 +1424,13 @@ const CO_FIELDS=[
 function coRefs(){
   const v=scope('p'), out=[], ms=[].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m));
   const pu=unitOf({ id:'placements', lenUnit:'ซม.' },v);
-  Object.entries(v.placements||{}).forEach(([pos,x])=>{ if(!x||!x.on) return;
+  const shownIds=new Set(allFields().filter(f=>visible(f,v)).map(f=>f.id));
+  Object.entries(shownIds.has('placements')?v.placements||{}:{}).forEach(([pos,x])=>{ if(!x||!x.on) return;
     const size=String(x.size??'').trim();
     const val=[x.tech||(ms.length===1?ms[0]:''), size&&(/^[0-9 .,xX×*/-]+$/.test(size)?`${size} ${pu}`:size), x.note].filter(Boolean).join(' · ');
     out.push({ ref:'placement:'+pos, label:'ตำแหน่ง '+pos, val }); });
   CO_FIELDS.forEach(([k,l])=>{
-    if(v[k+'__na']) return;
+    if(v[k+'__na']||!shownIds.has(k)) return;
     const raw=v[k], fmt=x=>x===OTHER?`${OTHER}: ${v[k+'__other']||''}`:x;
     const val=Array.isArray(raw)?raw.map(fmt).filter(x=>!isNone(x)).join(', '):(isNone(raw)?'':fmt(String(raw??'').trim()));
     if(val) out.push({ ref:'field:'+k, label:l, val }); });
@@ -1517,11 +1638,13 @@ document.addEventListener('click',e=>{
 const imgSnap=()=>JSON.stringify(state.imgs.map(m=>[m.path||m.src, String(m.name||'').trim()]));
 function loadData(d, label){
   if(!d||!d.h||!d.p||!PRODUCTS[d.product]) return false;
+  upgradeOpts(d.p);
   state={ h:d.h, product:d.product, pickOpen:false, p:d.p, imgs:Array.isArray(d.imgs)?d.imgs:[], callouts:Array.isArray(d.callouts)?d.callouts:[], co_size:d.co_size||null, co_sizes:Array.isArray(d.co_sizes)?d.co_sizes:[] }; coTab=0; missing=[];
   if(typeof d.mockup_path==='string'&&d.mockup_path) state.mockup_path=d.mockup_path;
   if((typeof d.mockup_path==='string'&&d.mockup_path)||state.imgs.some(m=>m.path)) state.mockup_no=String(d.h.doc_no||'').trim();
   $('#alert').innerHTML='';
   if(d.from_job){ state.job_no=String(d.h.doc_no||'').trim(); state.job_imgs=imgSnap(); }
+  else if(typeof d.job_no==='string'&&d.job_no&&typeof d.job_base==='string'&&d.job_base){ state.job_no=d.job_no; state.job_base=d.job_base; state.job_imgs=typeof d.job_imgs==='string'?d.job_imgs:imgSnap(); }
   if(document.body.classList.contains('preview')) togglePreview(false); rerender();
   if(d.from_job){ state.job_base=jobSnapshot(); rerender(); }
   scrollTo(0,0); save(); toast(label);
@@ -1568,6 +1691,10 @@ function saveToSystem(){
     if(!changes.length&&num(state.h.rev)===num(jobBase()?.h?.rev)){ alert('ใบนี้ยังไม่ได้แก้อะไร\nถ้าจะพิมพ์ใบซ้ำ กด "ส่งออก PDF" ได้เลย ไม่ต้องบันทึก'); return; }
     if(!confirm('บันทึกการแก้ใบ '+state.job_no+' (แก้ไขครั้งที่ '+num(state.h.rev)+') เข้างานในระบบ?\n\nช่องที่แก้: '+(changes.join(', ')||'—')+'\n\nสเปกงานในระบบจะเปลี่ยนตามใบนี้ และแจ้งทุกฝ่ายในกล่องจดหมาย')) return;
   }
+  if(!revise){
+    const bad=validate().filter(m=>m.hard);
+    if(bad.length){ missing=bad; showAlert(); rerender(); scrollTo(0,0); alert('ต้องแก้ '+bad.length+' รายการก่อนบันทึกเข้าระบบ (ดูกล่องแดงด้านบน)'); return; }
+  }
   // รูปที่เพิ่งเลือกยังอ่าน/ย่อไม่เสร็จ = ไม่ส่ง ไม่อย่างนั้นใบไปถึงระบบโดยไม่มีรูป · ใบแก้ที่ใช้รูปเดิมของงานไม่ต้องรอ
   refreshThumb();
   if(readingImgs||state.imgs.some((m,i)=>!sysPath(m,i)&&shrunk.get(m.src)===undefined)){ alert('กำลังเตรียมรูปม็อคอัพ รอ 1–2 วินาที แล้วกด "'+btn+'" อีกครั้ง'); return; }
@@ -1580,17 +1707,27 @@ function saveToSystem(){
   // ช่องที่ถูกซ่อนเพราะเปลี่ยนตัวเลือก (เช่น ผ้าเช็ดหน้า ↔ ผ้าพันคอ) ไม่ส่งเข้าระบบ ไม่อย่างนั้นหน้างานเห็นสเปกที่ลูกค้าไม่ได้เลือก
   const shown=scope('p'), part={...shown};
   const drop=(obj,f)=>{ delete obj[f.id]; delete obj[f.id+'__other']; delete obj[f.id+'__unit']; delete obj[f.id+'__na']; (f.parts||[]).forEach((_,i)=>delete obj[f.id+'_'+i]); };
-  allFields().forEach(f=>{ if(!visible(f,shown)||(naAllowed(f)&&isNA(f,shown))) drop(part,f); });
-  payload.p={...state.p, [state.product]:part};
+  // ช่อง id เดียวกันมีหลายแบบ (ขนาดสำเร็จ เสื้อ / กางเกง / ชุด) · ลบเฉพาะ id ที่ไม่มีแบบไหนแสดงอยู่เลย
+  const keep=new Set(allFields().filter(f=>visible(f,shown)&&!(naAllowed(f)&&isNA(f,shown))).map(f=>f.id));
+  allFields().forEach(f=>{ if(!keep.has(f.id)) drop(part,f); });
+  if(Array.isArray(part.sizes)){ const cols=new Set(sizeCols(part));
+    part.sizes=part.sizes.map(r=>({ ...r, q:Object.fromEntries(Object.entries(r.q||{}).filter(([k])=>cols.has(k))) })); }
+  payload.p={ [state.product]:part };
   const head={...state.h};
-  HEADER.flatMap(sec=>sec.fields).forEach(f=>{ if(naAllowed(f)&&isNA(f,head)) drop(head,f); });
+  HEADER.flatMap(sec=>sec.fields).forEach(f=>{ if(!visible(f,head)||(naAllowed(f)&&isNA(f,head))) drop(head,f); });
   payload.h=head;
   payload.mockups=state.imgs.map((m,i)=>{ const path=sysPath(m,i); return path?{ name:m.name||'', path }:{ name:m.name||'', data:shrunk.get(m.src) }; });
   if(revise){ payload.revise_job=true; payload.changes=changes; }
   // รูปเดิมจากระบบใช้ได้เฉพาะใบเลขเดิม (เปลี่ยนเลขใบเพื่อทำใบใหม่ = ไม่เอารูปใบเดิมไป)
   if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()) delete payload.mockup_path;
   delete payload.mockup_no; delete payload.job_no; delete payload.job_base; delete payload.job_imgs;
-  try{ localStorage.setItem(OUTBOX, JSON.stringify(payload)); }catch(e){ alert('บันทึกไม่สำเร็จ (พื้นที่เบราว์เซอร์เต็ม) ให้ใช้ "บันทึกไฟล์" แทน'); return; }
+  // ฟอร์มจำรูปเต็มขนาดไว้ในพื้นที่เดียวกัน · เต็มแล้วเก็บสำเนาฟอร์มแบบไม่มีรูปก่อน แล้วลองส่งอีกครั้ง
+  const outbox=JSON.stringify(payload);
+  try{ localStorage.setItem(OUTBOX, outbox); }catch(e){
+    try{ const {imgs,...rest}=state; localStorage.setItem(LS, JSON.stringify({...rest,imgs:[]})); localStorage.setItem(OUTBOX, outbox); }
+    catch(e2){ alert('บันทึกไม่สำเร็จ (พื้นที่เบราว์เซอร์เต็ม) ให้ใช้ "บันทึกไฟล์" แทน'); return; }
+  }
+  state.sent_sig=formSig(state); save();
   showAfterSave(state.h.doc_no, revise);
   const url='/#/board?confirmation=save';
   const w=window.open(url,'pp142-system');
@@ -1602,6 +1739,21 @@ function saveToSystem(){
   t.appendChild(a); t.classList.add('on','link'); clearTimeout(toast.h);
   toast.h=setTimeout(()=>t.classList.remove('on','link'),20000);
 }
+// ฟอร์มจำใบล่าสุดไว้ในเครื่อง · ปุ่ม "เปิดฟอร์มใบยืนยัน (ใบใหม่)" ในระบบเปิด ?new=1 จึงต้องล้างเอง · ใบที่ยังไม่ได้บันทึกเข้าระบบถามก่อน
+const formSig = s => JSON.stringify([s.h, s.p, s.product, s.callouts, (s.imgs||[]).map(m=>m.src||m.path||'')]);
+const formHasData = s => !!String(s.h?.doc_no||s.h?.customer||'').trim();
+const newFormNeedsAsk = s => formHasData(s) && s.sent_sig !== formSig(s);
+function takeNewRequest(){
+  const q=new URLSearchParams(location.search);
+  if(!q.has('new')) return;
+  q.delete('new'); history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')+location.hash);
+  if(!formHasData(state)) return;
+  if(newFormNeedsAsk(state) && !confirm('ใบ '+(String(state.h.doc_no||'').trim()||'ที่กรอกค้างไว้')+' ยังไม่ได้บันทึกเข้าระบบ\nเริ่มใบใหม่ ข้อมูลใบนี้จะหาย ดำเนินการต่อ?')){
+    toast('เปิดใบเดิมที่ยังไม่ได้บันทึกไว้ให้ · จะเริ่มใบใหม่กด "ล้างฟอร์ม" ด้านบน'); return;
+  }
+  startOver(false);
+}
+
 // หน้าระบบกด "เปิดในฟอร์ม" (แก้ใบที่บันทึกไว้) → ใส่ข้อมูลไว้ใน INBOX แล้วเปิดหน้านี้
 function takeInbox(){
   let d=null; try{ d=JSON.parse(localStorage.getItem(INBOX)); localStorage.removeItem(INBOX); }catch(e){}
@@ -1610,7 +1762,8 @@ function takeInbox(){
   if(busy && !confirm('เปิดใบ '+(d.h?.doc_no||'')+' จากระบบ ข้อมูลที่กรอกอยู่ในฟอร์มจะถูกแทนที่ ดำเนินการต่อ?')) return;
   const label=d.from_job ? 'เปิดใบ '+(d.h?.doc_no||'')+' ของงานที่รับแล้ว · ลูกค้าขอแก้: แก้ข้อมูล ใส่ "แก้ไขครั้งที่" กด "บันทึกการแก้เข้างาน" แล้ว "ส่งออก PDF"'
     : 'เปิดใบ '+(d.h?.doc_no||'')+' จากระบบแล้ว · แก้แล้วกด "บันทึกเข้าระบบ" อีกครั้ง';
-  if(!loadData(d, label)) alert('ข้อมูลจากระบบไม่ใช่ใบยืนยันการผลิต');
+  if(!loadData(d, label)){ alert('ข้อมูลจากระบบไม่ใช่ใบยืนยันการผลิต'); return; }
+  state.sent_sig=formSig(state); save();
 }
 
 // กด Enter = ไปช่องถัดไป (กรอกตารางไซซ์ได้เร็ว) · กันล้อเมาส์เปลี่ยนตัวเลขโดยไม่ตั้งใจ
@@ -1673,7 +1826,7 @@ function validate(){
     if(bad) out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why, hard:s==='h'&&MUST_FILL.includes(f.id) });
   }); });
   if(state.h.issue_date&&state.h.due_date&&state.h.due_date<state.h.issue_date) out.push({id:'fld_h_due_date',sec:2,label:'ข้อมูลใบงาน › กำหนดส่งงาน',why:'อยู่ก่อนวันที่ออกใบ',hard:true});
-  if(state.h.sample_date&&state.h.due_date&&state.h.sample_date>state.h.due_date) out.push({id:'fld_h_sample_date',sec:2,label:'ข้อมูลใบงาน › วันนัดส่งตัวอย่าง',why:'อยู่หลังกำหนดส่งงาน',hard:true});
+  if(sampleDateShown(state.h)&&state.h.sample_date&&state.h.due_date&&state.h.sample_date>state.h.due_date) out.push({id:'fld_h_sample_date',sec:2,label:'ข้อมูลใบงาน › วันนัดส่งตัวอย่าง',why:'อยู่หลังกำหนดส่งงาน',hard:true});
   return out;
 }
 function markMissing(){ missing.forEach(m=>{ const el=document.getElementById(m.id); el?.classList.add('missing'); if(m.hard) el?.classList.add('hard'); }); }
@@ -1723,7 +1876,7 @@ function renderDoc(){
   const hk=(label,val,w)=>isNone(val)?'':`<div${w?' class="w"':''}><span>${label}</span><b>${esc(val)}</b></div>`;
   const hv=id=>h[id+'__na']?'':h[id];
   const hItems=[hk('ผู้ติดต่อ',hv('contact')), hk('เบอร์โทร',hv('phone')),
-    hk('วันที่ออกใบ',h.issue_date?thDate(h.issue_date):''), hk('วันนัดส่งตัวอย่าง',h.sample_date?thDate(h.sample_date):''),
+    hk('วันที่ออกใบ',h.issue_date?thDate(h.issue_date):''), hk('วันนัดส่งตัวอย่าง',sampleDateShown(h)&&h.sample_date?thDate(h.sample_date):''),
     hk('การรับสินค้า',h.delivery), hk('แอดมินผู้ดูแล',[hv('admin'),h.admin_phone].filter(x=>!isNone(x)).join(' · ')),
     needsAddress(h.delivery)?hk('ที่อยู่จัดส่ง',hv('address'),true):''].join('');
   let x=`<section class="ds">${hItems?`<div class="kv">${hItems}</div>`:''}
@@ -1840,6 +1993,7 @@ async function exportPdf(){
 document.getElementById('barLogo').src=COMPANY.logo;
 renderForm();
 refreshThumb();
+takeNewRequest();
 // ต้องอยู่ท้ายสุด: โหลดใบแล้ววาดฟอร์มทันที ค่าคงที่ที่ประกาศหลังจุดเรียกจะยังใช้ไม่ได้ (สคริปต์หยุดทั้งก้อน)
 takeInbox();
 </script>

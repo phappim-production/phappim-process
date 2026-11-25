@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase'
 import { thaiError } from './live'
 
-export type FileKind = 'confirmations' | 'mockups'
+export type FileKind = 'confirmations' | 'mockups' | 'station_photos'
 export type UploadResult = { ok: true } | { ok: false; reason: string }
 export type SignResult = { ok: true; urls: Map<string, string> } | { ok: false; reason: string }
 type Deps = { fetcher?: typeof fetch; wait?: (ms: number) => Promise<void>; once?: boolean }

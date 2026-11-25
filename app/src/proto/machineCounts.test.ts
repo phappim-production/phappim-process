@@ -81,10 +81,21 @@ describe('machineCounts (จัดจักรแบบตั้งจำนว�
 
 describe('ปุ่มบนหน้าจอ', () => {
   const ok = async () => ({ ok: true as const, text: '' })
-  const actions: SewActions = { report: ok, resume: ok, finish: ok, assign: ok, release: ok }
+  const actions: SewActions = { report: ok, resume: ok, finish: ok, assign: ok, release: ok, photo: ok }
   const sewing = (a?: SewActions, status: Job['status'] = 'doing') => renderToStaticMarkup(createElement(SewingNow, {
     jobs: [job('a', { status })], machines, now, onOpen: () => {}, actions: a,
   }))
+
+  it('เปิดใช้รูปแล้ว ยังไม่มีรูปงานเสร็จ: แท็บจักรเย็บมีช่องถ่ายรูป และปุ่มเย็บเสร็จบอกเหตุผลแทน', () => {
+    const photos = { station: 'sew' as const, needsFirstPiece: false, finishPhotos: 0, folder: 'SC-A', visit: 1, remindMinutes: 15 }
+    const gated = renderToStaticMarkup(createElement(SewingNow, { jobs: [job('a', { status: 'doing', photos })], machines, now, onOpen: () => {}, actions }))
+    expect(gated).toContain('ยังกดเย็บเสร็จไม่ได้: ถ่ายรูปงานเสร็จอย่างน้อย 1 รูป')
+    expect(gated).toContain('ถ่ายรูปงานเสร็จ')
+    expect(gated).not.toContain('>เย็บเสร็จ<')
+    const done = renderToStaticMarkup(createElement(SewingNow, { jobs: [job('a', { status: 'doing', photos: { ...photos, finishPhotos: 1 } })], machines, now, onOpen: () => {}, actions }))
+    expect(done).toContain('เย็บเสร็จ')
+    expect(done).not.toContain('ยังกดเย็บเสร็จไม่ได้')
+  })
 
   it('เริ่มเย็บงานที่ไม่ใช่คิวแรกต้องใส่เหตุผลก่อน (เหมือนสถานีอื่น) · คิวแรกหรือบันทึกเหตุผลมาแล้วไม่ต้อง', () => {
     const queue = [job('q1', { status: 'queued', queue: 1 }), job('q2', { status: 'queued', queue: 2 })]

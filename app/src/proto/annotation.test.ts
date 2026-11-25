@@ -146,6 +146,9 @@ describe('สเปก', () => {
   it('ค่าจากใบยืนยันตรงกับในฐานข้อมูล (ตำแหน่งไม่ใส่เทคนิค = ใช้เทคนิคเดียวของใบ)', () => {
     expect(refValue(spec, 'placement:หน้าอกซ้าย')).toBe('DTF · 8 × 8 ซม. · ห่างคอ 8 ซม.')
     expect(refValue(spec, 'placement:กลางหลัง')).toBe('ซับลิเมชั่น · 25 ซม.')
+    const other = { product: 'tshirt', p: { tshirt: { fabric: 'อื่นๆ', fabric__other: 'ผ้าไมโครพีช', fit: ['ทรงตรง', 'อื่นๆ'], fit__other: 'โอเวอร์ไซซ์' } } }
+    expect(refValue(other, 'field:fabric')).toBe('อื่นๆ: ผ้าไมโครพีช')
+    expect(refValue(other, 'field:fit')).toBe('ทรงตรง, อื่นๆ: โอเวอร์ไซซ์')
     expect(refValue(spec, 'placement:แขนซ้าย')).toBeNull()
     const sized = (size: string) => refValue({ ...spec, p: { tshirt: { placements: { 'อก': { on: true, tech: 'DTF', size } } } } }, 'placement:อก')
     expect(sized('8x8 ซม.')).toBe('DTF · 8x8 ซม.')
