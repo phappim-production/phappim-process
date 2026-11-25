@@ -627,7 +627,7 @@ function Station({ job: j, queueHead, detail: d, canPress, canResume, role, busy
                 </label>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <button type="button" disabled={busy || !holdText.trim()} className={dangerBtn}
-                    onClick={async () => { if (await act('open_issue', { p_reason: holdText.trim() }, 'พักงานแล้ว · เวลาที่พักไม่นับเป็นเวลาทำงาน')) setHoldText(null) }}>
+                    onClick={async () => { if (await act('open_issue', { p_reason: holdText.trim() }, 'พักงานแล้ว · เวลาผลิตทั้งงานยังนับต่อ แก้แล้วรีบทำต่อ')) setHoldText(null) }}>
                     {holdText.trim() ? <><IconPause className="size-5 shrink-0" /><Tr th="บันทึกพักงาน" /></> : <Tr th="กรอกสาเหตุก่อน" />}
                   </button>
                   <button type="button" className={secondaryBtn} onClick={() => setHoldText(null)}><Tr th="ยกเลิก" /></button>

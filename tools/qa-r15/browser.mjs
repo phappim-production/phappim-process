@@ -475,7 +475,7 @@ async function actionChecks() {
     await t.clickButton('พักงาน / ติดปัญหา')
     await t.fillInput('[role="dialog"] input:not([type])', 'หยุดเพื่อทดสอบ')
     await t.clickButton('บันทึกพักงาน')
-    await t.waitText('พักงานแล้ว · เวลาที่พักไม่นับเป็นเวลาทำงาน')
+    await t.waitText('พักงานแล้ว · เวลาผลิตทั้งงานยังนับต่อ')
     const [row] = await query('select station_status from jobs where id=$1', [cut4.id])
     assert.equal(row.station_status, 'hold')
     return row

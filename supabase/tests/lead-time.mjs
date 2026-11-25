@@ -62,6 +62,15 @@ export async function leadTimeTests({ db, ok }) {
     await db.query(`update public.jobs set phase = 'cancelled', station_seq = null, station_status = null where id = $1`, [cancelled])
     ok('งานที่ยกเลิกไม่มีเวลาผลิต', Object.keys(await at(cancelled, '2026-11-30')).length === 0)
 
+    const parent = await make('SC-LEAD-SPLIT', 300)
+    const part = await make('SC-LEAD-SPLIT-B', 300)
+    await db.query(`insert into public.events (job_id, type, payload) values ($1, 'job_split_from', '{"parent":"SC-LEAD-SPLIT"}')`, [part])
+    const before = await at(parent, '2026-11-14')
+    ok('งาน 600 ชิ้นแบ่งเป็น 300 + 300 ยังเป็น 15 วัน ครบ 18 พ.ย.', before.lead_days === 15 && before.lead_due === '2026-11-18' && !before.lead_over, JSON.stringify(before))
+    await db.query(`update public.jobs set phase = 'cancelled', station_seq = null, station_status = null where id = $1`, [part])
+    const after = await at(parent, '2026-11-14')
+    ok('ยกเลิกส่วนที่แบ่ง เวลาผลิตของส่วนที่เหลือไม่หดย้อนหลัง (ยัง 15 วัน ไม่เกิน)', after.lead_days === 15 && after.lead_due === '2026-11-18' && !after.lead_over, JSON.stringify(after))
+
     const overdue = await make('SC-LEAD-INBOX', 10)
     const fresh = await make('SC-LEAD-FRESH', 10)
     await db.query(`update public.jobs set created_at = now() - interval '40 days' where id = $1`, [overdue])

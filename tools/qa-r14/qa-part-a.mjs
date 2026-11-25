@@ -569,6 +569,7 @@ async function runA2(ctx) {
     await t.clickButton('พักงาน')
     await t.fillInput('input[placeholder*="ผ้าไม่พอ"]', 'ความร้อนรีดไม่นิ่ง')
     await t.clickButton('บันทึกพักงาน')
+    await t.waitText('พักงานแล้ว · เวลาผลิตทั้งงานยังนับต่อ')
     await t.waitText(/เครื่อง 0\/1[\s\n]+ว่าง 1/)
 
     await peer.goto('prod2', '#/board?station=press', 1440)
@@ -1019,6 +1020,7 @@ async function runA5(ctx) {
     await t.clickButton('พักงาน / ติดปัญหา')
     await t.fillInput('input[placeholder*="ผ้าไม่พอ"]', 'รอลูกค้าเปลี่ยนสี')
     await t.clickButton('บันทึกพักงาน')
+    await t.waitText('พักงานแล้ว · เวลาผลิตทั้งงานยังนับต่อ')
 
     await openJobDirect(t, 'admin1', outId)
     await t.clickButton('ส่งออกบริษัทภายนอก')

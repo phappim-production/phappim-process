@@ -211,7 +211,7 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
         </label>
         <div className="grid grid-cols-2 gap-2">
           <button type="button" disabled={busy || !reason.trim()} className={dangerBtn}
-            onClick={async () => { if (await run(j, steps, w('{no} พักงานแล้ว · เวลาที่พักไม่นับเป็นเวลาทำงาน', { no: j.no }))) { setMode(null); setReason('') } }}>
+            onClick={async () => { if (await run(j, steps, w('{no} พักงานแล้ว · เวลาผลิตทั้งงานยังนับต่อ แก้แล้วรีบทำต่อ', { no: j.no }))) { setMode(null); setReason('') } }}>
             <Tr th={reason.trim() ? 'บันทึกพักงาน' : 'กรอกสาเหตุก่อน'} />
           </button>
           <button type="button" disabled={busy} className={secondaryBtn} onClick={() => { setMode(null); setReason('') }}><Tr th="ยกเลิก" /></button>
