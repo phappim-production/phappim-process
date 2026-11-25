@@ -188,7 +188,7 @@ table.dt tfoot td{font-weight:700;background:#f7f8f6}
 .d-accept b{display:block;font-size:13px}
 .d-terms{margin:0;padding-left:18px;font-size:10.5px;line-height:1.45}
 .d-terms+.d-note{margin-top:6px}
-.sign{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}
+.sign{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:10px}
 .sign>div{border:1px solid #bfc5be;border-radius:5px;padding:7px;text-align:center;font-size:11.5px}
 .sign .t{font-weight:700;margin-bottom:24px}
 .sign .ln{border-bottom:1px dotted #777;margin:0 6px 4px;height:1px}
@@ -1996,7 +1996,9 @@ function renderDoc(){
     });
     // ภาพแยกออกจากกล่องหัวข้อ เพื่อให้ตัดหน้าระหว่างภาพได้ ไม่ดันทั้งหัวข้อไปหน้าใหม่
     if(imgs){ if(!imgs.includes('class="d-co"')) imgs+=`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`; mockNoted=true; }
-    if(body||imgs) x+=`<section class="ds"><h3>${++n}. ${esc(sec.title)}</h3>${body}</section>${imgs}`;
+    if(body) x+=`<section class="ds"><h3>${++n}. ${esc(sec.title)}</h3>${body}</section>`;
+    else if(imgs&&!forCustomer) x+=`<section class="ds"><h3>${++n}. ${esc(sec.title)}</h3></section>`;
+    x+=imgs;
   });
 
   const sig=t=>`<div><div class="t">${t}</div><div class="ln"></div>(.......................................)<br>วันที่ ....../....../......</div>`;
@@ -2005,7 +2007,7 @@ function renderDoc(){
     <ol class="d-terms">${TERMS.map(t=>`<li>${esc(t)}</li>`).join('')}</ol>
     <div class="d-note"><b>ข้อตกลง:</b> ลูกค้าตรวจสอบรายละเอียดทั้งหมดในใบนี้แล้ว ${state.h.sample===SAMPLE_YES?'ฝ่ายผลิตจะผลิตตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง':state.h.sample===SAMPLE_DEV?'งานนี้เป็นงาน Develop ฝ่ายผลิตทำตัวอย่างให้ลูกค้ายืนยัน งานจบที่ตัวอย่าง ไม่ผลิตจริง (ผลิตจริงต้องทำใบยืนยันใหม่)':'งานนี้ไม่ขึ้นตัวอย่าง ฝ่ายผลิตผลิตจริงตามใบนี้'}
     และผลิตตามรายละเอียดในใบนี้เท่านั้น <b>รายการที่ไม่ได้ระบุในใบนี้ถือว่าไม่มี / ไม่ต้องทำ</b> การแก้ไขหลังเซ็นต้องออกใบยืนยันฉบับใหม่ และอาจมีผลต่อกำหนดส่ง</div>
-    <div class="sign">${sig('ลูกค้ายืนยันรายละเอียด')}${sig('แอดมินผู้ทำใบ')}${sig('ผู้ควบคุมงาน (รับงานเข้าโรงงาน)')}</div></div>`;
+    <div class="sign">${sig('ลูกค้ายืนยันรายละเอียด')}${sig('ผู้ควบคุมงาน (รับงานเข้าโรงงาน)')}</div></div>`;
 
   // ใช้ thead ของตารางเป็นหัวกระดาษ: เบราว์เซอร์จะพิมพ์ thead ซ้ำทุกหน้าเมื่อเนื้อหายาวเกิน 1 หน้า
   $('#doc').innerHTML=`<table class="pg"><thead><tr><td>${head}</td></tr></thead><tbody><tr><td>${x}</td></tr></tbody></table>`;

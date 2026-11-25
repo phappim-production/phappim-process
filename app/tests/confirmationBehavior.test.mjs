@@ -297,3 +297,26 @@ test('ฟอร์มใบยืนยัน: ฝ่ายผลิตเปิ
   assert.match(doc, /ฉบับโรงงาน/)
   assert.match(doc, /เผื่อเสีย 7 ตัว/)
 })
+
+test('ฟอร์มใบยืนยัน: ใบลูกค้าไม่มีหัวข้อการเย็บ งานพิมพ์ / ตกแต่ง ไฟล์งาน · ภาพม็อคอัพยังพิมพ์ · ฉบับโรงงานมีครบ', () => {
+  const { api, els, s, v } = filled()
+  withFactoryDetails(v)
+  v.art_file = 'logo-final.ai'
+  s.imgs = [{ name: 'ด้านหน้า', src: 'data:image/png;base64,AA==', w: 4, h: 3 }]
+  const headings = () => [...els.get('#doc').innerHTML.matchAll(/<h3>\d+\. ([^<]*)<\/h3>/g)].map(m => m[1])
+  api.renderDoc()
+  assert.deepEqual(headings(), ['ผ้า', 'ไซซ์และจำนวน', 'แพ็คกิ้ง'])
+  assert.equal(els.get('#doc').innerHTML.includes('logo-final.ai'), false)
+  assert.match(els.get('#doc').innerHTML, /รูป 1 · ด้านหน้า/)
+  api.setViewOnly(true)
+  api.renderDoc()
+  for (const h of ['การเย็บ', 'งานพิมพ์ / ตกแต่ง', 'ไฟล์งานและหมายเหตุ']) assert.ok(headings().includes(h), h)
+  assert.match(els.get('#doc').innerHTML, /logo-final\.ai/)
+})
+
+test('ฟอร์มใบยืนยัน: ช่องเซ็นมีแค่ลูกค้า และผู้ควบคุมงาน (ไม่มีช่องแอดมินผู้ทำใบ)', () => {
+  const { api, els } = filled()
+  api.renderDoc()
+  const signs = [...els.get('#doc').innerHTML.matchAll(/<div class="t">([^<]*)<\/div>/g)].map(m => m[1])
+  assert.deepEqual(signs, ['ลูกค้ายืนยันรายละเอียด', 'ผู้ควบคุมงาน (รับงานเข้าโรงงาน)'])
+})
