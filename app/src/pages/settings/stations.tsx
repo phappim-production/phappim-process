@@ -2,42 +2,36 @@ import { SECTION_LABELS, type Section } from '../../auth/access'
 import { secondaryBtn } from '../../components/Dialog'
 import { Card, CardHeader, Pill } from '../../components/ui'
 import { KIND_LABEL, type Substep } from '../../data/stationSteps'
-import { saveSegment, saveStation, type Loaded } from './data'
+import { LEAD_RULES, LEAD_WARN_RATIO } from '../../proto/leadTime'
+import { saveStation, type Loaded } from './data'
 import { StationPhotoSettings } from './photos'
 import { Collection, SelectField, TextField, type Controls } from './editor'
-import {
-  EDITABLE_KINDS, isProtectedStep, moveStep, nextStepKey, readSla, readStation, requireText, slaDraft,
-  type Sla, type SlaDraft, type StationDraft,
-} from './model'
+import { EDITABLE_KINDS, isProtectedStep, moveStep, nextStepKey, readStation, type StationDraft } from './model'
 
-type TabProps<T extends 'stations' | 'segments'> = { data: Loaded<T>; controls: Controls }
+type TabProps<T extends 'stations'> = { data: Loaded<T>; controls: Controls }
 
-const number = new Intl.NumberFormat('th-TH', { maximumFractionDigits: 1 })
-const labelDays = (value: number | null) => value === null ? 'ไม่จับเวลา' : `${number.format(value)} วันทำงาน`
+const number = new Intl.NumberFormat('th-TH')
 
-function SlaSummary({ sla }: { sla: Sla }) {
+export function LeadTimeTab() {
   return (
-    <p className="mt-1 text-muted">
-      {labelDays(sla.sla_days)} · เตือนที่ {sla.warn_pct}%
-      {sla.big_qty !== null && ` · ตั้งแต่ ${number.format(sla.big_qty)} ชิ้น: ${labelDays(sla.big_sla_days)}`}
-    </p>
-  )
-}
-
-function SlaFields<T extends SlaDraft>({ draft, change, required = false }: {
-  draft: T; change: (draft: T) => void; required?: boolean
-}) {
-  return (
-    <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-      <TextField label="เวลามาตรฐาน (วันทำงาน)" mode="decimal" value={draft.days}
-        placeholder={required ? 'เช่น 3' : 'เว้นว่างเพื่อไม่จับเวลา'} onChange={days => change({ ...draft, days })} />
-      <TextField label="เตือนเมื่อใช้เวลา (%)" mode="numeric" value={draft.warn}
-        onChange={warn => change({ ...draft, warn })} />
-      <TextField label="งานใหญ่เริ่มที่ (ชิ้น)" mode="numeric" value={draft.bigQty}
-        placeholder="เว้นว่างเมื่อไม่มีเกณฑ์งานใหญ่" onChange={bigQty => change({ ...draft, bigQty })} />
-      <TextField label="เวลามาตรฐานงานใหญ่ (วันทำงาน)" mode="decimal" value={draft.bigDays}
-        placeholder="เว้นว่างเพื่อไม่จับเวลางานใหญ่" onChange={bigDays => change({ ...draft, bigDays })} />
-    </div>
+    <Card className="min-w-0">
+      <CardHeader title="เวลาผลิตทั้งงาน" sub="ทุกงานต้องผ่านครบทุกสถานีภายในเวลานี้ · กำหนดตามจำนวนในใบยืนยัน (ไม่รวมชิ้นเผื่อเสีย)" />
+      <ul className="divide-y divide-line border-t border-line">
+        {LEAD_RULES.map(rule => (
+          <li key={rule.days} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-5">
+            <span className="font-semibold">{number.format(rule.from)}{rule.to === null ? ' ชิ้นขึ้นไป' : `–${number.format(rule.to)} ชิ้น`}</span>
+            <Pill tone="brand">{rule.days} วันทำงาน</Pill>
+          </li>
+        ))}
+      </ul>
+      <ul className="grid list-disc gap-1 border-t border-line py-4 pr-4 pl-9 text-muted sm:pr-5">
+        <li>นับวันที่แอดมินรับงานเข้าโรงงานเป็นวันที่ 1 · ไม่นับวันอาทิตย์ · ใช้วันที่ตามเวลาไทย</li>
+        <li>รวมทุกช่วง: ขึ้นตัวอย่าง ส่งบริษัทภายนอก เวลาพักงาน และรออนุมัติชิ้นแรก</li>
+        <li>ใช้ไป {LEAD_WARN_RATIO * 100}% การ์ดเป็นสีส้ม · เกินวันที่ต้องเสร็จ การ์ดเป็นสีแดงและแจ้งเตือนฝ่ายผลิต แอดมิน ผู้บริหาร</li>
+        <li>งานที่เกินเวลาต้องส่งรายงานสาเหตุก่อนกด QC + Packing เสร็จ</li>
+        <li>งานที่แบ่งใบใช้วันรับงานและจำนวนรวมของงานแม่ · งาน Develop ไม่มีเวลาผลิต</li>
+      </ul>
+    </Card>
   )
 }
 
@@ -50,21 +44,17 @@ export function StationsTab({ data, controls }: TabProps<'stations'>) {
         ระบบไม่บังคับติ๊กขั้นย่อยแล้ว หน้างานกดแค่ เริ่ม → เสร็จ · ขั้นย่อยเก็บไว้อ้างอิง ยกเว้นขั้น &quot;ได้รับฟิล์ม&quot; ที่แอดมินต้องบันทึกก่อนเริ่มรีดฟิล์ม
       </p>
       <Collection controls={controls} group="stations" title="สถานีและขั้นย่อย"
-        subtitle="กำหนดเฟสและเวลามาตรฐานของแต่ละสถานี · ขั้นย่อยใช้อ้างอิง"
+        subtitle="กำหนดเฟสและจำนวนเครื่องของแต่ละสถานี · ขั้นย่อยใช้อ้างอิง"
         list={data.stations} identify={station => station.code}
         row={station => (
-          <>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold">{station.name}</span>
-              <Pill tone="neutral">เฟส {station.section}</Pill>
-              <Pill tone="neutral">{station.substeps.length} ขั้นย่อย</Pill>
-              <Pill tone={station.machines ? 'brand' : 'neutral'}>{station.machines ? `${station.machines} เครื่อง` : 'ไม่จำกัดเครื่อง'}</Pill>
-            </div>
-            <SlaSummary sla={station} />
-          </>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">{station.name}</span>
+            <Pill tone="neutral">เฟส {station.section}</Pill>
+            <Pill tone="neutral">{station.substeps.length} ขั้นย่อย</Pill>
+            <Pill tone={station.machines ? 'brand' : 'neutral'}>{station.machines ? `${station.machines} เครื่อง` : 'ไม่จำกัดเครื่อง'}</Pill>
+          </div>
         )}
         draft={(station): StationDraft => ({
-          ...slaDraft(station ?? { sla_days: null, warn_pct: 80, big_qty: null, big_sla_days: null }),
           name: station?.name ?? '', section: station?.section ?? 1, substeps: station?.substeps ?? [],
           machines: station?.machines ? String(station.machines) : '', machine_pool: station?.machine_pool ?? '',
         })}
@@ -82,7 +72,6 @@ export function StationsTab({ data, controls }: TabProps<'stations'>) {
                 placeholder="เช่น heat_press" onChange={machine_pool => change({ ...draft, machine_pool })} />
             </div>
             <p className="text-sm text-muted">เครื่องเต็มแล้วหน้างานเริ่มงานใหม่ไม่ได้ · งานที่พักไม่นับว่าใช้เครื่อง</p>
-            <SlaFields draft={draft} change={change} />
             <StepFields steps={draft.substeps} change={substeps => change({ ...draft, substeps })} />
           </>
         )}
@@ -153,38 +142,5 @@ function StepFields({ steps, change }: { steps: Substep[]; change: (steps: Subst
       <button type="button" className={`${secondaryBtn} justify-self-start`}
         onClick={() => change([...steps, { key: nextStepKey(steps, crypto.randomUUID()), name: '', kind: 'req' }])}>เพิ่มขั้นย่อย</button>
     </div>
-  )
-}
-
-export function SegmentsTab({ data, controls }: TabProps<'segments'>) {
-  const routeName = new Map(data.routes.map(route => [route.code, route.name]))
-  const stationName = new Map(data.stations.map(station => [station.code, station.name]))
-
-  return (
-    <Collection controls={controls} group="segments" title="เวลามาตรฐานของช่วง"
-      subtitle="กำหนดเวลารวมของสถานีที่ต่อกันในแต่ละเส้นทางผลิต"
-      list={data.segments} identify={segment => segment.code}
-      row={segment => (
-        <>
-          <p className="font-semibold">{segment.name} · {routeName.get(segment.route_code) ?? segment.route_code}</p>
-          <p className="mt-1 text-muted">
-            {stationName.get(segment.from_station) ?? segment.from_station} → {stationName.get(segment.to_station) ?? segment.to_station}
-          </p>
-          <SlaSummary sla={segment} />
-        </>
-      )}
-      draft={segment => ({
-        ...slaDraft(segment ?? { sla_days: null, warn_pct: 80, big_qty: null, big_sla_days: null }), name: segment?.name ?? '',
-      })}
-      fields={(draft, change) => (
-        <>
-          <TextField label="ชื่อช่วง" value={draft.name} onChange={name => change({ ...draft, name })} />
-          <SlaFields draft={draft} change={change} required />
-        </>
-      )}
-      save={async (segment, draft) => {
-        if (!segment) throw new Error('ไม่พบช่วงการผลิต')
-        await saveSegment(segment.code, { name: requireText(draft.name, 'ชื่อช่วง'), ...readSla(draft, true) })
-      }} />
   )
 }

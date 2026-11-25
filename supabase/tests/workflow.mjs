@@ -116,7 +116,7 @@ export async function workflowTests({ db, ok, as }) {
   ok('ผ่าน → ผลิตจริงที่สถานีแรก', a.phase === 'production' && a.current_station === 'print' && a.sample_round === 2)
   ok('ประวัติผลตัวอย่างครบ 2 รอบ', (await db.query(`select count(*)::int n from public.sample_results where job_id = '${A}'`)).rows[0].n === 2)
 
-  // กฎข้อ 10: ช่วงพิมพ์+รีด+ตัด
+  // กฎข้อ 10: เวลาผลิตทั้งงาน
   await station(A, await PROD('print'))
   await station(A, await PROD('press'))
   await call(U.sup, `public.start_station('${A}')`)
@@ -124,16 +124,13 @@ export async function workflowTests({ db, ok, as }) {
   await reject('ขั้น [กรอกค่า] ต้องเป็นตัวเลข', U.sup, `public.complete_substep('${A}', 'sort_count', '"สิบ"'::jsonb)`, /ต้องกรอกตัวเลข/)
   await tick(A, await PROD('cut'))
   ok('จำนวนชิ้นตัดบันทึกลงงาน', (await job(A)).cut_count === 10)
-  // จำลองว่าเริ่มพิมพ์มา 5 วันแล้ว (ช่วงพิมพ์+รีด+ตัดเกิน 3 วัน) แต่สถานีตัดยังไม่เกิน
-  await db.exec(`insert into public.events (job_id, type, phase, station_code, at) values ('${A}', 'station_start', 'production', 'print', now() - interval '5 days')`)
+  await db.exec(`update public.jobs set created_at = now() - interval '40 days' where id = '${A}'`)
   a = await job(A)
-  ok('สถานะเวลา: ช่วงพิมพ์+รีด+ตัดเกินมาตรฐาน', a.sla.segment_over === true && a.sla.segment_code === 'subli_ppc', JSON.stringify(a.sla))
-  await reject('กฎ 10: ช่วงเกินเวลา ยังไม่รายงาน กดเสร็จไม่ได้', U.sup, `public.finish_station('${A}')`, /พิมพ์ \+ รีด \+ ตัด เกินเวลามาตรฐาน/)
+  ok('เวลาผลิต: งาน 10 ชิ้น = 10 วันทำงาน · รับงานมา 40 วัน = เกิน', a.sla.lead_days === 10 && a.sla.lead_over === true && a.sla.lead_reported === false, JSON.stringify(a.sla))
   await reject('รายงานปัญหา: รหัสสาเหตุผิดไม่ได้', U.sup, `public.submit_delay_report('${A}', array['ZZ'], 'x', now() + interval '1 day')`, /รหัสสาเหตุไม่ถูกต้อง/)
   await reject('รายงานปัญหา: ไม่อธิบายไม่ได้', U.sup, `public.submit_delay_report('${A}', array['M1'], '  ', now() + interval '1 day')`, /ต้องอธิบาย/)
   await reject('รายงานปัญหา: วันเสร็จใหม่ต้องอยู่ในอนาคต', U.sup, `public.submit_delay_report('${A}', array['M1'], 'เครื่องเสีย', now() - interval '1 hour')`, /คาดว่าจะเสร็จใหม่/)
-  await pass('รายงานปัญหาครบ', U.sup, `public.submit_delay_report('${A}', array['M1','P1'], 'เครื่องพิมพ์เสีย 2 วัน', now() + interval '1 day', 'ช่างซ่อม')`)
-  await pass('กฎ 10: รายงานแล้วกดเสร็จได้', U.sup, `public.finish_station('${A}')`)
+  await pass('กฎ 10: เกินเวลาผลิต สถานีกลางทางยังกดเสร็จได้', U.sup, `public.finish_station('${A}')`)
 
   // กฎข้อ 7: เย็บ
   await call(U.sup, `public.start_station('${A}')`)
@@ -164,8 +161,10 @@ export async function workflowTests({ db, ok, as }) {
   await reject('กฎ 5: QC ผ่านยังไม่ครบจำนวน กดเสร็จไม่ได้', U.qc, `public.finish_station('${A}')`, /ตรวจ/)
   await reject('กฎ 5: ข้อความบอกยอด QC ผ่าน/ทั้งหมด ไม่ใช้คำว่าขั้นย่อย', U.qc, `public.finish_station('${A}')`, /^(?!.*ขั้นย่อย).*QC ตรวจผ่าน \d+\/\d+ ชิ้น ยังไม่ครบ/)
   await call(U.qc, `public.record_qc('${A}', 3)`)
+  await reject('กฎ 10: เกินเวลาผลิต ยังไม่รายงาน กด QC + Packing เสร็จไม่ได้', U.qc, `public.finish_station('${A}')`, /เกินเวลาผลิต 10 วันทำงาน .*ส่งรายงานสาเหตุ/)
+  await pass('รายงานปัญหาครบ', U.qc, `public.submit_delay_report('${A}', array['M1','P1'], 'เครื่องพิมพ์เสีย 2 วัน', now() + interval '1 day', 'ช่างซ่อม')`)
   // QC ผ่านครบแล้ว ไม่ต้องติ๊กขั้นอื่นก็กดเสร็จได้
-  await pass('QC ครบ กดเสร็จ', U.qc, `public.finish_station('${A}')`)
+  await pass('QC ครบ รายงานแล้ว กดเสร็จ', U.qc, `public.finish_station('${A}')`)
   a = await job(A)
   ok('งานเสร็จ: phase done · ล้างป้ายงานแก้ · มีเวลาเสร็จ', a.phase === 'done' && !a.is_rework && a.finished_at !== null && a.qc_passed === 10)
   const types = (await db.query(`select type from public.events where job_id = '${A}'`)).rows.map(r => r.type)
@@ -189,24 +188,19 @@ export async function workflowTests({ db, ok, as }) {
   await call(U.admin, `public.record_sample_result('${B}', true)`)
   await call(U.sup, `public.start_station('${B}')`)
   await tick(B, await PROD('cut'))
-  // ตัดไม่จับเวลารายสถานีตาม SOP จริง (คุมทั้งช่วง) → ตั้งเวลามาตรฐานสั้นๆ เพื่อทดสอบกลไกกฎ 10 ระดับสถานี
-  await db.exec(`update public.stations set sla_days = 1 where code = 'cut'`)
-  await db.exec(`update public.jobs set station_started_at = now() - interval '5 days' where id = '${B}'`)
-  let b = await job(B)
-  ok('สถานะเวลา: สถานีตัดเกินมาตรฐาน 1 วัน', b.sla.station_over === true && b.sla.station_sla_days == 1, JSON.stringify(b.sla))
-  ok('งาน DTF ไม่อยู่ในช่วงพิมพ์+รีด+ตัด', b.sla.segment_code === undefined)
-  await reject('กฎ 10: สถานีเกินเวลา ยังไม่รายงาน กดเสร็จไม่ได้', U.sup, `public.finish_station('${B}')`, /เกินเวลามาตรฐานของสถานีนี้/)
   // การ์ดบนบอร์ดใช้ job_sla_flags · ค่าต้องตรงกับที่ใช้บล็อกปุ่มเสร็จ
   const flagOf = async (uid, id) => (await q(uid, `select * from public.job_sla_flags() where job_id = '${id}'`))[0]
   let flag = await flagOf(U.qc, B)
-  ok('การ์ด: เกินเวลา ยังไม่รายงาน = แดงต้องรายงาน', flag?.over === true && flag?.need_report === true, JSON.stringify(flag))
-  ok('การ์ด: ไม่ส่งงานที่ยังไม่เริ่ม', (await q(U.qc, `select count(*)::int n from public.job_sla_flags() f join public.jobs j on j.id = f.job_id where j.station_status = 'queued'`))[0].n === 0)
+  ok('การ์ด: งานเพิ่งรับ ยังไม่เตือน', flag?.warn === false && flag?.over === false && flag?.lead_days === 10, JSON.stringify(flag))
+  await db.exec(`update public.jobs set created_at = now() - interval '40 days' where id = '${B}'`)
+  flag = await flagOf(U.qc, B)
+  ok('การ์ด: เกินเวลาผลิต ยังไม่รายงาน = แดงต้องรายงาน', flag?.over === true && flag?.need_report === true, JSON.stringify(flag))
   await reject('การ์ด: ไม่ล็อกอินอ่านสถานะเวลาไม่ได้', U.nobody, `public.job_sla_flags()`, /ต้องเข้าสู่ระบบ/)
+  await pass('เกินเวลาผลิต สถานีตัดยังกดเสร็จได้ (บังคับรายงานที่ QC + Packing)', U.sup, `public.finish_station('${B}')`)
   await call(U.sup, `public.submit_delay_report('${B}', array['W1'], 'ผ้ามาช้า', now() + interval '2 hours')`)
   flag = await flagOf(U.prod, B)
   ok('การ์ด: รายงานแล้ว ยังเกินแต่ไม่ต้องรายงานซ้ำ', flag?.over === true && flag?.need_report === false, JSON.stringify(flag))
-  await pass('กฎ 10: รายงานแล้วกดเสร็จได้', U.sup, `public.finish_station('${B}')`)
-  ok('รายงานของสถานีก่อนไม่ติดไปสถานีถัดไป', (await job(B)).sla.station_reported === undefined)
+  ok('รายงานแล้วนับทั้งงาน ไม่ใช่แค่สถานีที่รายงาน', (await job(B)).sla.lead_reported === true)
 
   // กฎข้อ 9: พักงาน + เวลาพักไม่นับ
   const C = await newJob('SC-C', 'plain')
@@ -227,15 +221,9 @@ export async function workflowTests({ db, ok, as }) {
   ok('แก้แล้วกลับสถานะเดิม (รอคิว)', (await job(C)).station_status === 'queued')
   await call(U.sup, `public.start_station('${C}')`)
   await tick(C, await PROD('cut'))
-  // เริ่มตัดมา 2 วัน แต่พักงาน (มีสาเหตุ) เกือบตลอด → เวลาทำงานจริงไม่ถึง 1 วัน ไม่ต้องรายงาน
-  await db.exec(`
-    update public.jobs set station_started_at = now() - interval '2 days' where id = '${C}';
-    insert into public.issues (job_id, station_code, reason, opened_at, closed_at, prev_status)
-      values ('${C}', 'cut', 'ไฟดับ', now() - interval '2 days', now() - interval '1 minute', 'doing');`)
   const c = await job(C)
-  ok('กฎ 9: เวลาพักไม่นับเป็นเวลาทำงาน', c.sla.station_over === false && Number(c.sla.station_days) < 0.01, JSON.stringify(c.sla))
+  ok('งานที่เพิ่งรับ ยังไม่ถึงเวลาเตือน', c.sla.lead_warn === false && c.sla.lead_over === false && c.sla.lead_used >= 0, JSON.stringify(c.sla))
   await pass('ไม่เกินเวลา กดเสร็จได้โดยไม่ต้องรายงาน', U.sup, `public.finish_station('${C}')`)
-  await db.exec(`update public.stations set sla_days = null where code = 'cut'`)
 
   ok('ผู้บริหารอ่านภาพรวมงานได้', (await q(U.mgr, `select id from public.job_live`)).length >= 3)
   ok('ผู้ใช้ไม่มีบทบาทอ่านภาพรวมงานไม่ได้', (await q(U.nobody, `select id from public.job_live`)).length === 0)

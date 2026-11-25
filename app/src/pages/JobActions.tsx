@@ -11,12 +11,13 @@ import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
 import { DEPT_NAME, OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, stationNo, usesFilm, type Dept, type Job, type StationCode, type Vendor } from '../proto/model'
 import { OutsourcePanel } from './OutsourcePanel'
 import { FilePick } from '../components/FilePick'
-import { relDayWord, slaAmountWord, spaced, wholeCount } from '../proto/format'
+import { relDayWord, spaced, wholeCount } from '../proto/format'
+import { leadDueDate } from '../proto/leadTime'
 import { requestSlot } from '../data/requestId'
 import { reasonCodes, stationInfo } from '../data/lookups'
 import { touchJob } from '../data/jobKey'
 import { bookingDay } from '../proto/sewing'
-import { canCancelJob, canCloseIssue, type EmployeeRole } from '../auth/access'
+import { canCancelJob, canCloseIssue, canReportDelay, type EmployeeRole } from '../auth/access'
 import { Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconAlert, IconCheck, IconClock, IconFilm, IconPackage, IconPause, IconPlay } from '../components/icons'
@@ -32,12 +33,12 @@ import { RevisionBanner, ViewConfirmation } from './Revision'
 
 type Material = { id: number; name: string; dept: Dept; key: string | null; checked_at: string | null }
 type Reason = { code: string; grp: string; name: string }
-type Sla = {
-  station_sla_days?: number; station_days?: number; station_warn?: boolean; station_over?: boolean; station_reported?: boolean
-  segment_name?: string; segment_sla_days?: number; segment_days?: number; segment_warn?: boolean; segment_over?: boolean; segment_reported?: boolean
+type Lead = {
+  lead_qty?: number; lead_days?: number; lead_start?: string; lead_due?: string; lead_used?: number
+  lead_warn?: boolean; lead_over?: boolean; lead_reported?: boolean
 }
 type Detail = {
-  qcPassed: number; sla: Sla; filmOrdered: boolean; pdfPath: string | null
+  qcPassed: number; sla: Lead; filmOrdered: boolean; pdfPath: string | null
   materials: Material[]; steps: Substep[]; done: Map<string, unknown>; reasons: Reason[]
 }
 type Notice = { ok: boolean; text: Word } | null
@@ -54,7 +55,7 @@ async function loadDetail(id: string, station: StationCode | undefined, phase: J
   ])
   const failed = [live, materials].find(r => r.error)
   if (failed?.error) throw new Error(failed.error.message)
-  const row = live.data as { visit: number; qc_passed: number; sla: Sla | null; dtf_film_ordered_at: string | null; confirmation_pdf_path: string | null }
+  const row = live.data as { visit: number; qc_passed: number; sla: Lead | null; dtf_film_ordered_at: string | null; confirmation_pdf_path: string | null }
   const subs = await supabase.from('job_substeps').select('substep_key, value').eq('job_id', id).eq('visit', row.visit)
   if (subs.error) throw new Error(subs.error.message)
   return {
@@ -135,9 +136,9 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
           onSave={(pass, note, day) => act('record_sample_result', { p_pass: pass, p_note: note || null, p_customer_confirmed_at: day || null },
             pass ? (j.develop ? 'ตัวอย่างผ่าน · งาน Develop เสร็จแล้ว (ไม่ผลิตจริง) · บันทึกจัดส่งเมื่อส่งตัวอย่างให้ลูกค้า' : 'ตัวอย่างผ่าน · งานไปผลิตจริงที่สถานีแรก') : `ตัวอย่างไม่ผ่าน · ขึ้นตัวอย่างรอบ ${j.sampleRound + 1}`)} />
       )}
+      {j.phase !== 'done' && <LeadPanel lead={d.sla} canReport={canReportDelay(role)} reasons={d.reasons} busy={busy} now={now} act={act} />}
       {inStation && st === 'sew' && (<>
-        {(d.sla.station_over || d.sla.segment_over || d.sla.station_warn || d.sla.segment_warn) && <SlaBanner sla={d.sla} />}
-        <Section title="เย็บงาน"><p className="text-muted"><Tr th="เริ่มเย็บ จัดการจักร และเย็บเสร็จ กดที่แท็บ จักรเย็บ · เกินเวลามาตรฐานให้ส่งรายงานปัญหาด้านล่างก่อนกดเย็บเสร็จ" /></p>
+        <Section title="เย็บงาน"><p className="text-muted"><Tr th="เริ่มเย็บ จัดการจักร และเย็บเสร็จ กดที่แท็บ จักรเย็บ" /></p>
           {j.status === 'doing' && j.photos && (
             <div className="mt-3">
               <StationPhotoPanel job={j} gate={j.photos} canSend={canStation} now={now}
@@ -146,7 +147,6 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
             </div>
           )}
         </Section>
-        {j.phase === 'production' && canStation && <SlaReport sla={d.sla} reasons={d.reasons} busy={busy} now={now} act={act} />}
       </>)}
       {inStation && st !== 'sew' && (
         <Station job={j} queueHead={queueHead} detail={d} canPress={canStation} canResume={canCloseIssue(role, st)} role={role} busy={busy} now={now} act={act} />
@@ -546,8 +546,8 @@ function Station({ job: j, queueHead, detail: d, canPress, canResume, role, busy
     filmReceived: !!j.film?.received, qcPassed: d.qcPassed, qty: j.qty,
   }
   const missing = missingSteps(d.steps, ctx)
-  const s = d.sla
-  const needReport = (s.station_over && !s.station_reported) || (s.segment_over && !s.segment_reported)
+  const sample = j.phase === 'sample'
+  const needReport = st === 'qc_pack' && !sample && !!d.sla.lead_over && !d.sla.lead_reported
   const name = STATION_NAME[st]
   const before: Word = { th: spaced(name).trimEnd() }
   const after: Word = { th: spaced(name).trimStart() }
@@ -558,16 +558,12 @@ function Station({ job: j, queueHead, detail: d, canPress, canResume, role, busy
   const photoWait = photoBlock(j.photos)
   const blocks: Word[] = [...missing.map(missingText), ...(needsRevisionAck(j) ? [{ th: 'กด "รับทราบใบแก้" ก่อน' }] : []), ...(photoWait ? [{ th: photoWait }] : [])]
   const finishBlock: Word | null = blocks.length ? { th: 'ยังกดเสร็จไม่ได้: {list}', vars: { list: blocks } }
-    : needReport ? { th: 'เกินเวลามาตรฐาน ต้องส่งรายงานปัญหาก่อน' } : null
-  const sample = j.phase === 'sample'
+    : needReport ? { th: 'เกินเวลาผลิต ต้องส่งรายงานสาเหตุก่อน' } : null
   const noFilm = st === 'dtf_press' && !j.film?.received
   const no = stationNo(st)
 
   return (
     <>
-      {(s.station_over || s.segment_over || s.station_warn || s.segment_warn) && (
-        <SlaBanner sla={s} />
-      )}
       <Section title={{ th: '{sample}{station}{rework}', vars: { sample: sample ? { th: 'ขึ้นตัวอย่าง · ' } : '', station: { th: name }, rework: j.rework ? { th: ' · งานแก้' } : '' } }}>
         {!canPress && !(canResume && j.status === 'hold') && <p className="mb-3 text-sm text-muted">{t(role === 'qc' ? 'ฝ่าย QC กดได้เฉพาะสถานี QC + Packing' : role === 'staff' ? 'งานนี้ไม่ได้อยู่สถานีของคุณ กดได้เฉพาะสถานีที่จับคู่ไว้' : 'บทบาทนี้ดูได้อย่างเดียว')}</p>}
 
@@ -640,39 +636,40 @@ function Station({ job: j, queueHead, detail: d, canPress, canResume, role, busy
             )
         )}
       </Section>
-      {j.phase === 'production' && canPress && <SlaReport sla={s} reasons={d.reasons} busy={busy} now={now} act={act} />}
     </>
   )
 }
 
-function SlaReport({ sla: s, reasons, busy, now, act }: { sla: Sla; reasons: Reason[]; busy: boolean; now: Date; act: Act }) {
+function LeadPanel({ lead: s, canReport, reasons, busy, now, act }: { lead: Lead; canReport: boolean; reasons: Reason[]; busy: boolean; now: Date; act: Act }) {
   const [reportRequest] = useState(requestSlot)
-  const needReport = (s.station_over && !s.station_reported) || (s.segment_over && !s.segment_reported)
-  if (!needReport && !s.station_warn && !s.segment_warn) return null
+  if (!s.lead_warn && !s.lead_over) return null
   return (
-    <DelayReport reasons={reasons} busy={busy} now={now} required={!!needReport}
-      onSend={async (codes, detail, eta, help) => {
-        const ok = await act('submit_delay_report', {
-          p_reasons: codes, p_detail: detail, p_new_eta: eta.toISOString(), p_need_help: help || null, p_request: reportRequest.idFor(JSON.stringify([codes, detail, eta.toISOString(), help])),
-        }, 'ส่งรายงานปัญหาแล้ว')
-        if (ok) reportRequest.clear()
-        return ok
-      }} />
+    <>
+      <LeadBanner lead={s} />
+      {canReport && (
+        <DelayReport reasons={reasons} busy={busy} now={now} required={!!s.lead_over && !s.lead_reported}
+          onSend={async (codes, detail, eta, help) => {
+            const ok = await act('submit_delay_report', {
+              p_reasons: codes, p_detail: detail, p_new_eta: eta.toISOString(), p_need_help: help || null, p_request: reportRequest.idFor(JSON.stringify([codes, detail, eta.toISOString(), help])),
+            }, 'ส่งรายงานปัญหาแล้ว')
+            if (ok) reportRequest.clear()
+            return ok
+          }} />
+      )}
+    </>
   )
 }
 
-function SlaBanner({ sla: s }: { sla: Sla }) {
-  const t = useT()
-  const over = s.station_over || s.segment_over
-  const lines: Word[] = []
-  if (s.segment_name && s.segment_sla_days) lines.push({ th: 'ช่วง{name}: ใช้ไป {used} จาก {limit}', vars: { name: s.segment_name, used: slaAmountWord(Number(s.segment_days ?? 0)), limit: slaAmountWord(Number(s.segment_sla_days)) } })
-  if (s.station_sla_days) lines.push({ th: 'สถานีนี้: ใช้ไป {used} จาก {limit}', vars: { used: slaAmountWord(Number(s.station_days ?? 0)), limit: slaAmountWord(Number(s.station_sla_days)) } })
+function LeadBanner({ lead: s }: { lead: Lead }) {
+  const over = !!s.lead_over
+  const due = s.lead_due ? leadDueDate(s.lead_due) : null
   return (
     <p role={over ? 'alert' : 'status'} className={`flex items-start gap-2 rounded-xl px-3 py-2 font-medium ${over ? 'bg-danger-soft text-danger' : 'bg-warn-soft text-warn'}`}>
       <IconAlert className="mt-0.5 size-5 shrink-0" />
       <span className="grid gap-0.5">
-        <Tr th={over ? 'เกินเวลามาตรฐาน' : 'ใกล้ครบเวลามาตรฐาน'} />
-        {lines.map((l, i) => <span key={i} className="text-sm">{t(l.th, l.vars)}</span>)}
+        <Tr th={over ? 'เกินเวลาผลิต' : 'ใกล้ครบเวลาผลิต'} />
+        {due && <span className="text-sm"><Tr inline th="จำนวน {qty} · เวลาผลิต {days} วันทำงาน · ต้องเสร็จภายใน {due}" vars={{ qty: (s.lead_qty ?? 0).toLocaleString('th-TH'), days: s.lead_days ?? 0, due: { at: due } }} /></span>}
+        <span className="text-sm"><Tr inline th="ใช้ไปแล้ว {used} วันทำงาน (นับวันรับงานเป็นวันที่ 1 ไม่นับวันอาทิตย์)" vars={{ used: s.lead_used ?? 0 }} /></span>
       </span>
     </p>
   )
@@ -745,7 +742,7 @@ function DelayReport({ reasons, busy, now, required, onSend }: {
   const block = !codes.length ? 'เลือกรหัสสาเหตุอย่างน้อย 1 ข้อ' : !detail.trim() ? 'อธิบายว่าเกิดอะไรขึ้น' : !eta ? 'เลือกวันที่คาดว่าเสร็จ (วันนี้หรือหลังจากนี้)' : null
   const groups = [...new Set(reasons.map(r => r.grp))]
   return (
-    <Section id={DELAY_REPORT_ID} title={required ? 'ต้องส่งรายงานปัญหาก่อนกดเสร็จ' : 'รายงานปัญหาล่วงหน้า'} icon={<IconAlert className="size-5" />} tone={required ? 'danger' : 'warn'}>
+    <Section id={DELAY_REPORT_ID} title={required ? 'ต้องส่งรายงานสาเหตุก่อนกด QC + Packing เสร็จ' : 'รายงานปัญหาล่วงหน้า'} icon={<IconAlert className="size-5" />} tone={required ? 'danger' : 'warn'}>
       <div className="grid gap-3">
         {groups.map(g => (
           <fieldset key={g}>

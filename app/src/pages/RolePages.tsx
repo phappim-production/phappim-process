@@ -29,7 +29,7 @@ function JobRow({ job: j, now, onOpen, children }: { job: Job; now: Date; onOpen
             {j.station && <Pill tone="neutral">{t(STATION_NAME[j.station])}</Pill>}
             {j.status && <Pill tone={j.status === 'hold' ? 'danger' : j.status === 'doing' ? 'info' : 'neutral'}>{t(STATUS_NAME[j.status])}</Pill>}
             {j.rework && <Pill tone="danger">{t('งานแก้ {qty} {unit}', { qty: j.rework.qty, unit: { th: j.unit } })}</Pill>}
-            {j.sla && <Pill tone={SLA_LABEL[j.sla].tone}>{t(SLA_LABEL[j.sla].text)}</Pill>}
+            {j.sla && <Pill wrap tone={SLA_LABEL[j.sla].tone}>{t(SLA_LABEL[j.sla].text)}</Pill>}
             <IconChevronRight className="ml-auto size-5 text-muted" />
           </span>
           <span className="truncate">{j.customer} · {j.product} {j.qty.toLocaleString('th-TH')} {t(j.unit)}</span>
@@ -95,7 +95,7 @@ export function IssuesView({ jobs, now, role, stations, call, onOpen, heldOnly }
       <Section icon={IconFlag} title="งานแก้" count={rework.length} empty="ไม่มีงานแก้ค้าง" sub="ชิ้นที่ QC ส่งกลับไปแก้ที่สถานีต้นเหตุ">
         {rework.map(j => <JobRow key={j.id} job={j} now={now} onOpen={onOpen} />)}
       </Section>
-      <Section icon={IconClock} title="เกินเวลามาตรฐาน" count={overSla.length} empty="ไม่มีงานเกินเวลามาตรฐาน" sub="เปิดงานเพื่อดูรายงานปัญหาและวันเสร็จใหม่">
+      <Section icon={IconClock} title="เกินเวลาผลิต" count={overSla.length} empty="ไม่มีงานเกินเวลาผลิต" sub="เปิดงานเพื่อดูรายงานสาเหตุและวันเสร็จใหม่">
         {overSla.map(j => <JobRow key={j.id} job={j} now={now} onOpen={onOpen} />)}
       </Section>
       </>}
@@ -319,7 +319,7 @@ export function ReviewsView({ jobs, now, role, call, onOpen }: {
         const at = (iso: string) => new Date(iso).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
         return (
           <>
-            <Section icon={IconClock} title="รายงานเกินเวลามาตรฐาน" count={delays.length} empty="ไม่มีรายงานรอรับทราบ" sub="14 วันล่าสุด · ที่ขอความช่วยเหลือขึ้นป้ายแดง">
+            <Section icon={IconClock} title="รายงานเกินเวลาผลิต" count={delays.length} empty="ไม่มีรายงานรอรับทราบ" sub="14 วันล่าสุด · ที่ขอความช่วยเหลือขึ้นป้ายแดง">
               {delays.map(d => (
                 <li key={d.ref} className="grid gap-2 rounded-xl border border-line bg-card p-3">
                   <button type="button" onClick={() => onOpen(d.jobId)} className="grid gap-0.5 text-left">

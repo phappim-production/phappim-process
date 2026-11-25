@@ -7,7 +7,7 @@ export function jobKey(j: Job): string {
     j.id, j.phase, j.station ?? '', j.status ?? '', at(j.since), j.sampleRound, j.qty, at(j.due), j.queue ?? '',
     j.film ? `${at(j.film.eta)}${j.film.received ? 'r' : ''}` : '', j.sewCount ?? '', j.sewingReports?.length ?? '',
     j.rework ? `${j.rework.qty}:${j.rework.reason}` : '', j.holdReason ?? '', at(j.heldSince), at(j.doneAt),
-    j.delivered ? `${at(j.delivered.at)}:${j.delivered.note}` : '', j.mockup ?? '', j.sla ?? '',
+    j.delivered ? `${at(j.delivered.at)}:${j.delivered.note}` : '', j.mockup ?? '', j.sla ?? '', j.lead?.due ?? '',
     j.out ? `${j.out.id}:${at(j.out.backAt)}` : '', j.specSheet ? `${j.specSheet.id}:${j.specSheet.rev}:${j.specSheet.acked.join(',')}` : '',
     j.revision ? `${j.revision.eventId}:${j.revision.acked.join(',')}` : '',
   ].join('|')

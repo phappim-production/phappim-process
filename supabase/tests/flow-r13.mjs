@@ -217,7 +217,7 @@ export async function flowR13Tests({ db, ok }) {
       assert.equal(event.payload.requeued, true)
     })
 
-    await check('A4/A7 ฟิล์มยังไม่มาและ SLA เกินต้องส่งรายงาน', async () => {
+    await check('A4/A7 ฟิล์มยังไม่มาและเกินเวลาผลิตต้องส่งรายงานก่อนปิดงาน', async () => {
       const film = await receive('FILM-SLA', 'dtf')
       await change(film, 'production', 'start_station', [], ['station_start'])
       await change(film, 'production', 'finish_station', ['cut'], ['station_done'])
@@ -227,15 +227,18 @@ export async function flowR13Tests({ db, ok }) {
       await change(film, 'single', 'start_station', [], ['station_start'])
 
       const cut = await receive('SLA', 'cut_only')
+      await rows("update public.jobs set created_at=now()-interval '40 days' where id=$1", [cut])
       await change(cut, 'production', 'start_station', [], ['station_start'])
-      await rows("update public.jobs set station_started_at=now()-interval '20 days',stage_entered_at=now()-interval '20 days' where id=$1", [cut])
-      await denial('production', 'finish_station', [cut, 'cut'], /รายงาน/)
+      await change(cut, 'production', 'finish_station', ['cut'], ['station_done'])
+      await change(cut, 'production', 'start_station', [], ['station_start'])
+      await change(cut, 'production', 'record_qc', [10], ['qc_result'])
+      await denial('production', 'finish_station', [cut, 'qc_pack'], /เกินเวลาผลิต.*รายงาน/)
       const { code } = await one('select code from public.reason_codes where active order by code limit 1')
       const request = randomUUID()
       const args = [[code], reason, '2099-01-05T03:00:00Z', null, request]
       const first = await change(cut, 'production', 'submit_delay_report', args, ['delay_report'])
       assert.equal(await change(cut, 'production2', 'submit_delay_report', args, []), first)
-      await change(cut, 'production', 'finish_station', ['cut'], ['station_done'])
+      await change(cut, 'production', 'finish_station', ['qc_pack'], ['station_done', 'done'])
     })
 
     async function pendingMockup(id, label) {

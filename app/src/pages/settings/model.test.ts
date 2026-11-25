@@ -1,41 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type { Substep } from '../../data/stationSteps'
 import {
-  integer, isProtectedStep, moveStep, nextStepKey, readMachineCode, readProfile, readSla, readStation, slaDraft,
+  integer, isProtectedStep, moveStep, nextStepKey, readMachineCode, readProfile, readStation,
   type ProfileDraft,
 } from './model'
 
 const profile: ProfileDraft = { name: '  เจ้าของ  ', role: 'owner', active: true, section: null }
-const sla = { sla_days: 2, big_qty: 101, big_sla_days: null, warn_pct: 80 }
-const draft = slaDraft(sla)
 const req: Substep = { key: 'step_abc', name: 'ตรวจงาน', kind: 'req' }
 const opt: Substep = { key: 'tidy', name: 'จัดของ', kind: 'opt' }
 const lock: Substep = { key: 'film_received', name: 'ได้รับฟิล์ม', kind: 'lock' }
 
-describe('ค่าเวลามาตรฐาน', () => {
-  it('คงเกณฑ์งานใหญ่โดยปล่อยเวลางานใหญ่เป็นว่างได้', () => {
-    expect(readSla(draft)).toEqual(sla)
-  })
-  it('สถานีไม่จับเวลาปกติได้ ส่วนช่วงการผลิตต้องมีเวลาปกติ', () => {
-    const noDays = { ...draft, days: '' }
-    expect(readSla(noDays).sla_days).toBeNull()
-    expect(() => readSla(noDays, true)).toThrow('เวลามาตรฐาน')
-  })
-  it('รับทศนิยมหนึ่งหลักและเปอร์เซ็นต์ปลายขอบทั้งสองด้าน', () => {
-    expect(readSla({ ...draft, days: '1.5', bigDays: '2.5', warn: '1' })).toMatchObject({
-      sla_days: 1.5, big_sla_days: 2.5, warn_pct: 1,
-    })
-    expect(readSla({ ...draft, days: '.5', warn: '100' })).toMatchObject({ sla_days: 0.5, warn_pct: 100 })
-  })
-  it.each(['0', '-1', '1.25', '1e1'])('ปฏิเสธวันทำงาน %s', days => {
-    expect(() => readSla({ ...draft, days })).toThrow('ทศนิยมได้ 1 ตำแหน่ง')
-  })
-  it.each(['0', '101', '80.5', ''])('ปฏิเสธเปอร์เซ็นต์เตือน %s', warn => {
-    expect(() => readSla({ ...draft, warn })).toThrow('เปอร์เซ็นต์เตือน')
-  })
-  it('กำหนดเวลางานใหญ่โดยขาดจำนวนชิ้นไม่ได้', () => {
-    expect(() => readSla({ ...draft, bigQty: '', bigDays: '3' })).toThrow('จำนวนชิ้นสำหรับงานใหญ่')
-  })
+describe('ค่าตัวเลขในหน้าตั้งค่า', () => {
   it('สูตรจักรใช้ 0 เพื่อเอาช่องออกและไม่รับจำนวนเศษ', () => {
     expect(integer('0', 'จำนวนจักร', 0)).toBe(0)
     expect(() => integer('1.5', 'จำนวนจักร', 0)).toThrow('จำนวนเต็ม')
@@ -85,7 +60,7 @@ describe('ขั้นย่อยและรหัสจักร', () => {
     expect(moveStep(steps, 0, -1)).toBe(steps)
   })
   it('บันทึกชื่อขั้นโดยคง key และชนิดของขั้นเดิม', () => {
-    const changes = { ...draft, name: ' รีดฟิล์ม ', section: 1 as const, substeps: [{ ...lock, name: ' รับฟิล์มแล้ว ' }], machines: '', machine_pool: ' ' }
+    const changes = { name: ' รีดฟิล์ม ', section: 1 as const, substeps: [{ ...lock, name: ' รับฟิล์มแล้ว ' }], machines: '', machine_pool: ' ' }
     expect(readStation(changes)).toMatchObject({
       name: 'รีดฟิล์ม', substeps: [{ ...lock, name: 'รับฟิล์มแล้ว' }], machines: null, machine_pool: null,
     })

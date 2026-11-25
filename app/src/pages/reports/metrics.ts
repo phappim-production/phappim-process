@@ -1,4 +1,5 @@
 import { thaiDay } from '../../proto/model'
+import { leadUsed } from '../../proto/leadTime'
 
 const DAY = 86_400_000
 const BANGKOK_OFFSET = 7 * 3_600_000
@@ -16,6 +17,7 @@ export type ReportJob = {
   finished_at: string | null
   needs_sample: boolean
   develop?: boolean
+  sla?: { lead_days?: number; lead_due?: string; lead_used?: number; lead_over?: boolean } | null
 }
 
 export type ReportVisit = {
@@ -27,7 +29,7 @@ export type ReportFirstPiece = { job_id: string; sent_at: string; decided_at: st
 export type ReportQc = { job_id: string; failed: number; source_station: string | null; reasons: unknown }
 export type ReportSample = { job_id: string; round: number; result: 'pass' | 'fail' }
 export type ReportDelay = { at: string; reasons: string[] }
-export type ReportStation = { code: string; name: string; sla_days: number | null }
+export type ReportStation = { code: string; name: string }
 export type ReportRouteStep = { route_code: string; station_code: string; seq: number }
 export type ReportReason = { code: string; name: string }
 
@@ -120,7 +122,7 @@ function stationTimes(rows: ReportRows, jobs: ReportJob[]) {
 
   const visits = groupByJob(rows.visits)
   const issues = groupByJob(rows.issues)
-  // รูปที่ไม่ได้ตัดสิน (ปิดระบบรูประหว่างรอ) ไม่หักเวลา เหมือนเวลามาตรฐานในฐานข้อมูล
+  // รูปที่ไม่ได้ตัดสิน (ปิดระบบรูประหว่างรอ) ไม่หักเวลา
   const waits = groupByJob(rows.firstPieces.filter(c => c.decided_at !== null)
     .map(c => ({ id: 0, job_id: c.job_id, opened_at: c.sent_at, closed_at: c.decided_at, reason: '' })))
   const totals = new Map<string, StationTotal>()
@@ -181,7 +183,6 @@ function stationTimes(rows: ReportRows, jobs: ReportJob[]) {
       workMs: total.workMs / total.count,
       workDays: total.workDays / total.count,
       waitMs: total.waitCount ? total.waitMs / total.waitCount : null,
-      slaDays: station?.sla_days ?? null,
     }]
   })
   const bottleneck = items.reduce<{ code: string; wait: number } | null>((slowest, item) => {
@@ -235,11 +236,17 @@ export function reportMetrics(rows: ReportRows, window: ReportWindow) {
   }
 
   const onTime = jobs.length - lateJobs.length
+  const leadJobs = jobs.filter(job => job.sla?.lead_due)
+  const withinLead = leadJobs.filter(job => !job.sla?.lead_over).length
+  const usedDays = (job: ReportJob) => job.sla?.lead_used
+    ?? leadUsed(thaiDay(new Date(job.created_at)), thaiDay(new Date(job.finished_at ?? job.created_at)))
   return {
     summary: {
       finished: jobs.length, onTime,
       onTimePct: jobs.length ? 100 * onTime / jobs.length : null,
-      averageLeadDays: jobs.length ? jobs.reduce((sum, job) => sum + workDays(timestamp(job.created_at), timestamp(job.finished_at)), 0) / jobs.length : null,
+      withinLead, leadJobs: leadJobs.length,
+      withinLeadPct: leadJobs.length ? 100 * withinLead / leadJobs.length : null,
+      averageLeadDays: jobs.length ? jobs.reduce((sum, job) => sum + usedDays(job), 0) / jobs.length : null,
       reworkQty,
       develop: developJobs.length,
     },

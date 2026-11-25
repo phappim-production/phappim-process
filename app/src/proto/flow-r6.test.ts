@@ -11,7 +11,6 @@ import Dashboard from '../pages/Dashboard'
 import { JobActions } from '../pages/JobActions'
 import { StationQueue } from '../pages/StationQueue'
 import { nextAction } from './actions'
-import { slaAmount } from './format'
 import { type Job, type StationCode } from './model'
 import { planSewing, sewQueue, type Machine, type Need } from './sewing'
 
@@ -121,17 +120,28 @@ describe('R6 SLA บนบอร์ดและคิว', () => {
 
   it.each([
     [undefined, 'info', 'กำลังทำตัดงาน'],
-    ['warn', 'warn', 'ใกล้ครบเวลามาตรฐาน'],
-    ['over', 'danger', 'เกินเวลามาตรฐาน (รายงานแล้ว)'],
-    ['report', 'danger', 'ส่งรายงานปัญหาก่อนกดเสร็จ'],
+    ['warn', 'warn', 'ใกล้ครบเวลาผลิต'],
+    ['over', 'danger', 'เกินเวลาผลิต'],
+    ['report', 'danger', 'เกินเวลาผลิต'],
   ] as const)('nextAction แสดง %s', (sla, tone, text) => {
     expect(nextAction(job('action', { sla }), now)).toMatchObject({ tone, text: expect.stringContaining(text) })
   })
 
+  it('คิว QC + Packing: งานเกินเวลาผลิตยังไม่รายงาน ปุ่มหลักพาไปส่งรายงาน · สถานีอื่นยังกดเสร็จได้', () => {
+    expect(queueView(job('qc-report', { station: 'qc_pack', sla: 'report' }), 'production')).toContain('ส่งรายงานสาเหตุก่อนกด QC + Packing เสร็จ')
+    expect(queueView(job('qc-reported', { station: 'qc_pack', sla: 'over' }), 'production')).toContain('บันทึกผล QC / Packing')
+    expect(queueView(job('cut-report', { sla: 'report' }), 'production')).not.toContain('ส่งรายงานสาเหตุ')
+  })
+
+  it('เกินเวลาผลิตที่ QC + Packing ยังไม่รายงาน = บอกให้รายงานก่อนปิดงาน', () => {
+    expect(nextAction(job('qc', { sla: 'report', station: 'qc_pack' }), now)).toMatchObject({ tone: 'danger', text: expect.stringContaining('ส่งรายงานสาเหตุก่อนกด QC + Packing เสร็จ') })
+    expect(nextAction(job('cut', { sla: 'report' }), now)?.text).not.toContain('รายงาน')
+  })
+
   it.each([
-    ['warn', 'border-l-warn', 'border-warn/50', 'bg-warn-soft', 'ใกล้ครบเวลามาตรฐาน'],
-    ['over', 'border-l-danger', 'border-danger/40', 'bg-danger-soft', 'เกินเวลามาตรฐาน'],
-    ['report', 'border-l-danger', 'border-danger/40', 'bg-danger-soft', 'เกินเวลา · ต้องรายงาน'],
+    ['warn', 'border-l-warn', 'border-warn/50', 'bg-warn-soft', 'ใกล้ครบเวลาผลิต'],
+    ['over', 'border-l-danger', 'border-danger/40', 'bg-danger-soft', 'เกินเวลาผลิต'],
+    ['report', 'border-l-danger', 'border-danger/40', 'bg-danger-soft', 'เกินเวลาผลิต · ต้องรายงาน'],
   ] as const)('การ์ดบอร์ดและคิวแสดงสีและป้าย %s', (sla, stripe, border, pill, label) => {
     const item = job('colored', { sla })
     const board = dashboardView('board', 'production', [item])
@@ -144,7 +154,7 @@ describe('R6 SLA บนบอร์ดและคิว', () => {
   it('เลยกำหนดส่งทำให้แถบการ์ดแดงและป้ายเตือน SLA ยังเป็นสีส้ม', () => {
     const html = dashboardView('board', 'production', [job('late-warn', { sla: 'warn', due: new Date('2026-11-16') })])
     expect(html).toContain('border-l-danger')
-    expect(html).toMatch(/bg-warn-soft[^>]*>.*?ใกล้ครบเวลามาตรฐาน/s)
+    expect(html).toMatch(/bg-warn-soft[^>]*>.*?ใกล้ครบเวลาผลิต/s)
   })
 
   it.each(['admin', 'manager'] as const)('%s เห็นงานเกินเวลาและงานติดปัญหาในภาพรวม', role => {
@@ -154,9 +164,9 @@ describe('R6 SLA บนบอร์ดและคิว', () => {
       job('SLA-WARN', { sla: 'warn' }),
     ])
     const follow = html.split('งานที่ต้องตาม 3 งาน')[1]?.split('</ul>')[0] ?? ''
-    expect(follow).toContain('เกินเวลามาตรฐาน')
-    expect(follow).toContain('ยังไม่ส่งรายงานปัญหา')
-    expect(follow).toContain('รายงานปัญหาแล้ว')
+    expect(follow).toContain('เกินเวลาผลิต')
+    expect(follow).toContain('ยังไม่ส่งรายงานสาเหตุ')
+    expect(follow).toContain('รายงานสาเหตุแล้ว')
     expect(follow).toContain('ติดปัญหา · รอผู้บริหารแก้')
     expect(follow).not.toContain('TEST-R6-SLA-WARN')
   })
@@ -240,10 +250,6 @@ describe('R6 ใบยืนยันข้ามแท็บและหน่�
     const store = storage([[OUTBOX_KEY, '{"h":{"doc_no":{"broken":true}}}']])
     const item = takeOutbox(store, time)
     expect({ item, marker: recentlyTaken(store, time) }).toEqual({ item: null, marker: null })
-  })
-
-  it.each([[0, '0 ชม.'], [0.499, '12 ชม.'], [0.5, '0.5 วัน'], [1234.56, '1,234.6 วัน']] as const)('slaAmount %s = %s', (days, text) => {
-    expect(slaAmount(days)).toBe(text)
   })
 })
 

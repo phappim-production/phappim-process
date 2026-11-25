@@ -15,8 +15,8 @@ export const GLOSSARY_STATUS: Entry[] = [
   { th: 'กำลังทำ', tone: 'info', icon: 'play' },
   { th: 'รอคิว', tone: 'neutral', icon: 'clock' },
   { th: 'พักงาน', note: 'ติดปัญหา รอหัวหน้า', tone: 'danger', icon: 'pause' },
-  { th: 'ใกล้ครบเวลามาตรฐาน', tone: 'warn', icon: 'alert' },
-  { th: 'เกินเวลามาตรฐาน', note: 'ต้องรายงานก่อนกดเสร็จ', tone: 'danger', icon: 'alert' },
+  { th: 'ใกล้ครบเวลาผลิต', note: 'ใช้เวลาผลิตทั้งงานไปแล้ว 80%', tone: 'warn', icon: 'alert' },
+  { th: 'เกินเวลาผลิต', note: 'ต้องรายงานสาเหตุก่อนกด QC + Packing เสร็จ', tone: 'danger', icon: 'alert' },
   { th: 'ข้างนอก', note: 'ส่งบริษัทภายนอกทำ', tone: 'info', icon: 'users' },
   { th: 'เสร็จ', tone: 'ok', icon: 'check' },
 ]

@@ -148,7 +148,7 @@ function HistoryView({ data: h, role, now, jobId, onChanged }: { data: History; 
       )}
 
       {h.delays.length > 0 && (
-        <Box title="รายงานปัญหา (เกินเวลามาตรฐาน)">
+        <Box title="รายงานสาเหตุที่ช้า">
           <ul className="grid gap-2">
             {h.delays.map((d, i) => (
               <li key={i} className="rounded-xl border border-warn/40 p-3">

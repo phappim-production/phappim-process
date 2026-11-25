@@ -59,29 +59,14 @@ export async function settingsTests({ db, ok, as }) {
             'normal', 'test.pdf', 'production', 1, 'doing', now());
   `)
   const liveSla = async () => (await as(owner, () => db.query(`
-    select current_station, (sla->>'station_sla_days')::numeric::float8 as days from public.job_live
+    select current_station, (sla->>'lead_days')::int as days from public.job_live
     where confirmation_no = 'TEST-C2-SLA'
   `))).rows[0]
   const before = await liveSla()
-  ok('C2: งานทดสอบอยู่สถานีพิมพ์ที่ยังไม่จับเวลา', before?.current_station === 'print' && before.days === null)
-
-  const stationUpdate = await as(owner, () => db.query(`
-    update public.stations set sla_days = 2 where code = 'print' returning 1
-  `))
-  ok('C2: owner แก้เวลามาตรฐานพิมพ์ได้ และ job_live ใช้ 2 วันทันที',
-    stationUpdate.rows.length === 1 && (await liveSla()).days === 2)
-  const deniedUpdate = await as(production, () => db.query(`
-    update public.stations set sla_days = 4 where code = 'print' returning 1
-  `))
-  ok('C2: production แก้เวลามาตรฐานไม่ได้และค่ายังเป็น 2 วัน',
-    deniedUpdate.rows.length === 0 && (await liveSla()).days === 2)
-
-  const editSegment = await as(owner, () => db.query(`
-    update public.sla_segments set big_qty = 800, big_sla_days = 4.5 where code = 'subli_ppc' returning big_qty
-  `))
-  ok('C2: owner แก้เกณฑ์ชิ้นงานใหญ่ของช่วงได้', editSegment.rows[0]?.big_qty === 800)
-  await expectFailure('C2: เวลางานใหญ่ต้องมีจำนวนชิ้น',
-    () => as(owner, () => db.query(`update public.sla_segments set big_qty = null where code = 'subli_ppc'`)), /sla_segments_big_sla_needs_qty/)
+  ok('C2: job_live แสดงเวลาผลิตทั้งงาน 10 วันทำงานสำหรับงาน 10 ชิ้น', before?.current_station === 'print' && before.days === 10)
+  await as(owner, () => db.query(`update public.stations set sla_days = 2 where code = 'print'`))
+  ok('C2: เวลามาตรฐานรายสถานีเดิมไม่มีผลกับเวลาผลิต', (await liveSla()).days === 10)
+  await db.exec(`update public.stations set sla_days = null where code = 'print'`)
 
   const editLocked = await as(owner, () => db.query(`
     update public.stations set substeps = jsonb_set(substeps, '{0,name}', '"รับฟิล์มแล้ว"')

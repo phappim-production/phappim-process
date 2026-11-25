@@ -192,7 +192,8 @@ export async function flowR11Tests({ db, ok }) {
       assert.deepEqual((await queue()).map(job => job.id), [jobs[4], ...jobs.slice(0, 4)])
       await start(jobs[4], 'print')
       const flags = await auth('multi', 'select * from public.job_sla_flags()')
-      assert.deepEqual(flags, [{ job_id: jobs[4], warn: false, over: false, need_report: false }])
+      assert.deepEqual(new Set(flags.map(f => f.job_id)), new Set(jobs))
+      assert.ok(flags.every(f => !f.warn && !f.over && !f.need_report && f.lead_days === 10), JSON.stringify(flags))
     })
 
     for (const [route, stations] of Object.entries(routes)) {

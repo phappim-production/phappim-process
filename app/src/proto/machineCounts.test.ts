@@ -109,12 +109,12 @@ describe('ปุ่มบนหน้าจอ', () => {
     expect(floor('q2', true)).not.toContain('ยังไม่ถึงคิว')
   })
 
-  it('เย็บเกินเวลามาตรฐานยังไม่รายงาน: ปุ่มเย็บเสร็จเปลี่ยนเป็นส่งรายงานปัญหา', () => {
+  it('เย็บงานที่เกินเวลาผลิต: ยังกดเย็บเสร็จได้ (บังคับรายงานตอนปิดงานที่ QC + Packing)', () => {
     const html = renderToStaticMarkup(createElement(SewingNow, {
       jobs: [job('a', { status: 'doing', sla: 'report' })], machines, now, onOpen: () => {}, actions,
     }))
-    expect(html).toContain('ส่งรายงานปัญหาก่อนกดเย็บเสร็จ')
-    expect(html).not.toContain('>เย็บเสร็จ<')
+    expect(html).toContain('เย็บเสร็จ</button>')
+    expect(html).not.toContain('ส่งรายงานปัญหาก่อน')
   })
 
   it('ฝ่ายผลิตเห็นปุ่มจัดการจักรทั้งงานที่กำลังเย็บและงานพัก · ดูอย่างเดียวไม่เห็น', () => {

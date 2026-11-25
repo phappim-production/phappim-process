@@ -48,7 +48,7 @@ it('รอบ 11 · รายงานฐานว่างทุกช่วง
   const clock = new Date('2026-11-20T04:00:00Z')
   for (const period of ['7', '30', '90'] as const) {
     const report = reportMetrics(empty, reportWindow(period, clock))
-    expect(report.summary).toEqual({ finished: 0, onTime: 0, onTimePct: null, averageLeadDays: null, reworkQty: 0, develop: 0 })
+    expect(report.summary).toEqual({ finished: 0, onTime: 0, onTimePct: null, withinLead: 0, leadJobs: 0, withinLeadPct: null, averageLeadDays: null, reworkQty: 0, develop: 0 })
     expect(report.samples).toMatchObject({ averageRounds: null, firstPassPct: null })
     expect(report.lateJobs).toEqual([])
   }

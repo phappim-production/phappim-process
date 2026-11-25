@@ -89,7 +89,7 @@ export async function flowR6Tests({ db, ok, as }) {
     const flag = (await flags()).find(row => row.job_id === id)
     return flag && [flag.warn, flag.over, flag.need_report]
   }
-  const state = async id => (await one('select private.sla_state($1) as state', [id])).state
+  const state = async id => (await one('select private.lead_state($1) as state', [id])).state
 
   // run.mjs เรียกตาราง A–P ของ R5 ก่อนชุดนี้ และใช้กฎ close_issue ฉบับปัจจุบันแล้ว
   for (const fixture of ['cut', 'qc_pack', 'sample', 'sew-ready', 'sew-broken']) {
@@ -154,7 +154,7 @@ export async function flowR6Tests({ db, ok, as }) {
     }
   })
 
-  await isolated('R6 job_sla_flags ทุกบทบาทเห็นเฉพาะงานผลิต doing/hold ที่จับเวลา', async () => {
+  await isolated('R6 job_sla_flags ทุกบทบาทเห็นทุกงานที่ยังไม่ปิด ยกเว้นงาน Develop', async () => {
     const doing = await job('sla-doing')
     const hold = await job('sla-hold')
     const queued = await job('sla-queued')
@@ -162,6 +162,7 @@ export async function flowR6Tests({ db, ok, as }) {
     const out = await job('sla-out')
     const repair = await qcJob('sla-rework')
     const done = await qcJob('sla-done')
+    const develop = await rpc('admin', 'receive_job', 'TEST-R6-sla-develop', 'ลูกค้าจำลอง', 'งานจำลอง', 'tshirt', 10, 'ตัว', '2026-12-31', 'cut_only', null, 0, 0, '{}', true, true)
     for (const id of [doing, hold, sample]) await start(id)
     await rpc('production', 'open_issue', hold, reason)
     await send(out, await vendor('SLA'), 'cut')
@@ -169,110 +170,87 @@ export async function flowR6Tests({ db, ok, as }) {
     await start(repair)
     await rpc('qc', 'record_qc', done, 10)
     await finish(done, 'qc')
-    const batch = [doing, hold, queued, sample, out, repair, done]
+    const batch = [doing, hold, queued, sample, out, repair, done, develop]
     for (const role of roles) {
       const result = await flags(role)
-      assert.deepEqual(new Set(result.filter(row => batch.includes(row.job_id)).map(row => row.job_id)), new Set([doing, hold]), role)
+      assert.deepEqual(new Set(result.filter(row => batch.includes(row.job_id)).map(row => row.job_id)), new Set([doing, hold, queued, sample, out, repair]), role)
     }
   })
 
-  // เทียบค่าธงกับ SLA และคำตอบของ finish_station โดยแยกการบล็อกเพราะพัก/QC ออกจากการบล็อกเพราะเวลา
-  const verifySla = async (id, expected, blocked) => {
+  // เทียบค่าธงกับเวลาผลิตและคำตอบของ finish_station ที่ QC + Packing
+  const verifyLead = async (id, expected, blocked) => {
     const s = await state(id)
-    assert.deepEqual([
-      !!(s.station_warn || s.segment_warn),
-      !!(s.station_over || s.segment_over),
-      !!((s.station_over && !s.station_reported) || (s.segment_over && !s.segment_reported)),
-    ], expected)
+    assert.deepEqual([!!s.lead_warn, !!s.lead_over, !!(s.lead_over && !s.lead_reported)], expected)
     assert.deepEqual(await ownFlag(id), expected)
     await savepoint('r6_finish', async () => {
-      if (blocked) await denied(id, blocked, () => finish(id))
-      else await changes(id, 'production', ['station_done'], () => finish(id))
+      if (blocked) await denied(id, blocked, () => finish(id, 'qc'))
+      else await changes(id, 'qc', ['station_done', 'done'], () => finish(id, 'qc'))
     }, true)
   }
-  const stationAge = (id, days) => db.query(
-    "update public.jobs set station_started_at = now() - ($2::numeric * interval '1 day') where id = $1", [id, days])
-  const insertSegmentStart = (id, days) => db.query(
-    "insert into public.events (job_id, type, phase, station_code, at) values ($1, 'station_start', 'production', 'print', now() - ($2::numeric * interval '1 day'))", [id, days])
-
-  await isolated('R6 SLA สถานี: เตือน · เกิน · ส่งรายงาน · พักไม่นับเวลา', async () => {
-    await db.exec("update public.stations set sla_days = 4, warn_pct = 50, big_qty = null where code = 'cut'")
-    const id = await job('station-clock')
+  // ตั้งวันรับงานย้อนหลังให้วันนี้เป็นวันทำงานที่ used (นับวันรับงานเป็นวันที่ 1 ไม่นับอาทิตย์)
+  const usedDays = (id, used) => db.query(`
+    update public.jobs set created_at = (
+      select (d::date + time '12:00') at time zone 'Asia/Bangkok'
+      from generate_series(((now() at time zone 'Asia/Bangkok')::date - 60)::timestamp, (now() at time zone 'Asia/Bangkok')::date::timestamp, interval '1 day') d
+      where private.lead_used(d::date, (now() at time zone 'Asia/Bangkok')::date) = $2 order by d desc limit 1)
+    where id = $1`, [id, used])
+  const readyAtQc = async (label, qty) => {
+    const id = await job(label, 'cut_only', qty)
     await start(id)
-    await verifySla(id, [false, false, false])
-    await stationAge(id, 3)
-    await verifySla(id, [true, false, false])
-    await stationAge(id, 8)
-    await verifySla(id, [true, true, true], /เกินเวลามาตรฐานของสถานี/)
+    await finish(id)
+    await start(id, 'qc')
+    await rpc('qc', 'record_qc', id, qty)
+    return id
+  }
+
+  // วันอาทิตย์ไม่มีวันทำงานที่ "วันนี้" ตรงกับวันครบพอดี จึงข้ามชุดที่ตรวจขอบวัน
+  const sunday = (await one("select extract(isodow from now() at time zone 'Asia/Bangkok') = 7 as s")).s
+  if (!sunday) await isolated('R6 เวลาผลิต 10 วัน: เตือนวันที่ 8 · วันที่ 10 ยังทัน · วันที่ 11 เกินต้องรายงาน', async () => {
+    const id = await readyAtQc('lead-10', 10)
+    await usedDays(id, 7)
+    await verifyLead(id, [false, false, false])
+    await usedDays(id, 8)
+    await verifyLead(id, [true, false, false])
+    await usedDays(id, 10)
+    assert.equal((await state(id)).lead_due, (await one("select (now() at time zone 'Asia/Bangkok')::date::text as d")).d)
+    await verifyLead(id, [true, false, false])
+    await usedDays(id, 11)
+    await verifyLead(id, [true, true, true], /เกินเวลาผลิต 10 วันทำงาน/)
     await denied(id, /เลือกรหัสสาเหตุ/, () => report(id, []))
     await denied(id, /รหัสสาเหตุไม่ถูกต้อง/, () => report(id, ['R6-INVALID']))
     await denied(id, /อธิบายว่าเกิดอะไรขึ้น/, () => report(id, [delayReason], ' '))
     await denied(id, /หลังจากตอนนี้/, () => report(id, [delayReason], reason, new Date(0)))
     await changes(id, 'production', ['delay_report'], () => report(id))
-    await verifySla(id, [true, true, false])
-
-    const held = await job('held-clock')
-    await start(held)
-    await stationAge(held, 8)
-    await rpc('production', 'open_issue', held, reason)
-    await db.query("update public.issues set opened_at = now() - interval '7 days' where job_id = $1", [held])
-    assert.ok(Number((await state(held)).station_days) <= 1)
-    await verifySla(held, [false, false, false], /พักอยู่/)
-    await rpc('production', 'close_issue', held, reason)
-    await verifySla(held, [false, false, false])
+    await verifyLead(id, [true, true, false])
   })
 
-  await isolated('R6 SLA ช่วงและสถานีพร้อมกัน: รายงานช่วงไม่ปลดบล็อกสถานีถัดไปที่เกิน', async () => {
-    await db.exec("update public.stations set sla_days = 2, warn_pct = 50, big_qty = null where code in ('press', 'cut')")
-    await db.exec("update public.sla_segments set sla_days = 4, warn_pct = 50, big_qty = null, big_sla_days = null where route_code = 'normal'")
-    const id = await job('segment-clock', 'normal')
-    await start(id)
-    await finish(id)
-    await start(id)
-    await insertSegmentStart(id, 3)
-    await verifySla(id, [true, false, false])
-    await insertSegmentStart(id, 8)
-    await verifySla(id, [true, true, true], /ช่วง .*เกินเวลามาตรฐาน/)
-    await changes(id, 'production', ['delay_report'], () => report(id))
-    await verifySla(id, [true, true, false])
-    await finish(id)
-    await start(id)
-    await stationAge(id, 4)
-    const cutSla = await state(id)
-    assert.equal(cutSla.segment_reported, true)
-    assert.equal(cutSla.station_reported, false)
-    await verifySla(id, [true, true, true], /เกินเวลามาตรฐานของสถานี/)
+  await isolated('R6 เวลาผลิต: รายงานก่อนถึงวันเตือนไม่นับ · เวลาพักงานนับรวม', async () => {
+    const id = await readyAtQc('lead-early', 10)
+    await usedDays(id, 3)
     await report(id)
-    await verifySla(id, [true, true, false])
+    await usedDays(id, 12)
+    await db.query("update public.delay_reports set at = (select created_at + interval '1 day' from public.jobs where id = $1) where job_id = $1", [id])
+    await verifyLead(id, [true, true, true], /เกินเวลาผลิต/)
+
+    const held = await job('lead-held')
+    await start(held)
+    await rpc('production', 'open_issue', held, reason)
+    await db.query("update public.issues set opened_at = now() - interval '20 days' where job_id = $1", [held])
+    await usedDays(held, 11)
+    assert.deepEqual(await ownFlag(held), [true, true, true])
   })
 
-  await isolated('R6 SLA งานใหญ่: ต่ำกว่า big_qty ใช้ค่าปกติ · ถึงเกณฑ์ใช้เวลางานใหญ่', async () => {
-    await db.exec("update public.stations set sla_days = 2, big_qty = 100, big_sla_days = 10, warn_pct = 80 where code = 'cut'")
-    for (const [qty, threshold, expected, blocked] of [
-      [99, 2, [true, true, true], /เกินเวลามาตรฐานของสถานี/],
-      [100, 10, [false, false, false], null],
-      [101, 10, [false, false, false], null],
-    ]) {
-      const id = await job('big-' + qty, 'cut_only', qty)
-      await start(id)
-      await stationAge(id, 5)
-      assert.equal((await state(id)).station_sla_days, threshold)
-      await verifySla(id, expected, blocked)
+  if (!sunday) await isolated('R6 เวลาผลิตตามจำนวน: 499 = 10 · 500 = 15 · 999 = 15 · 1000 = 20 วันทำงาน', async () => {
+    for (const [qty, days] of [[499, 10], [500, 15], [999, 15], [1000, 20]]) {
+      const id = await job('lead-qty-' + qty, 'cut_only', qty)
+      assert.equal((await live(id)).sla.lead_days, days, String(qty))
+      await usedDays(id, days)
+      assert.deepEqual(await ownFlag(id), [true, false, false], qty + ' วันสุดท้าย')
+      await usedDays(id, days + 1)
+      assert.deepEqual(await ownFlag(id), [true, true, true], qty + ' เกิน')
     }
-    await db.exec("update public.sla_segments set sla_days = 2, big_qty = 100, big_sla_days = 10, warn_pct = 80 where route_code = 'normal'")
-    for (const [qty, threshold, expected, blocked] of [
-      [99, 2, [true, true, true], /ช่วง .*เกินเวลามาตรฐาน/],
-      [100, 10, [false, false, false], null],
-      [101, 10, [false, false, false], null],
-    ]) {
-      const id = await job('big-segment-' + qty, 'normal', qty)
-      await start(id)
-      await finish(id)
-      await start(id)
-      await insertSegmentStart(id, 5)
-      assert.equal((await state(id)).segment_sla_days, threshold)
-      await verifySla(id, expected, blocked)
-    }
+    const spare = await rpc('admin', 'receive_job', 'TEST-R6-lead-spare', 'ลูกค้าจำลอง', 'งานจำลอง', 'tshirt', 499, 'ตัว', '2026-12-31', 'cut_only', null, 50, 0, '{}', false)
+    assert.equal((await live(spare)).sla.lead_days, 10, 'ชิ้นสำรองไม่นับ')
   })
 
   await isolated('R6 start_in_queue / finish_station กดซ้ำทันทีและยกเลิกระหว่างทำ', async () => {
@@ -287,7 +265,7 @@ export async function flowR6Tests({ db, ok, as }) {
     await db.query("update public.jobs set phase = 'cancelled', station_status = null, station_seq = null where id = $1", [id])
     await denied(id, /ไม่ได้รอเริ่ม/, begin)
     await denied(id, /ยังไม่ได้เริ่ม|เสร็จไปแล้ว/, () => finish(id))
-    await denied(id, /ไม่ได้อยู่ในการผลิต/, () => report(id))
+    await denied(id, /งานนี้ปิดแล้ว/, () => report(id))
   })
 
   // หน้าจอส่งสถานีที่เห็นไปด้วย · คำขอเก่าจากหน้าพิมพ์ต้องไม่จบสถานีรีด

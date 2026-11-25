@@ -48,42 +48,4 @@ export async function sopTests({ db, ok }) {
     (await rows(`select is_draft from public.stations where code = 'dtf_press'`))[0].is_draft === false
     && await kindOf('dtf_press', 'test_press') === 'opt' && await kindOf('dtf_press', 'film_received') === 'lock')
   ok('SOP: QC+แพ็ค 9 ขั้น · ลงลังบังคับ', (await subs('qc_pack')).length === 9 && await kindOf('qc_pack', 'boxed') === 'req')
-
-  const lim = async (d, bq, bd, q) => (await rows(`select private.sla_for_qty($1, $2, $3, $4) v`, [d, bq, bd, q]))[0].v
-  ok('SOP: งาน 699 ตัวใช้ 3 วัน · 700 ตัวขึ้นไปใช้ 5 วัน', Number(await lim(3, 700, 5, 699)) === 3 && Number(await lim(3, 700, 5, 700)) === 5)
-  ok('SOP: งานใหญ่เกินข้อมูลที่มี = ไม่จับเวลา', await lim(2, 101, null, 101) === null && Number(await lim(2, 101, null, 100)) === 2)
-  const st = Object.fromEntries((await rows(`select code, sla_days, big_qty from public.stations`)).map(r => [r.code, r]))
-  ok('SOP: พิมพ์ · รีด · ตัด ไม่จับเวลารายสถานี (คุมทั้งช่วง)', ['print', 'press', 'cut'].every(c => st[c].sla_days === null))
-  ok('SOP: เย็บ 2 วัน · QC 1 วัน สำหรับงานไม่เกิน 100', Number(st.sew.sla_days) === 2 && Number(st.qc_pack.sla_days) === 1
-    && st.sew.big_qty === 101 && st.qc_pack.big_qty === 101)
-
-  // เดินเวลาจริงบนงาน: เริ่มพิมพ์มา 5 วัน (4–5 วันทำงาน) ตอนนี้อยู่สถานีรีด
-  // งานทดสอบอยู่ใน transaction แล้วยกเลิกทิ้ง (events ลบไม่ได้) ไม่ให้ไปปนชุดทดสอบถัดไป
-  await db.exec('begin')
-  const atPress = async (no, qty) => {
-    const id = (await rows(`insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date,
-      route_code, confirmation_pdf_path, phase, station_seq, station_status, station_started_at)
-      values ($1,'ลูกค้าทดสอบ','งานเวลา','tshirt',$2,'ตัว','2026-12-31','normal','x.pdf','production',2,'doing', now() - interval '1 hour')
-      returning id`, [no, qty]))[0].id
-    await db.query(`insert into public.events (job_id, type, phase, station_code, at) values ($1, 'station_start', 'production', 'print', now() - interval '5 days')`, [id])
-    return (await rows(`select private.sla_state($1) s`, [id]))[0].s
-  }
-  const small = await atPress('SC-SOP-SMALL', 10)
-  const big = await atPress('SC-SOP-BIG', 800)
-  ok('SOP: งาน 10 ตัว พิมพ์+รีด+ตัด 4 วันขึ้นไป = เกินเวลา (3 วัน)', small.segment_over === true && Number(small.segment_sla_days) === 3, JSON.stringify(small))
-  ok('SOP: งาน 800 ตัว ช่วงเดียวกัน = ยังไม่เกิน (5 วัน)', big.segment_over === false && Number(big.segment_sla_days) === 5, JSON.stringify(big))
-  ok('SOP: สถานีรีดไม่จับเวลาแยก', small.station_sla_days === undefined)
-
-  const atSew = async (no, qty) => {
-    const id = (await rows(`insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date,
-      route_code, confirmation_pdf_path, phase, station_seq, station_status, station_started_at)
-      values ($1,'ลูกค้าทดสอบ','งานเวลาเย็บ','polo',$2,'ตัว','2026-12-31','plain','x.pdf','production',2,'queued', now() - interval '4 days')
-      returning id`, [no, qty]))[0].id
-    return (await rows(`select private.sla_state($1) s`, [id]))[0].s
-  }
-  const sew100 = await atSew('SC-SOP-SEW100', 100)
-  const sew200 = await atSew('SC-SOP-SEW200', 200)
-  ok('SOP: เย็บโปโล 100 ตัว เกิน 2 วัน = เกินเวลา', sew100.station_over === true && Number(sew100.station_sla_days) === 2, JSON.stringify(sew100))
-  ok('SOP: เย็บ 200 ตัว ยังไม่มีข้อมูล = ไม่จับเวลา', sew200.station_sla_days === undefined, JSON.stringify(sew200))
-  await db.exec('rollback')
 }

@@ -115,7 +115,7 @@ async function load(): Promise<FactoryData> {
   ])
   const late = [reworks, sewEvents].find(r => r.error)
   if (late?.error) throw new Error(late.error.message)
-  // อ่านเวลามาตรฐานไม่ได้ (เน็ตสะดุด) ให้การ์ดสีปกติ ไม่ทำให้ทั้งหน้าโหลดไม่ขึ้น
+  // อ่านเวลาผลิตไม่ได้ (เน็ตสะดุด) ให้การ์ดสีปกติ ไม่ทำให้ทั้งหน้าโหลดไม่ขึ้น
   const sla = await slaCall
   // ฐานข้อมูลที่ยังไม่มีฟังก์ชันรูป (migration ยังไม่ลง) = ไม่บังคับรูป · ฐานข้อมูลยังตรวจตอนกดเสร็จ
   const photoFlags = await photoCall
@@ -209,7 +209,7 @@ export function useFactoryData() {
     const online = () => catchUp()
     const offline = () => setFetchOk(false)
     const visible = () => { if (document.visibilityState === 'visible') { invalidateStatic(); catchUp() } }
-    // เวลามาตรฐานเดินเองโดยไม่มีใครกด → โหลดเฉพาะสถานะเวลาทุก 5 นาที
+    // เวลาผลิตเดินเองโดยไม่มีใครกด → โหลดเฉพาะสถานะเวลาทุก 5 นาที
     const tick = setInterval(() => {
       if (document.visibilityState !== 'visible') return
       void client.rpc('job_sla_flags').then(({ data, error }) => {
