@@ -44,7 +44,7 @@ describe('รอบ 11 · เมนูและสิทธิ์บัญชี
 })
 
 it('รอบ 11 · รายงานฐานว่างทุกช่วงเวลาใช้ค่า 0 และ null', () => {
-  const empty: ReportRows = { jobs: [], visits: [], issues: [], qc: [], samples: [], delays: [], stations: [], routes: [], reasonCodes: [] }
+  const empty: ReportRows = { jobs: [], visits: [], issues: [], firstPieces: [], qc: [], samples: [], delays: [], stations: [], routes: [], reasonCodes: [] }
   const clock = new Date('2026-11-20T04:00:00Z')
   for (const period of ['7', '30', '90'] as const) {
     const report = reportMetrics(empty, reportWindow(period, clock))

@@ -190,3 +190,34 @@ test('ฟอร์มใบยืนยัน: เปิดดูจากระ
   assert.equal(store.has('pp142.confirmation.inbox'), false)
   assert.match(els.get('#doc').innerHTML, /แก้ไขครั้งที่ 2/)
 })
+
+test('ฟอร์มใบยืนยัน: จำนวนชิ้นเป็นทศนิยม บันทึกเข้าระบบไม่ได้ · บอกให้แก้เป็นจำนวนเต็ม', () => {
+  const { api, store, v } = filled()
+  v.size_sets = ['ไซซ์ผู้ใหญ่']
+  v.sizes = [{ label: 'a', q: { M: '2.5' } }]
+  assert.ok(api.validate().some(m => m.hard && /จำนวนเต็ม/.test(m.why)))
+  api.saveToSystem()
+  assert.equal(store.has(OUTBOX), false)
+  v.sizes = [{ label: 'a', q: { M: '3' } }]
+  assert.equal(api.validate().some(m => /จำนวนเต็ม/.test(m.why ?? '')), false)
+})
+
+test('ฟอร์มใบยืนยัน: ยอดรวมเกิน 100,000 ถือว่าพิมพ์ผิด บันทึกไม่ได้ · 100,000 พอดีบันทึกได้', () => {
+  const { api, store, v } = filled()
+  v.size_sets = ['ไซซ์ผู้ใหญ่']
+  v.sizes = [{ label: 'a', q: { M: '999999999' } }]
+  assert.ok(api.validate().some(m => m.hard && /มากเกินไป/.test(m.why)))
+  api.saveToSystem()
+  assert.equal(store.has(OUTBOX), false)
+  v.sizes = [{ label: 'a', q: { M: '60000', L: '40000' } }]
+  assert.equal(api.validate().some(m => /มากเกินไป/.test(m.why ?? '')), false)
+})
+
+test('ฟอร์มใบยืนยัน: โหมดแก้ใบหลังรับงาน ช่องเลขที่ใบพิมพ์แก้ไม่ได้', () => {
+  const { api } = boot()
+  api.loadData({ h: { doc_no: 'SC-R2', customer: 'x' }, p: { tshirt: {} }, product: 'tshirt', from_job: true }, 'x')
+  const field = api.HEADER.flatMap(sec => sec.fields).find(f => f.id === 'doc_no')
+  assert.match(api.fieldHTML(field, 'h', api.state.h), /data-k="doc_no"[^>]*disabled/)
+  const fresh = boot()
+  assert.doesNotMatch(fresh.api.fieldHTML(field, 'h', { doc_no: 'SC-NEW' }), /disabled/)
+})

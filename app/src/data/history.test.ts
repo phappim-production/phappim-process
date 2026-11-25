@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { eventLine, type EventRow, type Names } from './history'
+import { eventLine, visitLines, type EventRow, type Names, type VisitRow } from './history'
 
 const names: Names = { station: c => c, step: (_s, k) => k }
 const ev = (payload: Record<string, unknown>): EventRow =>
@@ -62,5 +62,29 @@ describe('ไทม์ไลน์: แก้ใบยืนยันหลั�
   it('ม็อคอัพฉบับอนุมัติยังเป็นค่าเก่า = เตือนในประวัติ', () => {
     expect(eventLine(row({ rev: 1, summary: [], fields: [], mockup_rev: 3, mockup_stale: 2 }), names).detail)
       .toBe('ม็อคอัพกำกับสเปกฉบับ 3 ยังเป็นค่าเก่า 2 จุด')
+  })
+})
+
+describe('เวลาที่ใช้ต่อสถานี: รออนุมัติชิ้นแรก', () => {
+  const visit = (started_at: string, done_at: string | null): VisitRow =>
+    ({ station_code: 'print', phase: 'production', visit: 0, started_at, done_at, rework: false })
+  const e = (type: string, at: string) => ({ type, at })
+  it('หักเวลารออนุมัติชิ้นแรกเหมือนเวลามาตรฐาน · ทับช่วงพักหักครั้งเดียว', () => {
+    const [line] = visitLines([visit('2026-11-23T01:00:00Z', '2026-11-23T09:00:00Z')], names, new Date('2026-11-24T00:00:00Z'), [
+      e('hold', '2026-11-23T02:00:00Z'), e('resume', '2026-11-23T04:00:00Z'),
+      e('first_piece_sent', '2026-11-23T03:00:00Z'), e('first_piece_ok', '2026-11-23T05:00:00Z'),
+    ])
+    expect(line.pausedMs).toBe(2 * 3_600_000)
+    expect(line.waitedMs).toBe(3_600_000)
+    expect(line.workedMs).toBe(5 * 3_600_000)
+    expect(line.waited).toBe('1 ชม.')
+  })
+  it('รูปที่ค้างไม่ได้ตัดสินแล้วสถานีจบไปแล้ว ไม่หัก · ยังทำอยู่หักถึงตอนนี้', () => {
+    const events = [e('first_piece_sent', '2026-11-23T03:00:00Z')]
+    const [done] = visitLines([visit('2026-11-23T01:00:00Z', '2026-11-23T09:00:00Z')], names, new Date('2026-11-24T00:00:00Z'), events)
+    expect(done.waitedMs).toBe(0)
+    const [doing] = visitLines([visit('2026-11-23T01:00:00Z', null)], names, new Date('2026-11-23T05:00:00Z'), events)
+    expect(doing.waitedMs).toBe(2 * 3_600_000)
+    expect(doing.workedMs).toBe(2 * 3_600_000)
   })
 })

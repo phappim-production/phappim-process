@@ -1,5 +1,5 @@
 import { DELAY_REPORT_ID } from './delayReport'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
@@ -120,9 +120,7 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
       {d.pdfPath ? <OpenPdf path={d.pdfPath} /> : admin && <AttachPdf job={j} refresh={refresh} />}
       {admin && <SetMockup job={j} refresh={refresh} />}
       {admin && <ReviseConfirmation job={j} hasPdf={!!d.pdfPath} refresh={refresh} />}
-      {notice && (
-        <p role={notice.ok ? 'status' : 'alert'} className={`rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}><Tr th={notice.text.th} vars={notice.text.vars} /></p>
-      )}
+      {notice && <NoticeBox notice={notice} />}
       <OutsourcePanel job={j} vendors={vendors} admin={admin} now={now} refresh={refresh} />
       {j.phase === 'done' && <Delivery job={j} admin={admin} busy={busy} now={now} act={act} />}
       {j.phase === 'materials' && <Materials materials={d.materials} role={role} busy={busy} sample={j.needsSample !== false}
@@ -156,6 +154,18 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
       {canCancelJob(role) && j.phase !== 'done' && <CancelJob job={j} busy={busy} act={act} onCancelled={onCancelled} />}
       {!d.pdfPath && !admin && <p className="text-muted"><Tr th="ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น (แอดมินแนบทีหลัง)" /></p>}
     </div>
+  )
+}
+
+// ข้อความอยู่บนสุดของแผง ปุ่มที่กดอาจอยู่ล่างจอ · error ต้องเลื่อนให้เห็นทั้งกล่อง (ลิ้นชักเว้นที่ให้หัวที่ติดด้านบนแล้ว)
+function NoticeBox({ notice }: { notice: NonNullable<Notice> }) {
+  const box = useRef<HTMLParagraphElement>(null)
+  useEffect(() => { if (!notice.ok) box.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }, [notice])
+  return (
+    <p ref={box} role={notice.ok ? 'status' : 'alert'}
+      className={`rounded-xl px-3 py-2 font-medium ${notice.ok ? 'bg-ok-soft text-ok' : 'bg-danger-soft text-danger'}`}>
+      <Tr th={notice.text.th} vars={notice.text.vars} />
+    </p>
   )
 }
 
@@ -745,7 +755,7 @@ function DelayReport({ reasons, busy, now, required, onSend }: {
                 const on = codes.includes(r.code)
                 return (
                   <button key={r.code} type="button" aria-pressed={on} onClick={() => setCodes(on ? codes.filter(c => c !== r.code) : [...codes, r.code])}
-                    className={`min-h-11 rounded-xl border px-3 text-left text-sm ${on ? 'border-brand bg-brand-soft font-semibold text-brand' : 'border-line hover:bg-paper'}`}>
+                    className={`min-h-12 rounded-xl border px-3 text-left text-sm ${on ? 'border-brand bg-brand-soft font-semibold text-brand' : 'border-line hover:bg-paper'}`}>
                     {r.code} <Tr inline th={r.name} />
                   </button>
                 )

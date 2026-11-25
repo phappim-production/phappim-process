@@ -77,6 +77,7 @@ function PhotoPicker({ kind, jobNo, onSend }: {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dropped, setDropped] = useState(0)
   const sending = useRef(false)
   const inputId = useId()
   const t = useT()
@@ -89,7 +90,7 @@ function PhotoPicker({ kind, jobNo, onSend }: {
     setError(null)
     try {
       const r = await onSend(files, note.trim())
-      if (r.ok) { clear(); setNote('') } else if (r.reason) setError(r.reason)
+      if (r.ok) { clear(); setNote(''); setDropped(0) } else if (r.reason) setError(r.reason)
     } finally {
       sending.current = false
       setBusy(false)
@@ -103,9 +104,9 @@ function PhotoPicker({ kind, jobNo, onSend }: {
           {previews.map((url, i) => (
             <li key={url} className="relative">
               <img src={url} alt={t('รูปที่ {n}', { n: i + 1 })} className="size-20 rounded-lg border border-line object-cover" />
-              <button type="button" disabled={busy} onClick={() => removeAt(i)}
-                className="absolute -top-2 -right-2 grid size-8 place-items-center rounded-full border border-line bg-card text-danger" aria-label={t('ลบรูปที่ {n}', { n: i + 1 })}>
-                <IconX className="size-4" />
+              <button type="button" disabled={busy} onClick={() => { setDropped(0); removeAt(i) }}
+                className="absolute -top-4 -right-4 grid size-12 place-items-center text-danger" aria-label={t('ลบรูปที่ {n}', { n: i + 1 })}>
+                <span className="grid size-8 place-items-center rounded-full border border-line bg-card"><IconX className="size-4" /></span>
               </button>
             </li>
           ))}
@@ -113,12 +114,17 @@ function PhotoPicker({ kind, jobNo, onSend }: {
       )}
       {/* capture เปิดกล้องหลังทันทีบนมือถือ · คอมพิวเตอร์เลือกไฟล์ได้ */}
       <input id={inputId} type="file" accept="image/*" capture="environment" multiple className="sr-only" disabled={busy || full}
-        onChange={e => { const picked = [...(e.target.files ?? [])]; e.target.value = ''; setError(null); add(picked) }} />
+        onChange={e => { const picked = [...(e.target.files ?? [])]; e.target.value = ''; setError(null); setDropped(add(picked)) }} />
       <label htmlFor={inputId} aria-disabled={busy || full}
         className={`${files.length ? secondaryBtn : primaryBtn} ${busy || full ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}>
         <IconCamera className="size-5 shrink-0" />
         <Tr th={full ? 'ครบ {n} รูปแล้ว' : files.length ? 'ถ่ายเพิ่ม' : kind === 'first' ? 'ถ่ายรูปชิ้นแรก' : 'ถ่ายรูปงานเสร็จ'} vars={{ n: MAX_PHOTOS }} />
       </label>
+      {dropped > 0 && (
+        <p role="status" className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">
+          <Tr th="ส่งได้ครั้งละไม่เกิน {n} รูป · ไม่ได้ใส่อีก {m} รูปที่เลือกเกิน" vars={{ n: MAX_PHOTOS, m: dropped }} />
+        </p>
+      )}
       {kind === 'first' && files.length > 0 && (
         <label className="grid gap-1 text-base"><Tr th="บอกแอดมิน (ไม่ต้องกรอกก็ได้)" />
           <input value={note} maxLength={300} onChange={e => setNote(e.target.value)} className={fieldClass} placeholder={t('เช่น สีเข้มกว่าม็อคอัพนิดหน่อย')} />
@@ -143,6 +149,7 @@ function usePicked() {
   const add = (files: File[]) => {
     const made = files.slice(0, Math.max(0, MAX_PHOTOS - picked.length)).map(file => ({ file, url: URL.createObjectURL(file) }))
     setPicked(prev => [...prev, ...made])
+    return files.length - made.length
   }
   const removeAt = (i: number) => {
     const gone = picked[i]

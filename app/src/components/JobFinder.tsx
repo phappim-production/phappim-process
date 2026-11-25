@@ -75,7 +75,7 @@ export default function JobFinder({ jobs, now, forecast, onOpen }: Props) {
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
             <span className="text-muted">ดูด่วน:</span>
             {quick.map(j => (
-              <button key={j.id} onClick={() => pick(j)} className="min-h-11 rounded-full border border-line bg-card px-4 text-sm font-semibold transition hover:border-brand hover:text-brand">{j.no}</button>
+              <button key={j.id} onClick={() => pick(j)} className="min-h-12 rounded-full border border-line bg-card px-4 text-sm font-semibold transition hover:border-brand hover:text-brand">{j.no}</button>
             ))}
           </div>
         )}

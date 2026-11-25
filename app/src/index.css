@@ -113,5 +113,5 @@ body {
 .tr-my { font-family: "Noto Sans Myanmar", "Sarabun", sans-serif; font-size: 0.93em; line-height: 1.6; }
 .tr-th { font-size: 0.72em; font-weight: 500; opacity: 0.72; line-height: 1.35; }
 .tr-inline { display: inline; }
-.tr-inline .tr-th { margin-inline-start: 0.45em; font-size: 0.7em; white-space: nowrap; }
+.tr-inline .tr-th { display: inline-block; max-width: 100%; margin-inline-start: 0.45em; font-size: 0.7em; }
 html.lang-my body { line-height: 1.65; }

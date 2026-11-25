@@ -364,17 +364,17 @@ function MachineTile({ machine: m, job, now, onOpen, onReport, onReady, onEta, r
         </div>
       )}
       {(state === 'free' || state === 'busy') && onReport && (
-        <button onClick={onReport} className="mt-2 min-h-11 rounded-lg border border-danger/40 bg-card px-2 text-sm font-semibold text-danger hover:bg-danger-soft">
+        <button onClick={onReport} className="mt-2 min-h-12 rounded-lg border border-danger/40 bg-card px-2 text-sm font-semibold text-danger hover:bg-danger-soft">
           แจ้งเสีย
         </button>
       )}
       {state === 'broken' && onEta && (
-        <button onClick={onEta} className="mt-2 min-h-11 rounded-lg border border-warn/50 bg-card px-2 text-sm font-semibold text-warn hover:bg-warn-soft">
+        <button onClick={onEta} className="mt-2 min-h-12 rounded-lg border border-warn/50 bg-card px-2 text-sm font-semibold text-warn hover:bg-warn-soft">
           {m.repairEta ? 'เลื่อนเวลาซ่อม' : 'กำหนดเวลาซ่อม'}
         </button>
       )}
       {(state === 'broken' || state === 'off') && onReady && (
-        <button onClick={onReady} className="mt-2 min-h-11 rounded-lg bg-ok px-2 text-sm font-semibold text-white hover:opacity-90">
+        <button onClick={onReady} className="mt-2 min-h-12 rounded-lg bg-ok px-2 text-sm font-semibold text-white hover:opacity-90">
           {state === 'broken' ? 'ซ่อมเสร็จ' : 'เปิดใช้งาน'}
         </button>
       )}
@@ -419,7 +419,7 @@ function EtaPicker({ value, onChange, now }: { value?: Date; onChange: (d?: Date
       <div className="flex flex-wrap gap-1.5">
         {quick.map(([label, d]) => (
           <button key={label} type="button" onClick={() => onChange(d)} aria-pressed={value?.getTime() === d.getTime()}
-            className={`min-h-10 rounded-xl border px-3 text-sm ${value?.getTime() === d.getTime() ? 'border-warn bg-warn-soft font-semibold text-warn' : 'border-line text-ink hover:bg-paper'}`}>
+            className={`min-h-12 rounded-xl border px-3 text-sm ${value?.getTime() === d.getTime() ? 'border-warn bg-warn-soft font-semibold text-warn' : 'border-line text-ink hover:bg-paper'}`}>
             {label}
           </button>
         ))}
@@ -482,7 +482,7 @@ function ReportDialog({ machine: m, job, now, etaRequired, pauses, onCancel, onS
       <div className="mt-2 flex flex-wrap gap-1.5">
         {COMMON_FAULTS.map(f => (
           <button key={f} type="button" onClick={() => setNote(f)} aria-pressed={note === f}
-            className={`min-h-10 rounded-xl border px-3 text-sm ${note === f ? 'border-danger bg-danger-soft font-semibold text-danger' : 'border-line text-ink hover:bg-paper'}`}>
+            className={`min-h-12 rounded-xl border px-3 text-sm ${note === f ? 'border-danger bg-danger-soft font-semibold text-danger' : 'border-line text-ink hover:bg-paper'}`}>
             {f}
           </button>
         ))}

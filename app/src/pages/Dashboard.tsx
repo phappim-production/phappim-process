@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
   COLUMNS, DEPT_NAME, ROUTES, SLA_LABEL, byQueue, isOutLate, STATION_NAME, STATUS_NAME, stationNo,
@@ -634,6 +634,16 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+  // หัวลิ้นชักติดด้านบนสูงไม่เท่ากันตามปุ่มที่มี · บอกเบราว์เซอร์ให้เลื่อนข้อความ error มาไว้ใต้หัว ไม่ใช่ใต้ขอบจอ
+  const head = useRef<HTMLElement>(null)
+  const [headHeight, setHeadHeight] = useState(0)
+  useEffect(() => {
+    const el = head.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const watch = new ResizeObserver(() => setHeadHeight(el.offsetHeight))
+    watch.observe(el)
+    return () => watch.disconnect()
+  }, [])
 
   const stations = ROUTES[j.route].stations
   const curIdx = j.station ? stations.indexOf(j.station) : -1
@@ -656,8 +666,9 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
   return (
     <div className="fixed inset-0 z-30 flex animate-fade justify-end bg-ink/40" onClick={onClose}>
       <aside onClick={e => e.stopPropagation()} role="dialog" aria-label={t('รายละเอียดงาน {no}', { no: j.no })}
+        style={{ scrollPaddingTop: headHeight + 8 }}
         className="flex h-full w-full max-w-md animate-drawer flex-col overflow-y-auto border-l border-line bg-paper shadow-lift">
-        <header className="sticky top-0 z-10 border-b border-line bg-card px-5 pt-5 pb-4">
+        <header ref={head} className="sticky top-0 z-10 border-b border-line bg-card px-5 pt-5 pb-4">
           <div className="flex items-start gap-2">
             <div className="min-w-0">
               <div className="flex items-center gap-2">

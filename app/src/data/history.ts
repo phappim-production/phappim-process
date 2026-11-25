@@ -196,7 +196,10 @@ export function spanText(ms: number): string {
   return `${fmt(h / 24, 1)} วัน`
 }
 
-export type VisitLine = { station: string; label: string; start: Date; end: Date | null; span: string; paused: string | null; workedMs: number; pausedMs: number }
+export type VisitLine = {
+  station: string; label: string; start: Date; end: Date | null; span: string
+  paused: string | null; workedMs: number; pausedMs: number; waited: string | null; waitedMs: number
+}
 
 // ยังไม่ทำต่อ = พักถึงตอนนี้
 export function pauseRanges(events: Pick<EventRow, 'type' | 'at'>[], now: Date): { from: number; to: number }[] {
@@ -210,9 +213,34 @@ export function pauseRanges(events: Pick<EventRow, 'type' | 'at'>[], now: Date):
   return out
 }
 
-// หักช่วงพักงานออก เพราะเวลามาตรฐานและหน้ารายงานไม่นับเวลาพัก
+// รูปที่ยังไม่ได้ตัดสินนับถึงตอนนี้ แต่ถ้ารอบสถานีจบแล้ว (ปิดระบบรูประหว่างรอ) ไม่หัก เหมือนเวลามาตรฐานในฐานข้อมูล
+export function firstPieceWaits(events: Pick<EventRow, 'type' | 'at'>[], now: Date): { from: number; to: number; open: boolean }[] {
+  const out: { from: number; to: number; open: boolean }[] = []
+  let from: number | null = null
+  for (const e of [...events].sort((a, b) => a.at.localeCompare(b.at))) {
+    if (e.type === 'first_piece_sent' && from === null) from = new Date(e.at).getTime()
+    else if ((e.type === 'first_piece_ok' || e.type === 'first_piece_rejected') && from !== null) { out.push({ from, to: new Date(e.at).getTime(), open: false }); from = null }
+  }
+  if (from !== null) out.push({ from, to: now.getTime(), open: true })
+  return out
+}
+
+function coveredMs(ranges: { from: number; to: number }[], start: number, end: number): number {
+  const clipped = ranges.map(r => ({ from: Math.max(r.from, start), to: Math.min(r.to, end) })).filter(r => r.to > r.from).sort((a, b) => a.from - b.from)
+  let total = 0
+  let reach = -Infinity
+  for (const r of clipped) {
+    if (r.to <= reach) continue
+    total += r.to - Math.max(r.from, reach)
+    reach = r.to
+  }
+  return total
+}
+
+// หักช่วงพักงานและรออนุมัติชิ้นแรกออก เพราะเวลามาตรฐานและหน้ารายงานไม่นับ · ช่วงที่ซ้อนกันหักครั้งเดียว
 export function visitLines(rows: VisitRow[], n: Pick<Names, 'station'>, now: Date, events: Pick<EventRow, 'type' | 'at'>[] = []): VisitLine[] {
   const pauses = pauseRanges(events, now)
+  const waits = firstPieceWaits(events, now)
   return rows
     .filter((r): r is VisitRow & { started_at: string } => !!r.started_at)
     .sort((a, b) => a.started_at.localeCompare(b.started_at))
@@ -220,15 +248,18 @@ export function visitLines(rows: VisitRow[], n: Pick<Names, 'station'>, now: Dat
       const start = new Date(r.started_at)
       const end = r.done_at ? new Date(r.done_at) : null
       const to = (end ?? now).getTime()
-      const pausedMs = pauses.reduce((sum, p) => sum + Math.max(0, Math.min(p.to, to) - Math.max(p.from, start.getTime())), 0)
+      const pausedMs = coveredMs(pauses, start.getTime(), to)
+      const waitedMs = coveredMs([...pauses, ...waits.filter(w => !(w.open && end))], start.getTime(), to) - pausedMs
+      const workedMs = to - start.getTime() - pausedMs - waitedMs
       const tag = [r.phase === 'sample' ? 'ตัวอย่าง' : '', r.rework ? 'งานแก้' : ''].filter(Boolean).join(' · ')
       return {
         station: r.station_code,
         label: `${n.station(r.station_code)}${tag ? ` (${tag})` : ''}`,
         start, end,
-        span: `${spanText(to - start.getTime() - pausedMs)}${end ? '' : ' (ยังทำอยู่)'}`,
+        span: `${spanText(workedMs)}${end ? '' : ' (ยังทำอยู่)'}`,
         paused: pausedMs >= 60_000 ? spanText(pausedMs) : null,
-        workedMs: to - start.getTime() - pausedMs, pausedMs,
+        workedMs, pausedMs,
+        waited: waitedMs >= 60_000 ? spanText(waitedMs) : null, waitedMs,
       }
     })
 }

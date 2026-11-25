@@ -12,7 +12,7 @@ const job: ReportJob = {
 
 function rows(overrides: Partial<ReportRows> = {}): ReportRows {
   return {
-    jobs: [], visits: [], issues: [], qc: [], samples: [], delays: [], stations: [], routes: [], reasonCodes: [],
+    jobs: [], visits: [], issues: [], firstPieces: [], qc: [], samples: [], delays: [], stations: [], routes: [], reasonCodes: [],
     ...overrides,
   }
 }
@@ -136,6 +136,19 @@ describe('เวลาเฉลี่ยต่อสถานีและคอ�
       ],
     })
     expect(data.stations.items[0].workMs).toBe(1.5 * HOUR)
+  })
+
+  it('หักเวลารออนุมัติชิ้นแรก · ทับช่วงพักหักครั้งเดียว · รูปที่ไม่ได้ตัดสินไม่หัก', () => {
+    const data = metrics({
+      jobs: [job], visits: [cut],
+      issues: [{ id: 1, job_id: job.id, opened_at: at('20', '08:00:00'), closed_at: at('20', '09:00:00'), reason: 'รอคน' }],
+      firstPieces: [
+        { job_id: job.id, sent_at: at('20', '08:30:00'), decided_at: at('20', '10:00:00') },
+        { job_id: job.id, sent_at: at('20', '10:30:00'), decided_at: null },
+        { job_id: 'other', sent_at: at('20', '08:00:00'), decided_at: at('20', '11:00:00') },
+      ],
+    })
+    expect(data.stations.items[0].workMs).toBe(2 * HOUR)
   })
 
   it('รอคิวจากสถานีก่อนหน้าตามเส้นทางปัก และตัดร้านนอกออกจากคอขวด', () => {

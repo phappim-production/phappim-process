@@ -11,7 +11,7 @@ it('Audit Log: แสดงเฉพาะช่องที่เปลี่�
     old_row: { user_id: 'u2', name: 'สมชาย', role: 'production', active: true, updated_at: 'a' },
     new_row: { user_id: 'u2', name: 'สมชาย', role: 'staff', active: false, updated_at: 'b' },
   })
-  expect(auditChanges(r)).toEqual(['role: ฝ่ายผลิต → พนักงานสถานี', 'active: ใช่ → ไม่'])
+  expect(auditChanges(r)).toEqual(['บทบาท: ฝ่ายผลิต → พนักงานสถานี', 'ใช้งาน: ใช่ → ไม่'])
   expect(auditChanges(row({ action: 'insert', new_row: { code: 'x' } }))).toEqual([])
 })
 
@@ -24,6 +24,18 @@ it('Audit Log: หัวรายการบอกการกระทำ ต�
     .toBe('ลบรหัสสาเหตุ: ผ้าขาด')
   expect(auditTitle(row({ table_name: 'sewing_machines', action: 'insert', row_key: '41', new_row: { id: 41, code: 'SN-099' } }), name))
     .toBe('เพิ่มจักรเย็บ: SN-099')
+})
+
+it('Audit Log: ตั้งค่ารูปยืนยันงานเป็นภาษาไทย · เวลาเป็นเวลาไทย ไม่ใช่ ISO', () => {
+  const r = row({ table_name: 'station_photo_settings', row_key: 'true',
+    old_row: { id: true, enabled_at: null, remind_minutes: 5 }, new_row: { id: true, enabled_at: '2026-11-25T03:56:05.932+00:00', remind_minutes: 15 } })
+  expect(auditTitle(r, () => '?')).toBe('แก้ไขระบบรูปยืนยันงาน')
+  const changes = auditChanges(r)
+  expect(changes[1]).toBe('เตือนเมื่อรอเกิน (นาที): 5 → 15')
+  expect(changes[0]).toMatch(/^เปิดใช้เมื่อ: — → 25 พ\.ย\. 2569 10:56 น\.$/)
+  expect(changes.join(' ')).not.toMatch(/enabled_at|remind_minutes|T03:56/)
+  expect(auditChanges(row({ table_name: 'stations', old_row: { code: 'print', first_piece_check: false }, new_row: { code: 'print', first_piece_check: true } })))
+    .toEqual(['รออนุมัติชิ้นแรก: ไม่ → ใช่'])
 })
 
 it('รายการรออนุมัติ: ตัดรายการที่ผู้บริหารรับทราบแล้ว · เก่าสุดขึ้นก่อน', () => {

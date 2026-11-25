@@ -116,7 +116,7 @@ describe('C14 ผลิตข้างนอกทั้งหมด', () => {
         { route_code: 'outside', station_code: 'outside', seq: 1 }, { route_code: 'outside', station_code: 'qc_pack', seq: 2 },
         { route_code: 'cut_only', station_code: 'cut', seq: 1 }, { route_code: 'cut_only', station_code: 'qc_pack', seq: 2 },
       ],
-      issues: [], qc: [], samples: [], delays: [], reasonCodes: [],
+      issues: [], firstPieces: [], qc: [], samples: [], delays: [], reasonCodes: [],
     }
     const window = reportWindow('7', now)
     const onlyOutside = { ...data, jobs: data.jobs.slice(0, 1), visits: data.visits.slice(0, 1) }
