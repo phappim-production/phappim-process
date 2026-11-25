@@ -15,8 +15,11 @@ export function nextAction(j: Job, now: Date): NextAction | null {
   switch (j.phase) {
     case 'done':
       return null
-    case 'materials':
-      return make(word('ติ๊กวัตถุดิบ: รอ {depts}', { depts: missingDepts(j).map(d => DEPT_NAME[d]).join(', ') }), 'warn', 3)
+    case 'materials': {
+      const depts = missingDepts(j)
+      const list = word(depts.map((_, i) => `{d${i}}`).join(', '), Object.fromEntries(depts.map((d, i) => [`d${i}`, { th: DEPT_NAME[d] }])))
+      return make(word('ติ๊กวัตถุดิบ: รอ {depts}', { depts: list }), 'warn', 3)
+    }
     case 'sample_review':
       return make(word('แอดมินบันทึกผลตัวอย่างรอบ {n}', { n: j.sampleRound }), 'info', 4)
   }

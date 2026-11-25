@@ -1,5 +1,6 @@
 // เติมช่องหน้ารับงานจากไฟล์ของฟอร์มใบยืนยัน เพราะพิมพ์ซ้ำ = โอกาสพิมพ์ผิด
 import { ROUTES, type RouteCode } from '../proto/model.ts'
+import { yearOutOfRange } from '../proto/format.ts'
 
 export type ReceiveDraft = {
   no: string
@@ -17,6 +18,7 @@ export type ReceiveDraft = {
 }
 
 type Answers = Record<string, unknown>
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 const num = (v: unknown) => {
   const n = Number(v)
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
@@ -74,19 +76,24 @@ const SAMPLE_TEXT = {
 /** null = ไม่ใช่ไฟล์จากฟอร์มใบยืนยัน */
 export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
   if (!raw || typeof raw !== 'object') return null
-  const d = raw as {
+  const file = raw as {
     h?: Answers
     p?: Answers
     product?: unknown
     summary?: { qty?: unknown; route?: unknown }
     imgs?: unknown
+    sys?: unknown
   }
-  if (!d.h || !d.p || typeof d.product !== 'string') return null
+  if (!file.h || !file.p || typeof file.product !== 'string') return null
+  // ไฟล์จาก "บันทึกไฟล์" เก็บฟอร์มครบทุกสินค้าไว้เปิดแก้ต่อ · sys = ฉบับที่คัดช่องซ่อนและชุดไซซ์ที่ไม่ได้ติ๊กออกแล้ว
+  const sys = isRecord(file.sys) && isRecord(file.sys.h) && isRecord(file.sys.p) ? file.sys : null
+  const d = { ...file, h: sys ? sys.h as Answers : file.h, p: sys ? sys.p as Answers : file.p, product: file.product }
   const ans = productAnswers(d.p, d.product)
   const sum = d.summary && typeof d.summary === 'object' ? d.summary : undefined
   const sumQty = sum ? num(sum.qty) : 0
   // ภาพม็อคอัพในไฟล์หนักหลาย MB ไม่เก็บลงฐานข้อมูล (ดูภาพได้จาก PDF)
-  const { imgs: _imgs, ...spec } = d as Record<string, unknown>
+  const { imgs: _imgs, sys: _sys, sent_sig: _sig, pickOpen: _pick, ...rest } = d as Record<string, unknown>
+  const spec = isRecord(d.p[d.product]) ? { ...rest, p: { [d.product]: d.p[d.product] } } : rest
   return {
     no: text(d.h.doc_no),
     rev: num(d.h.rev),
@@ -115,8 +122,6 @@ export type ReviseArgs = {
   p_changes: string[]
 }
 
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
-
 // ใบที่มาจากฟอร์ม: จำนวนและสินค้าอยู่ในสเปกด้วย แก้ที่หน้ารับงานอย่างเดียวจะไม่ตรงกับใบ
 export function isFormDraft(draft: Pick<ReceiveDraft, 'spec'>): boolean {
   const s = draft.spec
@@ -137,11 +142,22 @@ export function syncConfirmationSpec(draft: ReceiveDraft, productName: string): 
     due_date: draft.due || s.h.due_date,
     sample: draft.needsSample === null ? s.h.sample : !draft.needsSample ? SAMPLE_TEXT.no : draft.develop ? SAMPLE_TEXT.develop : SAMPLE_TEXT.yes,
   }
-  const part = s.p[draft.product]
+  // สินค้าในใบปิดใช้แล้ว แอดมินเลือกสินค้าใหม่ · สเปกต้องเป็นสินค้าเดียวกับงาน ไม่อย่างนั้นแก้ใบภายหลังไม่ได้
+  const part = s.p[draft.product] ?? s.p[s.product]
   const p = isRecord(part)
-    ? { ...s.p, [draft.product]: { ...part, spare: draft.spare > 0 ? draft.spare : '' } }
+    ? { [draft.product]: { ...part, spare: draft.spare > 0 ? draft.spare : '' } }
     : s.p
-  return { ...s, h, p }
+  return { ...s, product: draft.product, h, p }
+}
+
+const SPEC_DATES = [['issue_date', 'วันที่ออกใบ'], ['sample_date', 'วันนัดส่งตัวอย่าง']] as const
+
+/** ชื่อช่องวันที่ในสเปกที่ปีไม่ใช่ ค.ศ. (ไฟล์ .json เก่า) · null = ไม่มีปัญหา */
+export function specYearProblem(draft: Pick<ReceiveDraft, 'spec'>): string | null {
+  const h = draft.spec.h
+  if (!isRecord(h)) return null
+  const bad = SPEC_DATES.find(([k]) => typeof h[k] === 'string' && yearOutOfRange(h[k]))
+  return bad ? bad[1] : null
 }
 
 const FORM_ONLY_KEYS = ['revise_job', 'changes', 'mockup', 'mockup_path', 'from_job', 'job_img', 'job_imgs', 'job_no', 'mockup_no']

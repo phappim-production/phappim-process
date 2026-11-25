@@ -281,8 +281,10 @@ async function runA1(ctx) {
     await t.uploadFiles('input[type="file"][data-img]', [fixtures.paths.frontPng])
     await waitFor(() => t.ev(() => !readingImgs && state.imgs.length > 0), 'โหลดรูป banner')
     assert.deepEqual(await t.ev(() => validate()), [])
+    assert.equal(await t.ev(() => scope('p').print_method.some(v => v.includes('ลูกค้าส่งผ้ามาเอง'))), true)
     await t.clickButton('ดูตัวอย่าง PDF')
-    await t.waitText('ลูกค้าส่งผ้ามาเอง')
+    await t.waitText('ป้ายงานวิ่งประจำปี')
+    assert.equal(await t.ev(() => document.body.innerText.includes('ลูกค้าส่งผ้ามาเอง')), false, 'ฉบับลูกค้าไม่พิมพ์เทคนิค')
     const pdfBanner = await t.printPdf('pdf-confirm-banner')
     assert.equal(pdfBanner.header, '%PDF-')
     await t.clickButton('กลับไปแก้ไข')
@@ -736,7 +738,7 @@ async function runA2(ctx) {
     return 'pending ส่งกลับ/อนุมัติฉบับ 1 + กันฝ่ายผลิตอนุมัติฉบับ 2 หลังเริ่มผลิต'
   })
 
-  await tracker.check('A2.4', 'เกินเวลามาตรฐาน (SLA): ปุ่มแดง + กันกดเสร็จก่อนส่งรายงานปัญหา + ส่งรายงานแล้วกดเสร็จได้', async () => {
+  await tracker.check('A2.4', 'เกินเวลาผลิต: เย็บกดเสร็จได้ · QC + Packing เสร็จไม่ได้จนส่งรายงานสาเหตุ · ส่งแล้วปิดงานได้', async () => {
     const p2Id = await jobIdByNo(stack, 'TEST-A2-P2')
     await t.goto('prod1', '#/board', 1440)
     await t.clickButton('จักรเย็บ')
@@ -749,28 +751,32 @@ async function runA2(ctx) {
     await t.clickButton(/เริ่มเย็บด้วย/)
     await t.waitText('กำลังเย็บ')
 
-    await sql(stack, `update public.jobs set station_started_at = now() - interval '6 days' where id = $1`, [p2Id])
-    await t.goto('prod1', '#/board', 1440)
-    await t.clickButton('จักรเย็บ')
-    await t.waitText('เกินเวลา · ส่งรายงานปัญหาก่อนกดเย็บเสร็จ')
-    await t.screenshot('a2-sla-overdue-button')
-
-    await t.clickButton('เกินเวลา · ส่งรายงานปัญหาก่อนกดเย็บเสร็จ')
-    await t.waitText('ต้องส่งรายงานปัญหาก่อนกดเสร็จ')
-    await t.clickButton(/^[A-Z]\d+ /, { inside: '#delay-report' })
-    await t.fillInput('#delay-report textarea', 'งานเย็บเยอะ รอคิว')
-    await t.fillInput('#delay-report input[type="date"]', '2099-01-20')
-    await t.fillInput('#delay-report input[placeholder*="ช่างซ่อม"]', 'หัวหน้าทีม')
-    await t.clickButton('ส่งรายงานปัญหา', { exact: true, inside: '#delay-report' })
-    await t.waitText('ส่งรายงานปัญหาแล้ว')
-
+    await sql(stack, `update public.jobs set created_at = now() - interval '40 days' where id = $1`, [p2Id])
     await t.goto('prod1', '#/board', 1440)
     await t.clickButton('จักรเย็บ')
     await t.waitText('งานระหว่างเย็บ')
     await t.clickButton('เย็บเสร็จ')
     await t.clickButton('ยืนยันเย็บเสร็จ')
     await t.waitText('ส่งต่อ QC + Packing แล้ว')
-    return 'SLA เกินเวลาบังคับรายงานก่อนกดเสร็จ'
+
+    await t.goto('qc', `#/board?job=${p2Id}`, 1440)
+    await t.clickButton('เริ่ม QC + Packing', { inside: '[role="dialog"]' })
+    await t.fillInput('[role="dialog"] input[aria-label="จำนวนที่ผ่าน"]', '10')
+    await t.clickButton('บันทึกผ่าน')
+    await t.waitText('ผ่านแล้ว 10 จาก 10')
+    await t.waitText('เกินเวลาผลิต ต้องส่งรายงานสาเหตุก่อน')
+    await t.screenshot('a2-lead-over-qc-block')
+    const finishable = await t.ev(() => [...document.querySelectorAll('[role="dialog"] button')].some(b => b.textContent.trim() === 'QC + Packing เสร็จ' && !b.disabled))
+    assert.equal(finishable, false, 'ปุ่ม QC + Packing เสร็จต้องกดไม่ได้ก่อนส่งรายงาน')
+
+    await t.clickButton(/^[A-Z]\d+ /, { inside: '#delay-report' })
+    await t.fillInput('#delay-report textarea', 'งานเย็บเยอะ รอคิว')
+    await t.fillInput('#delay-report input[type="date"]', '2099-01-20')
+    await t.clickButton('ส่งรายงานปัญหา', { exact: true, inside: '#delay-report' })
+    await t.waitText('ส่งรายงานปัญหาแล้ว')
+    await t.clickButton('QC + Packing เสร็จ', { exact: true, inside: '[role="dialog"]' }); await t.clickButton('ยืนยัน', { exact: true, inside: '[role="dialog"]' })
+    await t.waitText('รอจัดส่ง')
+    return 'เย็บไม่บล็อก · QC บล็อกจนรายงาน · รายงานแล้วปิดงานได้'
   })
 }
 
@@ -1105,17 +1111,8 @@ async function runA6(ctx) {
     await t.waitText('3 เครื่อง')
     await waitFor(() => t.ev(() => !document.querySelector('form button[type="submit"]')), 'ปิดฟอร์มสถานี')
 
-    await t.clickButton('เวลามาตรฐานของช่วง')
-    await t.waitText('พิมพ์ + รีด + ตัด')
-    await t.clickButton('แก้ไข', { index: 0 })
-    await t.ev(() => {
-      const inp = [...document.querySelectorAll('input')].find(i => i.closest('label')?.textContent.includes('เวลามาตรฐาน (วันทำงาน)'))
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(inp, '4')
-      inp.dispatchEvent(new Event('input', { bubbles: true }))
-    })
-    await t.clickButton('บันทึก')
-    await t.waitText('4 วันทำงาน')
-    await waitFor(() => t.ev(() => !document.querySelector('form button[type="submit"]')), 'ปิดฟอร์มช่วง')
+    await t.clickButton('เวลาผลิต', { exact: true })
+    await t.waitText('เวลาผลิตทั้งงาน')
 
     await t.clickButton('แม่แบบวัตถุดิบ')
     await t.waitText('เพิ่มแม่แบบวัตถุดิบ')

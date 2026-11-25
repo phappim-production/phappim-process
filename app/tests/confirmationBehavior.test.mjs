@@ -338,3 +338,70 @@ test('ฟอร์มใบยืนยัน: ภาพม็อคอัพข
   assert.equal((doc.match(/class="d-mock"/g) || []).length, 1)
   assert.ok(doc.indexOf('class="d-mock"') > page && doc.indexOf('class="d-mock"') < accept)
 })
+
+test('ฟอร์มใบยืนยัน: กล่อง "ส่งใบเข้าระบบแล้ว" ไม่พิมพ์ลง PDF', () => {
+  const html = readFileSync(new URL('../../production-confirmation.html', import.meta.url), 'utf8')
+  const print = /@media print\{([\s\S]*?)\n\}/.exec(html)[1]
+  assert.match(print, /#afterSave[^{]*\{display:none!important\}/)
+})
+
+test('ฟอร์มใบยืนยัน: บันทึกเข้าระบบซ้ำ ไม่พารูป base64 ไปกับลายเซ็นฟอร์ม (sent_sig) ทั้งในใบที่ส่งและในเครื่อง', () => {
+  const { api, store, s, v } = filled()
+  v.size_sets = ['ไซซ์ผู้ใหญ่']
+  v.sizes = [{ label: 'ขาว', q: { M: '10' } }]
+  const big = 'data:image/jpeg;base64,' + 'A'.repeat(50000)
+  s.imgs = [{ name: 'a.jpg', src: big, w: 10, h: 10 }]
+  api.shrunk.set(big, 'data:image/jpeg;base64,small')
+  api.saveToSystem()
+  v.sizes[0].q.M = '12'
+  api.saveToSystem()
+  const out = sent(store)
+  assert.equal('sent_sig' in out, false)
+  assert.equal('pickOpen' in out, false)
+  assert.ok(api.state.sent_sig.length < 100)
+})
+
+test('ฟอร์มใบยืนยัน: "แก้ไขครั้งที่" เป็นทศนิยมหรือติดลบ ต้องแก้ก่อน · จำนวนเต็มผ่าน', () => {
+  const { api, s } = filled()
+  for (const rev of ['1.5', '-1', 'abc']) {
+    s.h.rev = rev
+    assert.ok(api.validate().some(m => m.hard && m.id === 'fld_h_rev'), rev)
+  }
+  for (const rev of ['', '0', '2']) {
+    s.h.rev = rev
+    assert.equal(api.validate().some(m => m.id === 'fld_h_rev'), false, rev)
+  }
+})
+
+test('ฟอร์มใบยืนยัน: ผลิตเผื่อเสียเกิน 100,000 ถือว่าพิมพ์ผิด บันทึกไม่ได้', () => {
+  const { api, store, v } = filled()
+  v.size_sets = ['ไซซ์ผู้ใหญ่']
+  v.sizes = [{ label: 'a', q: { M: '10' } }]
+  v.spare = '3000000000'
+  assert.ok(api.validate().some(m => m.hard && m.id === 'fld_p_spare' && /มากเกินไป/.test(m.why)))
+  api.saveToSystem()
+  assert.equal(store.has(OUTBOX), false)
+  v.spare = '5'
+  assert.equal(api.validate().some(m => m.id === 'fld_p_spare'), false)
+})
+
+test('ฟอร์มใบยืนยัน: ยังไม่มีจำนวนเลย บันทึกเข้าระบบไม่ได้ (ระบบรับงาน 0 ชิ้นไม่ได้)', () => {
+  const { api, store, g, v } = filled()
+  v.size_sets = ['ไซซ์ผู้ใหญ่']
+  v.sizes = [{ label: 'ขาว', q: {} }]
+  api.saveToSystem()
+  assert.equal(store.has(OUTBOX), false)
+  assert.match(g.alerts.at(-1), /ยังไม่มีจำนวน/)
+})
+
+test('ฟอร์มใบยืนยัน: ไฟล์ที่บันทึก (.json) มีฉบับคัดสำหรับหน้ารับงาน (sys) เหมือนที่ส่งเข้าระบบ', () => {
+  const { api, v } = filled()
+  v.size_sets = ['ไซซ์ผู้ใหญ่', 'ไซซ์เด็ก']
+  v.sizes = [{ label: 'ขาว', q: { M: '10', 'เด็ก S': '5' } }]
+  v.size_sets = ['ไซซ์ผู้ใหญ่']
+  const sys = api.systemCopy()
+  assert.deepEqual(Object.keys(sys.p), ['tshirt'])
+  assert.deepEqual(sys.p.tshirt.sizes[0].q, { M: '10' })
+  const html = readFileSync(new URL('../../production-confirmation.html', import.meta.url), 'utf8')
+  assert.match(html, /act==='savefile'[^\n]*sys:systemCopy\(\)/)
+})

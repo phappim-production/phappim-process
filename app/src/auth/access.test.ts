@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { canCancelJob, canCloseIssue, ROLE_LABELS, type EmployeeRole } from './access'
+import { canCancelJob, canCloseIssue, canReportDelay, ROLE_LABELS, type EmployeeRole } from './access'
 
 // ต้องตรงกับ close_issue / resume_sewing ในฐานข้อมูล
 it('ปิดปัญหาได้เฉพาะฝ่ายผลิต ผู้บริหาร เจ้าของ · แอดมินกับ QC ไม่ได้', () => {
@@ -21,4 +21,11 @@ it('ยกเลิกงานได้เฉพาะผู้บริหา�
   for (const role of Object.keys(ROLE_LABELS) as EmployeeRole[]) {
     expect(canCancelJob(role), role).toBe(role === 'manager' || role === 'owner')
   }
+})
+
+it('รายงานล่าช้า: พนักงานส่งได้เฉพาะงานที่อยู่สถานีของตัวเอง · บทบาทอื่นตาม submit_delay_report · ผู้บริหารไม่ได้', () => {
+  expect(canReportDelay('staff', true)).toBe(true)
+  expect(canReportDelay('staff', false)).toBe(false)
+  for (const role of ['owner', 'admin', 'production', 'supervisor', 'qc'] as EmployeeRole[]) expect(canReportDelay(role, false), role).toBe(true)
+  expect(canReportDelay('manager', true)).toBe(false)
 })

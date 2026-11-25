@@ -5,7 +5,7 @@ import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { uploadFile } from '../data/files'
 import { contentKey, signedUrls } from '../data/mockups'
-import { confirmationPath, draftFromConfirmation, FORM_LOCK_REASON, isFormDraft, pdfProblem, sewRecipeProblem, syncConfirmationSpec, type ReceiveDraft } from '../data/confirmation'
+import { confirmationPath, draftFromConfirmation, FORM_LOCK_REASON, isFormDraft, pdfProblem, sewRecipeProblem, specYearProblem, syncConfirmationSpec, type ReceiveDraft } from '../data/confirmation'
 import { draftLabel, formDataFromDraft, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
 import { specMockups } from '../data/jobMockups'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
@@ -106,9 +106,13 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
   const dueBeforeLead = !!lead && /^\d{4}-\d{2}-\d{2}$/.test(draft.due) && draft.due < lead.due
   const forecastOverLead = lead && forecast ? leadLateDays(forecast.finish, lead.due) : 0
   const recipeIssue = product ? sewRecipeProblem(draft.route, floor.needsOf(product.code)) : null
+  // ใบที่เลือกจากรายการ ระบบจับคู่ใบกับงานด้วยเลขที่ใบ · เปลี่ยนเลขแล้วใบเดิมค้างในรายการและรับซ้ำได้
+  const noLocked = !!picked && fromForm
   const missing = [
     !draft.no.trim() && 'เลขที่ใบยืนยัน', !draft.customer.trim() && 'ชื่อลูกค้า', !product && 'ประเภทสินค้า',
-    draft.qty <= 0 && 'จำนวน', !draft.due && 'กำหนดส่ง', yearOutOfRange(draft.due) && 'ปีของกำหนดส่ง (ใช้ ค.ศ.)', !draft.route && 'เส้นทางผลิต', draft.needsSample === null && 'ขึ้นตัวอย่างหรือไม่', pdf && pdfIssue && 'PDF ใบยืนยัน',
+    draft.qty <= 0 && 'จำนวน', !draft.due && 'กำหนดส่ง', yearOutOfRange(draft.due) && 'ปีของกำหนดส่ง (ใช้ ค.ศ.)',
+    specYearProblem(draft) && `ปีของ${specYearProblem(draft)}ในใบยืนยัน (${FORM_LOCK_REASON})`,
+    !draft.route && 'เส้นทางผลิต', draft.needsSample === null && 'ขึ้นตัวอย่างหรือไม่', pdf && pdfIssue && 'PDF ใบยืนยัน',
   ].filter(Boolean) as string[]
 
   async function readJson(file: File | undefined) {
@@ -117,6 +121,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
       const d = draftFromConfirmation(JSON.parse(await file.text()))
       if (!d) throw new Error()
       setDraft(d)
+      setPicked('')
       setJsonNote({ ok: true, text: `ดึงข้อมูลจาก ${file.name} แล้ว · ตรวจอีกครั้งก่อนรับงาน` })
     } catch {
       setJsonNote({ ok: false, text: 'ไฟล์นี้ไม่ใช่ไฟล์ที่บันทึกจากฟอร์มใบยืนยันการผลิต กรอกเองได้' })
@@ -192,7 +197,8 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className={label}>เลขที่ใบยืนยัน
-            <input value={draft.no} onChange={e => set('no', e.target.value)} placeholder="เช่น SC691451" className={fieldClass} />
+            <input value={draft.no} onChange={e => set('no', e.target.value)} placeholder="เช่น SC691451" className={fieldClass} disabled={noLocked} aria-describedby={noLocked ? 'no-locked' : undefined} />
+            {noLocked && <span id="no-locked" className="text-sm font-normal text-muted">เลขที่มาจากใบที่เลือก · {FORM_LOCK_REASON}</span>}
           </label>
           <label className={label}>แก้ไขครั้งที่
             <input type="number" min={0} inputMode="numeric" value={draft.rev || ''} placeholder="ใบแรกเว้นว่าง" onChange={e => set('rev', Math.max(0, Number(e.target.value) || 0))} className={fieldClass} />

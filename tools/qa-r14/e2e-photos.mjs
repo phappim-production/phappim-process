@@ -49,9 +49,17 @@ try {
   await fetch(stack.origin + '/__qa/reset', { method: 'POST' })
   const fx = (await createFixtures(h)).paths
   const { writeFile } = await import('node:fs/promises')
-  fx.backJpg2 = fx.backJpg.replace(/.jpg$/, '-2.jpg')
-  const b64 = await h.ev(() => { const c = document.createElement('canvas'); c.width = 640; c.height = 480; const g = c.getContext('2d'); g.fillStyle = '#334'; g.fillRect(0, 0, 640, 480); g.fillStyle = '#e8e8e8'; g.fillRect(160, 80, 320, 320); g.fillStyle = '#123'; g.fillRect(300, 160, 90, 60); return c.toDataURL('image/jpeg', 0.9).split(',')[1] })
-  await writeFile(fx.backJpg2, Buffer.from(b64, 'base64'))
+  // ส่งรูปซ้ำรอบที่ไม่ผ่าน/รูปชิ้นแรกเป็นรูปงานเสร็จถูกปฏิเสธ ทุกครั้งที่ส่งต้องเป็นรูปใหม่
+  const photo = async (name, shade) => {
+    const out = fx.backJpg.replace(/.jpg$/, `-${name}.jpg`)
+    const b64 = await h.ev(s => { const c = document.createElement('canvas'); c.width = 640; c.height = 480; const g = c.getContext('2d'); g.fillStyle = s; g.fillRect(0, 0, 640, 480); g.fillStyle = '#e8e8e8'; g.fillRect(160, 80, 320, 320); g.fillStyle = '#123'; g.fillRect(300, 160, 90, 60); return c.toDataURL('image/jpeg', 0.9).split(',')[1] }, shade)
+    await writeFile(out, Buffer.from(b64, 'base64'))
+    return out
+  }
+  fx.backJpg2 = await photo('2', '#334')
+  fx.resendJpg = await photo('resend', '#433')
+  fx.resendJpg2 = await photo('resend-2', '#343')
+  fx.finishJpg = await photo('finish', '#344')
   const accounts = await (await fetch(stack.origin + '/__qa/accounts')).json()
   const id = k => accounts.find(a => a.key === k).id
   await as(id('owner'), 'public.set_station_photos_enabled(true, 15)', [])
@@ -155,7 +163,7 @@ try {
 
   let secondKey = null
   await step('worker-resend', async () => {
-    await h.uploadFiles('input[type=file][capture]', [fx.backJpg, fx.backJpg2])
+    await h.uploadFiles('input[type=file][capture]', [fx.resendJpg, fx.resendJpg2])
     await h.clickButton('ส่งรูปชิ้นแรก 2 รูป')
     await h.waitText('ชิ้นแรกรออนุมัติ', 12000)
     const keys = [...stack.r2Store.keys()].filter(k => k.startsWith('station_photos/')).sort()
@@ -194,7 +202,7 @@ try {
     await h.waitText('ชิ้นแรกผ่านแล้ว', 10000)
     await h.ev(() => document.querySelector('ol[aria-label="เส้นทาง"]')?.scrollIntoView({ block: 'start' }))
     await h.screenshot('v3-worker-approved-375')
-    await h.uploadFiles('input[type=file][capture]', [fx.backJpg])
+    await h.uploadFiles('input[type=file][capture]', [fx.finishJpg])
     await h.clickButton('ส่งรูปงานเสร็จ 1 รูป')
     await h.waitText('กดเสร็จได้', 12000)
     await h.clickButton('ตัดงานเสร็จ')
