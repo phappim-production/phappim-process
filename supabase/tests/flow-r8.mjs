@@ -150,6 +150,7 @@ export async function flowR8Tests({ db, ok }) {
         record_file_upload: ['mockups', photo.replace('r8.jpg', 'ab12.jpg'), 10, 'image/jpeg', 'bad'], file_read_allowed: ['mockups', [photo]],
         submit_first_piece: [id, station ?? 'cut', ['TEST/cut/1/ab12.jpg'], reason], decide_first_piece: [0, false, reason],
         add_finish_photos: [id, station ?? 'cut', ['TEST/cut/1/ab12.jpg']], set_station_photos_enabled: [false], station_photo_flags: [],
+        ack_confirmation_revision: [id, station ?? 'cut'], confirmation_revision_flags: [],
       }
       assert.deepEqual(functions.filter(name => !Object.hasOwn(args, name)), [])
       for (const name of functions) {

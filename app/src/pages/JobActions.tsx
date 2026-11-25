@@ -4,9 +4,8 @@ import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { confirmationPath, pdfProblem } from '../data/confirmation'
-import { formDataFromJob, INBOX_KEY } from '../data/confirmationDrafts'
-import { specMockups } from '../data/jobMockups'
-import { contentKey, mockupProblem, shrinkImage, signedUrls, uploadMockup } from '../data/mockups'
+import { INBOX_KEY } from '../data/confirmationDrafts'
+import { contentKey, mockupProblem, shrinkImage, uploadMockup } from '../data/mockups'
 import { signFiles, uploadFile } from '../data/files'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
 import { DEPT_NAME, OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, stationNo, usesFilm, type Dept, type Job, type StationCode, type Vendor } from '../proto/model'
@@ -27,6 +26,9 @@ import { QueueReasonPrompt } from './QueueReason'
 import { SKIP_QUEUE_PLACEHOLDER, skipQueueHead } from './queueSkip'
 import { StationPhotoPanel } from './StationPhotos'
 import { photoBlock } from '../data/stationPhotos'
+import { loadFormData } from '../data/jobForm'
+import { needsRevisionAck } from '../data/revisions'
+import { RevisionBanner, ViewConfirmation } from './Revision'
 
 type Material = { id: number; name: string; dept: Dept; key: string | null; checked_at: string | null }
 type Reason = { code: string; grp: string; name: string }
@@ -114,6 +116,7 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
   return (
     // แผงนี้อยู่ในรายละเอียดงานที่ตั้งตัวอักษรเล็ก แต่ข้อความหลักต้อง ≥ 16 px
     <div className="grid gap-4 text-base">
+      {j.revision ? <RevisionBanner job={j} canAck={canStation && inStation} busy={busy} act={act} /> : <ViewConfirmation job={j} />}
       {d.pdfPath ? <OpenPdf path={d.pdfPath} /> : admin && <AttachPdf job={j} refresh={refresh} />}
       {admin && <SetMockup job={j} refresh={refresh} />}
       {admin && <ReviseConfirmation job={j} hasPdf={!!d.pdfPath} refresh={refresh} />}
@@ -284,16 +287,6 @@ function OpenInForm({ job }: { job: Job }) {
       {error && <p role="alert" className="text-danger">{error}</p>}
     </div>
   )
-}
-
-async function loadFormData(jobId: string): Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; reason: string }> {
-  if (!supabase) return { ok: false, reason: 'ยังไม่ได้ตั้งค่า Supabase' }
-  const { data, error } = await supabase.from('jobs').select('spec, mockup_path').eq('id', jobId).single()
-  if (error) return { ok: false, reason: thaiError(error.message) }
-  const row = data as { spec: unknown; mockup_path: string | null }
-  // ลิงก์รูปใช้ได้ 1 ชั่วโมง พอสำหรับแก้แล้วพิมพ์ PDF
-  const form = formDataFromJob(row.spec, row.mockup_path, await signedUrls(specMockups(row.spec, row.mockup_path).map(m => m.path)))
-  return form ? { ok: true, data: form } : { ok: false, reason: 'งานนี้รับเข้าโดยไม่ได้ใช้ฟอร์มใบยืนยัน จึงไม่มีข้อมูลให้เปิดในฟอร์ม' }
 }
 
 // ลิงก์มีอายุ 5 นาที เพราะไฟล์ไม่เปิดสาธารณะ
@@ -553,7 +546,7 @@ function Station({ job: j, queueHead, detail: d, canPress, canResume, role, busy
   const missingText = (m: Substep): Word => m.kind === 'lock' ? { th: 'รอแอดมินบันทึก "{step}"', vars: { step: { th: m.name } } }
     : m.key === 'inspect' ? { th: 'QC ตรวจผ่าน {passed}/{qty} ชิ้น ยังไม่ครบ (ชิ้นไม่ผ่านให้กด "ส่งแก้")', vars: { passed: d.qcPassed, qty: j.qty } } : { th: m.name }
   const photoWait = photoBlock(j.photos)
-  const blocks: Word[] = [...missing.map(missingText), ...(photoWait ? [{ th: photoWait }] : [])]
+  const blocks: Word[] = [...missing.map(missingText), ...(needsRevisionAck(j) ? [{ th: 'กด "รับทราบใบแก้" ก่อน' }] : []), ...(photoWait ? [{ th: photoWait }] : [])]
   const finishBlock: Word | null = blocks.length ? { th: 'ยังกดเสร็จไม่ได้: {list}', vars: { list: blocks } }
     : needReport ? { th: 'เกินเวลามาตรฐาน ต้องส่งรายงานปัญหาก่อน' } : null
   const sample = j.phase === 'sample'

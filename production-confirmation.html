@@ -142,6 +142,9 @@ table.ft tfoot td{font-weight:700;background:#f7f8f6}
 #doc{display:none}
 body.preview #form,body.preview .edit-only{display:none}
 body.preview #doc{display:block}
+body.view-only #btnPreview,body.view-only .edit-only{display:none!important}
+.view-note{background:var(--caution-soft);border:1px solid var(--caution);color:var(--ink);border-radius:12px;padding:12px 16px;margin-bottom:14px;display:grid;gap:4px}
+.view-note b{color:var(--caution)}
 .doc{width:210mm;min-height:297mm;margin:0 auto 24px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:10mm 10mm 14mm;font-size:12px;line-height:1.45;color:#111;font-family:"Noto Sans Thai","Sarabun",sans-serif}
 table.pg{width:100%;border-collapse:collapse}
 table.pg>thead>tr>td,table.pg>tbody>tr>td{padding:0;vertical-align:top}
@@ -204,7 +207,7 @@ table.dt tfoot td{font-weight:700;background:#f7f8f6}
   .opts.has-desc{--opt-min:100%}
   .pl-row,.pl-head{grid-template-columns:1fr}
   .pl-head{display:none}
-  .doc{width:auto;min-height:0;padding:16px;margin:0 0 16px}
+  .doc{width:auto;min-height:0;padding:16px;margin:0 0 16px;overflow-x:auto}
   .kv{grid-template-columns:1fr}
   .ph{grid-template-columns:auto 1fr}
   .ph .no{grid-column:1/-1;text-align:left}
@@ -240,7 +243,7 @@ div[data-co-part].co-box{cursor:move;touch-action:none}
 }
 @media print{
   body{background:#fff}
-  .bar,#form,#nav,.alert,.toast,.page-note{display:none!important}
+  .bar,#form,#nav,.alert,.toast,.page-note,.view-note{display:none!important}
   main.layout{display:block;padding:0}
   #doc{display:block!important}
   .doc{width:auto;min-height:0;margin:0;padding:0;box-shadow:none}
@@ -1123,8 +1126,11 @@ function fresh(){ return { h:{ issue_date: today() }, product:'tshirt', pickOpen
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function load(key=LS){ try{ const s=JSON.parse(localStorage.getItem(key)); if(s&&s.h&&s.p&&PRODUCTS[s.product]){ upgradeOpts(s.p); s.pickOpen=false; s.imgs=Array.isArray(s.imgs)?s.imgs:[]; s.callouts=Array.isArray(s.callouts)?s.callouts:[]; s.co_sizes=Array.isArray(s.co_sizes)?s.co_sizes:[]; return s; } }catch(e){} return null; }
 let warnedQuota=false, saveTimer=0;
+// เปิดดูจากระบบ (ฝ่ายผลิต / หน้างาน) ห้ามเขียนทับใบที่แอดมินกรอกค้างในเครื่องเดียวกัน
+let viewOnly=false;
 function save(){
   clearTimeout(saveTimer); saveTimer=0;
+  if(viewOnly) return;
   try{ localStorage.setItem(LS, JSON.stringify(state)); }
   catch(e){
     try{ const {imgs,...rest}=state; localStorage.setItem(LS, JSON.stringify({...rest,imgs:[]})); }catch(e2){}
@@ -1778,12 +1784,28 @@ function restorePrev(){
 function takeInbox(){
   let d=null; try{ d=JSON.parse(localStorage.getItem(INBOX)); localStorage.removeItem(INBOX); }catch(e){}
   if(!d) return;
+  if(d.view) return openView(d);
   const busy=String(state.h.doc_no||state.h.customer||'').trim() && state.h.doc_no!==d.h?.doc_no;
   if(busy && !confirm('เปิดใบ '+(d.h?.doc_no||'')+' จากระบบ ข้อมูลที่กรอกอยู่ในฟอร์มจะถูกแทนที่ ดำเนินการต่อ?')) return;
   const label=d.from_job ? 'เปิดใบ '+(d.h?.doc_no||'')+' ของงานที่รับแล้ว · ลูกค้าขอแก้: แก้ข้อมูล ใส่ "แก้ไขครั้งที่" กด "บันทึกการแก้เข้างาน" แล้ว "ส่งออก PDF"'
     : 'เปิดใบ '+(d.h?.doc_no||'')+' จากระบบแล้ว · แก้แล้วกด "บันทึกเข้าระบบ" อีกครั้ง';
   if(!loadData(d, label)){ alert('ข้อมูลจากระบบไม่ใช่ใบยืนยันการผลิต'); return; }
   state.sent_sig=formSig(state); save();
+}
+
+function openView(d){
+  viewOnly=true;
+  document.body.classList.add('view-only');
+  if(!loadData(d, 'เปิดดูใบยืนยัน '+(d.h?.doc_no||'')+' (ดูอย่างเดียว)')){ alert('ข้อมูลจากระบบไม่ใช่ใบยืนยันการผลิต'); return; }
+  togglePreview(true);
+  $('#alert').innerHTML='';
+  const r=d.revision, note=document.createElement('div');
+  note.className='view-note'; note.setAttribute('role','status');
+  note.innerHTML=r
+    ? `<b>ใบยืนยันฉบับแก้ไขครั้งที่ ${esc(r.rev)} · อัปเดต ${esc(r.at)} น.${r.by?' โดย '+esc(r.by):''}</b>${r.fields?.length?`<span>ช่องที่แก้: ${esc(r.fields.join(', '))}</span>`:''}<span>ผลิตตามใบนี้ (ฉบับล่าสุดในระบบ) · ดูอย่างเดียว แก้ไม่ได้</span>`
+    : `<b>ใบยืนยันในระบบ (ยังไม่เคยแก้)</b><span>ดูอย่างเดียว แก้ไม่ได้</span>`;
+  $('#doc').before(note);
+  document.title='ใบยืนยัน '+(d.h?.doc_no||'')+(r?' (แก้ไขครั้งที่ '+r.rev+')':'');
 }
 
 // กด Enter = ไปช่องถัดไป (กรอกตารางไซซ์ได้เร็ว) · กันล้อเมาส์เปลี่ยนตัวเลขโดยไม่ตั้งใจ

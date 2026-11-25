@@ -19,6 +19,7 @@ import Overview, { StationNow } from './Overview'
 import { DASH_TAB_NAME, FACTORY_SCOPE, boardColumnOf, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
 import { SewingFloor, TodoPanel } from './WorkPanels'
 import { FirstPieceQueue } from './FirstPieceReview'
+import { RevisionPill } from './Revision'
 import { pausesJob, type MachineStatus } from '../proto/sewing'
 import { BookingPanel } from './BookingPanel'
 import { ErrorBoundary } from '../components/ErrorBoundary'
@@ -140,6 +141,10 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
     release: async (jobId, code) => {
       const r = await call('release_machines', { p_job: jobId, p_machine_codes: [code] })
       return r.ok ? { ok: true, text: `คืนจักร ${code} แล้ว · งานอื่นใช้ได้` } : r
+    },
+    ackRevision: async jobId => {
+      const r = await call('ack_confirmation_revision', { p_job: jobId, p_station: 'sew' })
+      return r.ok ? { ok: true, text: `${noOf(jobId)} รับทราบใบแก้แล้ว · เย็บตามใบล่าสุด` } : r
     },
     photo: async (jobId, fn, args) => {
       const r = await call(fn, { p_job: jobId, ...args })
@@ -574,6 +579,7 @@ function JobCard({ job: j, now, sampleTag, onOpen }: { job: Job; now: Date; samp
           {/* ป้ายเวลามาตรฐานใช้สีของตัวเอง (ส้ม/แดง) ไม่ใช้สีแถบ ซึ่งอาจแดงเพราะเลยกำหนดส่ง */}
           {label && <Pill tone={j.sla && label === tx(SLA_LABEL[j.sla].text) ? SLA_LABEL[j.sla].tone : tone}><StatusIcon className="size-4" />{label}</Pill>}
           {j.rework && <Pill tone="danger">{tx('งานแก้')}</Pill>}
+          <RevisionPill job={j} />
         </span>
       )}
       {sampleTag && j.phase === 'sample' && <span className="mt-0.5 flex"><Pill tone="info">{tx(j.develop ? 'ตัวอย่าง · Develop' : 'ตัวอย่าง')}</Pill></span>}

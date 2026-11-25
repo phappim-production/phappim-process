@@ -74,6 +74,8 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
       receive_job: [admin, intake('MATRIX-NEW', 'outside', false)],
       attach_confirmation_pdf: [admin, [queued, path]],
       revise_job_spec: [admin, [queued, { product: 'tshirt', h: { doc_no: 'TEST-R13-MATRIX-QUEUED' }, p: {} }, 1, 'ลูกค้าจำลอง', 'งานจำลอง', 10, 0, '2099-01-06', false, ['ทดสอบ']]],
+      ack_confirmation_revision: [plant, [queued, 'cut']],
+      confirmation_revision_flags: [all, []],
       move_job_ahead: [plan, [later, queued, reason]],
       start_in_queue: [plant, [queued, null]],
       note_queue_skip: [plant, [later, reason]],
@@ -136,7 +138,7 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
       result.push({ name, expected, cells })
     }
     console.log('R13_MATRIX ' + JSON.stringify({ probes, result, discrepancies }))
-    assert.equal(result.length, 40)
+    assert.equal(result.length, 42)
     assert.equal(discrepancies.filter(item => ['anon', 'disabled'].includes(item.actor)).length, 0)
     assert.deepEqual(documented.sort(), Object.keys(rowsToTest).sort())
     return result.length + ' RPC × ' + probes.length + ' บัญชี'

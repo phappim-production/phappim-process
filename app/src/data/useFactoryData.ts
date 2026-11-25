@@ -7,6 +7,7 @@ import { boardStatics, stationMachineRows } from './lookups'
 import { invalidateStatic } from './staticCache'
 import { changedJob, touchJob } from './jobKey'
 import { attachPhotoGates, type PhotoFlagRow } from './stationPhotos'
+import { attachRevisions, type RevisionFlagRow } from './revisions'
 import { onUserChange } from './userScope'
 import type { Job, Vendor } from '../proto/model'
 import type { Booking, Machine, MachineType, Need } from '../proto/sewing'
@@ -91,6 +92,7 @@ async function load(): Promise<FactoryData> {
   const client = supabase
   const slaCall = supabase.rpc('job_sla_flags')
   const photoCall = supabase.rpc('station_photo_flags')
+  const revisionCall = supabase.rpc('confirmation_revision_flags')
   // ฐานข้อมูลที่ยังไม่มีคอลัมน์ machines (migration ยังไม่ลง) = ไม่จำกัดเครื่อง ไม่ทำให้หน้าโหลดไม่ขึ้น
   const stationCall = stationMachineRows.get().catch(() => [])
   const holdCall = supabase.from('issues').select('job_id, opened_at').is('closed_at', null)
@@ -117,6 +119,7 @@ async function load(): Promise<FactoryData> {
   const sla = await slaCall
   // ฐานข้อมูลที่ยังไม่มีฟังก์ชันรูป (migration ยังไม่ลง) = ไม่บังคับรูป · ฐานข้อมูลยังตรวจตอนกดเสร็จ
   const photoFlags = await photoCall
+  const revisions = await revisionCall
   const stationRows = await stationCall
   const holds = await holdCall
   // อ่านสเปกกำกับไม่ได้ = การ์ดไม่มีป้ายรับทราบ ไม่ทำให้บอร์ดโหลดไม่ขึ้น
@@ -127,8 +130,9 @@ async function load(): Promise<FactoryData> {
   return {
     stationMachines: toStationMachines(stationRows),
     vendors,
-    jobs: await withMockups(attachPhotoGates(attachSpecSheets(attachSla(attachOutRuns(held, outRuns.data as OutRunRow[], vendors),
-      sla.error ? [] : (sla.data ?? []) as SlaFlagRow[]), specs.sheets, specs.acks), photoFlags.error ? [] : (photoFlags.data ?? []) as PhotoFlagRow[])),
+    jobs: await withMockups(attachRevisions(attachPhotoGates(attachSpecSheets(attachSla(attachOutRuns(held, outRuns.data as OutRunRow[], vendors),
+      sla.error ? [] : (sla.data ?? []) as SlaFlagRow[]), specs.sheets, specs.acks), photoFlags.error ? [] : (photoFlags.data ?? []) as PhotoFlagRow[]),
+      revisions.error ? [] : (revisions.data ?? []) as RevisionFlagRow[])),
     machines: toMachines(machines.data as MachineRow[], assignments.data as AssignmentRow[]),
     bookings: toBookings(bookings.data as BookingRow[]),
     needs: toNeeds(statics.needs, new Set(shared)),
