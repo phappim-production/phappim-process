@@ -1,0 +1,60 @@
+{
+  "externalAttempts": [],
+  "results": [
+    {
+      "id": "D1.direct-url-matrix",
+      "title": "D1.1 เปิด URL #/... ตรงๆ ครบทุกเส้นทาง x ทุกบทบาท: บัญชีไม่มีสิทธิ์/ถูกปิดต้องเข้าหน้าต้องห้ามไม่ได้",
+      "pass": true,
+      "detail": "13 accounts x 24 routes checked · leaks=0"
+    },
+    {
+      "id": "D1.rpc-matrix-and-rest-writes",
+      "title": "D1.2 ดึงฟังก์ชัน public จาก pg_proc ครบทุกตัว x ทุกบทบาท + ห้ามเขียนตารางตรงผ่าน REST",
+      "pass": true,
+      "detail": "pg_proc=67 (unmapped=0) · RPC violations=0 · directREST=0"
+    },
+    {
+      "id": "D1.xss-sweep",
+      "title": "D1.3 ทดสอบ XSS (<script>, <img onerror>) ทุกช่องข้อความที่แสดงผลและพิมพ์ PDF",
+      "pass": true,
+      "detail": "XSS payload escaped safely across Overview, Board, Drawer, FirstPieceReview, History, Inbox, Label, Mockup, and Confirmation PDF"
+    },
+    {
+      "id": "D2.sql-data-integrity",
+      "title": "D2 ตรวจความถูกต้องของข้อมูลในฐานข้อมูลด้วย SQL หลังจบทุกเส้นทาง",
+      "pass": true,
+      "detail": "contradictions=0 · orphanMachines=0 · orphanIssues=0 · splitSum=50 · pendingChecksOnClosed=0"
+    }
+  ],
+  "observations": [
+    {
+      "key": "D1_url_matrix",
+      "rolesTested": 13,
+      "routesTested": 24,
+      "leaks": []
+    },
+    {
+      "key": "D1_rpc_and_rest",
+      "pgProcsCount": 67,
+      "unmappedProcs": [],
+      "securityViolations": [],
+      "directWriteViolations": []
+    },
+    {
+      "key": "D2_sql_audit",
+      "sqlAudit": {
+        "contradictoryStates": [],
+        "orphanedMachineAssignments": [],
+        "orphanedOpenIssues": [],
+        "orphanedOutRuns": [],
+        "splitQtySumCheck": [
+          {
+            "family_sum": 50
+          }
+        ],
+        "pendingChecksOnClosedJobs": []
+      },
+      "pendingChecksOnClosedCount": 0
+    }
+  ]
+}
