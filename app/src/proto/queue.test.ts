@@ -6,7 +6,7 @@ import { useFactoryData } from '../data/useFactoryData'
 import Dashboard from '../pages/Dashboard'
 import { TodoPanel } from '../pages/WorkPanels'
 import { StationQueue } from '../pages/StationQueue'
-import { byQueue, queueNo, stationCounts, waitingAt, type Job } from './model'
+import { byQueue, doingFirst, queueNo, stationCounts, waitingAt, type Job } from './model'
 import { simulate, workdayToDate } from './capacity'
 import { planSewing } from './sewing'
 import { todoList } from './actions'
@@ -34,6 +34,11 @@ describe('คิวงาน', () => {
   it('งานที่แทรกคิว (เลขคิวทศนิยม) อยู่ระหว่างสองงาน', () => {
     const list = [job('a', { queue: 1 }), job('b', { queue: 2 }), job('rush', { queue: 1.5 })]
     expect(list.sort(byQueue).map(j => j.id)).toEqual(['a', 'rush', 'b'])
+  })
+
+  it('งานที่กำลังทำขึ้นก่อนงานพัก แม้งานพักมาก่อนในคิว', () => {
+    const list = [job('hold', { queue: 1, status: 'hold' }), job('d2', { queue: 3, status: 'doing' }), job('d1', { queue: 2, status: 'doing' })]
+    expect(list.sort(doingFirst).map(j => j.id)).toEqual(['d1', 'd2', 'hold'])
   })
 
   it('คิวของสถานีนับเฉพาะงานที่รอเริ่มที่สถานีเดียวกัน', () => {

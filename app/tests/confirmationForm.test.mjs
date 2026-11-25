@@ -20,6 +20,61 @@ test('ฟอร์มใบยืนยัน: เปิดใบจากระ
   assert.doesNotMatch(js.slice(0, call), /\(function takeInbox/)
 })
 
+test('ฟอร์มใบยืนยัน: เปิดแบบใบใหม่ (?new) เรียกก่อนเปิดใบจากระบบ และหลังประกาศค่าคงที่ทุกตัว', () => {
+  const js = scripts.find(s => s.includes('function takeNew'))
+  assert.ok(js)
+  const call = js.lastIndexOf('\ntakeNew();')
+  assert.ok(call > 0 && call < js.lastIndexOf('\ntakeInbox();'))
+  assert.doesNotMatch(js.slice(call), /^(const|let|class)\s/m)
+})
+
+function newForm({ url, saved, prev }) {
+  const js = scripts.join('\n')
+  const start = js.indexOf('const formSig =')
+  const end = js.indexOf('// หน้าระบบกด "เปิดในฟอร์ม"')
+  assert.ok(start > 0 && end > start)
+  const store = new Map(Object.entries({ pc142: saved && JSON.stringify(saved), 'pc142.prev': prev && JSON.stringify(prev) }).filter(([, v]) => v))
+  const localStorage = { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: k => store.delete(k) }
+  const afterSave = { innerHTML: '' }
+  const ctx = { state: saved ?? { h: {}, p: {}, imgs: [] }, replaced: null, toasts: [], rendered: 0, asked: [], startedOver: 0 }
+  const fresh = () => ({ h: { issue_date: '2026-11-25' }, product: 'tshirt', pickOpen: true, p: {}, imgs: [], callouts: [] })
+  const load = key => { const s = JSON.parse(localStorage.getItem(key)); return s && s.h ? s : null }
+  const api = new Function('ctx', 'LS', 'localStorage', 'location', 'history', '$', 'fresh', 'load', 'esc', 'toast', 'rerender', 'scrollTo', 'confirm', 'startOver',
+    'let state=ctx.state, coTab=0, missing=[];\n' + js.slice(start, end) + '\nreturn { takeNew, restorePrev, get state(){ return state } }')(
+    ctx, 'pc142', localStorage, new URL(url), { replaceState: (a, b, u) => { ctx.replaced = u } }, () => afterSave, fresh, load,
+    s => String(s), m => ctx.toasts.push(m), () => { ctx.rendered++ }, () => {}, m => { ctx.asked.push(m); return true }, () => { ctx.startedOver++ })
+  return { api, store, afterSave, ctx }
+}
+
+test('ฟอร์มใบยืนยัน: กด "เปิดฟอร์มใบยืนยัน (ใบใหม่)" ได้ฟอร์มว่าง · ใบที่กรอกค้างเก็บแยกไว้เปิดคืนได้', () => {
+  const old = { h: { doc_no: 'SC690101-0001', customer: 'ลูกค้าเก่า' }, product: 'tshirt', p: { qty: 30 }, imgs: [] }
+  const { api, store, afterSave, ctx } = newForm({ url: 'https://pp142.test/confirmation?new=1', saved: old })
+  api.takeNew()
+  assert.equal(ctx.replaced, '/confirmation')
+  assert.equal(api.state.h.doc_no, undefined)
+  assert.deepEqual(JSON.parse(store.get('pc142.prev')), old)
+  assert.match(afterSave.innerHTML, /SC690101-0001/)
+  assert.match(afterSave.innerHTML, /data-act="restoreprev"/)
+  api.state.p = { tshirt: { sew_mode: 'เย็บตามมาตรฐานโรงงาน' } }
+  api.restorePrev()
+  assert.deepEqual(ctx.asked, [], 'ฟอร์มใหม่ที่ยังไม่ได้กรอก ไม่ต้องถามก่อนเปิดใบเดิมคืน')
+  assert.equal(api.state.h.doc_no, 'SC690101-0001')
+  assert.equal(store.has('pc142.prev'), false)
+  assert.equal(afterSave.innerHTML, '')
+})
+
+test('ฟอร์มใบยืนยัน: เปิดแบบใบใหม่ตอนฟอร์มว่างอยู่แล้ว ไม่สร้างใบค้าง · เปิดปกติ (ไม่มี ?new) ได้ใบเดิม', () => {
+  const blank = newForm({ url: 'https://pp142.test/confirmation?new=1', saved: { h: { issue_date: '2026-11-25' }, product: 'tshirt', p: { tshirt: { sew_mode: 'เย็บตามมาตรฐานโรงงาน' } }, imgs: [] } })
+  blank.api.takeNew()
+  assert.equal(blank.store.has('pc142.prev'), false)
+  assert.equal(blank.afterSave.innerHTML, '')
+  const old = { h: { doc_no: 'SC1' }, product: 'tshirt', p: {}, imgs: [] }
+  const plain = newForm({ url: 'https://pp142.test/confirmation', saved: old })
+  plain.api.takeNew()
+  assert.equal(plain.api.state.h.doc_no, 'SC1')
+  assert.equal(plain.ctx.replaced, null)
+})
+
 test('ฟอร์มใบยืนยัน: PDF ที่ลูกค้าเซ็นไม่พิมพ์กำหนดส่ง (วันส่งใช้ภายใน)', () => {
   const js = scripts.join('\n')
   assert.doesNotMatch(js, /thDate\(h\.due_date\)/)
@@ -250,23 +305,20 @@ test('ฟอร์มใบยืนยัน: flush ครบทุกทาง
   }
 })
 
-test('ฟอร์มใบยืนยัน: ปุ่ม "เปิดฟอร์มใบยืนยัน (ใบใหม่)" เปิด ?new=1 แล้วฟอร์มเริ่มใบใหม่จริง · ใบที่ยังไม่ได้บันทึกเข้าระบบต้องถามก่อนล้าง', () => {
+test('ฟอร์มใบยืนยัน: ปุ่มใบใหม่ในหน้ารับงานเปิด ?new=1 · ใบที่บันทึกเข้าระบบแล้วล้างได้เลย ไม่ต้องเก็บแยก · แก้หลังบันทึกยังเก็บแยก', () => {
   const receive = readFileSync(new URL('../src/pages/ReceiveJob.tsx', import.meta.url), 'utf8')
   assert.match(receive, /NEW_CONFIRMATION_FORM = '\/confirmation\?new=1'/)
   assert.match(receive, /href=\{NEW_CONFIRMATION_FORM\}[^>]*>เปิดฟอร์มใบยืนยัน \(ใบใหม่\)</)
   const js = scripts.join('\n')
-  const start = js.indexOf('const formSig =')
-  const end = js.indexOf('function takeNewRequest')
-  assert.ok(start > 0 && end > start)
-  const { formSig, formHasData, newFormNeedsAsk } = new Function(js.slice(start, end) + '\nreturn { formSig, formHasData, newFormNeedsAsk }')()
-  const blank = { h: { issue_date: '2026-11-24' }, p: {}, product: 'tshirt', callouts: [], imgs: [] }
-  assert.equal(formHasData(blank), false)
-  const filled = { ...blank, h: { doc_no: 'SC690999', customer: 'ร้าน ก' }, p: { qty: 10 } }
-  assert.equal(newFormNeedsAsk(filled), true)
-  const sent = { ...filled, sent_sig: formSig(filled) }
-  assert.equal(newFormNeedsAsk(sent), false)
-  assert.equal(newFormNeedsAsk({ ...sent, p: { qty: 12 } }), true)
   assert.match(js, /state\.sent_sig=formSig\(state\); save\(\);\s*showAfterSave/)
-  const boot = js.slice(js.lastIndexOf('renderForm();'))
-  assert.ok(boot.indexOf('takeNewRequest();') > 0 && boot.indexOf('takeNewRequest();') < boot.indexOf('takeInbox();'))
+  const formSig = new Function(js.slice(js.indexOf('const formSig ='), js.indexOf('const PREV=')) + '\nreturn formSig')()
+  const filled = { h: { doc_no: 'SC690999', customer: 'ร้าน ก' }, product: 'tshirt', p: { qty: 10 }, callouts: [], imgs: [] }
+  const sent = newForm({ url: 'https://pp142.test/confirmation?new=1', saved: { ...filled, sent_sig: formSig(filled) } })
+  sent.api.takeNew()
+  assert.equal(sent.ctx.startedOver, 1)
+  assert.equal(sent.store.has('pc142.prev'), false)
+  const edited = newForm({ url: 'https://pp142.test/confirmation?new=1', saved: { ...filled, p: { qty: 12 }, sent_sig: formSig(filled) } })
+  edited.api.takeNew()
+  assert.equal(edited.ctx.startedOver, 0)
+  assert.equal(edited.store.has('pc142.prev'), true)
 })

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { OUTSIDE_START_BLOCK, SLA_LABEL, STATION_NAME, byQueue, filmLabel, isOutLate, isOverdue, waitingAt, type Job, type StationCode } from '../proto/model'
+import { OUTSIDE_START_BLOCK, SLA_LABEL, STATION_NAME, doingFirst, filmLabel, isOutLate, isOverdue, waitingAt, type Job, type StationCode } from '../proto/model'
 import { spaced } from '../proto/format'
 import { DueLabel, MockupThumb, Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
@@ -26,7 +26,7 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
   const staffAtSew = role === 'staff' && station === 'sew' && myStations.includes(station)
   const canPress = floor || (role === 'qc' && station === 'qc_pack') || (role === 'staff' && station !== 'sew' && myStations.includes(station))
   const canInsert = floor || role === 'manager'
-  const working = jobs.filter(j => (j.phase === 'sample' || j.phase === 'production') && j.station === station && (j.status === 'doing' || j.status === 'hold')).sort(byQueue)
+  const working = jobs.filter(j => (j.phase === 'sample' || j.phase === 'production') && j.station === station && (j.status === 'doing' || j.status === 'hold')).sort(doingFirst)
   const queue = waitingAt(jobs, station)
   // งานที่บริษัทภายนอกกำลังทำสถานีนี้ (รวมงานที่ส่งออกหลายสถานีในรอบเดียว)
   const outside = jobs.filter(j => j.status === 'out' && j.out?.stations.includes(station)).sort((a, b) => a.out!.backAt.getTime() - b.out!.backAt.getTime())

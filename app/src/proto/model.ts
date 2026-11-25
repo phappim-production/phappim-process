@@ -192,6 +192,10 @@ export function thaiDayDiff(a: Date, b: Date) {
 export function byQueue(a: Job, b: Job) {
   return (a.queue ?? Infinity) - (b.queue ?? Infinity) || a.since.getTime() - b.since.getTime() || a.id.localeCompare(b.id)
 }
+// งานพักกดอะไรที่สถานีไม่ได้ จึงไว้หลังงานที่กำลังทำ ให้ปุ่มเสร็จอยู่บนสุด
+export function doingFirst(a: Job, b: Job) {
+  return Number(a.status === 'hold') - Number(b.status === 'hold') || byQueue(a, b)
+}
 const inStation = (j: Job) => (j.phase === 'sample' || j.phase === 'production') && !!j.station
 // ตรงกับที่ฐานข้อมูลใช้ตรวจเริ่มข้ามคิว (note_queue_skip)
 export function waitingAt(jobs: Job[], station: StationCode): Job[] {
