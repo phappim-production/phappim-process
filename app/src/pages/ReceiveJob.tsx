@@ -10,7 +10,7 @@ import { draftLabel, formDataFromDraft, INBOX_KEY, type DraftRow } from '../data
 import { specMockups } from '../data/jobMockups'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
 import { receiveForecast, type SewFloor } from '../proto/capacity'
-import { dueDateWarning, shortDate } from '../proto/format'
+import { dueDateWarning, shortDate, thaiFullDate, yearOutOfRange } from '../proto/format'
 import { leadDueDate, leadLateDays, leadTimeFor } from '../proto/leadTime'
 import { Dialog, fieldClass, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconInbox } from '../components/icons'
@@ -108,7 +108,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
   const recipeIssue = product ? sewRecipeProblem(draft.route, floor.needsOf(product.code)) : null
   const missing = [
     !draft.no.trim() && 'เลขที่ใบยืนยัน', !draft.customer.trim() && 'ชื่อลูกค้า', !product && 'ประเภทสินค้า',
-    draft.qty <= 0 && 'จำนวน', !draft.due && 'กำหนดส่ง', !draft.route && 'เส้นทางผลิต', draft.needsSample === null && 'ขึ้นตัวอย่างหรือไม่', pdf && pdfIssue && 'PDF ใบยืนยัน',
+    draft.qty <= 0 && 'จำนวน', !draft.due && 'กำหนดส่ง', yearOutOfRange(draft.due) && 'ปีของกำหนดส่ง (ใช้ ค.ศ.)', !draft.route && 'เส้นทางผลิต', draft.needsSample === null && 'ขึ้นตัวอย่างหรือไม่', pdf && pdfIssue && 'PDF ใบยืนยัน',
   ].filter(Boolean) as string[]
 
   async function readJson(file: File | undefined) {
@@ -127,7 +127,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
     if (missing.length || !product || !supabase || !draft.route || draft.needsSample === null) return
     if (dueWarning && !window.confirm(`${dueWarning}
 
-กำหนดส่ง ${draft.due} ถูกต้อง รับงานต่อ?`)) return
+กำหนดส่ง ${thaiFullDate(draft.due)} ถูกต้อง รับงานต่อ?`)) return
     setError('')
     let path: string | null = null
     if (pdf) {

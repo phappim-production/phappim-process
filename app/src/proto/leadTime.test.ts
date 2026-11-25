@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isLeadLate, leadDayN, leadDaysFor, leadDueDate, leadLateDays, leadTimeFor, leadUsed } from './leadTime'
+import { leadDayN, leadDaysFor, leadDueDate, leadLateDays, leadTimeFor, leadUsed } from './leadTime'
 
 describe('เวลาผลิตทั้งงาน', () => {
   it('1–499 = 10 · 500–999 = 15 · 1000 ขึ้นไป = 20 วันทำงาน', () => {
@@ -44,7 +44,7 @@ describe('เวลาผลิตทั้งงาน', () => {
   })
 
   it('เสร็จวันครบก่อนเที่ยงคืนเวลาไทย = ทัน · หลังเที่ยงคืน = เกิน', () => {
-    expect(isLeadLate('2026-11-12', new Date('2026-11-12T16:30:00Z'))).toBe(false)
-    expect(isLeadLate('2026-11-12', new Date('2026-11-12T18:00:00Z'))).toBe(true)
+    expect(leadLateDays(new Date('2026-11-12T16:30:00Z'), '2026-11-12')).toBe(0)
+    expect(leadLateDays(new Date('2026-11-12T18:00:00Z'), '2026-11-12')).toBe(1)
   })
 })

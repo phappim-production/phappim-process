@@ -39,10 +39,6 @@ export function leadTimeFor(received: Date, qty: number): LeadTime {
   return { days, start, due: leadDayN(start, days), warnOn: leadDayN(start, Math.ceil(days * LEAD_WARN_RATIO)) }
 }
 
-export function isLeadLate(due: string, finished: Date): boolean {
-  return thaiDay(finished) > due
-}
-
 // ค่าบวก = เกินวันที่ต้องเสร็จกี่วัน (วันปฏิทิน)
 export function leadLateDays(finish: Date, due: string): number {
   return dayIndex(thaiDay(finish)) - dayIndex(due)

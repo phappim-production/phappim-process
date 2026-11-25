@@ -3,7 +3,7 @@ import type { OverviewView } from '../auth/menus'
 import { DEFAULT_SEW_PRODUCT, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, hasSewMinutes, lateDays, lineRate, linesFor, machineSets, simulate, verdict, workdayToDate, type Forecast, type SewFloor } from '../proto/capacity'
 import { MACHINE_TYPE_NAME } from '../proto/sewing'
 import { ROUTES, STATION_NAME, WORK_END, byQueue, filmLabel, isFilmNotOrdered, isOutLate, stationCounts, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
-import { dayDiff, duration, shortDate, stageSteps, stageText } from '../proto/format'
+import { YEAR_PROBLEM, dayDiff, duration, shortDate, stageSteps, stageText, yearOutOfRange } from '../proto/format'
 import { leadDueDate, leadLateDays, leadTimeFor } from '../proto/leadTime'
 import { Card, CardHeader, DueLabel, MockupThumb, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
 import { TONE, type Tone } from '../components/tone'
@@ -146,7 +146,8 @@ function NewJobCheck({ shown, jobs, now, floor, products }: { shown: boolean; jo
   }), [shown, jobs, now, route, product, floor])
   if (!r) return null
   const finish = workdayToDate(r.extraFinishDay ?? 0, now)
-  const dueDate = due ? new Date(`${due}T${WORK_END}`) : null
+  const dueBad = yearOutOfRange(due)
+  const dueDate = due && !dueBad ? new Date(`${due}T${WORK_END}`) : null
   const late = dueDate ? lateDays(finish, dueDate) : null
   const std = leadTimeFor(now, Math.max(1, qty || 0))
   const overStd = leadLateDays(finish, std.due)
@@ -177,7 +178,8 @@ function NewJobCheck({ shown, jobs, now, floor, products }: { shown: boolean; jo
         </label>
         <label className="grid gap-1">
           <span className="text-xs font-medium text-muted">ลูกค้าต้องการวันที่</span>
-          <input type="date" value={due} onChange={e => setDue(e.target.value)} className={input} />
+          <input type="date" value={due} onChange={e => setDue(e.target.value)} aria-invalid={dueBad} className={`${input} ${dueBad ? 'border-danger' : ''}`} />
+          {dueBad && <span role="alert" className="text-xs font-medium text-danger">{YEAR_PROBLEM}</span>}
         </label>
       </div>
       {!qtyOk ? (
