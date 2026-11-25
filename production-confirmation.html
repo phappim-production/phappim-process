@@ -179,9 +179,14 @@ table.dt td.l{text-align:left}
 table.dt tfoot td{font-weight:700;background:#f7f8f6}
 .d-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .d-imgs figure{margin:0;border:1px solid #ccc;border-radius:4px;padding:4px;width:calc(50% - 4px);break-inside:avoid;page-break-inside:avoid}
-.d-imgs img{width:100%;height:66mm;object-fit:contain;display:block;background:#fafafa}
+.d-imgs img{width:100%;height:100mm;object-fit:contain;display:block;background:#fafafa}
+.d-imgs.one figure{width:100%}
+.d-imgs.one img{height:170mm}
 .d-imgs figcaption{font-size:10.5px;color:#555;text-align:center;margin-top:2px}
 .close{break-inside:avoid;page-break-inside:avoid;margin-top:12px}
+.d-mockpage{break-before:page;page-break-before:always}
+@media screen{.d-mockpage{margin-top:18px;padding-top:6px;border-top:2px dashed var(--line)}}
+@media screen and (max-width:640px){.d-imgs img,.d-imgs.one img{height:auto}}
 .d-note{border:1px solid #e3d3a8;background:#fbf7ec;border-radius:5px;padding:6px 10px;font-size:11.5px}
 .d-mock{color:var(--warn);text-align:center;font-weight:600;font-size:12px;margin:6px 0}
 .d-accept{background:#fff3a8;border:1px solid #e6cf4f;border-radius:5px;padding:6px 10px;margin:8px 0 6px;text-align:center;color:var(--warn);font-size:11px;font-weight:600}
@@ -1489,7 +1494,8 @@ function coStageHTML(edit, idx=coActiveImg()){
     ?`<button type="button" class="co-dot" data-co-i="${i}" data-co-part="pt" style="${coPct(c.x,c.y)}" aria-label="จุด ${i+1}"></button>`
     :'').join('');
   const boxes=onImg.map(({c,i})=>`<div class="co-box" ${edit?`data-co-i="${i}" data-co-part="box"`:''} style="${coBoxPct(c.bx,c.by)}">${coBoxInner(c,i,refs)}</div>`).join('');
-  return `<div class="co-stage" ${edit?`data-co-stage="${idx}"`:''} style="aspect-ratio:${W}/${H}">`+
+  const fitPage=edit||W>=H?'':`;max-width:${Math.round(100*W/H)}%;margin:0 auto`;
+  return `<div class="co-stage" ${edit?`data-co-stage="${idx}"`:''} style="aspect-ratio:${W}/${H}${fitPage}">`+
     `<img src="${m.src}" alt="" ${edit?`data-co-img="${idx}" draggable="false"`:''} style="left:${CO_MX/(1+2*CO_MX)*100}%;top:${CO_MY/(1+2*CO_MY)*100}%;width:${100/(1+2*CO_MX)}%;height:${100/(1+2*CO_MY)}%">`+
     `<svg viewBox="${-CO_MX*w} ${-CO_MY*h} ${W} ${H}" preserveAspectRatio="none">${lines}</svg>${dots}${boxes}</div>`;
 }
@@ -1957,11 +1963,11 @@ function renderDoc(){
   let x=`<section class="ds">${hItems?`<div class="kv">${hItems}</div>`:''}
   <div class="d-prod"><span>จำนวนรวม <b>${qty}</b>${!forCustomer&&num(v.spare)>0?` (+ เผื่อเสีย ${esc(v.spare)} ${P.unit})`:''}</span></div></section>`;
 
-  let n=0, mockNoted=false;
+  let n=0, mockup='';
   allSecs().forEach(sec=>{
     const fs=sec.fields.filter(f=>visible(f,v)&&!(naAllowed(f)&&isNA(f,v))&&(!forCustomer||customerSees(f,sec)));
     const simple=fs.filter(f=>!['sizeTable','itemTable','placements','images'].includes(f.type)&&f.id!=='spare');
-    let body=kvHTML(simple,v), imgs='';
+    let body=kvHTML(simple,v);
     fs.forEach(f=>{
       if(f.type==='sizeTable'){
         const all=sizeCols(v), rs=rows(v,f.id).filter(r=>all.some(c=>num(r.q[c])>0));
@@ -1992,23 +1998,20 @@ function renderDoc(){
       if(f.type==='images'&&state.imgs.length){
         const co=coDocHTML();
         const plain=state.imgs.map((m,i)=>({m,i})).filter(({i})=>!co||!coList().some(c=>coImgAt(c)===i));
-        imgs=co+(plain.length?`<div class="d-imgs">${plain.map(({m,i})=>`<figure><img src="${m.src}" alt=""><figcaption>${esc(imgName(i+1))}</figcaption></figure>`).join('')}</div>`:'');
+        mockup=co+(plain.length?`<div class="d-imgs${plain.length===1?' one':''}">${plain.map(({m,i})=>`<figure><img src="${m.src}" alt=""><figcaption>${esc(imgName(i+1))}</figcaption></figure>`).join('')}</div>`:'');
       }
     });
-    // ภาพแยกออกจากกล่องหัวข้อ เพื่อให้ตัดหน้าระหว่างภาพได้ ไม่ดันทั้งหัวข้อไปหน้าใหม่
-    if(imgs){ if(!imgs.includes('class="d-co"')) imgs+=`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`; mockNoted=true; }
     if(body) x+=`<section class="ds"><h3>${++n}. ${esc(sec.title)}</h3>${body}</section>`;
-    else if(imgs&&!forCustomer) x+=`<section class="ds"><h3>${++n}. ${esc(sec.title)}</h3></section>`;
-    x+=imgs;
   });
 
   const sig=t=>`<div><div class="t">${t}</div><div class="ln"></div>(.......................................)<br>วันที่ ....../....../......</div>`;
-  x+=`<div class="close">${mockNoted?'':`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`}
+  x+=`<div class="close">${mockup?'':`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`}
     <div class="d-accept"><b>${esc(ACCEPT_TITLE)}</b>${esc(ACCEPT_TEXT)}</div>
     <ol class="d-terms">${TERMS.map(t=>`<li>${esc(t)}</li>`).join('')}</ol>
     <div class="d-note"><b>ข้อตกลง:</b> ลูกค้าตรวจสอบรายละเอียดทั้งหมดในใบนี้แล้ว ${state.h.sample===SAMPLE_YES?'ฝ่ายผลิตจะผลิตตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง':state.h.sample===SAMPLE_DEV?'งานนี้เป็นงาน Develop ฝ่ายผลิตทำตัวอย่างให้ลูกค้ายืนยัน งานจบที่ตัวอย่าง ไม่ผลิตจริง (ผลิตจริงต้องทำใบยืนยันใหม่)':'งานนี้ไม่ขึ้นตัวอย่าง ฝ่ายผลิตผลิตจริงตามใบนี้'}
     และผลิตตามรายละเอียดในใบนี้เท่านั้น <b>รายการที่ไม่ได้ระบุในใบนี้ถือว่าไม่มี / ไม่ต้องทำ</b> การแก้ไขหลังเซ็นต้องออกใบยืนยันฉบับใหม่ และอาจมีผลต่อกำหนดส่ง</div>
     <div class="sign">${sig('ลูกค้ายืนยันรายละเอียด')}${sig('ผู้ควบคุมงาน (รับงานเข้าโรงงาน)')}</div></div>`;
+  if(mockup) x+=`<section class="d-mockpage"><h3>ภาพม็อคอัพ (Mock up)</h3>${mockup}${mockup.includes('class="d-co"')?'':`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`}</section>`;
 
   // ใช้ thead ของตารางเป็นหัวกระดาษ: เบราว์เซอร์จะพิมพ์ thead ซ้ำทุกหน้าเมื่อเนื้อหายาวเกิน 1 หน้า
   $('#doc').innerHTML=`<table class="pg"><thead><tr><td>${head}</td></tr></thead><tbody><tr><td>${x}</td></tr></tbody></table>`;
@@ -2022,7 +2025,9 @@ function estimatePages(){
   const probe=document.createElement('div'); probe.style.cssText='position:absolute;visibility:hidden;height:100mm;width:1px';
   document.body.appendChild(probe); const mm=probe.offsetHeight/100; probe.remove();
   const headH=t.tHead.offsetHeight, bodyH=t.tBodies[0].offsetHeight, per=274*mm-headH;
-  const pages=Math.max(1,Math.ceil(bodyH/per*1.03));
+  const mp=t.querySelector('.d-mockpage'), top=t.tBodies[0].getBoundingClientRect().top;
+  const mainH=mp?t.querySelector('.close').getBoundingClientRect().bottom-top:bodyH, sheets=(h,k)=>h>0?Math.ceil(h/per*k):0;
+  const pages=Math.max(1,sheets(mainH,mp?1:1.03)+sheets(mp?mp.offsetHeight:0,1.03));
   t.style.width=''; d.style.display=prev;
   let n=$('#pageNote'); if(!n){ n=document.createElement('div'); n.id='pageNote'; d.parentNode.insertBefore(n,d); }
   n.className='page-note'+(pages>2?' warn':'');

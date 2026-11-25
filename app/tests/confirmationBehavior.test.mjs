@@ -320,3 +320,20 @@ test('ฟอร์มใบยืนยัน: ช่องเซ็นมีแ
   const signs = [...els.get('#doc').innerHTML.matchAll(/<div class="t">([^<]*)<\/div>/g)].map(m => m[1])
   assert.deepEqual(signs, ['ลูกค้ายืนยันรายละเอียด', 'ผู้ควบคุมงาน (รับงานเข้าโรงงาน)'])
 })
+
+test('ฟอร์มใบยืนยัน: ภาพม็อคอัพขึ้นหน้าใหม่ต่อจากช่องเซ็น ไม่แทรกกลางรายละเอียด · ไม่มีภาพ = ไม่มีหน้าม็อคอัพ', () => {
+  const { api, els, s, v } = filled()
+  withFactoryDetails(v)
+  api.renderDoc()
+  assert.equal(els.get('#doc').innerHTML.includes('d-mockpage'), false)
+  assert.match(els.get('#doc').innerHTML, /class="d-mock"/)
+  s.imgs = [{ name: 'ด้านหน้า', src: 'data:image/png;base64,AA==', w: 4, h: 3 }]
+  api.renderDoc()
+  const doc = els.get('#doc').innerHTML
+  const sign = doc.indexOf('class="sign"'), page = doc.indexOf('class="d-mockpage"')
+  assert.ok(sign > 0 && page > sign)
+  assert.ok(doc.indexOf('รูป 1 · ด้านหน้า') > page)
+  assert.match(doc.slice(page), /d-imgs one/)
+  assert.equal((doc.match(/class="d-mock"/g) || []).length, 1)
+  assert.ok(doc.indexOf('class="d-mock"') > page)
+})
