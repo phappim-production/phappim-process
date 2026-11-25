@@ -107,7 +107,7 @@ export async function sweepFixTests({ db, ok, as }) {
     await pass('งานแม่ส่งรายงานหลังแบ่ง', U.prod, report(parent))
     ok('รายงานของงานแม่หลังแบ่ง ไม่นับให้ส่วนที่แบ่ง', (await sla(parent)).lead_reported === true && (await sla(child)).lead_reported === false)
     await retire(child)
-    ok('ส่วนที่แบ่งถูกยกเลิก ไม่นับจำนวน → งานแม่ 200 ชิ้น = 10 วัน', (await sla(parent)).lead_qty === 200 && (await sla(parent)).lead_days === 10)
+    ok('ส่วนที่แบ่งถูกยกเลิก ยังนับจำนวน → งานแม่ยัง 15 วัน (เวลาผลิตไม่หดย้อนหลัง)', (await sla(parent)).lead_qty === 600 && (await sla(parent)).lead_days === 15)
 
     const reported = await overdue('SC-SWP-SLA2', 10)
     await pass('งานแม่ส่งรายงานก่อนแบ่ง', U.prod, report(reported))
