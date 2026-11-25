@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { bookingDay, bookingTime, groupBookings, isBookingSunday, moveBookingDay, applyFinishSewing, applyReportSewingIssue, applyBooking, freeDuring, jobsBookedDuring, applyMachineStatus, applyRepairEta, repairStatus, applyStartSewing, cancelBookings, checkBooking, checkStartSewing, floorSummary, isValidMachineCode, machineCode, machineState, planSewing, sewQueue, SEW_NEEDS, needText } from '../src/proto/sewing.ts'
 import { nextAction, todoList } from '../src/proto/actions.ts'
+import { translate } from '../src/i18n/word.ts'
 
 // วันที่ตายตัว (จันทร์ 16 พ.ย. 2569 10:00 เวลาไทย) ไม่พึ่งเวลาปัจจุบัน
 const now = new Date('2026-11-16T10:00:00+07:00')
@@ -107,7 +108,9 @@ test('ไม่มีงานในคิว = ไม่พัง', () => {
 
 test('สิ่งที่ต้องทำต่อของแต่ละสถานะ', () => {
   assert.equal(nextAction(job({ phase: 'done' }), now), null)
-  assert.match(nextAction(job({ phase: 'materials', materials: { admin: true, qc: false, production: false } }), now).text, /รอ QC, ฝ่ายผลิต/)
+  const mat = nextAction(job({ phase: 'materials', materials: { admin: true, qc: false, production: false } }), now)
+  assert.match(mat.text, /รอ QC, ฝ่ายผลิต/)
+  assert.equal(/[ก-๛]/.test(translate('my', mat.word.th, mat.word.vars)), false, 'QC ภาษาพม่าเห็นชื่อฝ่ายเป็นพม่า')
   const hold = nextAction(job({ station: 'sew', status: 'hold', holdReason: 'จักรเสีย' }), now)
   assert.equal(hold.tone, 'danger')
   assert.match(hold.text, /แก้ปัญหา เย็บงาน: จักรเสีย/)

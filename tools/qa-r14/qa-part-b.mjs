@@ -151,7 +151,7 @@ async function main() {
       const detail = await fn()
       const newLogs = [...chrome.main.logs.slice(o1), ...second.tab.logs.slice(o2)].filter(e => {
         if (e.text?.startsWith("Blocked attempt to show a 'beforeunload'")) return false
-        if (allowErrorStatus && /400|403|404|409|413|415|422|500|503|Failed to fetch/.test(e.text ?? '')) return false
+        if (allowErrorStatus && /400|403|404|409|413|415|422|500|503|Failed to fetch|ERR_INTERNET_DISCONNECTED/.test(e.text ?? '')) return false
         return true
       })
       if (newLogs.length) throw new Error('Console errors: ' + JSON.stringify(newLogs))

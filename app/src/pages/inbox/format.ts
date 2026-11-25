@@ -44,7 +44,7 @@ const DANGER_KINDS = new Set<InboxKind>([
   'first_piece_rejected',
 ])
 
-const KIND_LABELS: Record<InboxKind, string> = {
+export const KIND_LABELS: Record<InboxKind, string> = {
   hold: 'พักงาน',
   sla_over: 'เกินเวลาผลิต',
   film_late: 'ฟิล์มช้า',

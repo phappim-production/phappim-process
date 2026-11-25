@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { confirmationPath, developChoice, draftFromConfirmation, pdfProblem, reviseArgs, sampleChoice, totalQty } from '../src/data/confirmation.ts'
+import { confirmationPath, developChoice, draftFromConfirmation, pdfProblem, reviseArgs, sampleChoice, specYearProblem, syncConfirmationSpec, totalQty } from '../src/data/confirmation.ts'
 import { etaFromDay, missingSteps } from '../src/data/stationSteps.ts'
 
 const form = (over = {}) => ({
@@ -227,4 +227,38 @@ test('ใบแก้ที่ไม่มีกำหนดส่ง / ไม�
   assert.equal(a.p_needs_sample, null)
   assert.deepEqual(a.p_changes, [])
   assert.equal(reviseArgs({ h: {} }), null)
+})
+
+test('ไฟล์ .json ที่มีฉบับคัดแล้ว (sys) ใช้ฉบับคัด · ชุดไซซ์ที่ไม่ได้ติ๊ก สินค้าอื่น และลายเซ็นฟอร์มไม่เข้าสเปก', () => {
+  const d = draftFromConfirmation(form({
+    product: 'tshirt', sent_sig: 'x'.repeat(5000), pickOpen: false, summary: { qty: 10 },
+    p: { tshirt: { size_sets: ['ไซซ์ผู้ใหญ่'], sizes: [{ q: { M: '10', 'เด็ก S': '5' } }], personal_pos: 'ซ่อนอยู่' }, polo: { sizes: [{ q: { M: '3' } }] } },
+    sys: { h: { doc_no: 'SC691451', customer: 'บริษัท เซอร์ราวด์', due_date: '2026-11-30' }, p: { tshirt: { size_sets: ['ไซซ์ผู้ใหญ่'], sizes: [{ q: { M: '10' } }] } } },
+  }))
+  assert.equal(d.qty, 10)
+  assert.deepEqual(d.spec.p, { tshirt: { size_sets: ['ไซซ์ผู้ใหญ่'], sizes: [{ q: { M: '10' } }] } })
+  for (const k of ['sys', 'sent_sig', 'pickOpen', 'imgs']) assert.equal(k in d.spec, false, k)
+})
+
+test('ไฟล์ .json เก่าที่ไม่มี sys: เก็บเฉพาะคำตอบของสินค้าที่เลือก ไม่พาสินค้าอื่นและลายเซ็นฟอร์มเข้าสเปก', () => {
+  const d = draftFromConfirmation(form({ sent_sig: 'x', p: { polo: { sizes: [{ q: { M: '2' } }] }, tshirt: { sizes: [{ q: { M: '9' } }] } } }))
+  assert.deepEqual(Object.keys(d.spec.p), ['polo'])
+  assert.equal('sent_sig' in d.spec, false)
+})
+
+test('สินค้าในใบปิดใช้แล้ว แอดมินเลือกสินค้าใหม่: สเปกเปลี่ยนเป็นสินค้าใหม่ (แก้ใบภายหลังได้) · สินค้าเดิมสเปกไม่เปลี่ยน', () => {
+  const d = draftFromConfirmation(form())
+  const same = syncConfirmationSpec(d, 'เสื้อโปโล')
+  assert.equal(same.product, 'polo')
+  assert.equal(same.p.polo.spare, 3)
+  const moved = syncConfirmationSpec({ ...d, product: 'tshirt' }, 'เสื้อยืด')
+  assert.equal(moved.product, 'tshirt')
+  assert.deepEqual(Object.keys(moved.p), ['tshirt'])
+  assert.deepEqual(moved.p.tshirt.sizes, d.spec.p.polo.sizes)
+})
+
+test('ปีของวันที่ออกใบ / วันนัดส่งตัวอย่างในไฟล์เป็น พ.ศ. ต้องแก้ในฟอร์มก่อนรับงาน · ปี ค.ศ. ผ่าน', () => {
+  assert.equal(specYearProblem(draftFromConfirmation(form())), null)
+  assert.equal(specYearProblem(draftFromConfirmation(form({ h: { ...form().h, issue_date: '2569-11-20' } }))), 'วันที่ออกใบ')
+  assert.equal(specYearProblem(draftFromConfirmation(form({ h: { ...form().h, issue_date: '2026-11-20', sample_date: '2569-11-25' } }))), 'วันนัดส่งตัวอย่าง')
 })

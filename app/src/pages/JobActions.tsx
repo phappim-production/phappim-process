@@ -136,7 +136,7 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
           onSave={(pass, note, day) => act('record_sample_result', { p_pass: pass, p_note: note || null, p_customer_confirmed_at: day || null },
             pass ? (j.develop ? 'ตัวอย่างผ่าน · งาน Develop เสร็จแล้ว (ไม่ผลิตจริง) · บันทึกจัดส่งเมื่อส่งตัวอย่างให้ลูกค้า' : 'ตัวอย่างผ่าน · งานไปผลิตจริงที่สถานีแรก') : `ตัวอย่างไม่ผ่าน · ขึ้นตัวอย่างรอบ ${j.sampleRound + 1}`)} />
       )}
-      {j.phase !== 'done' && <LeadPanel lead={d.sla} canReport={canReportDelay(role)} reasons={d.reasons} busy={busy} now={now} act={act} />}
+      {j.phase !== 'done' && <LeadPanel lead={d.sla} canReport={canReportDelay(role, canStation && inStation)} reasons={d.reasons} busy={busy} now={now} act={act} />}
       {inStation && st === 'sew' && (<>
         <Section title="เย็บงาน"><p className="text-muted"><Tr th="เริ่มเย็บ จัดการจักร และเย็บเสร็จ กดที่แท็บ จักรเย็บ" /></p>
           {j.status === 'doing' && j.photos && (
@@ -647,7 +647,7 @@ function LeadPanel({ lead: s, canReport, reasons, busy, now, act }: { lead: Lead
     <>
       <LeadBanner lead={s} />
       {canReport && (
-        <DelayReport reasons={reasons} busy={busy} now={now} required={!!s.lead_over && !s.lead_reported}
+        <DelayReport reasons={reasons} busy={busy} now={now} required={!!s.lead_over && !s.lead_reported} reported={!!s.lead_over && !!s.lead_reported}
           onSend={async (codes, detail, eta, help) => {
             const ok = await act('submit_delay_report', {
               p_reasons: codes, p_detail: detail, p_new_eta: eta.toISOString(), p_need_help: help || null, p_request: reportRequest.idFor(JSON.stringify([codes, detail, eta.toISOString(), help])),
@@ -729,8 +729,8 @@ function QcPanel({ job: j, passed, busy, act }: { job: Job; passed: number; busy
   )
 }
 
-function DelayReport({ reasons, busy, now, required, onSend }: {
-  reasons: Reason[]; busy: boolean; now: Date; required: boolean
+function DelayReport({ reasons, busy, now, required, reported, onSend }: {
+  reasons: Reason[]; busy: boolean; now: Date; required: boolean; reported: boolean
   onSend: (codes: string[], detail: string, eta: Date, help: string) => Promise<boolean>
 }) {
   const t = useT()
@@ -742,7 +742,7 @@ function DelayReport({ reasons, busy, now, required, onSend }: {
   const block = !codes.length ? 'เลือกรหัสสาเหตุอย่างน้อย 1 ข้อ' : !detail.trim() ? 'อธิบายว่าเกิดอะไรขึ้น' : !eta ? 'เลือกวันที่คาดว่าเสร็จ (วันนี้หรือหลังจากนี้)' : null
   const groups = [...new Set(reasons.map(r => r.grp))]
   return (
-    <Section id={DELAY_REPORT_ID} title={required ? 'ต้องส่งรายงานสาเหตุก่อนกด QC + Packing เสร็จ' : 'รายงานปัญหาล่วงหน้า'} icon={<IconAlert className="size-5" />} tone={required ? 'danger' : 'warn'}>
+    <Section id={DELAY_REPORT_ID} title={required ? 'ต้องส่งรายงานสาเหตุก่อนกด QC + Packing เสร็จ' : reported ? 'ส่งรายงานสาเหตุแล้ว · มีเรื่องใหม่ส่งเพิ่มได้' : 'รายงานปัญหาล่วงหน้า'} icon={<IconAlert className="size-5" />} tone={required ? 'danger' : 'warn'}>
       <div className="grid gap-3">
         {groups.map(g => (
           <fieldset key={g}>

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { hasBurmese, translate } from './lang'
 import { DB_ERRORS } from './dbErrors'
 import { MY } from './my'
+import { KIND_LABELS } from '../pages/inbox/format'
+import { DEPT_NAME, STATUS_NAME } from '../proto/model'
 
 const THAI = /[ก-๛]/
 const QUOTED = /'([^']+)'/g
@@ -54,6 +56,12 @@ it('ทุกข้อความที่ส่งเข้าตัวแป�
   expect([...missing]).toEqual([])
 })
 
+// ข้อความที่มาจากตารางค่าคงที่ (ไม่ได้เขียนตรงใน t('…')) ชุดตรวจข้างบนมองไม่เห็น
+it('ชื่อประเภทกล่องจดหมาย ฝ่าย และสถานะงาน มีคำแปลพม่าครบ', () => {
+  const labels = [...Object.values(KIND_LABELS), ...Object.values(DEPT_NAME), ...Object.values(STATUS_NAME)]
+  expect(labels.filter(th => !(th in MY))).toEqual([])
+})
+
 describe('ชื่อปุ่มที่อ้างในข้อความ', () => {
   it('คำในเครื่องหมายคำพูดฝั่งพม่าตรงกับปุ่มจริง (คนงานหาปุ่มตามชื่อที่บอก)', () => {
     const labels = Object.values(MY)
@@ -84,6 +92,8 @@ describe('ข้อความจากฐานข้อมูล', () => {
     expect(translate('my', 'สถานะงานเปลี่ยนไปแล้ว (สถานีนี้เริ่มไปแล้ว) กรุณาโหลดหน้าใหม่')).toBe('အလုပ်အခြေအနေ ပြောင်းသွားပြီ · စာမျက်နှာ ပြန်ဖွင့်ပါ')
     expect(translate('th', 'งานนี้ถูกยกเลิกแล้ว')).toBe('งานนี้ถูกยกเลิกแล้ว')
     expect(hasBurmese('ข้อความจากฐานข้อมูลที่ไม่รู้จัก')).toBe(false)
+    // วันที่จากฐานข้อมูลเป็นไทย (12 พ.ย. 2569) · คนพม่าดูวันครบจากแถบเวลาผลิตแทน
+    expect(THAI.test(translate('my', 'งานนี้เกินเวลาผลิต 10 วันทำงาน (ครบ 12 พ.ย. 2569) · ส่งรายงานสาเหตุที่ช้าก่อนกด QC + Packing เสร็จ'))).toBe(false)
   })
 })
 
