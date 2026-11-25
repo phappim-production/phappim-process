@@ -188,7 +188,7 @@ table.dt tfoot td{font-weight:700;background:#f7f8f6}
 .d-accept b{display:block;font-size:13px}
 .d-terms{margin:0;padding-left:18px;font-size:10.5px;line-height:1.45}
 .d-terms+.d-note{margin-top:6px}
-.sign{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}
+.sign{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:10px}
 .sign>div{border:1px solid #bfc5be;border-radius:5px;padding:7px;text-align:center;font-size:11.5px}
 .sign .t{font-weight:700;margin-bottom:24px}
 .sign .ln{border-bottom:1px dotted #777;margin:0 6px 4px;height:1px}
@@ -505,7 +505,7 @@ const COLOR_MATCH = R('color_match','การเทียบสี',['ตาม
 /* ผ้าชนิดที่ 2 ขึ้นไปในงานเดียว: 1 แถว = ผ้า 1 ชนิด/สี · ผ้าหลักกรอกช่องด้านบน */
 const FABRICS_MORE = () => ({ id:'fabric_rows', type:'itemTable', label:'ผ้าเพิ่ม (งานที่ใช้ผ้ามากกว่า 1 ชนิด / สี)', none:'ใช้ผ้าชนิดเดียว', addLabel:'+ เพิ่มผ้า',
   hint:'ผ้าหลักกรอกด้านบน · แถวนี้สำหรับผ้าชนิดหรือสีที่ 2 ขึ้นไป เช่น ปก แขน ตัวหลัง ขอบ · ใช้ผ้าชนิดเดียว = เว้นว่าง',
-  cols:[ { c:'part', label:'ใช้ส่วนไหน', t:'text' }, { c:'fabric', label:'ชนิดผ้า (ถ้าต่าง)', t:'text', opt:true }, { c:'color', label:'สีผ้า', t:'text' },
+  cols:[ { c:'part', label:'ใช้ส่วนไหน', t:'text', lead:true }, { c:'fabric', label:'ชนิดผ้า (ถ้าต่าง)', t:'text', opt:true }, { c:'color', label:'สีผ้า', t:'text', factory:true },
     { c:'print', label:'พิมพ์สี / หมายเหตุ', t:'text', opt:true, factory:true } ] });
 /* กระเป๋า: 1 แถว = 1 ใบ */
 const POCKET_SHIRT = ['อกซ้าย','อกขวา','อกทั้งสองข้าง','ล่างซ้าย','ล่างขวา','ล่างทั้งสองข้าง','หน้าท้อง (กระเป๋าจิงโจ้)','ข้างลำตัว (ซ่อนในตะเข็บ)','แขนซ้าย','แขนขวา','ด้านใน (ซับใน)'];
@@ -1129,7 +1129,7 @@ let warnedQuota=false, saveTimer=0;
 // เปิดดูจากระบบ (ฝ่ายผลิต / หน้างาน) ห้ามเขียนทับใบที่แอดมินกรอกค้างในเครื่องเดียวกัน
 let viewOnly=false;
 // ใบที่ส่งลูกค้าเซ็นแสดงเฉพาะรายการที่เจ้าของกำหนด (วัสดุ ไซซ์ จำนวน แพ็คกิ้ง) · ฝ่ายผลิตเปิดดูจากระบบเห็นครบ ข้อมูลที่บันทึกเข้าระบบไม่ถูกตัด
-const CUSTOMER_FIELDS=new Set(['fabric','fabric_color','fabric_rows','material','colors','lining_fabric','filling','handle_mat','sizes','size_chart','measure_rows','items','qty','dims','head_size']);
+const CUSTOMER_FIELDS=new Set(['fabric','fabric_rows','material','filling','handle_mat','sizes','size_chart','measure_rows','items','qty','dims','head_size']);
 const PACK_SEC='แพ็คกิ้ง';
 const customerCopy=()=>!viewOnly;
 const customerSees=(f,sec)=>f.type==='images'||sec.title===PACK_SEC||CUSTOMER_FIELDS.has(f.id);
@@ -1973,7 +1973,8 @@ function renderDoc(){
         const chart=sizeChart(f,v); if(rs.length&&chart.length) body+=`<div class="tlabel">ขนาดสำเร็จ</div>`+chart.map(l=>`<p>${esc(l)}</p>`).join('');
       }
       if(f.type==='itemTable'){
-        const rs=rows(v,f.id,!!f.none).filter(r=>f.cols.some(c=>!isNone(r[c.c])));
+        const own=forCustomer?f.cols.filter(c=>!c.factory&&!c.lead):f.cols;
+        const rs=rows(v,f.id,!!f.none).filter(r=>own.some(c=>!isNone(r[c.c])));
         const lab=f.none||f.printLabel?`<div class="tlabel">${esc(fieldLabel(f,v))}</div>`:'';
         // ไม่มีรายการ = ไม่พิมพ์หัวข้อนี้ · คอลัมน์ที่ว่างทุกแถวไม่แสดง ยกเว้นยอดรวม
         const cell=(c,r)=>c.t==='img'?(imgName(+r[c.c])?'รูป '+(+r[c.c]):''):isNone(r[c.c])?'':r[c.c];
@@ -1996,7 +1997,9 @@ function renderDoc(){
     });
     // ภาพแยกออกจากกล่องหัวข้อ เพื่อให้ตัดหน้าระหว่างภาพได้ ไม่ดันทั้งหัวข้อไปหน้าใหม่
     if(imgs){ if(!imgs.includes('class="d-co"')) imgs+=`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`; mockNoted=true; }
-    if(body||imgs) x+=`<section class="ds"><h3>${++n}. ${esc(sec.title)}</h3>${body}</section>${imgs}`;
+    if(body) x+=`<section class="ds"><h3>${++n}. ${esc(sec.title)}</h3>${body}</section>`;
+    else if(imgs&&!forCustomer) x+=`<section class="ds"><h3>${++n}. ${esc(sec.title)}</h3></section>`;
+    x+=imgs;
   });
 
   const sig=t=>`<div><div class="t">${t}</div><div class="ln"></div>(.......................................)<br>วันที่ ....../....../......</div>`;
@@ -2005,7 +2008,7 @@ function renderDoc(){
     <ol class="d-terms">${TERMS.map(t=>`<li>${esc(t)}</li>`).join('')}</ol>
     <div class="d-note"><b>ข้อตกลง:</b> ลูกค้าตรวจสอบรายละเอียดทั้งหมดในใบนี้แล้ว ${state.h.sample===SAMPLE_YES?'ฝ่ายผลิตจะผลิตตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง':state.h.sample===SAMPLE_DEV?'งานนี้เป็นงาน Develop ฝ่ายผลิตทำตัวอย่างให้ลูกค้ายืนยัน งานจบที่ตัวอย่าง ไม่ผลิตจริง (ผลิตจริงต้องทำใบยืนยันใหม่)':'งานนี้ไม่ขึ้นตัวอย่าง ฝ่ายผลิตผลิตจริงตามใบนี้'}
     และผลิตตามรายละเอียดในใบนี้เท่านั้น <b>รายการที่ไม่ได้ระบุในใบนี้ถือว่าไม่มี / ไม่ต้องทำ</b> การแก้ไขหลังเซ็นต้องออกใบยืนยันฉบับใหม่ และอาจมีผลต่อกำหนดส่ง</div>
-    <div class="sign">${sig('ลูกค้ายืนยันรายละเอียด')}${sig('แอดมินผู้ทำใบ')}${sig('ผู้ควบคุมงาน (รับงานเข้าโรงงาน)')}</div></div>`;
+    <div class="sign">${sig('ลูกค้ายืนยันรายละเอียด')}${sig('ผู้ควบคุมงาน (รับงานเข้าโรงงาน)')}</div></div>`;
 
   // ใช้ thead ของตารางเป็นหัวกระดาษ: เบราว์เซอร์จะพิมพ์ thead ซ้ำทุกหน้าเมื่อเนื้อหายาวเกิน 1 หน้า
   $('#doc').innerHTML=`<table class="pg"><thead><tr><td>${head}</td></tr></thead><tbody><tr><td>${x}</td></tr></tbody></table>`;
@@ -2024,7 +2027,7 @@ function estimatePages(){
   let n=$('#pageNote'); if(!n){ n=document.createElement('div'); n.id='pageNote'; d.parentNode.insertBefore(n,d); }
   n.className='page-note'+(pages>2?' warn':'');
   n.textContent=pages>2?`ประมาณ ${pages} หน้า A4 · เกินเป้า 2 หน้า ลองลดจำนวนภาพ หรือรวมแถวในตาราง`:`ประมาณ ${pages} หน้า A4 · ทุกหน้ามีโลโก้ เลขที่ใบ ลูกค้า และชื่องาน`;
-  if(customerCopy()) n.textContent+=' · ฉบับลูกค้า: แสดงเฉพาะเลขที่ใบ ประเภทสินค้า วันที่สั่งงาน ผู้ประสานงาน การจัดส่ง วัสดุ ไซซ์ จำนวน แพ็คกิ้ง ภาพ และช่องเซ็น (ระบบยังได้รับครบทุกช่อง)';
+  if(customerCopy()) n.textContent+=' · ฉบับลูกค้า: แสดงเฉพาะเลขที่ใบ ประเภทสินค้า วันที่สั่งงาน ผู้ประสานงาน การจัดส่ง วัสดุ (ไม่มีสี) ไซซ์ จำนวน แพ็คกิ้ง ภาพ และช่องเซ็น (ระบบยังได้รับครบทุกช่อง)';
 }
 function setPageStyle(){
   const h=state.h, q=t=>String(t||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/[\r\n]+/g,' ');

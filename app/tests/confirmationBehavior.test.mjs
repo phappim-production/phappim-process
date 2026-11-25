@@ -226,7 +226,7 @@ test('ฟอร์มใบยืนยัน: โหมดแก้ใบหล
 function withFactoryDetails(v) {
   v.fabric = 'TC (คอตตอน/โพลี)'
   v.fabric_color = 'กรมท่าเข้ม'
-  v.fabric_rows = [{ part: 'ปก', color: 'ขาวนวล', print: 'พิมพ์สีพิเศษ 2 สี' }]
+  v.fabric_rows = [{ part: 'ปก', fabric: 'ผ้าริบ', color: 'ขาวนวล', print: 'พิมพ์สีพิเศษ 2 สี' }, { part: 'ตัวหลังพิเศษ', color: 'แดงสด' }]
   v.collar = 'ปกจีน'
   v.print_method = ['ซิลค์สกรีน', 'งานปัก']
   v.placements = { 'หน้าอกซ้าย': { on: true, tech: 'งานปัก', size: '8x8' } }
@@ -243,9 +243,9 @@ function withFactoryDetails(v) {
 }
 const FACTORY_HEAD = { contact: 'คุณติดต่อภายใน', phone: '081-555-0000', admin: 'แอดมินน้ำ', admin_phone: '090-111-2222', delivery: 'รถบริษัทไปส่ง' }
 const FACTORY_TEXT = ['ซิลค์สกรีน', 'งานปัก', 'หมึกขาวล้วน', 'ด้ายปักทองเบอร์ 9', 'ด้ายเย็บสีเทา', 'เผื่อเสีย', 'ปกจีน', 'หน้าอกซ้าย', '8x8',
-  'พิมพ์สีพิเศษ 2 สี', 'หมายเหตุภายในโรงงาน', 'คุณติดต่อภายใน', '081-555-0000']
+  'พิมพ์สีพิเศษ 2 สี', 'กรมท่าเข้ม', 'ขาวนวล', 'แดงสด', 'ตัวหลังพิเศษ', 'หมายเหตุภายในโรงงาน', 'คุณติดต่อภายใน', '081-555-0000']
 const CUSTOMER_TEXT = ['SC-T1', 'เสื้อยืด', 'วันที่สั่งงาน', '24/11/2569', 'ผู้ประสานงาน', 'แอดมินน้ำ · 090-111-2222', 'การจัดส่ง', 'รถบริษัทไปส่ง',
-  'TC (คอตตอน/โพลี)', 'กรมท่าเข้ม', 'ขาวนวล', 'แบบหลัก', 'แพ็ค 1/1 (ถุงแยกตัว)', 'ลูกค้ายืนยันรายละเอียด']
+  'TC (คอตตอน/โพลี)', 'ผ้าริบ', 'แบบหลัก', 'แพ็ค 1/1 (ถุงแยกตัว)', 'ลูกค้ายืนยันรายละเอียด']
 
 test('ฟอร์มใบยืนยัน: ใบที่ส่งลูกค้าแสดงเฉพาะเลขที่ใบ ประเภทสินค้า วันที่สั่งงาน ผู้ประสานงาน การจัดส่ง วัสดุ ไซซ์ จำนวน แพ็คกิ้ง + ช่องเซ็น · ระบบยังได้รับครบ', () => {
   const { api, store, els, s, v } = filled()
@@ -276,11 +276,11 @@ test('ฟอร์มใบยืนยัน: จุดกำกับบนม
     { ref: 'field:print_method', title: 'โลโก้', body: '', x: 0.5, y: 0.5, bx: 0.8, by: 0.2 },
     { ref: 'placement:หน้าอกซ้าย', title: 'อก', body: '', x: 0.3, y: 0.3, bx: 0.1, by: 0.1 },
     { ref: 'field:thread', title: 'ตะเข็บ', body: '', x: 0.2, y: 0.8, bx: 0.1, by: 0.9 },
-    { ref: 'field:fabric_color', title: 'ตัวเสื้อ', body: 'ลายตามภาพ', x: 0.5, y: 0.7, bx: 0.9, by: 0.9 },
+    { ref: 'field:fabric', title: 'ตัวเสื้อ', body: 'ลายตามภาพ', x: 0.5, y: 0.7, bx: 0.9, by: 0.9 },
   ]
   const doc = api.coDocHTML()
   for (const t of FACTORY_TEXT) assert.equal(doc.includes(t), false, t)
-  assert.match(doc, /สีผ้าพื้น: กรมท่าเข้ม · ลายตามภาพ/)
+  assert.match(doc, /ชนิดผ้า: TC \(คอตตอน\/โพลี\) · ลายตามภาพ/)
   const formRefs = api.coRefs()
   assert.match(formRefs.find(r => r.ref === 'field:print_method').val, /ซิลค์สกรีน/)
   assert.match(formRefs.find(r => r.ref === 'placement:หน้าอกซ้าย').val, /งานปัก/)
@@ -296,4 +296,27 @@ test('ฟอร์มใบยืนยัน: ฝ่ายผลิตเปิ
   for (const t of FACTORY_TEXT) assert.ok(doc.includes(t), t)
   assert.match(doc, /ฉบับโรงงาน/)
   assert.match(doc, /เผื่อเสีย 7 ตัว/)
+})
+
+test('ฟอร์มใบยืนยัน: ใบลูกค้าไม่มีหัวข้อการเย็บ งานพิมพ์ / ตกแต่ง ไฟล์งาน · ภาพม็อคอัพยังพิมพ์ · ฉบับโรงงานมีครบ', () => {
+  const { api, els, s, v } = filled()
+  withFactoryDetails(v)
+  v.art_file = 'logo-final.ai'
+  s.imgs = [{ name: 'ด้านหน้า', src: 'data:image/png;base64,AA==', w: 4, h: 3 }]
+  const headings = () => [...els.get('#doc').innerHTML.matchAll(/<h3>\d+\. ([^<]*)<\/h3>/g)].map(m => m[1])
+  api.renderDoc()
+  assert.deepEqual(headings(), ['ผ้า', 'ไซซ์และจำนวน', 'แพ็คกิ้ง'])
+  assert.equal(els.get('#doc').innerHTML.includes('logo-final.ai'), false)
+  assert.match(els.get('#doc').innerHTML, /รูป 1 · ด้านหน้า/)
+  api.setViewOnly(true)
+  api.renderDoc()
+  for (const h of ['การเย็บ', 'งานพิมพ์ / ตกแต่ง', 'ไฟล์งานและหมายเหตุ']) assert.ok(headings().includes(h), h)
+  assert.match(els.get('#doc').innerHTML, /logo-final\.ai/)
+})
+
+test('ฟอร์มใบยืนยัน: ช่องเซ็นมีแค่ลูกค้า และผู้ควบคุมงาน (ไม่มีช่องแอดมินผู้ทำใบ)', () => {
+  const { api, els } = filled()
+  api.renderDoc()
+  const signs = [...els.get('#doc').innerHTML.matchAll(/<div class="t">([^<]*)<\/div>/g)].map(m => m[1])
+  assert.deepEqual(signs, ['ลูกค้ายืนยันรายละเอียด', 'ผู้ควบคุมงาน (รับงานเข้าโรงงาน)'])
 })
