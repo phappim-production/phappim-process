@@ -174,7 +174,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
             </select>
           </label>
           <div className="grid gap-2 sm:grid-cols-2">
-            <a href={CONFIRMATION_FORM} target="_blank" rel="noopener" className={`${secondaryBtn} text-center`}>เปิดฟอร์มใบยืนยัน (ใบใหม่)</a>
+            <a href={`${CONFIRMATION_FORM}?new=1`} target="_blank" rel="noopener" className={`${secondaryBtn} text-center`}>เปิดฟอร์มใบยืนยัน (ใบใหม่)</a>
             <button type="button" className={secondaryBtn} disabled={!picked || openingForm} onClick={() => void openInForm()}
               title={picked ? undefined : 'เลือกใบยืนยันก่อน'}>{openingForm ? 'กำลังเปิดใบยืนยัน…' : picked ? 'แก้ใบนี้ในฟอร์ม' : 'แก้ใบในฟอร์ม (เลือกใบก่อน)'}</button>
           </div>

@@ -20,6 +20,61 @@ test('ฟอร์มใบยืนยัน: เปิดใบจากระ
   assert.doesNotMatch(js.slice(0, call), /\(function takeInbox/)
 })
 
+test('ฟอร์มใบยืนยัน: เปิดแบบใบใหม่ (?new) เรียกก่อนเปิดใบจากระบบ และหลังประกาศค่าคงที่ทุกตัว', () => {
+  const js = scripts.find(s => s.includes('function takeNew'))
+  assert.ok(js)
+  const call = js.lastIndexOf('\ntakeNew();')
+  assert.ok(call > 0 && call < js.lastIndexOf('\ntakeInbox();'))
+  assert.doesNotMatch(js.slice(call), /^(const|let|class)\s/m)
+})
+
+function newForm({ url, saved, prev }) {
+  const js = scripts.join('\n')
+  const start = js.indexOf('const PREV=')
+  const end = js.indexOf('// หน้าระบบกด "เปิดในฟอร์ม"')
+  assert.ok(start > 0 && end > start)
+  const store = new Map(Object.entries({ pc142: saved && JSON.stringify(saved), 'pc142.prev': prev && JSON.stringify(prev) }).filter(([, v]) => v))
+  const localStorage = { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: k => store.delete(k) }
+  const afterSave = { innerHTML: '' }
+  const ctx = { state: saved ?? { h: {}, p: {}, imgs: [] }, replaced: null, toasts: [], rendered: 0, asked: [] }
+  const fresh = () => ({ h: { issue_date: '2026-11-25' }, product: 'tshirt', pickOpen: true, p: {}, imgs: [], callouts: [] })
+  const load = key => { const s = JSON.parse(localStorage.getItem(key)); return s && s.h ? s : null }
+  const api = new Function('ctx', 'LS', 'localStorage', 'location', 'history', '$', 'fresh', 'load', 'esc', 'toast', 'rerender', 'scrollTo', 'confirm',
+    'let state=ctx.state, coTab=0, missing=[];\n' + js.slice(start, end) + '\nreturn { takeNew, restorePrev, get state(){ return state } }')(
+    ctx, 'pc142', localStorage, { href: url }, { replaceState: (a, b, u) => { ctx.replaced = u } }, () => afterSave, fresh, load,
+    s => String(s), m => ctx.toasts.push(m), () => { ctx.rendered++ }, () => {}, m => { ctx.asked.push(m); return true })
+  return { api, store, afterSave, ctx }
+}
+
+test('ฟอร์มใบยืนยัน: กด "เปิดฟอร์มใบยืนยัน (ใบใหม่)" ได้ฟอร์มว่าง · ใบที่กรอกค้างเก็บแยกไว้เปิดคืนได้', () => {
+  const old = { h: { doc_no: 'SC690101-0001', customer: 'ลูกค้าเก่า' }, product: 'tshirt', p: { qty: 30 }, imgs: [] }
+  const { api, store, afterSave, ctx } = newForm({ url: 'https://pp142.test/confirmation?new=1', saved: old })
+  api.takeNew()
+  assert.equal(ctx.replaced, '/confirmation')
+  assert.equal(api.state.h.doc_no, undefined)
+  assert.deepEqual(JSON.parse(store.get('pc142.prev')), old)
+  assert.match(afterSave.innerHTML, /SC690101-0001/)
+  assert.match(afterSave.innerHTML, /data-act="restoreprev"/)
+  api.state.p = { tshirt: { sew_mode: 'เย็บตามมาตรฐานโรงงาน' } }
+  api.restorePrev()
+  assert.deepEqual(ctx.asked, [], 'ฟอร์มใหม่ที่ยังไม่ได้กรอก ไม่ต้องถามก่อนเปิดใบเดิมคืน')
+  assert.equal(api.state.h.doc_no, 'SC690101-0001')
+  assert.equal(store.has('pc142.prev'), false)
+  assert.equal(afterSave.innerHTML, '')
+})
+
+test('ฟอร์มใบยืนยัน: เปิดแบบใบใหม่ตอนฟอร์มว่างอยู่แล้ว ไม่สร้างใบค้าง · เปิดปกติ (ไม่มี ?new) ได้ใบเดิม', () => {
+  const blank = newForm({ url: 'https://pp142.test/confirmation?new=1', saved: { h: { issue_date: '2026-11-25' }, product: 'tshirt', p: { tshirt: { sew_mode: 'เย็บตามมาตรฐานโรงงาน' } }, imgs: [] } })
+  blank.api.takeNew()
+  assert.equal(blank.store.has('pc142.prev'), false)
+  assert.equal(blank.afterSave.innerHTML, '')
+  const old = { h: { doc_no: 'SC1' }, product: 'tshirt', p: {}, imgs: [] }
+  const plain = newForm({ url: 'https://pp142.test/confirmation', saved: old })
+  plain.api.takeNew()
+  assert.equal(plain.api.state.h.doc_no, 'SC1')
+  assert.equal(plain.ctx.replaced, null)
+})
+
 test('ฟอร์มใบยืนยัน: PDF ที่ลูกค้าเซ็นไม่พิมพ์กำหนดส่ง (วันส่งใช้ภายใน)', () => {
   const js = scripts.join('\n')
   assert.doesNotMatch(js, /thDate\(h\.due_date\)/)

@@ -996,7 +996,7 @@ function startOver(keepOrder){
 }
 function fresh(){ return { h:{ issue_date: today() }, product:'tshirt', pickOpen:true, p:{}, imgs:[], callouts:[], co_size:null, co_sizes:[] }; }
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function load(){ try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.h&&s.p&&PRODUCTS[s.product]){ s.pickOpen=false; s.imgs=Array.isArray(s.imgs)?s.imgs:[]; s.callouts=Array.isArray(s.callouts)?s.callouts:[]; s.co_sizes=Array.isArray(s.co_sizes)?s.co_sizes:[]; return s; } }catch(e){} return null; }
+function load(key=LS){ try{ const s=JSON.parse(localStorage.getItem(key)); if(s&&s.h&&s.p&&PRODUCTS[s.product]){ s.pickOpen=false; s.imgs=Array.isArray(s.imgs)?s.imgs:[]; s.callouts=Array.isArray(s.callouts)?s.callouts:[]; s.co_sizes=Array.isArray(s.co_sizes)?s.co_sizes:[]; return s; } }catch(e){} return null; }
 let warnedQuota=false, saveTimer=0;
 function save(){
   clearTimeout(saveTimer); saveTimer=0;
@@ -1503,6 +1503,8 @@ document.addEventListener('click',e=>{
   if(act==='unit'){ scope(b.dataset.s)[b.dataset.uk+'__unit']=b.dataset.u; return rerender(); }
   if(act==='na'){ const sc=scope(b.dataset.s), k=b.dataset.nk+'__na'; if(sc[k]) delete sc[k]; else sc[k]=true; rerender(); }
   if(act==='new'){ if(confirm('ล้างข้อมูลในฟอร์มทั้งหมดและเริ่มใบใหม่?\n(ใบที่ยังไม่ได้กด "บันทึกเข้าระบบ" หรือ "บันทึกไฟล์" จะหาย)')) startOver(false); }
+  if(act==='restoreprev'){ restorePrev(); }
+  if(act==='dropprev'){ $('#afterSave').innerHTML=''; try{ localStorage.removeItem(PREV); }catch(e){} }
   if(act==='next'){ startOver(true); }
   if(act==='clearall'){ startOver(false); }
   if(act==='open'){ if(!(state.h.doc_no||state.h.customer)||confirm('เปิดไฟล์แล้วข้อมูลที่กรอกอยู่จะถูกแทนที่ ดำเนินการต่อ?')) $('#openFile').click(); }
@@ -1601,6 +1603,29 @@ function saveToSystem(){
   a.addEventListener('click',()=>{ t.classList.remove('on','link'); });
   t.appendChild(a); t.classList.add('on','link'); clearTimeout(toast.h);
   toast.h=setTimeout(()=>t.classList.remove('on','link'),20000);
+}
+// ปุ่ม "เปิดฟอร์มใบยืนยัน (ใบใหม่)" ส่ง ?new มา · ใบที่กรอกค้างในเครื่องเก็บแยกไว้เปิดคืนได้ ไม่ทิ้งเงียบๆ
+const PREV=LS+'.prev';
+// ส่วนสินค้า (p) มีค่าตั้งต้นทันทีที่วาดฟอร์ม จึงดูแค่หัวใบกับรูป
+const hasWork = s => Object.entries(s.h||{}).some(([k,v])=>k!=='issue_date'&&String(v??'').trim()) || (s.imgs||[]).length>0;
+function takeNew(){
+  const u=new URL(location.href); if(!u.searchParams.has('new')) return;
+  u.searchParams.delete('new'); history.replaceState(null,'',u.pathname+u.search+u.hash);
+  if(!hasWork(state)) return;
+  const old=state;
+  try{ localStorage.setItem(PREV, JSON.stringify(old)); }
+  catch(e){ try{ const {imgs,...rest}=old; localStorage.setItem(PREV, JSON.stringify({...rest,imgs:[]})); }catch(e2){} }
+  state=fresh(); coTab=0; missing=[]; rerender(); scrollTo(0,0);
+  const name=[old.h.doc_no, old.h.customer].map(x=>String(x||'').trim()).filter(Boolean).join(' · ');
+  $('#afterSave').innerHTML=`<div class="after-save" role="status"><b>เริ่มใบใหม่แล้ว · ใบที่กรอกค้างไว้${name?' ('+esc(name)+')':''} เก็บแยกไว้ให้</b>
+    <div class="row"><button class="btn" data-act="restoreprev">เปิดใบที่กรอกค้างกลับมา</button><button class="btn" data-act="dropprev">ไม่ใช้ใบเดิมแล้ว</button></div></div>`;
+}
+function restorePrev(){
+  const s=load(PREV); if(!s){ $('#afterSave').innerHTML=''; return toast('ไม่พบใบที่กรอกค้างไว้'); }
+  if(hasWork(state)&&!confirm('ข้อมูลที่กรอกในใบใหม่จะถูกแทนที่ด้วยใบที่กรอกค้างไว้ ดำเนินการต่อ?')) return;
+  state=s; coTab=0; missing=[]; $('#afterSave').innerHTML=''; rerender(); scrollTo(0,0);
+  try{ localStorage.removeItem(PREV); }catch(e){}
+  toast('เปิดใบที่กรอกค้างกลับมาแล้ว');
 }
 // หน้าระบบกด "เปิดในฟอร์ม" (แก้ใบที่บันทึกไว้) → ใส่ข้อมูลไว้ใน INBOX แล้วเปิดหน้านี้
 function takeInbox(){
@@ -1841,6 +1866,7 @@ document.getElementById('barLogo').src=COMPANY.logo;
 renderForm();
 refreshThumb();
 // ต้องอยู่ท้ายสุด: โหลดใบแล้ววาดฟอร์มทันที ค่าคงที่ที่ประกาศหลังจุดเรียกจะยังใช้ไม่ได้ (สคริปต์หยุดทั้งก้อน)
+takeNew();
 takeInbox();
 </script>
 </body>
