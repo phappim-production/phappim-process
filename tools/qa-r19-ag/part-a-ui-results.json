@@ -1,0 +1,137 @@
+{
+  "externalAttempts": [
+    "http://127.0.0.1:60421/f/station_photos/SC-A4-NOMOCK/cut/1/slow1.jpg?exp=1795582800&sig=56bd9afc4da478a7de47728047a7d6c103703ec2e32f127f46b583d6058cc753",
+    "http://127.0.0.1:60421/f/station_photos/SC-A4-NOMOCK/cut/1/slow2.jpg?exp=1795582800&sig=8b4485ccf011eda179cc6dfa008f171aa7ae19f28b98015ee3e43a4312920e75",
+    "http://127.0.0.1:60421/f/station_photos/SC-A4-NOMOCK/cut/1/slow1.jpg?exp=1795582800&sig=56bd9afc4da478a7de47728047a7d6c103703ec2e32f127f46b583d6058cc753",
+    "http://127.0.0.1:60421/f/station_photos/SC-A4-NOMOCK/cut/1/slow2.jpg?exp=1795582800&sig=8b4485ccf011eda179cc6dfa008f171aa7ae19f28b98015ee3e43a4312920e75"
+  ],
+  "blockedFontRequests": 34,
+  "results": [
+    {
+      "id": "A1.enable-ui",
+      "title": "เจ้าของเปิดใช้รูปยืนยันงานผ่านหน้าตั้งค่าและตรวจ Audit Log",
+      "pass": true,
+      "detail": "สถานี=8, rawFieldInAudit=true"
+    },
+    {
+      "id": "A1.media-variants",
+      "title": "ทดสอบไฟล์หลายแบบ (ใหญ่ >10MB, เล็กมาก, แนวตั้ง/นอน, .jpg ปลอม, .heic, เกิน 6 รูป)",
+      "pass": true,
+      "detail": "ต้นฉบับใหญ่ 12.66 MB → R2 สูงสุด 645 KB · 7รูปเก็บ=6(เตือน=true)"
+    },
+    {
+      "id": "A4.viewer-full",
+      "title": "PhotoViewer: ปัด, คีย์บอร์ด, เทียบม็อคอัพ, ดับเบิลคลิกซูม, รูปเสีย, 2 แอดมินแข่งกัน",
+      "pass": true,
+      "detail": "zoom dblclick OK · slide+compare 70% · 2admin race=\"สถานะงานเปลี่ยนไปแล้ว (รูปชิ้นแรกนี้ตัดสินไปแล้ว) กรุณาโหลดหน้าใหม่\" · historyImgs=1"
+    },
+    {
+      "id": "A4.slow10s-nomockup",
+      "title": "PhotoViewer: งานไม่มีม็อคอัพ + เน็ตช้าหน่วงรูป 10 วิ ปุ่มผ่านต้องล็อกจนครบ",
+      "pass": true,
+      "detail": "noMockupDisabled=true · lockedAt2s=\"รอรูปโหลดครบทุกรูป\" · unlockedAfter10s=true (checkId=1)"
+    },
+    {
+      "id": "A1_A2.all-stations",
+      "title": "ครบทุกสถานีที่ติ๊ก (print, press, dtf_press, emb, route screen) และไม่ติ๊ก (sew, qc_pack)",
+      "pass": true,
+      "detail": "print, press, cut, dtf_press(screen route), emb, sew, qc_pack (both gates) ผ่านครบ"
+    },
+    {
+      "id": "A9.burmese-mobile-375",
+      "title": "โหมดพม่า + มือถือ 375 px ครบทุกขั้นรูป + ตรวจคำไทย/อังกฤษหลุด",
+      "pass": true,
+      "detail": "375px scroll=375 · capture=environment · delBtn={\"w\":32,\"h\":32,\"aria\":\"ပုံ 1 ဖျက်မယ်\"}"
+    }
+  ],
+  "observations": [
+    {
+      "key": "settings_stations",
+      "stationsInSettings": [
+        "พิมพ์งาน",
+        "รีดงาน",
+        "ตัดงาน",
+        "รีดฟิล์ม (DTF / DTG / สกรีน)",
+        "ส่งปัก (ร้านนอก)",
+        "ซิลค์สกรีน",
+        "เย็บงาน",
+        "QC + Packing"
+      ]
+    },
+    {
+      "key": "audit_photo_settings",
+      "auditText": [
+        "แก้ไขสถานี: พิมพ์งาน 25 พ.ย. 10:56 · เจ้าของจำลอง first_piece_check: ไม่ → ใช่",
+        "แก้ไขสถานี: พิมพ์งาน 25 พ.ย. 10:56 · เจ้าของจำลอง first_piece_check: ใช่ → ไม่",
+        "แก้ไขstation_photo_settings: true 25 พ.ย. 10:56 · เจ้าของจำลอง remind_minutes: 5 → 15",
+        "แก้ไขstation_photo_settings: true 25 พ.ย. 10:56 · เจ้าของจำลอง remind_minutes: 15 → 5",
+        "แก้ไขstation_photo_settings: true 25 พ.ย. 10:56 · เจ้าของจำลอง enabled_at: — → 2026-11-25T03:56:05.932+00:00"
+      ]
+    },
+    {
+      "key": "fake_jpg_error",
+      "fakeJpgAlert": "SC-A1-CUT: เนื้อไฟล์ไม่ใช่ ภาพ JPG ให้บันทึกไฟล์ใหม่แล้วเลือกอีกครั้ง"
+    },
+    {
+      "key": "upload_7_files_ui",
+      "previewCount": 6,
+      "sevenWarning": true
+    },
+    {
+      "key": "a4_2admin_race_alert",
+      "errText": "สถานะงานเปลี่ยนไปแล้ว (รูปชิ้นแรกนี้ตัดสินไปแล้ว) กรุณาโหลดหน้าใหม่"
+    },
+    {
+      "key": "no_mockup_dialog_buttons",
+      "dialogButtons": [
+        {
+          "text": "",
+          "disabled": false,
+          "title": ""
+        },
+        {
+          "text": "ดูสเปกและรายละเอียดงาน",
+          "disabled": false,
+          "title": ""
+        },
+        {
+          "text": "ไม่ผ่าน…",
+          "disabled": false,
+          "title": ""
+        },
+        {
+          "text": "รอรูปโหลดครบทุกรูป",
+          "disabled": true,
+          "title": ""
+        }
+      ]
+    },
+    {
+      "key": "photo_delete_btn_size",
+      "delBtnSize": {
+        "w": 32,
+        "h": 32,
+        "aria": "ပုံ 1 ဖျက်မယ်"
+      }
+    },
+    {
+      "key": "burmese_fake_jpg_error",
+      "fakeBurmeseErr": "SC-A9-MY: ပုံ 2: เนื้อไฟล์ไม่ใช่ ภาพ JPG ให้บันทึกไฟล์ใหม่แล้วเลือกอีกครั้ง\nSC-A9-MY: รูปที่ 2: เนื้อไฟล์ไม่ใช่ ภาพ JPG ให้บันทึกไฟล์ใหม่แล้วเลือกอีกครั้ง"
+    },
+    {
+      "key": "a9_wait_card_after_21m",
+      "waitMatch": {
+        "m": "ပထမဆုံး တစ်ထည် အိုကေ စောင့်နေတာ 21 မိနစ်",
+        "hasLateNum": true
+      }
+    },
+    {
+      "key": "burmese_reject_texts",
+      "rejectTexts": [
+        "ပထမဆုံး တစ်ထည် မအောင်ဘူး: အရောင် မမှန်ဘူး · ขอบไม่ชัด\nชิ้นแรกไม่ผ่าน: สีเพี้ยน · ขอบไม่ชัด",
+        "ပြီးပြီ နှိပ်လို့ မရသေးဘူး: ပထမဆုံး တစ်ထည် မအောင်ဘူး · ပြင်ပြီး ပုံ ပြန်ရိုက်ပို့\nยังกดเสร็จไม่ได้: ชิ้นแรกไม่ผ่าน แก้แล้วถ่ายรูปชิ้นแรกส่งใหม่"
+      ],
+      "drawerHasPhotoHistory": true
+    }
+  ]
+}

@@ -1,0 +1,267 @@
+{
+  "externalAttempts": [],
+  "allImgFilesCount": 48,
+  "liveRoles": {
+    "owner": {
+      "nav": [
+        "ภาพรวมระบบ",
+        "ผู้ใช้งาน",
+        "บทบาทและสิทธิ์",
+        "จับคู่สถานี",
+        "บันทึกการเปลี่ยนแปลง",
+        "ตั้งค่าระบบ",
+        "ภาพรวมการผลิต",
+        "ทุกสถานี",
+        "รายงาน",
+        "กล่องจดหมาย"
+      ],
+      "settingsTabs": [
+        "สถานีและขั้นย่อย",
+        "เวลามาตรฐานของช่วง",
+        "แม่แบบวัตถุดิบ",
+        "รหัสสาเหตุ",
+        "จักรเย็บ",
+        "การแจ้งเตือน"
+      ]
+    },
+    "manager": {
+      "nav": [
+        "ภาพรวมการผลิต",
+        "ใบงานทั้งหมด",
+        "ทุกสถานี",
+        "รายงาน",
+        "รายการรออนุมัติ",
+        "กล่องจดหมาย"
+      ],
+      "settingsTabs": []
+    },
+    "admin1": {
+      "nav": [
+        "ภาพรวมใบงาน",
+        "จัดการใบงาน",
+        "คิวการผลิต",
+        "ติดตามสถานี",
+        "รายงาน",
+        "กล่องจดหมาย"
+      ],
+      "settingsTabs": []
+    },
+    "prod1": {
+      "nav": [
+        "ภาพรวมแผนก",
+        "คิวงาน",
+        "สถานีที่ดูแล",
+        "ปัญหา / งานแก้",
+        "รายงานแผนก",
+        "กล่องจดหมาย"
+      ],
+      "settingsTabs": []
+    },
+    "sup1": {
+      "nav": [
+        "ภาพรวมแผนก",
+        "คิวงาน",
+        "สถานีที่ดูแล",
+        "ปัญหา / งานแก้",
+        "รายงานแผนก",
+        "กล่องจดหมาย"
+      ],
+      "settingsTabs": []
+    },
+    "qc": {
+      "nav": [
+        "งานของฉัน",
+        "คิวงานสถานี",
+        "ประวัติการทำงาน",
+        "รายงานปัญหา",
+        "กล่องจดหมาย"
+      ],
+      "settingsTabs": []
+    },
+    "staff_single": {
+      "nav": [
+        "งานของฉัน",
+        "คิวงานสถานี",
+        "ประวัติการทำงาน",
+        "รายงานปัญหา",
+        "กล่องจดหมาย"
+      ],
+      "settingsTabs": []
+    }
+  },
+  "report": {
+    "แอดมิน.md": {
+      "chars": 17618,
+      "imgCount": 15,
+      "preV3ImgsCount": 15,
+      "imgs": [
+        "img/login-768.png",
+        "img/inbox-768.png",
+        "img/r5-account-768.jpg",
+        "img/admin-overview-768.png",
+        "img/r5-overview-stations-768.jpg",
+        "img/r7-followup-768.jpg",
+        "img/r2-admin-intake-768.png",
+        "img/r2-label-qr-768.png",
+        "img/admin-search-768.png",
+        "img/detail-pdf-768.png",
+        "img/detail-sample-station-768.png",
+        "img/detail-timeline-768.png",
+        "img/admin-plan-768.png",
+        "img/r5-outsource-box-768.jpg",
+        "img/r5-outsource-form-768.jpg"
+      ],
+      "mentionsStationPhotos": true,
+      "oldTerms": {
+        "screenStationWord": true,
+        "redUrgentWord": false,
+        "hatPillowFormulaNote": true,
+        "twoColCompareWord": true,
+        "englishTermLeak": false
+      },
+      "diffs": [
+        "ยังมีคำว่า \"ซิลค์สกรีน\" (ระบบใช้ \"รีดฟิล์ม\" สำหรับเส้นทางสกรีน และไม่มีคิวสถานีซิลค์สกรีน)",
+        "ระบุตัวอย่างสินค้า \"หมวก หมอน ยังไม่มีสูตรจักร\" (ตรวจสอบเทียบสูตรจักรจริงใน settings)",
+        "อธิบายเทียบม็อคอัพเป็น ซ้าย vs ขวา (ตัวดูรูปจริง PhotoViewer เป็นโหมดสลับ ทีละรูป / เทียบม็อคอัพ ด้วยแถบเลื่อนแบ่งภาพ + ขยาย)"
+      ]
+    },
+    "ฝ่ายผลิต.md": {
+      "chars": 17582,
+      "imgCount": 21,
+      "preV3ImgsCount": 21,
+      "imgs": [
+        "img/login-768.png",
+        "img/inbox-768.png",
+        "img/r5-account-768.jpg",
+        "img/prod-now-768.png",
+        "img/r10-station-rail-768.jpg",
+        "img/r7-board-768.jpg",
+        "img/r10-station-held-768.jpg",
+        "img/r5-queue-doing-768.jpg",
+        "img/r5-queue-waiting-768.jpg",
+        "img/r7-resume-768.jpg",
+        "img/r7-detail-mockup-768.jpg",
+        "img/detail-pdf-768.png",
+        "img/detail-sample-station-768.png",
+        "img/detail-timeline-768.png",
+        "img/r2-station-panel-768.png",
+        "img/detail-correct-768.png",
+        "img/r2-label-qr-768.png",
+        "img/r9-sewing-pick.jpg",
+        "img/r9-manage-machines.jpg",
+        "img/prod-machines-768.png",
+        "img/prod-schedule-768.png"
+      ],
+      "mentionsStationPhotos": true,
+      "oldTerms": {
+        "screenStationWord": true,
+        "redUrgentWord": true,
+        "hatPillowFormulaNote": false,
+        "twoColCompareWord": false,
+        "englishTermLeak": false
+      },
+      "diffs": [
+        "ยังมีคำว่า \"ซิลค์สกรีน\" (ระบบใช้ \"รีดฟิล์ม\" สำหรับเส้นทางสกรีน และไม่มีคิวสถานีซิลค์สกรีน)",
+        "ระบุป้ายตัวแดง \"ด่วน n\" (PR 202 เปลี่ยนเป็นไอคอนตกใจ + เลยกำหนด / ติดปัญหา n)"
+      ]
+    },
+    "QC.md": {
+      "chars": 6332,
+      "imgCount": 5,
+      "preV3ImgsCount": 5,
+      "imgs": [
+        "img/login-768.png",
+        "img/inbox-768.png",
+        "img/r5-account-768.jpg",
+        "img/qc-now-768.png",
+        "img/detail-sample-station-768.png"
+      ],
+      "mentionsStationPhotos": true,
+      "oldTerms": {
+        "screenStationWord": false,
+        "redUrgentWord": false,
+        "hatPillowFormulaNote": false,
+        "twoColCompareWord": false,
+        "englishTermLeak": false
+      },
+      "diffs": []
+    },
+    "ผู้บริหาร.md": {
+      "chars": 5934,
+      "imgCount": 10,
+      "preV3ImgsCount": 10,
+      "imgs": [
+        "img/login-768.png",
+        "img/inbox-768.png",
+        "img/r5-account-768.jpg",
+        "img/manager-overview-768.png",
+        "img/r5-overview-stations-768.jpg",
+        "img/detail-pdf-768.png",
+        "img/detail-sample-station-768.png",
+        "img/detail-timeline-768.png",
+        "img/r2-reports-768.png",
+        "img/r7-resume-768.jpg"
+      ],
+      "mentionsStationPhotos": true,
+      "oldTerms": {
+        "screenStationWord": false,
+        "redUrgentWord": false,
+        "hatPillowFormulaNote": false,
+        "twoColCompareWord": false,
+        "englishTermLeak": false
+      },
+      "diffs": []
+    },
+    "เจ้าของระบบ.md": {
+      "chars": 7473,
+      "imgCount": 15,
+      "preV3ImgsCount": 15,
+      "imgs": [
+        "img/login-768.png",
+        "img/inbox-768.png",
+        "img/r5-account-768.jpg",
+        "img/detail-pdf-768.png",
+        "img/detail-sample-station-768.png",
+        "img/detail-timeline-768.png",
+        "img/r2-reports-768.png",
+        "img/owner-settings-users.jpg",
+        "img/owner-settings-stations.jpg",
+        "img/owner-settings-segments.jpg",
+        "img/owner-settings-materials.jpg",
+        "img/owner-settings-reasons.jpg",
+        "img/owner-settings-machines.jpg",
+        "img/owner-settings-notify.jpg",
+        "img/detail-correct-768.png"
+      ],
+      "mentionsStationPhotos": true,
+      "oldTerms": {
+        "screenStationWord": true,
+        "redUrgentWord": false,
+        "hatPillowFormulaNote": false,
+        "twoColCompareWord": false,
+        "englishTermLeak": false
+      },
+      "diffs": [
+        "ยังมีคำว่า \"ซิลค์สกรีน\" (ระบบใช้ \"รีดฟิล์ม\" สำหรับเส้นทางสกรีน และไม่มีคิวสถานีซิลค์สกรีน)"
+      ]
+    },
+    "แผนอบรม.md": {
+      "chars": 13301,
+      "imgCount": 0,
+      "preV3ImgsCount": 0,
+      "imgs": [],
+      "mentionsStationPhotos": false,
+      "oldTerms": {
+        "screenStationWord": true,
+        "redUrgentWord": false,
+        "hatPillowFormulaNote": false,
+        "twoColCompareWord": false,
+        "englishTermLeak": false
+      },
+      "diffs": [
+        "ยังไม่มีเนื้อหา/ขั้นตอนฟีเจอร์รูปยืนยันงานสถานี (รูปชิ้นแรก + รูปงานเสร็จ)",
+        "ยังมีคำว่า \"ซิลค์สกรีน\" (ระบบใช้ \"รีดฟิล์ม\" สำหรับเส้นทางสกรีน และไม่มีคิวสถานีซิลค์สกรีน)"
+      ]
+    }
+  }
+}

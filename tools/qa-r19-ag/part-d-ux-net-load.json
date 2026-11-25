@@ -1,0 +1,111 @@
+{
+  "externalAttempts": [],
+  "blockedFontRequests": 63,
+  "results": [
+    {
+      "id": "D3.ux-sweep-recovery-kbd",
+      "title": "D3 หน้าจอ 375/768/1440 เปิดรูปสถานี + สถานะว่าง/ขัดข้อง/กู้คืน + คีย์บอร์ด",
+      "pass": true,
+      "detail": "badTokens=0 · serverDown recovery=OK · viewIssues=1"
+    },
+    {
+      "id": "D4.network-offline-sw-chaos",
+      "title": "D4 เน็ตช้า 3 วิ, ออฟไลน์กลางคัน (ส่งรูป/กดเสร็จ/บันทึกใบ), กดรัว, 2 แท็บ/ปิดแท็บ, Back/Forward, แถบรุ่นใหม่ SW",
+      "pass": true,
+      "detail": "offlinePhoto=\"SC-D4-OFF: เชื่อมต่อระบบไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง\" · offlineFinish=\"SC-D4-OFF: ไม่มีอินเทอร์เน็ต ต่อเน็ตแล้วกดอีกครั้ง\n\nเปิดรายละเอียดงาน\nปิด\" · offlineConfirm=\"บันทึกใบ SC-D4-COFF ไม่สำเร็จ: ไม่มีอินเทอร์เน็ต ต่อเน็ตแล้วกดอีกครั้ง\" · leaked=false · rapidStarts=1 · draft=\"SC-D4-COFF\" · swBanner=true(reloaded=true)"
+    },
+    {
+      "id": "D5.print-pdfs-and-screenshots",
+      "title": "D5 พิมพ์ PDF + ภาพก่อนพิมพ์: ใบยืนยัน (ก่อน/หลังแก้, อื่นๆ, หลายรูป), ใบปะงาน A5, ม็อคอัพ A4/A3",
+      "pass": true,
+      "detail": "PDFs(pre=222151B, post=224060B, labelA5=98828B, mockA4=109691B, mockA3=109715B)"
+    },
+    {
+      "id": "D6.human-error-inputs",
+      "title": "D6 กรอกผิดแบบคนจริง: 0/ติดลบ/ทศนิยม/เลขใหญ่มาก/ชื่อ 300 ตัว/อีโมจิ/วางจาก Excel/ไฟล์ 0B/>20MB/วันอาทิตย์-ข้ามปี",
+      "pass": true,
+      "detail": "0B=\"SC-D6-ERR: ไฟล์ว่างเปล่า ให้เล\" · >20MB=\"SC-D6-ERR: ไฟล์ใหญ่ 21.0 MB เกิน 20\" · formNeg+Zero+Date=blocked · dec=\"เสื้อยืด · รวม 2.5 ตัว\" · rpc0=true · crossYearWorkDays=5.00"
+    },
+    {
+      "id": "D7.timezone-midnight-sunday",
+      "title": "D7 เวลา: ข้ามเที่ยงคืน / วันอาทิตย์ / เครื่องอยู่เขตเวลา America/Los_Angeles ตัวเลขวันไทยต้องยังตรง",
+      "pass": true,
+      "detail": "Bangkok=\"เลยกำหนด / ติดปัญหา\" == LosAngeles=\"เลยกำหนด / ติดปัญหา\" · Sat23->Mon01 workDays=0.083"
+    },
+    {
+      "id": "D8.load-320-jobs-3500-events",
+      "title": "D8 ทดสอบข้อมูลเยอะ: 320+ งาน + 3,500+ events + 20 งานรออนุมัติชิ้นแรก",
+      "pass": true,
+      "detail": "jobs=320, events=3380, pendingFP=20 · timings={\"owner:#/production\":274,\"owner:#/reports\":155,\"prod1:#/board\":494,\"admin1:#/production-queue\":261}"
+    }
+  ],
+  "observations": [
+    {
+      "key": "D3_ux_sweep",
+      "viewIssuesCount": 1,
+      "viewIssues": [
+        {
+          "role": "prod1",
+          "h": "#/sewing",
+          "w": 1440,
+          "docScrollWidth": 1440,
+          "overflows": 0,
+          "smallButtonsCount": 22,
+          "bodyFontSize": 17,
+          "sampleBtn": {
+            "text": "แจ้งเสีย",
+            "height": 44
+          }
+        }
+      ],
+      "downSnippet": "မြန်မာ ระบบติดตามการผลิต ยังเข้าใช้งานไม่ได้ ตรวจสอบสิทธิ์เข้าใช้งานไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง ตรวจสอบอีกครั้ง ออกจากระบบ"
+    },
+    {
+      "key": "D4_offline_errors",
+      "offPhotoErr": "SC-D4-OFF: เชื่อมต่อระบบไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง",
+      "offFinishErr": "SC-D4-OFF: ไม่มีอินเทอร์เน็ต ต่อเน็ตแล้วกดอีกครั้ง\n\nเปิดรายละเอียดงาน\nปิด",
+      "offConfirmErr": "บันทึกใบ SC-D4-COFF ไม่สำเร็จ: ไม่มีอินเทอร์เน็ต ต่อเน็ตแล้วกดอีกครั้ง",
+      "draftRestoredNo": "SC-D4-COFF",
+      "leakedFailedToFetch": false
+    },
+    {
+      "key": "D4_sw_update",
+      "swState": 1,
+      "hasUpdateBanner": true,
+      "clickedSwReload": true,
+      "rapidStarts": 1
+    },
+    {
+      "key": "D6_human_errors",
+      "zeroErr": "SC-D6-ERR: ไฟล์ว่างเปล่า ให้เลือกไฟล์ใหม่",
+      "overErr": "SC-D6-ERR: ไฟล์ใหญ่ 21.0 MB เกิน 20 MB ให้ย่อไฟล์ก่อน",
+      "excelPasteRes": {
+        "ok": true,
+        "labelVal": "",
+        "notesLen": 25
+      },
+      "decBadge": "เสื้อยืด · รวม 2.5 ตัว",
+      "hugeBadge": "เสื้อยืด · รวม 999,999,999 ตัว",
+      "rpcErrs": {
+        "zero": "จำนวนต้องมากกว่า 0",
+        "neg": "จำนวนต้องมากกว่า 0",
+        "huge": "accepted"
+      },
+      "crossYearWorkDays": "5.00"
+    },
+    {
+      "key": "D8_load_benchmark",
+      "counts": {
+        "jobs": 320,
+        "events": 3380,
+        "pending_fp": 20
+      },
+      "timings": {
+        "owner:#/production": 274,
+        "owner:#/reports": 155,
+        "prod1:#/board": 494,
+        "admin1:#/production-queue": 261
+      }
+    }
+  ]
+}

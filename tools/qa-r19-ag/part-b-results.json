@@ -1,0 +1,188 @@
+{
+  "externalAttempts": [],
+  "blockedFontRequests": 241,
+  "results": [
+    {
+      "id": "B1",
+      "title": "ทุกหน้า x ทุกบทบาท ที่ 375 / 768 / 1440 px (ไม่ล้น, ปุ่ม >= 48px, ตัวอักษร >= 16px, ไม่มี NaN/undefined)",
+      "pass": true,
+      "detail": "ตรวจครบ 183 จอ · พบประเด็น UX 6 จุด"
+    },
+    {
+      "id": "B2",
+      "title": "สถานะ กำลังโหลด / ไม่มีข้อมูล / ผิดพลาด (ปิดหลังบ้านกลางคัน)",
+      "pass": true,
+      "detail": "กำลังโหลด / ว่าง / ขัดข้องกู้คืนได้ทั้งหมด"
+    },
+    {
+      "id": "B3",
+      "title": "เน็ตช้า 3 วิ + กดรัว + ย้อนกลับเบราว์เซอร์ + แก้พร้อมกัน 2 แท็บ + กู้งานค้าง + ออฟไลน์/ออนไลน์",
+      "pass": true,
+      "detail": "เน็ตช้ากดรัวได้ 1 ครั้ง + ชน 2 แท็บไม่ทับ + กู้ร่างได้ + ออฟไลน์/ออนไลน์ + back/forward"
+    },
+    {
+      "id": "B4",
+      "title": "พิมพ์ PDF ใบปะงาน A5 + ใบกำกับงานพิมพ์ A4 / A3 แนวนอน + ตรวจไม่มีเลขทับภาพ",
+      "pass": true,
+      "detail": "Label A5=110275B, Artwork A4=109177B, A3=109208B"
+    },
+    {
+      "id": "B5",
+      "title": "เทียบข้อความ/ปุ่ม/สิทธิ์บนจอจริงกับคู่มือทุกบทบาท",
+      "pass": true,
+      "detail": "ตั้งค่าจริง 6 แท็บ, ชนิดจักรแก้ใช้ร่วมบนเว็บได้=true, QC ไม่จำกัดเครื่อง=true, QC เปิด artwork=true"
+    }
+  ],
+  "findings": [
+    {
+      "section": "B1",
+      "uxIssues": [
+        {
+          "type": "overflow",
+          "role": "owner",
+          "w": 375,
+          "hash": "#/board",
+          "docScrollWidth": 499,
+          "mainOverflow": 2,
+          "overflows": []
+        },
+        {
+          "type": "overflow",
+          "role": "manager",
+          "w": 375,
+          "hash": "#/board",
+          "docScrollWidth": 499,
+          "mainOverflow": 2,
+          "overflows": []
+        },
+        {
+          "type": "overflow",
+          "role": "prod1",
+          "w": 375,
+          "hash": "#/board",
+          "docScrollWidth": 499,
+          "mainOverflow": 2,
+          "overflows": []
+        },
+        {
+          "type": "overflow",
+          "role": "admin1",
+          "w": 375,
+          "hash": "#/board?job=6e34332b-8c5e-4733-9f2e-f2b7481a2a91",
+          "docScrollWidth": 499,
+          "mainOverflow": 2,
+          "overflows": [
+            {
+              "tag": "DIV",
+              "right": 499,
+              "text": "TEST-B-DOINGปกติลูกค้าทดสอบ B TEST-B-DOI"
+            },
+            {
+              "tag": "ASIDE",
+              "right": 515,
+              "text": "TEST-B-DOINGปกติลูกค้าทดสอบ B TEST-B-DOI"
+            },
+            {
+              "tag": "HEADER",
+              "right": 515,
+              "text": "TEST-B-DOINGปกติลูกค้าทดสอบ B TEST-B-DOI"
+            },
+            {
+              "tag": "DIV",
+              "right": 495,
+              "text": "TEST-B-DOINGปกติลูกค้าทดสอบ B TEST-B-DOI"
+            },
+            {
+              "tag": "BUTTON",
+              "right": 495,
+              "text": ""
+            }
+          ]
+        },
+        {
+          "type": "overflow",
+          "role": "admin1",
+          "w": 768,
+          "hash": "#/board?job=6e34332b-8c5e-4733-9f2e-f2b7481a2a91",
+          "docScrollWidth": 768,
+          "mainOverflow": 0,
+          "overflows": [
+            {
+              "tag": "ASIDE",
+              "right": 786,
+              "text": "TEST-B-DOINGปกติลูกค้าทดสอบ B TEST-B-DOI"
+            },
+            {
+              "tag": "HEADER",
+              "right": 786,
+              "text": "TEST-B-DOINGปกติลูกค้าทดสอบ B TEST-B-DOI"
+            },
+            {
+              "tag": "DIV",
+              "right": 786,
+              "text": "ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็นเลือกไ"
+            },
+            {
+              "tag": "DIV",
+              "right": 770,
+              "text": "ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็นเลือกไ"
+            },
+            {
+              "tag": "DIV",
+              "right": 770,
+              "text": "ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็นเลือกไ"
+            }
+          ]
+        },
+        {
+          "type": "overflow",
+          "role": "admin1",
+          "w": 1440,
+          "hash": "#/board?job=6e34332b-8c5e-4733-9f2e-f2b7481a2a91",
+          "docScrollWidth": 1440,
+          "mainOverflow": 0,
+          "overflows": [
+            {
+              "tag": "ASIDE",
+              "right": 1456,
+              "text": "TEST-B-DOINGปกติลูกค้าทดสอบ B TEST-B-DOI"
+            },
+            {
+              "tag": "HEADER",
+              "right": 1456,
+              "text": "TEST-B-DOINGปกติลูกค้าทดสอบ B TEST-B-DOI"
+            },
+            {
+              "tag": "DIV",
+              "right": 1456,
+              "text": "ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็นเลือกไ"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "section": "B3",
+      "disabledAfter100ms": true,
+      "sameTickAlert": null
+    },
+    {
+      "section": "B5",
+      "settingsTabs": [
+        "สถานีและขั้นย่อย",
+        "เวลามาตรฐานของช่วง",
+        "แม่แบบวัตถุดิบ",
+        "รหัสสาเหตุ",
+        "จักรเย็บ",
+        "การแจ้งเตือน"
+      ],
+      "hasSharedEdit": true,
+      "qcUnlimitedSetting": true,
+      "qcNoCap": true,
+      "qcArtwork": {
+        "hasPrintBtn": true,
+        "blocked": false
+      }
+    }
+  ]
+}

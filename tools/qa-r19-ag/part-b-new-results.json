@@ -1,0 +1,708 @@
+{
+  "externalAttempts": [],
+  "blockedFontRequests": 44,
+  "results": [
+    {
+      "id": "B1.v3-theme-and-overview",
+      "title": "B1 หน้าตา v3: สี/ลาย/ไอคอนครบสถานี, RouteTrack, สีสถานะ, ทองเฉพาะแบรนด์, สถานีตอนนี้",
+      "pass": true,
+      "detail": "stations=7 · routeTracks=1 · nonBrandGold=0"
+    },
+    {
+      "id": "B2.ui-review-fixes-and-overflow",
+      "title": "B2 รีวิว UI: ปุ่ม 375px ไทย+พม่า, doingFirst, เมนูไทยล้วน, staff_empty, sup1, ช่อง QC, ตรวจสาเหตุล้น 499px",
+      "pass": true,
+      "detail": "doingBeforeHold=true · finBottom(off=783,my=862,on=null) · owner375ScrollW=499 · qcH=48"
+    },
+    {
+      "id": "B3.confirmation-form-features",
+      "title": "B3 ฟอร์มใบยืนยัน: ?new=1/prev/sent_sig, ชื่อตัวเลือกเก่า, เลขซ้ำต่างสินค้า, อื่นๆ, ถัดไป/ล้างฟอร์ม, ถุงมาตรฐาน",
+      "pass": true,
+      "detail": "prev/sent_sig OK · legacy=OK · dupDiffProd=\"เลขที่ใบ SC-B3-MULTI บันทึกไว้แล้วเป็นสิ\" · bagStd=\"ขนาดมาตรฐาน\""
+    },
+    {
+      "id": "B4.develop-sample",
+      "title": "B4 งาน Develop: ปฏิเสธไม่ขึ้นตัวอย่าง, ผ่านตัวอย่าง=done+คืนจักร, แยกรายงาน, ห้ามสลับ Develop<->ผลิตจริง",
+      "pass": true,
+      "detail": "phase=done · bookingsReleased=true · flipBlocked=\"งานนี้รับเข้าแบบงาน Develop (จบที่ตัวอย่าง) เ\""
+    },
+    {
+      "id": "B5.queue-skip-all-paths",
+      "title": "B5 กฎคิว: บังคับเหตุผลทั้ง คิวสถานี / รายละเอียดงาน / จักรเย็บ + ปฏิเสธ RPC ตรง",
+      "pass": true,
+      "detail": "directCut+directSew rejected · all 3 UI paths require skip reason"
+    },
+    {
+      "id": "B6.thumbs-stable-url-single-fetch",
+      "title": "B6 รูปย่อ (?v=thumb) + ลิงก์รูปคงที่ + กด 1 ครั้งโหลด job_live รอบเดียว",
+      "pass": true,
+      "detail": "X-File-Variant(thumb=thumb, fallback=original) · stableURL=true · job_live_fetches=1"
+    },
+    {
+      "id": "B7.r18-regressions",
+      "title": "B7 งานค้างรอบ 18 (R18-01..04): แก้ใบจากลูก -2, ป้ายเลยกำหนดบนภาพรวม, staff/qc เปิดคิวรวม, ล็อกเปลี่ยนสินค้า+ตัวอย่าง",
+      "pass": true,
+      "detail": "R18-01..04 ผ่านครบ (parent=70, child=30, overdue=3วัน, queueBlocked=true)"
+    }
+  ],
+  "observations": [
+    {
+      "key": "B1_v3",
+      "overviewInfo": {
+        "present": [
+          "พิมพ์",
+          "รีด",
+          "ตัด",
+          "รีดฟิล์ม",
+          "ส่งปัก",
+          "เย็บ",
+          "QC + Packing"
+        ],
+        "svgs": 53,
+        "goldCount": 4,
+        "goldNodes": [
+          {
+            "tag": "SPAN",
+            "cls": "absolute top-2 bottom-2 -left-3 w-1 rounded-r-full bg-gold",
+            "inNavOrLogo": true,
+            "text": ""
+          },
+          {
+            "tag": "SPAN",
+            "cls": "grid size-10 shrink-0 place-items-center rounded-full bg-gold text-brand-700",
+            "inNavOrLogo": true,
+            "text": ""
+          },
+          {
+            "tag": "HEADER",
+            "cls": "flex items-center gap-2 border-b-2 border-gold bg-brand px-3 py-2 text-white sm:gap-3 sm:px-4 lg:hidden print:hidden",
+            "inNavOrLogo": true,
+            "text": "ระบบติดตามการผลิต1เจ้าของจำลองเจ้าของระบ"
+          },
+          {
+            "tag": "SPAN",
+            "cls": "hidden size-10 shrink-0 place-items-center rounded-full bg-gold text-brand-700 sm:grid",
+            "inNavOrLogo": true,
+            "text": ""
+          }
+        ]
+      },
+      "boardTracks": {
+        "routeTracks": 1,
+        "cardsWithGoldPillOrBtn": 0
+      }
+    },
+    {
+      "key": "B2_ui_review",
+      "foldThaiOff": {
+        "doingBeforeHold": true,
+        "finBottom": 783,
+        "docW": 375
+      },
+      "foldMyOff": {
+        "finBottom": 862,
+        "docW": 375
+      },
+      "foldPhotosOn": {
+        "finBottom": null
+      },
+      "overflowReport": {
+        "owner": {
+          "docScrollW": 499,
+          "innerW": 499,
+          "culprits": [
+            {
+              "tag": "LI",
+              "right": 538,
+              "w": 141,
+              "cls": "shrink-0",
+              "text": "3ตัด3เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "BUTTON",
+              "right": 538,
+              "w": 141,
+              "cls": "flex min-h-12 items-center gap-1.5 rounded-xl border-2 px-2.5 py-1 text-center s",
+              "text": "3ตัด3เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "SPAN",
+              "right": 526,
+              "w": 43,
+              "cls": "flex items-baseline gap-1 text-sm",
+              "text": "3เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "SPAN",
+              "right": 526,
+              "w": 27,
+              "cls": "inline-flex items-center gap-0.5 font-bold text-danger",
+              "text": "เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "svg",
+              "right": 515,
+              "w": 16,
+              "cls": "[object SVGAnimatedString]",
+              "text": ""
+            },
+            {
+              "tag": "path",
+              "right": 514,
+              "w": 13,
+              "cls": "[object SVGAnimatedString]",
+              "text": ""
+            },
+            {
+              "tag": "path",
+              "right": 507,
+              "w": 0,
+              "cls": "[object SVGAnimatedString]",
+              "text": ""
+            },
+            {
+              "tag": "SPAN",
+              "right": 526,
+              "w": 9,
+              "cls": "",
+              "text": "1"
+            },
+            {
+              "tag": "LI",
+              "right": 687,
+              "w": 141,
+              "cls": "shrink-0",
+              "text": "4รีดฟิล์ม0"
+            },
+            {
+              "tag": "BUTTON",
+              "right": 687,
+              "w": 141,
+              "cls": "flex min-h-12 items-center gap-1.5 rounded-xl border-2 px-2.5 py-1 text-center s",
+              "text": "4รีดฟิล์ม0"
+            },
+            {
+              "tag": "SPAN",
+              "right": 598,
+              "w": 40,
+              "cls": "flex items-center gap-1 text-sm font-semibold",
+              "text": "4"
+            },
+            {
+              "tag": "SPAN",
+              "right": 578,
+              "w": 20,
+              "cls": "grid size-5 place-items-center rounded-full text-xs bg-st-press-soft text-st-pre",
+              "text": "4"
+            }
+          ]
+        },
+        "manager": {
+          "docScrollW": 499,
+          "innerW": 499,
+          "culprits": [
+            {
+              "tag": "LI",
+              "right": 538,
+              "w": 141,
+              "cls": "shrink-0",
+              "text": "3ตัด3เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "BUTTON",
+              "right": 538,
+              "w": 141,
+              "cls": "flex min-h-12 items-center gap-1.5 rounded-xl border-2 px-2.5 py-1 text-center s",
+              "text": "3ตัด3เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "SPAN",
+              "right": 526,
+              "w": 43,
+              "cls": "flex items-baseline gap-1 text-sm",
+              "text": "3เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "SPAN",
+              "right": 526,
+              "w": 27,
+              "cls": "inline-flex items-center gap-0.5 font-bold text-danger",
+              "text": "เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "svg",
+              "right": 515,
+              "w": 16,
+              "cls": "[object SVGAnimatedString]",
+              "text": ""
+            },
+            {
+              "tag": "path",
+              "right": 514,
+              "w": 13,
+              "cls": "[object SVGAnimatedString]",
+              "text": ""
+            },
+            {
+              "tag": "path",
+              "right": 507,
+              "w": 0,
+              "cls": "[object SVGAnimatedString]",
+              "text": ""
+            },
+            {
+              "tag": "SPAN",
+              "right": 526,
+              "w": 9,
+              "cls": "",
+              "text": "1"
+            },
+            {
+              "tag": "LI",
+              "right": 687,
+              "w": 141,
+              "cls": "shrink-0",
+              "text": "4รีดฟิล์ม0"
+            },
+            {
+              "tag": "BUTTON",
+              "right": 687,
+              "w": 141,
+              "cls": "flex min-h-12 items-center gap-1.5 rounded-xl border-2 px-2.5 py-1 text-center s",
+              "text": "4รีดฟิล์ม0"
+            },
+            {
+              "tag": "SPAN",
+              "right": 598,
+              "w": 40,
+              "cls": "flex items-center gap-1 text-sm font-semibold",
+              "text": "4"
+            },
+            {
+              "tag": "SPAN",
+              "right": 578,
+              "w": 20,
+              "cls": "grid size-5 place-items-center rounded-full text-xs bg-st-press-soft text-st-pre",
+              "text": "4"
+            }
+          ]
+        },
+        "prod1": {
+          "docScrollW": 499,
+          "innerW": 499,
+          "culprits": [
+            {
+              "tag": "LI",
+              "right": 538,
+              "w": 141,
+              "cls": "shrink-0",
+              "text": "3ตัด3เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "BUTTON",
+              "right": 538,
+              "w": 141,
+              "cls": "flex min-h-12 items-center gap-1.5 rounded-xl border-2 px-2.5 py-1 text-center s",
+              "text": "3ตัด3เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "SPAN",
+              "right": 526,
+              "w": 43,
+              "cls": "flex items-baseline gap-1 text-sm",
+              "text": "3เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "SPAN",
+              "right": 526,
+              "w": 27,
+              "cls": "inline-flex items-center gap-0.5 font-bold text-danger",
+              "text": "เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "svg",
+              "right": 515,
+              "w": 16,
+              "cls": "[object SVGAnimatedString]",
+              "text": ""
+            },
+            {
+              "tag": "path",
+              "right": 514,
+              "w": 13,
+              "cls": "[object SVGAnimatedString]",
+              "text": ""
+            },
+            {
+              "tag": "path",
+              "right": 507,
+              "w": 0,
+              "cls": "[object SVGAnimatedString]",
+              "text": ""
+            },
+            {
+              "tag": "SPAN",
+              "right": 526,
+              "w": 9,
+              "cls": "",
+              "text": "1"
+            },
+            {
+              "tag": "LI",
+              "right": 687,
+              "w": 141,
+              "cls": "shrink-0",
+              "text": "4รีดฟิล์ม0"
+            },
+            {
+              "tag": "BUTTON",
+              "right": 687,
+              "w": 141,
+              "cls": "flex min-h-12 items-center gap-1.5 rounded-xl border-2 px-2.5 py-1 text-center s",
+              "text": "4รีดฟิล์ม0"
+            },
+            {
+              "tag": "SPAN",
+              "right": 598,
+              "w": 40,
+              "cls": "flex items-center gap-1 text-sm font-semibold",
+              "text": "4"
+            },
+            {
+              "tag": "SPAN",
+              "right": 578,
+              "w": 20,
+              "cls": "grid size-5 place-items-center rounded-full text-xs bg-st-press-soft text-st-pre",
+              "text": "4"
+            }
+          ]
+        },
+        "admin1": {
+          "docScrollW": 499,
+          "innerW": 499,
+          "culprits": [
+            {
+              "tag": "LI",
+              "right": 538,
+              "w": 141,
+              "cls": "shrink-0",
+              "text": "3ตัด3เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "BUTTON",
+              "right": 538,
+              "w": 141,
+              "cls": "flex min-h-12 items-center gap-1.5 rounded-xl border-2 px-2.5 py-1 text-center s",
+              "text": "3ตัด3เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "SPAN",
+              "right": 526,
+              "w": 43,
+              "cls": "flex items-baseline gap-1 text-sm",
+              "text": "3เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "SPAN",
+              "right": 526,
+              "w": 27,
+              "cls": "inline-flex items-center gap-0.5 font-bold text-danger",
+              "text": "เลยกำหนด / ติดปัญหา 11"
+            },
+            {
+              "tag": "svg",
+              "right": 515,
+              "w": 16,
+              "cls": "[object SVGAnimatedString]",
+              "text": ""
+            },
+            {
+              "tag": "path",
+              "right": 514,
+              "w": 13,
+              "cls": "[object SVGAnimatedString]",
+              "text": ""
+            },
+            {
+              "tag": "path",
+              "right": 507,
+              "w": 0,
+              "cls": "[object SVGAnimatedString]",
+              "text": ""
+            },
+            {
+              "tag": "SPAN",
+              "right": 526,
+              "w": 9,
+              "cls": "",
+              "text": "1"
+            },
+            {
+              "tag": "LI",
+              "right": 687,
+              "w": 141,
+              "cls": "shrink-0",
+              "text": "4รีดฟิล์ม0"
+            },
+            {
+              "tag": "BUTTON",
+              "right": 687,
+              "w": 141,
+              "cls": "flex min-h-12 items-center gap-1.5 rounded-xl border-2 px-2.5 py-1 text-center s",
+              "text": "4รีดฟิล์ม0"
+            },
+            {
+              "tag": "SPAN",
+              "right": 598,
+              "w": 40,
+              "cls": "flex items-center gap-1 text-sm font-semibold",
+              "text": "4"
+            },
+            {
+              "tag": "SPAN",
+              "right": 578,
+              "w": 20,
+              "cls": "grid size-5 place-items-center rounded-full text-xs bg-st-press-soft text-st-pre",
+              "text": "4"
+            }
+          ]
+        }
+      },
+      "menuAudit": {
+        "owner": {
+          "navLinks": [
+            "ภาพรวมระบบ",
+            "ผู้ใช้งาน",
+            "บทบาทและสิทธิ์",
+            "จับคู่สถานี",
+            "บันทึกการเปลี่ยนแปลง",
+            "ตั้งค่าระบบ",
+            "ภาพรวมการผลิต",
+            "ทุกสถานี",
+            "รายงาน",
+            "กล่องจดหมาย1",
+            "เจ้าของจำลองเจ้าของระบบ",
+            "ภาพรวม",
+            "ผู้ใช้",
+            "สิทธิ์",
+            "จับคู่",
+            "เพิ่มเติม"
+          ],
+          "badEng": [],
+          "bodyHint": "ระบบติดตามการผลิต เมนู ภาพรวมระบบ ผู้ใช้งาน บทบาทและสิทธิ์ จับคู่สถานี บันทึกการเปลี่ยนแปลง ตั้งค่าระบบ งานผลิต ภาพรวมการผลิต ทุกสถานี รายงาน กล่องจดหมาย 1 เจ้าของจำลอง เจ้าของระบบ ภาพรวมระบบ บัญชีผู้ใช้ · สิ่งที่ยั"
+        },
+        "manager": {
+          "navLinks": [
+            "ภาพรวมการผลิต",
+            "ใบงานทั้งหมด",
+            "ทุกสถานี",
+            "รายงาน",
+            "รายการรออนุมัติ",
+            "กล่องจดหมาย1",
+            "ผู้บริหารจำลองผู้บริหาร",
+            "ภาพรวม",
+            "ใบงาน",
+            "สถานี",
+            "รายงาน",
+            "รออนุมัติ"
+          ],
+          "badEng": [],
+          "bodyHint": "ระบบติดตามการผลิต เมนู ภาพรวมการผลิต ใบงานทั้งหมด ทุกสถานี รายงาน รายการรออนุมัติ กล่องจดหมาย 1 ผู้บริหารจำลอง ผู้บริหาร ภาพรวมการผลิต วันพุธที่ 25 พฤศจิกายน 2569 · อัปเดต 11:18:06 น. งานในโรงงาน 6 120 ชิ้น เลยกำหนดส่ง"
+        },
+        "admin1": {
+          "navLinks": [
+            "ภาพรวมใบงาน",
+            "จัดการใบงาน",
+            "คิวการผลิต",
+            "ติดตามสถานี",
+            "รายงาน",
+            "กล่องจดหมาย1",
+            "แอดมิน 1 จำลองแอดมิน",
+            "ภาพรวม",
+            "ใบงาน",
+            "คิว",
+            "สถานี",
+            "รายงาน"
+          ],
+          "badEng": [],
+          "bodyHint": "ระบบติดตามการผลิต เมนู ภาพรวมใบงาน จัดการใบงาน คิวการผลิต ติดตามสถานี รายงาน กล่องจดหมาย 1 แอดมิน 1 จำลอง แอดมิน ภาพรวมการผลิต วันพุธที่ 25 พฤศจิกายน 2569 · อัปเดต 11:18:06 น. รับงานใหม่ งานในโรงงาน 6 120 ชิ้น เลยกำหนด"
+        },
+        "prod1": {
+          "navLinks": [
+            "ภาพรวมแผนก",
+            "คิวงาน",
+            "สถานีที่ดูแล",
+            "ปัญหา / งานแก้",
+            "รายงานแผนก",
+            "กล่องจดหมาย1",
+            "ฝ่ายผลิต 1 จำลองฝ่ายผลิต",
+            "ทุกสถานี6",
+            "1พิมพ์1",
+            "2รีด0",
+            "3ตัด3เลยกำหนด / ติดปัญหา 11",
+            "4รีดฟิล์ม0",
+            "5ส่งปัก0",
+            "6เย็บ0",
+            "7QC + Packing2",
+            "ขึ้นตัวอย่าง0",
+            "รอผลตัวอย่าง0",
+            "สั่งผลิตข้างนอก0",
+            "เสร็จ0",
+            "ภาพรวม",
+            "คิวงาน",
+            "สถานี",
+            "ปัญหา",
+            "รายงาน"
+          ],
+          "badEng": [],
+          "bodyHint": "ระบบติดตามการผลิต เมนู ภาพรวมแผนก คิวงาน สถานีที่ดูแล ปัญหา / งานแก้ รายงานแผนก กล่องจดหมาย 1 ฝ่ายผลิต 1 จำลอง ฝ่ายผลิต งานฝ่ายผลิต · พิมพ์ถึง QC วันพุธที่ 25 พฤศจิกายน 2569 · อัปเดต 11:18:06 น. งานในโรงงาน 6 เลยกำหนด "
+        },
+        "sup1": {
+          "navLinks": [
+            "ภาพรวมแผนก",
+            "คิวงาน",
+            "สถานีที่ดูแล",
+            "ปัญหา / งานแก้",
+            "รายงานแผนก",
+            "กล่องจดหมาย",
+            "ผู้ควบคุมเฟส 1 จำลองผู้ควบคุมงาน · เฟส 1 พิมพ์-รีด-ตัด",
+            "ภาพรวม",
+            "คิวงาน",
+            "สถานี",
+            "ปัญหา",
+            "รายงาน"
+          ],
+          "badEng": [],
+          "bodyHint": "ระบบติดตามการผลิต เมนู ภาพรวมแผนก คิวงาน สถานีที่ดูแล ปัญหา / งานแก้ รายงานแผนก กล่องจดหมาย ผู้ควบคุมเฟส 1 จำลอง ผู้ควบคุมงาน · เฟส 1 พิมพ์-รีด-ตัด งานเฟส 1 พิมพ์-รีด-ตัด วันพุธที่ 25 พฤศจิกายน 2569 · อัปเดต 11:18:07 น"
+        },
+        "sup2": {
+          "navLinks": [
+            "ภาพรวมแผนก",
+            "คิวงาน",
+            "สถานีที่ดูแล",
+            "ปัญหา / งานแก้",
+            "รายงานแผนก",
+            "กล่องจดหมาย",
+            "ผู้ควบคุมเฟส 2 จำลองผู้ควบคุมงาน · เฟส 2 เย็บ-QC",
+            "ภาพรวม",
+            "คิวงาน",
+            "สถานี",
+            "ปัญหา",
+            "รายงาน"
+          ],
+          "badEng": [],
+          "bodyHint": "ระบบติดตามการผลิต เมนู ภาพรวมแผนก คิวงาน สถานีที่ดูแล ปัญหา / งานแก้ รายงานแผนก กล่องจดหมาย ผู้ควบคุมเฟส 2 จำลอง ผู้ควบคุมงาน · เฟส 2 เย็บ-QC งานเฟส 2 เย็บ-QC วันพุธที่ 25 พฤศจิกายน 2569 · อัปเดต 11:18:07 น. กำลังเย็บ "
+        },
+        "qc": {
+          "navLinks": [
+            "คำศัพท์",
+            "งานของฉัน",
+            "คิวงานสถานี",
+            "ประวัติการทำงาน",
+            "รายงานปัญหา",
+            "กล่องจดหมาย",
+            "ฝ่าย QC จำลองฝ่าย QC",
+            "งานของฉัน",
+            "คิวงาน",
+            "ประวัติ",
+            "ปัญหา"
+          ],
+          "badEng": [],
+          "bodyHint": "ระบบติดตามการผลิต မြန်မာ คำศัพท์ เมนู งานของฉัน คิวงานสถานี ประวัติการทำงาน รายงานปัญหา กล่องจดหมาย ฝ่าย QC จำลอง ฝ่าย QC กำลังโหลดหน้าติดตามการผลิต…"
+        },
+        "staff_single": {
+          "navLinks": [
+            "คำศัพท์",
+            "งานของฉัน",
+            "คิวงานสถานี",
+            "ประวัติการทำงาน",
+            "รายงานปัญหา",
+            "กล่องจดหมาย",
+            "พนักงานตัดพนักงานสถานี",
+            "งานของฉัน",
+            "คิวงาน",
+            "ประวัติ",
+            "ปัญหา"
+          ],
+          "badEng": [],
+          "bodyHint": "ระบบติดตามการผลิต မြန်မာ คำศัพท์ เมนู งานของฉัน คิวงานสถานี ประวัติการทำงาน รายงานปัญหา กล่องจดหมาย พนักงานตัด พนักงานสถานี กำลังโหลดหน้าติดตามการผลิต…"
+        },
+        "staff_empty": {
+          "navLinks": [
+            "คำศัพท์",
+            "งานของฉัน",
+            "คิวงานสถานี",
+            "ประวัติการทำงาน",
+            "รายงานปัญหา",
+            "กล่องจดหมาย",
+            "พนักงานยังไม่จับคู่พนักงานสถานี",
+            "งานของฉัน",
+            "คิวงาน",
+            "ประวัติ",
+            "ปัญหา"
+          ],
+          "badEng": [],
+          "bodyHint": "ระบบติดตามการผลิต မြန်မာ คำศัพท์ เมนู งานของฉัน คิวงานสถานี ประวัติการทำงาน รายงานปัญหา กล่องจดหมาย พนักงานยังไม่จับคู่ พนักงานสถานี กำลังโหลดหน้าติดตามการผลิต…"
+        }
+      },
+      "qcInputMeasure": {
+        "h": 48,
+        "fontPx": 17,
+        "docScrollW": 375
+      }
+    },
+    {
+      "key": "B3_confirmation",
+      "legacyUpgraded": {
+        "tshirtOk": true,
+        "checkedRadio": "แขนแร็กแลน (Raglan)",
+        "hasRaglanRadio": true
+      },
+      "scarfUpgraded": "ม้วนริม 0.6 ซม.",
+      "hintsCount": 15,
+      "dupDiffProdMsg": "เลขที่ใบ SC-B3-MULTI บันทึกไว้แล้วเป็นสินค้าอื่น · ถ้าเป็นสินค้าคนละชิ้นในออเดอร์เดียวกัน ให้ต่อท้ายเลข เช่น SC-B3-MULTI-0002",
+      "afterNext": {
+        "docNo": "SC-B3-BAG-0002",
+        "customer": "ลูกค้าถุงผ้า"
+      }
+    },
+    {
+      "key": "B4_develop",
+      "devAfter": {
+        "phase": "done",
+        "station_seq": null,
+        "station_status": null
+      },
+      "activeAssign": 0,
+      "activeBook": 0,
+      "flipMsg": "งานนี้รับเข้าแบบงาน Develop (จบที่ตัวอย่าง) เปลี่ยนในใบแก้ไม่ได้ · เลือก \"ขึ้นตัวอย่าง\" ในฟอร์มให้ตรงกับงาน"
+    },
+    {
+      "key": "B5_queue_skip",
+      "directCut": "งานนี้ไม่ใช่คิวแรกแล้ว (คิวก่อนหน้า: SC-B5-C1) กด \"เริ่มก่อนคิว\" แล้วใส่เหตุผล",
+      "directSew": "งานนี้ไม่ใช่คิวแรกแล้ว (คิวก่อนหน้า: SC-B5-S1) กด \"เริ่มก่อนคิว\" แล้วใส่เหตุผล",
+      "clickedSewSkip": "เริ่มเย็บ"
+    },
+    {
+      "key": "B6_thumbs_and_fetches",
+      "liveCount": 1,
+      "stableUrl": true
+    },
+    {
+      "key": "B7_r18",
+      "r1804Locks": {
+        "hasChangeProd": false,
+        "sampleRadiosDisabled": true,
+        "docNoLocked": false
+      },
+      "pAfter": {
+        "customer_name": "ลูกค้าแยกงาน (แก้แล้ว)",
+        "qty": 70
+      },
+      "cAfter": {
+        "customer_name": "ลูกค้าแยกงาน (แก้แล้ว)",
+        "qty": 30
+      }
+    }
+  ]
+}

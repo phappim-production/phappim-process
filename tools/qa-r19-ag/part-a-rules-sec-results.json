@@ -1,0 +1,219 @@
+{
+  "externalAttempts": [],
+  "results": [
+    {
+      "id": "A3.role-matrix",
+      "title": "ตรวจสิทธิ์ทุกบทบาทเรียก RPC รูปสถานีผ่าน token จริง",
+      "pass": true,
+      "detail": "14 roles tested across submit/decide/finish/settings"
+    },
+    {
+      "id": "A5.1-hold-requeue",
+      "title": "A5.1 พักงานระหว่างรออนุมัติ + แก้แล้วเครื่องเต็มกลับคิว ยังอยู่ในรายการรออนุมัติ",
+      "pass": true,
+      "detail": "hold -> requeue ยังอยู่คิวอนุมัติและอนุมัติได้"
+    },
+    {
+      "id": "A5.2-split-cancel-parent",
+      "title": "A5.2 แบ่งงานระหว่างรออนุมัติ + ยกเลิกงานต้นทาง (ทั้งกรณีอนุมัติและกรณีไม่ผ่าน)",
+      "pass": true,
+      "detail": "approve+reject child after parent cancel OK (childEvents=job_split_from,station_start)"
+    },
+    {
+      "id": "A5.3-outsource-with-pending-photo",
+      "title": "A5.3 ส่งงานออกข้างนอก (send_out) จากสถานีที่มีรูปชิ้นแรกค้างอยู่",
+      "pass": true,
+      "detail": "flagsOut=0 · lateInboxWhileOut=0 · decideWhileOut=ALLOWED!"
+    },
+    {
+      "id": "A5.4_to_9-edge-cases",
+      "title": "A5.4–A5.9 งานแก้จาก QC, ตัวอย่าง/Develop, ยกเลิกงาน, ปิดฟีเจอร์, เลิกติ๊กสถานี, งานเริ่มก่อนเปิดใช้",
+      "pass": true,
+      "detail": "A5.4-A5.9 ผ่านครบ (decideWhileFeatureOff=true)"
+    },
+    {
+      "id": "A6.sla-vs-history-reports",
+      "title": "A6 เวลามาตรฐาน (หักรออนุมัติ + ไม่หักซ้ำพักงาน) เทียบกับรายละเอียดงานและรายงาน",
+      "pass": true,
+      "detail": "DB segment_days=0.5 (raw=2.458, hold=1.000, fp=0.958) · printReport=\"พิมพ์งาน 1 รอบ ทำงาน 2 วัน รอคิว —\""
+    },
+    {
+      "id": "A7.inbox-reminders",
+      "title": "A7 กล่องจดหมาย: เตือน 5/15/60 นาที + ปิดแจ้งเตือนทีละชนิด",
+      "pass": true,
+      "detail": "5/15/60m เตือนครั้งเดียว + ปิดทีละชนิดได้ผล"
+    },
+    {
+      "id": "A10.photo-security",
+      "title": "A10 ความปลอดภัยของรูป: สิทธิ์ดูรูป/อัปโหลดโฟลเดอร์ผิด, ลิงก์หมดอายุ, ส่งรูปซ้ำ",
+      "pass": true,
+      "detail": "anon/disabled/norole denied · expired=410 · wrongFolderPut=200 · reuseFpAsFinish=true · staffEmptySign=true"
+    }
+  ],
+  "observations": [
+    {
+      "key": "A3_role_matrix",
+      "submitCutRes": {
+        "owner": "ALLOW",
+        "manager": "DENY(403:42501)",
+        "admin1": "DENY(403:42501)",
+        "prod1": "ALLOW",
+        "sup1": "ALLOW",
+        "sup2": "DENY(403:42501)",
+        "qc": "DENY(403:42501)",
+        "staff_single": "ALLOW",
+        "staff_multi": "ALLOW",
+        "staff_qc": "DENY(403:42501)",
+        "staff_empty": "DENY(403:42501)",
+        "disabled": "DENY(403:42501)",
+        "norole": "DENY(403:42501)",
+        "anon": "DENY(403:42501)"
+      },
+      "decideRes": {
+        "owner": "ALLOW",
+        "manager": "ALLOW",
+        "admin1": "ALLOW",
+        "prod1": "DENY(403:42501)",
+        "sup1": "DENY(403:42501)",
+        "sup2": "DENY(403:42501)",
+        "qc": "DENY(403:42501)",
+        "staff_single": "DENY(403:42501)",
+        "staff_multi": "DENY(403:42501)",
+        "staff_qc": "DENY(403:42501)",
+        "staff_empty": "DENY(403:42501)",
+        "disabled": "DENY(403:42501)",
+        "norole": "DENY(403:42501)",
+        "anon": "DENY(403:42501)"
+      },
+      "qcFinishRes": {
+        "owner": "ALLOW",
+        "manager": "DENY(403)",
+        "admin1": "DENY(403)",
+        "prod1": "ALLOW",
+        "sup1": "DENY(403)",
+        "sup2": "ALLOW",
+        "qc": "ALLOW",
+        "staff_single": "DENY(403)",
+        "staff_multi": "DENY(403)",
+        "staff_qc": "ALLOW",
+        "staff_empty": "DENY(403)",
+        "disabled": "DENY(403)",
+        "norole": "DENY(403)",
+        "anon": "DENY(403)"
+      }
+    },
+    {
+      "key": "A5_split_cancel_parent",
+      "child1Events": [
+        "job_split_from",
+        "station_start"
+      ],
+      "parent1Events": [
+        "received",
+        "released",
+        "station_start",
+        "first_piece_sent",
+        "hold",
+        "resume",
+        "job_split",
+        "job_cancelled",
+        "first_piece_ok"
+      ],
+      "child2AfterReject": {
+        "first_piece": "rejected",
+        "reject_reason": "สีเพี้ยน"
+      }
+    },
+    {
+      "key": "A5_3_outsource_pending_photo",
+      "flagsWhileOutCount": 0,
+      "lateMsgWhileOut": [],
+      "decideWhileOut": {
+        "ok": true,
+        "status": 204,
+        "data": null
+      },
+      "jobAfterBack": {
+        "phase": "production",
+        "station_seq": 2,
+        "station_status": "queued",
+        "station_started_at": null,
+        "visit": 2
+      }
+    },
+    {
+      "key": "A5_7_decide_while_feature_off",
+      "decideWhileDisabled": {
+        "ok": true,
+        "status": 204,
+        "data": null
+      }
+    },
+    {
+      "key": "A6_sla_consistency",
+      "slaCalc": {
+        "raw_work_days": "2.458",
+        "hold_days": "1.000",
+        "fp_wait_days": "0.958",
+        "sla": {
+          "segment_code": "subli_ppc",
+          "segment_days": 0.5,
+          "segment_name": "พิมพ์ + รีด + ตัด",
+          "segment_over": false,
+          "segment_warn": false,
+          "segment_reported": false,
+          "segment_sla_days": 3
+        }
+      },
+      "visitText": "เวลาที่ใช้ต่อสถานี (ไม่นับเวลาพัก)\nพิมพ์งาน\n2 วัน\nเริ่ม 22 พ.ย. 10:59 · เสร็จ 25 พ.ย. 10:59 · ไม่นับเวลาพัก 1 วัน\nรีดงาน\n0 นาที\nเริ่ม 25 พ.ย. 10:59 · เสร็จ 25 พ.ย. 10:59\nตัดงาน\n0 นาที\nเริ่ม 25 พ.ย. 10:59 · เสร็จ 25 พ.ย. 10:59\nเย็บงาน\n0 นาที\nเริ่ม 25 พ.ย. 10:59 · เสร็จ 25 พ.ย. 10:59\nQC + Packing\n0 นาที\nเริ่ม 25 พ.ย. 10:59 · เสร็จ 25 พ.ย. 10:59",
+      "reportPrintText": "พิมพ์งาน\n\n1 รอบ\n\nทำงาน\n2 วัน\nรอคิว\n—"
+    },
+    {
+      "key": "A10_security",
+      "signAccess": {
+        "anonSign": {
+          "status": 401,
+          "signed": false
+        },
+        "disabledSign": {
+          "status": 403,
+          "signed": false
+        },
+        "noroleSign": {
+          "status": 403,
+          "signed": false
+        },
+        "staffEmptySign": {
+          "status": 200,
+          "signed": true
+        },
+        "staffCutSign": {
+          "status": 200,
+          "signed": true
+        },
+        "adminSign": {
+          "status": 200,
+          "signed": true
+        }
+      },
+      "flagsForStaffEmptyCount": 1,
+      "flagsForStaffCutCount": 1,
+      "putWrongFolderByStaffEmpty": {
+        "status": 200,
+        "body": "{\"path\":\"SC-OTHER-JOB/cut/99/hack01.jpg\",\"size\":12,\"existed\":false}"
+      },
+      "dupInSameArray": {
+        "ok": true,
+        "checkId": 2
+      },
+      "reuseFirstPieceAsFinish": {
+        "ok": true,
+        "data": 3
+      },
+      "resendRejectedSamePath": {
+        "ok": true,
+        "data": 5
+      }
+    }
+  ]
+}

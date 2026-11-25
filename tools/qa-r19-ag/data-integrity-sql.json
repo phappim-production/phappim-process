@@ -1,0 +1,22 @@
+{
+  "queries": {
+    "contradictoryStates": "select id, confirmation_no, phase, station_seq, station_status from public.jobs\n          where (phase in ('done', 'cancelled') and (station_seq is not null or station_status is not null))\n             or (phase = 'production' and (station_seq is null or station_status is null))",
+    "orphanedMachineAssignments": "select ma.id, ma.job_id, j.confirmation_no, j.phase, j.station_seq, j.station_status\n          from public.machine_assignments ma join public.jobs j on j.id = ma.job_id\n          where ma.released_at is null and (j.phase in ('done', 'cancelled') or j.station_status = 'out')",
+    "orphanedOpenIssues": "select i.id, i.job_id, j.confirmation_no, j.phase from public.issues i join public.jobs j on j.id = i.job_id\n          where i.closed_at is null and j.phase in ('done', 'cancelled')",
+    "orphanedOutRuns": "select r.id, r.job_id, j.confirmation_no, j.phase from public.outsource_runs r join public.jobs j on j.id = r.job_id\n          where r.closed_at is null and j.phase in ('done', 'cancelled')",
+    "splitQtySumCheck": "select sum(qty)::int as family_sum from public.jobs where confirmation_no like 'SC-D2-SP%'",
+    "pendingChecksOnClosedJobs": "select c.id, c.job_id, j.confirmation_no, j.phase from public.station_checks c join public.jobs j on j.id = c.job_id\n          where c.status = 'pending' and j.phase in ('done', 'cancelled')"
+  },
+  "results": {
+    "contradictoryStates": [],
+    "orphanedMachineAssignments": [],
+    "orphanedOpenIssues": [],
+    "orphanedOutRuns": [],
+    "splitQtySumCheck": [
+      {
+        "family_sum": 50
+      }
+    ],
+    "pendingChecksOnClosedJobs": []
+  }
+}
