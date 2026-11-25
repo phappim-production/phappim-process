@@ -38,7 +38,7 @@ export function StationRail({ columns, counts, urgent, station, onPick }: {
     return (
       <li key={key} className="shrink-0">
         <button type="button" onClick={() => onPick(key)} aria-pressed={on}
-          className={`flex min-h-16 min-w-20 flex-col items-center justify-center gap-0.5 rounded-xl border-2 px-2.5 py-1.5 text-center ${on ? 'border-brand bg-brand text-white' : 'border-line bg-card hover:border-brand'}`}>
+          className={`flex min-h-12 items-center gap-1.5 rounded-xl border-2 px-2.5 py-1 text-center sm:min-h-16 sm:min-w-20 sm:flex-col sm:justify-center sm:gap-0.5 sm:py-1.5 ${on ? 'border-brand bg-brand text-white' : 'border-line bg-card hover:border-brand'}`}>
           <span className="flex items-center gap-1 text-sm font-semibold">
             {numbered(key) && <span className={`grid size-5 place-items-center rounded-full text-xs ${on ? 'bg-white text-brand' : 'bg-brand-soft text-brand'}`}>{STATION_ORDER.indexOf(key) + 1}</span>}
             <Icon className="size-4" />
@@ -85,28 +85,29 @@ export function StationHeader({ station, jobs, stations, machines, onPick }: {
     </button>
   ) : <span />
   return (
-    <section aria-label={t('สถานี{station}', { station: { th: STATION_NAME[station] } })} className="grid gap-3 rounded-2xl border border-line bg-card p-4 shadow-card">
+    <section aria-label={t('สถานี{station}', { station: { th: STATION_NAME[station] } })} className="grid gap-2 rounded-2xl border border-line bg-card p-3 shadow-card sm:gap-3 sm:p-4">
       <div className="flex items-center gap-3">
-        <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand"><Icon className="size-8" /></span>
+        <span className="hidden size-14 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand sm:grid"><Icon className="size-8" /></span>
         <div className="min-w-0">
-          <p className="text-sm text-muted">{numbered(station) ? t('สถานีที่ {n} จาก {total} · เฟส {phase}', { n: STATION_ORDER.indexOf(station) + 1, total: STATION_ORDER.length, phase: STATION_PHASE[station] }) : t('โรงงานนอกทำ · แอดมินส่งออกและรับเข้า')}</p>
-          <h2 className="flex items-center gap-2 truncate text-2xl font-bold">
-            {numbered(station) && <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand text-lg text-white">{STATION_ORDER.indexOf(station) + 1}</span>}
+          <p className={`text-sm text-muted ${numbered(station) ? 'hidden sm:block' : ''}`}>{numbered(station) ? t('สถานีที่ {n} จาก {total} · เฟส {phase}', { n: STATION_ORDER.indexOf(station) + 1, total: STATION_ORDER.length, phase: STATION_PHASE[station] }) : t('โรงงานนอกทำ · แอดมินส่งออกและรับเข้า')}</p>
+          <h2 className="flex items-center gap-2 truncate text-xl font-bold sm:text-2xl">
+            {numbered(station) && <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-lg text-white sm:size-9">{STATION_ORDER.indexOf(station) + 1}</span>}
+            <Icon className="size-6 shrink-0 text-brand sm:hidden" />
             <Tr th={STATION_NAME[station]} />
           </h2>
         </div>
         {machines && (
-          <span className={`ml-auto shrink-0 rounded-xl px-3 py-1.5 text-center font-semibold ${machines.full ? 'bg-warn-soft text-warn' : 'bg-ok-soft text-ok'}`}>
+          <span className={`ml-auto shrink-0 rounded-xl px-2.5 py-1 text-center font-semibold sm:px-3 sm:py-1.5 ${machines.full ? 'bg-warn-soft text-warn' : 'bg-ok-soft text-ok'}`}>
             {t('เครื่อง {used}/{total}', { used: machines.used.length, total: machines.total })}
             <span className="block text-sm font-medium">{machines.full ? t('เต็ม') : t('ว่าง {n}', { n: machines.total - machines.used.length })}</span>
           </span>
         )}
       </div>
-      <dl className="grid grid-cols-4 gap-2">
+      <dl className="hidden grid-cols-4 gap-2 sm:grid">
         {stats.map(([label, n, tone]) => (
-          <div key={label} className="flex flex-col-reverse rounded-xl bg-paper px-1 py-2 text-center">
+          <div key={label} className="flex flex-col-reverse rounded-xl bg-paper px-1 py-1 text-center sm:py-2">
             <dt className="text-sm text-muted">{t(label)}</dt>
-            <dd className={`text-2xl font-bold tabular-nums ${tone}`}>{n}</dd>
+            <dd className={`text-xl font-bold tabular-nums sm:text-2xl ${tone}`}>{n}</dd>
           </div>
         ))}
       </dl>
