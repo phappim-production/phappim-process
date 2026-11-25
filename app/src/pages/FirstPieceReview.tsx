@@ -56,8 +56,9 @@ function ReviewDialog({ item, call, onOpen, onClose }: { item: Pending; call: Ca
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [broken, setBroken] = useState(0)
+  const [shown, setShown] = useState(0)
   const sending = useRef(false)
-  const block = approveBlock({ loading: loaded.status === 'loading', count: loaded.status === 'ready' ? loaded.urls.length : 0, broken })
+  const block = approveBlock({ loading: loaded.status === 'loading', count: loaded.status === 'ready' ? loaded.urls.length : 0, broken, loaded: shown })
 
   useEffect(() => {
     let alive = true
@@ -94,7 +95,7 @@ function ReviewDialog({ item, call, onOpen, onClose }: { item: Pending; call: Ca
       <div className="mt-3">
         {loaded.status === 'loading' && <p role="status" className="grid aspect-[4/5] max-h-[48vh] place-items-center rounded-2xl bg-paper text-muted">กำลังโหลดรูป…</p>}
         {loaded.status === 'error' && <p role="alert" className="grid aspect-[4/5] max-h-[48vh] place-items-center rounded-2xl bg-danger-soft p-4 text-center text-danger">{loaded.message}</p>}
-        {loaded.status === 'ready' && <PhotoViewer key={item.checkId} photos={loaded.urls} mockupUrl={j.mockupUrl} label={`ชิ้นแรก ${j.no}`} onBrokenChange={setBroken} />}
+        {loaded.status === 'ready' && <PhotoViewer key={item.checkId} photos={loaded.urls} mockupUrl={j.mockupUrl} label={`ชิ้นแรก ${j.no}`} onBrokenChange={setBroken} onLoadedChange={setShown} />}
         {!j.mockupUrl && <p className="mt-2 flex items-center gap-2 text-sm text-muted"><IconImage className="size-4" />งานนี้ยังไม่มีม็อคอัพ · เทียบกับสเปกในรายละเอียดงานแทน</p>}
       </div>
       {loaded.status === 'ready' && loaded.note && <p className="mt-3 rounded-xl bg-paper px-3 py-2">หน้างานบอก: {loaded.note}</p>}
@@ -122,7 +123,7 @@ function ReviewDialog({ item, call, onOpen, onClose }: { item: Pending; call: Ca
         <div className="mt-2 grid grid-cols-2 gap-2">
           <button type="button" disabled={busy} className={dangerBtn} onClick={() => setRejecting(true)}>ไม่ผ่าน…</button>
           <button type="button" disabled={busy || !!block} className={okBtn} onClick={() => void decide(true)}>
-            {busy ? 'กำลังบันทึก…' : block === 'loading' ? 'รอรูปโหลด' : block === 'broken' ? 'มีรูปเปิดไม่ได้ · กดผ่านไม่ได้' : block ? 'ยังไม่เห็นรูป กดผ่านไม่ได้' : 'ผ่าน ทำทั้งล็อตได้'}
+            {busy ? 'กำลังบันทึก…' : block === 'loading' ? 'รอรูปโหลดครบทุกรูป' : block === 'broken' ? 'มีรูปเปิดไม่ได้ · กดผ่านไม่ได้' : block ? 'ยังไม่เห็นรูป กดผ่านไม่ได้' : 'ผ่าน ทำทั้งล็อตได้'}
           </button>
         </div>
       )}

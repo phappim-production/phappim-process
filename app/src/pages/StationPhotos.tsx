@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { Job, PhotoGate } from '../proto/model'
 import { MAX_PHOTOS, minutesWaiting, photoStep, uploadStationPhotos } from '../data/stationPhotos'
 import { fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
@@ -73,14 +73,13 @@ function PhotoPicker({ kind, jobNo, onSend }: {
   kind: 'first' | 'finish'; jobNo: string
   onSend: (files: Blob[], note: string) => Promise<{ ok: true } | { ok: false; reason: string }>
 }) {
-  const [files, setFiles] = useState<File[]>([])
+  const { files, previews, add, removeAt, clear } = usePicked()
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const sending = useRef(false)
   const inputId = useId()
   const t = useT()
-  const previews = usePreviews(files)
   const full = files.length >= MAX_PHOTOS
 
   async function submit() {
@@ -90,7 +89,7 @@ function PhotoPicker({ kind, jobNo, onSend }: {
     setError(null)
     try {
       const r = await onSend(files, note.trim())
-      if (r.ok) { setFiles([]); setNote('') } else if (r.reason) setError(r.reason)
+      if (r.ok) { clear(); setNote('') } else if (r.reason) setError(r.reason)
     } finally {
       sending.current = false
       setBusy(false)
@@ -104,7 +103,7 @@ function PhotoPicker({ kind, jobNo, onSend }: {
           {previews.map((url, i) => (
             <li key={url} className="relative">
               <img src={url} alt={t('รูปที่ {n}', { n: i + 1 })} className="size-20 rounded-lg border border-line object-cover" />
-              <button type="button" disabled={busy} onClick={() => setFiles(f => f.filter((_, k) => k !== i))}
+              <button type="button" disabled={busy} onClick={() => removeAt(i)}
                 className="absolute -top-2 -right-2 grid size-8 place-items-center rounded-full border border-line bg-card text-danger" aria-label={t('ลบรูปที่ {n}', { n: i + 1 })}>
                 <IconX className="size-4" />
               </button>
@@ -114,7 +113,7 @@ function PhotoPicker({ kind, jobNo, onSend }: {
       )}
       {/* capture เปิดกล้องหลังทันทีบนมือถือ · คอมพิวเตอร์เลือกไฟล์ได้ */}
       <input id={inputId} type="file" accept="image/*" capture="environment" multiple className="sr-only" disabled={busy || full}
-        onChange={e => { const picked = [...(e.target.files ?? [])]; e.target.value = ''; setError(null); setFiles(f => [...f, ...picked].slice(0, MAX_PHOTOS)) }} />
+        onChange={e => { const picked = [...(e.target.files ?? [])]; e.target.value = ''; setError(null); add(picked) }} />
       <label htmlFor={inputId} aria-disabled={busy || full}
         className={`${files.length ? secondaryBtn : primaryBtn} ${busy || full ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}>
         <IconCamera className="size-5 shrink-0" />
@@ -135,8 +134,25 @@ function PhotoPicker({ kind, jobNo, onSend }: {
   )
 }
 
-function usePreviews(files: readonly File[]): string[] {
-  const urls = useMemo(() => files.map(f => URL.createObjectURL(f)), [files])
-  useEffect(() => () => { for (const u of urls) URL.revokeObjectURL(u) }, [urls])
-  return urls
+// ลิงก์รูปตัวอย่างสร้างตอนเลือกรูป คืนหน่วยความจำตอนลบ/ส่ง/ปิด · มือถือที่ถ่ายหลายรูปหน่วยความจำเต็มเร็ว
+function usePicked() {
+  const [picked, setPicked] = useState<{ file: File; url: string }[]>([])
+  const latest = useRef(picked)
+  useEffect(() => { latest.current = picked }, [picked])
+  useEffect(() => () => { for (const p of latest.current) URL.revokeObjectURL(p.url) }, [])
+  const add = (files: File[]) => {
+    const made = files.slice(0, Math.max(0, MAX_PHOTOS - picked.length)).map(file => ({ file, url: URL.createObjectURL(file) }))
+    setPicked(prev => [...prev, ...made])
+  }
+  const removeAt = (i: number) => {
+    const gone = picked[i]
+    if (!gone) return
+    URL.revokeObjectURL(gone.url)
+    setPicked(prev => prev.filter(p => p !== gone))
+  }
+  const clear = () => {
+    for (const p of picked) URL.revokeObjectURL(p.url)
+    setPicked([])
+  }
+  return { files: picked.map(p => p.file), previews: picked.map(p => p.url), add, removeAt, clear }
 }

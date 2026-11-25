@@ -46,9 +46,15 @@ describe('เทียบม็อคอัพ', () => {
 
 describe('กดผ่านได้เมื่อ', () => {
   it('รูปโหลดครบและเปิดได้ทุกรูปเท่านั้น', () => {
-    expect(approveBlock({ loading: true, count: 0, broken: 0 })).toBe('loading')
-    expect(approveBlock({ loading: false, count: 0, broken: 0 })).toBe('no_photos')
-    expect(approveBlock({ loading: false, count: 2, broken: 1 })).toBe('broken')
-    expect(approveBlock({ loading: false, count: 2, broken: 0 })).toBeNull()
+    expect(approveBlock({ loading: true, count: 0, broken: 0, loaded: 0 })).toBe('loading')
+    expect(approveBlock({ loading: false, count: 0, broken: 0, loaded: 0 })).toBe('no_photos')
+    expect(approveBlock({ loading: false, count: 2, broken: 1, loaded: 1 })).toBe('broken')
+    expect(approveBlock({ loading: false, count: 2, broken: 0, loaded: 2 })).toBeNull()
+  })
+
+  it('รูปที่ยังดาวน์โหลดไม่เสร็จ (เน็ตช้า) ยังกดผ่านไม่ได้', () => {
+    expect(approveBlock({ loading: false, count: 3, broken: 0, loaded: 0 })).toBe('loading')
+    expect(approveBlock({ loading: false, count: 3, broken: 0, loaded: 2 })).toBe('loading')
+    expect(approveBlock({ loading: false, count: 3, broken: 0, loaded: 3 })).toBeNull()
   })
 })

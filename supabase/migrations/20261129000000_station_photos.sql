@@ -15,6 +15,8 @@ create policy station_photo_settings_read on public.station_photo_settings for s
   using ((select private.my_role()) is not null);
 revoke all on public.station_photo_settings from anon;
 grant select on public.station_photo_settings to authenticated;
+create trigger station_photo_settings_audit after insert or update or delete on public.station_photo_settings
+  for each row execute function private.audit_settings('id');
 
 create table public.station_checks (
   id            bigint generated always as identity primary key,
@@ -124,13 +126,29 @@ end $$;
 revoke all on function public.file_read_allowed(text, text[]) from public, anon;
 grant execute on function public.file_read_allowed(text, text[]) to authenticated;
 
+-- ที่เก็บสำรองเมื่อปิด R2 (ย้อนกลับไป Supabase Storage) · ไม่มี bucket นี้ = หน้างานส่งรูปไม่ได้และกดเสร็จไม่ได้ทั้งโรงงาน
+do $$
+begin
+  if exists (select 1 from pg_namespace where nspname = 'storage') then
+    insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    values ('station_photos', 'station_photos', false, 20971520, array['image/jpeg'])
+    on conflict (id) do nothing;
+    execute $p$create policy station_photos_read on storage.objects for select to authenticated
+      using (bucket_id = 'station_photos' and (select private.my_role()) is not null)$p$;
+    execute $p$create policy station_photos_upload on storage.objects for insert to authenticated
+      with check (bucket_id = 'station_photos' and (select private.my_role()) in ('staff', 'supervisor', 'production', 'qc', 'owner'))$p$;
+  end if;
+end $$;
+
 create or replace function private.station_photo_uploaded(p_path text) returns boolean
 language plpgsql stable security definer set search_path = '' as $$
 begin
   if private.r2_enabled() then
     return exists (select 1 from private.file_objects where kind = 'station_photos' and path = p_path);
   end if;
-  return true;
+  if to_regclass('storage.objects') is null then return true; end if;
+  if not exists (select 1 from storage.buckets where id = 'station_photos') then return true; end if;
+  return exists (select 1 from storage.objects where bucket_id = 'station_photos' and name = p_path);
 end $$;
 revoke all on function private.station_photo_uploaded(text) from public, anon;
 
@@ -277,8 +295,12 @@ begin
   select * into j from public.jobs where id = c.job_id for update;
   select * into c from public.station_checks where id = p_check for update;
   if c.status <> 'pending' then perform private.stale('รูปชิ้นแรกนี้ตัดสินไปแล้ว'); end if;
-  if j.phase = 'cancelled' then raise exception 'งานนี้ถูกยกเลิกแล้ว' using errcode = 'P0001'; end if;
-  if private.station_at(j.route_code, j.station_seq) is distinct from c.station_code or j.visit <> c.visit then
+  -- งานที่แบ่งออกมารอรูปของงานต้นทางด้วย · ตัดสินได้ถ้ายังมีงานในครอบครัวรออยู่ที่สถานีนี้ แม้งานต้นทางยกเลิก/ออกไปแล้ว
+  if not exists (select 1 from public.jobs w cross join lateral private.split_lineage(w.id) l
+                 where l.job_id = c.job_id and c.sent_at <= l.until
+                   and w.phase in ('sample', 'production') and w.visit = c.visit
+                   and private.station_at(w.route_code, w.station_seq) = c.station_code) then
+    if j.phase = 'cancelled' then raise exception 'งานนี้ถูกยกเลิกแล้ว' using errcode = 'P0001'; end if;
     perform private.stale('งานออกจากสถานีนี้แล้ว');
   end if;
   if not p_approve and v_reason is null then raise exception 'ใส่เหตุผลที่ไม่ผ่าน ให้หน้างานรู้ว่าต้องแก้อะไร' using errcode = '23514'; end if;
@@ -343,7 +365,7 @@ begin
   from public.jobs j
   left join lateral (select c.* from private.visit_checks(j) c where c.kind = 'first_piece'
     order by c.sent_at desc, c.id desc limit 1) fp on true
-  where j.phase in ('sample', 'production') and j.station_status in ('doing', 'hold') and private.photo_gate_on(j);
+  where j.phase in ('sample', 'production') and j.station_status in ('doing', 'hold', 'queued') and private.photo_gate_on(j);
 end $$;
 revoke all on function public.station_photo_flags() from public, anon;
 grant execute on function public.station_photo_flags() to authenticated;
@@ -351,10 +373,10 @@ grant execute on function public.station_photo_flags() to authenticated;
 -- รูปที่ค้างรอแต่งานออกจากสถานีไปแล้ว (ปิดฟีเจอร์ระหว่างรอ) ไม่นับ · ช่วงพักงาน / รอเครื่องซ้อนอยู่หักไปแล้วใน hold_days / requeue_wait_days
 create or replace function private.first_piece_wait_days(p_job uuid, p_from timestamptz) returns numeric
 language sql stable security definer set search_path = '' as $$
-  with cur as (select private.station_at(route_code, station_seq) station, visit from public.jobs where id = p_job),
+  with cur as (select private.station_at(j.route_code, j.station_seq) station, j.visit, private.needs_first_piece(j) gate from public.jobs j where j.id = p_job),
   w as (
     select l.job_id, greatest(c.sent_at, p_from) a,
-      least(coalesce(c.decided_at, case when c.station_code = cur.station and c.visit = cur.visit then now() else c.sent_at end), l.until) b
+      least(coalesce(c.decided_at, case when cur.gate and c.station_code = cur.station and c.visit = cur.visit then now() else c.sent_at end), l.until) b
     from cur cross join private.split_lineage(p_job) l
     join public.station_checks c on c.job_id = l.job_id and c.kind = 'first_piece' and c.sent_at <= l.until
   )
@@ -424,12 +446,14 @@ declare c record; v_added integer := 0; v_minutes int;
 begin
   select remind_minutes into v_minutes from public.station_photo_settings;
   for c in
-    select sc.id, sc.sent_at, j.id as job_id, j.confirmation_no, j.customer_name, s.name as station_name
-    from public.station_checks sc
-    join public.jobs j on j.id = sc.job_id and j.phase in ('sample', 'production') and j.visit = sc.visit
-      and private.station_at(j.route_code, j.station_seq) = sc.station_code
-    join public.stations s on s.code = sc.station_code
-    where sc.status = 'pending' and sc.sent_at < now() - make_interval(mins => coalesce(v_minutes, 15))
+    select distinct on (fp.id) fp.id, fp.sent_at, j.id as job_id, j.confirmation_no, j.customer_name, s.name as station_name
+    from public.jobs j
+    cross join lateral (select x.* from private.visit_checks(j) x where x.kind = 'first_piece'
+      order by x.sent_at desc, x.id desc limit 1) fp
+    join public.stations s on s.code = fp.station_code
+    where j.phase in ('sample', 'production') and j.station_seq is not null and private.needs_first_piece(j)
+      and fp.status = 'pending' and fp.sent_at < now() - make_interval(mins => coalesce(v_minutes, 15))
+    order by fp.id, j.id
   loop
     if private.inbox_emit('first_piece_late', c.job_id, 'fpl:' || c.id, 'ชิ้นแรกรออนุมัติเกิน ' || coalesce(v_minutes, 15) || ' นาที ' || c.confirmation_no,
       format('%s · สถานี%s · ส่งรูปตั้งแต่ %s น. หน้างานรออยู่', c.customer_name, c.station_name,

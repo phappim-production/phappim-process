@@ -7,7 +7,6 @@ import { StationIcon } from './StationNav'
 import { STATION_THEME } from './stationTheme'
 import { BrandMark } from './StationPattern'
 
-// เส้นทางงานทั้งเส้นด้วยสีสถานี · บอกชื่อเฉพาะสถานีปัจจุบัน ที่เหลือบอกด้วยไอคอน (ชื่อเต็มอยู่ใน title/aria)
 export function RouteTrack({ route, station }: { route: RouteCode; station: StationCode | null | undefined }) {
   const t = useT()
   const steps = routeSteps(route, station)
@@ -33,7 +32,6 @@ export function RouteTrack({ route, station }: { route: RouteCode; station: Stat
   )
 }
 
-// รอยปรุของใบงาน คั่นข้อมูลงานกับปุ่มกด
 export function Perforation() {
   return (
     <div aria-hidden className="relative -mx-4 my-1 border-t-2 border-dashed border-line">

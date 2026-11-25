@@ -73,6 +73,14 @@ describe('คิวอนุมัติชิ้นแรก', () => {
     ])
     expect(list.map(p => p.job.id)).toEqual(['h', 'a', 'b'])
   })
+  it('งานที่กลับเข้าคิวระหว่างรอยังอยู่ในรายการ · งานต้นทางกับส่วนที่แบ่งรอรูปเดียวกันขึ้นแถวเดียว', () => {
+    const pending = gate({ first_piece: 'pending', first_piece_id: 7, first_piece_at: '2026-11-24T02:00:00Z' })
+    const list = pendingFirstPieces([
+      { ...job, id: 'parent', status: 'queued', photos: pending },
+      { ...job, id: 'child', no: 'SC-A-2', status: 'doing', photos: pending },
+    ])
+    expect(list.map(p => [p.job.id, p.checkId])).toEqual([['parent', 7]])
+  })
   it('เหตุผลไม่ผ่าน = ที่เลือก + ที่พิมพ์เพิ่ม', () => {
     expect(rejectText(['สีเพี้ยน', 'ขนาดผิด'], '  โลโก้ต่ำไป ')).toBe('สีเพี้ยน · ขนาดผิด · โลโก้ต่ำไป')
     expect(rejectText([], '   ')).toBe('')

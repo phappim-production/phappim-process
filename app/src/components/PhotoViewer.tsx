@@ -4,9 +4,8 @@ import { IconAlert, IconChevronLeft, IconChevronRight, IconCompare, IconImage, I
 
 type Mode = 'single' | 'compare'
 
-// ปัดซ้าย-ขวาเปลี่ยนรูป · เทียบม็อคอัพด้วยเส้นแบ่ง · ดับเบิลคลิก/ปุ่มขยาย · ลูกศรซ้ายขวา
-export function PhotoViewer({ photos, mockupUrl, label, onBrokenChange }: {
-  photos: string[]; mockupUrl?: string | null; label: string; onBrokenChange?: (broken: number) => void
+export function PhotoViewer({ photos, mockupUrl, label, onBrokenChange, onLoadedChange }: {
+  photos: string[]; mockupUrl?: string | null; label: string; onBrokenChange?: (broken: number) => void; onLoadedChange?: (loaded: number) => void
 }) {
   const count = photos.length
   const [index, setIndex] = useState(0)
@@ -20,10 +19,13 @@ export function PhotoViewer({ photos, mockupUrl, label, onBrokenChange }: {
   const cur = clampIndex(index, count)
   const comparing = mode === 'compare' && !!mockupUrl
 
+  const [loaded, setLoaded] = useState<ReadonlySet<number>>(() => new Set())
   useEffect(() => { onBrokenChange?.(broken.size) }, [broken, onBrokenChange])
+  useEffect(() => { onLoadedChange?.(loaded.size) }, [loaded, onLoadedChange])
 
   const go = (i: number) => { setIndex(clampIndex(i, count)); setZoom(null); setDrag(0) }
   const markBroken = (i: number) => setBroken(prev => prev.has(i) ? prev : new Set(prev).add(i))
+  const markLoaded = (i: number) => setLoaded(prev => prev.has(i) ? prev : new Set(prev).add(i))
 
   function down(e: PointerEvent<HTMLDivElement>) {
     if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return
@@ -67,7 +69,7 @@ export function PhotoViewer({ photos, mockupUrl, label, onBrokenChange }: {
           <>
             <img src={mockupUrl!} alt="ม็อคอัพที่ลูกค้ายืนยัน" draggable={false} className="absolute inset-0 size-full bg-paper object-contain" />
             <div className="absolute inset-0" style={{ clipPath: `inset(0 0 0 ${split}%)` }}>
-              <Slide url={photos[cur]} alt={`${label} รูปที่ ${cur + 1}`} broken={broken.has(cur)} onError={() => markBroken(cur)} />
+              <Slide url={photos[cur]} alt={`${label} รูปที่ ${cur + 1}`} broken={broken.has(cur)} onError={() => markBroken(cur)} onLoad={() => markLoaded(cur)} />
             </div>
             <span aria-hidden className="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-white shadow" style={{ left: `${split}%` }}>
               <span className="absolute top-1/2 left-1/2 grid size-11 -translate-1/2 place-items-center rounded-full bg-white text-ink shadow-lift"><IconCompare className="size-5" /></span>
@@ -80,7 +82,7 @@ export function PhotoViewer({ photos, mockupUrl, label, onBrokenChange }: {
             {photos.map((url, i) => (
               <div key={`${i}-${url}`} className="relative h-full flex-[0_0_100%] overflow-hidden" aria-hidden={i !== cur}>
                 <div className="absolute inset-0 transition-transform duration-200" style={{ transform: zoom && i === cur ? 'scale(2.2)' : 'none', transformOrigin: zoom ?? '50% 50%' }}>
-                  <Slide url={url} alt={`${label} รูปที่ ${i + 1}`} broken={broken.has(i)} onError={() => markBroken(i)} />
+                  <Slide url={url} alt={`${label} รูปที่ ${i + 1}`} broken={broken.has(i)} onError={() => markBroken(i)} onLoad={() => markLoaded(i)} />
                 </div>
               </div>
             ))}
@@ -115,7 +117,7 @@ export function PhotoViewer({ photos, mockupUrl, label, onBrokenChange }: {
           {photos.map((url, i) => (
             <button key={`${i}-${url}`} type="button" onClick={() => go(i)} aria-label={`ดูรูปที่ ${i + 1}`} aria-current={i === cur}
               className={`relative size-14 shrink-0 overflow-hidden rounded-lg ${i === cur ? 'ring-2 ring-white ring-offset-2 ring-offset-ink' : 'opacity-60 hover:opacity-100'}`}>
-              <Slide url={url} alt="" broken={broken.has(i)} onError={() => markBroken(i)} small />
+              <Slide url={url} alt="" broken={broken.has(i)} onError={() => markBroken(i)} onLoad={() => markLoaded(i)} small />
             </button>
           ))}
         </div>
@@ -129,7 +131,7 @@ export function PhotoViewer({ photos, mockupUrl, label, onBrokenChange }: {
   )
 }
 
-function Slide({ url, alt, broken, onError, small }: { url: string; alt: string; broken: boolean; onError: () => void; small?: boolean }) {
+function Slide({ url, alt, broken, onError, onLoad, small }: { url: string; alt: string; broken: boolean; onError: () => void; onLoad: () => void; small?: boolean }) {
   if (broken || !url) {
     return (
       <span role="img" aria-label={`${alt} เปิดไม่ได้`} className="absolute inset-0 grid place-items-center bg-ink text-white/70">
@@ -137,5 +139,5 @@ function Slide({ url, alt, broken, onError, small }: { url: string; alt: string;
       </span>
     )
   }
-  return <img src={url} alt={alt} draggable={false} onError={onError} className="absolute inset-0 size-full object-contain" />
+  return <img src={url} alt={alt} draggable={false} onError={onError} onLoad={onLoad} className="absolute inset-0 size-full object-contain" />
 }

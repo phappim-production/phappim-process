@@ -66,8 +66,10 @@ export type PendingFirstPiece = { job: Job; checkId: number; at: Date }
 export function pendingFirstPieces(jobs: readonly Job[]): PendingFirstPiece[] {
   return jobs.flatMap(job => {
     const fp = job.photos?.firstPiece
-    return (job.status === 'doing' || job.status === 'hold') && fp?.status === 'pending' ? [{ job, checkId: fp.id, at: fp.at }] : []
-  }).sort((a, b) => a.at.getTime() - b.at.getTime())
+    return (job.status === 'doing' || job.status === 'hold' || job.status === 'queued') && fp?.status === 'pending' ? [{ job, checkId: fp.id, at: fp.at }] : []
+  })
+    .filter((p, i, all) => all.findIndex(x => x.checkId === p.checkId) === i)
+    .sort((a, b) => a.at.getTime() - b.at.getTime())
 }
 
 export const REJECT_REASONS = ['สีเพี้ยน', 'ตำแหน่งผิด', 'ขนาดผิด', 'ผิดแบบ / ผิดไฟล์', 'งานไม่เรียบร้อย'] as const

@@ -36,10 +36,11 @@ export function zoomOrigin(clientX: number, clientY: number, rect: { left: numbe
 
 export type ApproveBlock = 'loading' | 'no_photos' | 'broken' | null
 
-// แอดมินต้องเห็นรูปครบทุกรูปก่อนกดผ่าน · รูปที่เปิดไม่ได้ = ยังไม่ได้ตรวจ
-export function approveBlock(state: { loading: boolean; count: number; broken: number }): ApproveBlock {
+// แอดมินต้องเห็นรูปครบทุกรูปก่อนกดผ่าน · รูปที่เปิดไม่ได้หรือยังโหลดไม่เสร็จ (เน็ตช้า) = ยังไม่ได้ตรวจ
+export function approveBlock(state: { loading: boolean; count: number; broken: number; loaded: number }): ApproveBlock {
   if (state.loading) return 'loading'
   if (state.count === 0) return 'no_photos'
   if (state.broken > 0) return 'broken'
+  if (state.loaded < state.count) return 'loading'
   return null
 }

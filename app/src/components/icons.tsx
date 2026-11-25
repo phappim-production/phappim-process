@@ -57,7 +57,6 @@ export const IconSparkles = icon(<><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12
 export const IconImage = icon(<><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21" /></>)
 export const IconCamera = icon(<><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" /><circle cx="12" cy="13" r="3" /></>)
 
-// ไอคอนประจำสถานี วาดจากเครื่องมือจริงของแต่ละสถานี
 export const IconStPrint = icon(<><path d="M7 8V3.5h10V8" /><rect x="3" y="8" width="18" height="8.5" rx="2" /><path d="M7 14h10v6.5H7z" /><path d="M12 15.4c-.9 1-1.3 1.8-1.3 2.4a1.3 1.3 0 0 0 2.6 0c0-.6-.4-1.4-1.3-2.4z" /><path d="M17.5 11h.01" /></>)
 export const IconStPress = icon(<><rect x="3" y="4" width="14" height="4" rx="1.2" /><path d="M17 6h4M10 8v1.5" /><rect x="3" y="16" width="18" height="4" rx="1.2" /><path d="M7 11c.9.8.9 1.7 0 2.5M11 11c.9.8.9 1.7 0 2.5M15 11c.9.8.9 1.7 0 2.5" /></>)
 export const IconStEmb = icon(<><circle cx="10.5" cy="13.5" r="7" /><circle cx="10.5" cy="13.5" r="4.6" /><path d="M9 6.5V4h3v2.5M15 9l6-6" /><path d="m8 14.6 1.25-2 1.25 2 1.25-2 1.25 2" /></>)

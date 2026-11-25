@@ -117,6 +117,8 @@ export async function stationPhotoTests({ db, ok, as }) {
     const wp = await photo(w, 'cc01')
     const cw = await pass('ส่งชิ้นแรก', U.sup, `public.submit_first_piece('${w}', 'print', ${arr([wp])})`)
     await db.exec(`update public.station_checks set sent_at = now() - interval '20 minutes' where id = ${cw}`)
+    await db.exec(`update public.station_photo_settings set enabled_at = now() - interval '2 hours';
+      update public.jobs set station_started_at = now() - interval '1 hour' where id = '${w}'`)
     const waitVsWork = async () => (await db.query(`select private.work_days(sent_at, now()) w, private.first_piece_wait_days(job_id, sent_at - interval '1 day') fp from public.station_checks where id = ${cw}`)).rows[0]
     const ww = await waitVsWork()
     ok('ตอนรออนุมัติ หักเวลารอทั้งหมดออกจากเวลามาตรฐาน', Math.abs(Number(ww.w) - Number(ww.fp)) < 1e-6, JSON.stringify(ww))
@@ -137,7 +139,57 @@ export async function stationPhotoTests({ db, ok, as }) {
     ok('รอเกิน 15 นาที เตือนผู้จัดการ + ฝ่ายผลิต', await val(`select audience::text from public.inbox_messages where dedupe_key = 'fpl:${cw}'`) === '{manager,production}')
     await as(U.sup, () => db.query(`select public.inbox_scan()`))
     ok('เตือนรอบเดียวต่อรายการ', Number(await val(`select count(*) from public.inbox_messages where dedupe_key = 'fpl:${cw}'`)) === 1)
+
+    await db.exec(`update public.jobs set station_status = 'queued' where id = '${w}'`)
+    ok('งานกลับเข้าคิวระหว่างรออนุมัติ ยังอยู่ในรายการรออนุมัติของแอดมิน',
+      (await as(U.admin, () => db.query(`select first_piece from public.station_photo_flags() where job_id = '${w}'`))).rows[0]?.first_piece === 'pending')
+    await db.exec(`update public.jobs set station_status = 'doing' where id = '${w}'`)
+
+    await db.exec(`update public.stations set first_piece_check = false where code = 'print'; delete from public.inbox_messages where dedupe_key = 'fpl:${cw}'`)
+    ok('เลิกล็อกชิ้นแรกของสถานีระหว่างรอ: ไม่หักเวลามาตรฐานต่อ', Number(await val(`select private.first_piece_wait_days('${w}', now() - interval '1 day')`)) === 0)
+    await as(U.sup, () => db.query(`select public.inbox_scan()`))
+    ok('เลิกล็อกชิ้นแรกของสถานีระหว่างรอ: ไม่เตือนรอนาน', Number(await val(`select count(*) from public.inbox_messages where dedupe_key = 'fpl:${cw}'`)) === 0)
+    await db.exec(`update public.stations set first_piece_check = true where code = 'print'`)
+
+    const sp = await jobAt('SC-PH-SPLIT', 'normal', 1)
+    await pass('งานที่จะแบ่ง: เริ่มสถานีพิมพ์', U.sup, `public.start_station('${sp}')`)
+    const spc = await pass('งานที่จะแบ่ง: ส่งชิ้นแรก', U.sup, `public.submit_first_piece('${sp}', 'print', ${arr([await photo(sp, 'dd01')])})`)
+    await db.exec(`update public.jobs set station_status = 'queued' where id = '${sp}'`)
+    const child = await pass('แบ่งงานที่รออนุมัติชิ้นแรก (กลับเข้าคิวแล้ว)', U.admin, `public.split_job('${sp}', 4)`)
+    ok('ส่วนที่แบ่งรอรูปชิ้นแรกของงานต้นทาง', (await as(U.admin, () => db.query(`select first_piece_id from public.station_photo_flags() where job_id = '${child}'`))).rows[0]?.first_piece_id === spc)
+    await pass('ส่วนที่แบ่งกดเริ่ม', U.sup, `public.start_station('${child}')`)
+    await reject('ส่วนที่แบ่งส่งชิ้นแรกซ้ำระหว่างรอไม่ได้', U.sup, `public.submit_first_piece('${child}', 'print', ${arr([await photo(child, 'dd02')])})`, /รอแอดมินอนุมัติ/)
+    await pass('ยกเลิกงานต้นทาง', U.owner, `public.cancel_job('${sp}', 'ทดสอบยกเลิกงานแม่')`)
+    await pass('งานต้นทางยกเลิกแล้ว ยังตัดสินรูปให้ส่วนที่แบ่งได้', U.admin, `public.decide_first_piece(${spc}, true)`)
+    ok('ส่วนที่แบ่งเห็นว่าชิ้นแรกผ่าน', (await as(U.admin, () => db.query(`select first_piece from public.station_photo_flags() where job_id = '${child}'`))).rows[0]?.first_piece === 'approved')
+
+    const staff = '00000000-0000-0000-0000-0000000005a6'
+    await db.exec(`insert into auth.users values ('${staff}','sp6@test');
+      insert into public.profiles (user_id, name, role, active) values ('${staff}','พนักงานตัด รูป','staff',true);
+      insert into public.staff_stations (user_id, station_code) values ('${staff}','cut');`)
+    const cutSeq = await val(`select seq from public.route_stations where route_code = 'normal' and station_code = 'cut'`)
+    const cj = await jobAt('SC-PH-STAFF', 'normal', cutSeq)
+    await pass('พนักงานตัดเริ่มงานสถานีตัด', staff, `public.start_station('${cj}')`)
+    const cp = await photo(cj, 'ee01')
+    await pass('พนักงานสถานีอัปโหลดรูปจากสถานีได้', staff, `public.file_upload_allowed('station_photos', ${q(cp)}, 1000, 'image/jpeg')`)
+    await pass('พนักงานตัดส่งรูปชิ้นแรกงานที่สถานีตัวเอง', staff, `public.submit_first_piece('${cj}', 'cut', ${arr([cp])})`)
+    const pj = await jobAt('SC-PH-STAFF-P', 'normal', 1)
+    await pass('หัวหน้าเริ่มงานพิมพ์', U.sup, `public.start_station('${pj}')`)
+    await reject('พนักงานตัดส่งรูปงานสถานีพิมพ์ไม่ได้', staff, `public.submit_first_piece('${pj}', 'print', ${arr([await photo(pj, 'ee02')])})`, /ไม่ใช่สถานีของคุณ/)
+    await reject('พนักงานตัดอนุมัติชิ้นแรกไม่ได้', staff, `public.decide_first_piece(${spc}, true)`, /ทำขั้นนี้ไม่ได้/)
+
+    const sewSeq = await val(`select seq from public.route_stations where route_code = 'normal' and station_code = 'sew'`)
+    const sj = await jobAt('SC-PH-SEW', 'normal', sewSeq)
+    await db.exec(`set session_replication_role = replica;
+      update public.jobs set station_status = 'doing', station_started_at = now() where id = '${sj}';
+      set session_replication_role = origin;`)
+    ok('สถานีเย็บ: ไม่มีรูปงานเสร็จ ยังเย็บเสร็จไม่ได้', /ถ่ายรูปงานเสร็จอย่างน้อย 1 รูป/.test(await val(`select array_to_string(private.missing_substeps('${sj}'), ' · ')`)))
+    await reject('สถานีเย็บไม่ต้องส่งรูปชิ้นแรก', U.prod, `public.submit_first_piece('${sj}', 'sew', ${arr([await photo(sj, 'ff01')])})`, /ไม่ต้องส่งรูปชิ้นแรก/)
+    await pass('ฝ่ายผลิตส่งรูปงานเสร็จของสถานีเย็บ', U.prod, `public.add_finish_photos('${sj}', 'sew', ${arr([await photo(sj, 'ff02')])})`)
+    ok('สถานีเย็บ: มีรูปงานเสร็จแล้ว ไม่ติดรูป', !/รูป/.test(await val(`select coalesce(array_to_string(private.missing_substeps('${sj}'), ' · '), '')`)))
+
     await pass('เปิด/ปิดฟีเจอร์: เจ้าของปิดได้', U.owner, `public.set_station_photos_enabled(false)`)
+    ok('เปิด/ปิดฟีเจอร์ บันทึกในบันทึกการเปลี่ยนแปลง', Number(await val(`select count(*) from public.audit_log where table_name = 'station_photo_settings'`)) > 0)
     await pass('ปิดแล้ว งานที่ค้างรูปกดเสร็จได้', U.sup, `public.finish_station('${w}', 'print')`)
     await reject('งานออกจากสถานีแล้ว ตัดสินรูปที่ค้างไม่ได้', U.admin, `public.decide_first_piece(${cw}, true)`, /ออกจากสถานีนี้แล้ว/)
     ok('รูปที่ค้างหลังงานออกจากสถานี ไม่หักเวลามาตรฐานของสถานีถัดไป', Number(await val(`select private.first_piece_wait_days('${w}', now() - interval '1 day')`)) === 0)
