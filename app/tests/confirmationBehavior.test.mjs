@@ -321,7 +321,7 @@ test('ฟอร์มใบยืนยัน: ช่องเซ็นมีแ
   assert.deepEqual(signs, ['ลูกค้ายืนยันรายละเอียด', 'ผู้ควบคุมงาน (รับงานเข้าโรงงาน)'])
 })
 
-test('ฟอร์มใบยืนยัน: ภาพม็อคอัพขึ้นหน้าใหม่ต่อจากช่องเซ็น ไม่แทรกกลางรายละเอียด · ไม่มีภาพ = ไม่มีหน้าม็อคอัพ', () => {
+test('ฟอร์มใบยืนยัน: ภาพม็อคอัพขึ้นหน้าใหม่ต่อจากรายละเอียด อยู่เหนือข้อตกลงและช่องเซ็น · ไม่มีภาพ = ไม่มีหน้าม็อคอัพ', () => {
   const { api, els, s, v } = filled()
   withFactoryDetails(v)
   api.renderDoc()
@@ -330,10 +330,11 @@ test('ฟอร์มใบยืนยัน: ภาพม็อคอัพข
   s.imgs = [{ name: 'ด้านหน้า', src: 'data:image/png;base64,AA==', w: 4, h: 3 }]
   api.renderDoc()
   const doc = els.get('#doc').innerHTML
-  const sign = doc.indexOf('class="sign"'), page = doc.indexOf('class="d-mockpage"')
-  assert.ok(sign > 0 && page > sign)
+  const page = doc.indexOf('class="d-mockpage"'), accept = doc.indexOf('class="d-accept"')
+  assert.ok(page > doc.indexOf('แพ็คกิ้ง') && accept > page)
+  assert.ok(doc.indexOf('class="sign"') > accept)
   assert.ok(doc.indexOf('รูป 1 · ด้านหน้า') > page)
   assert.match(doc.slice(page), /d-imgs one/)
   assert.equal((doc.match(/class="d-mock"/g) || []).length, 1)
-  assert.ok(doc.indexOf('class="d-mock"') > page)
+  assert.ok(doc.indexOf('class="d-mock"') > page && doc.indexOf('class="d-mock"') < accept)
 })
