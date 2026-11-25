@@ -187,7 +187,7 @@ test('ฟอร์มใบยืนยัน: ชี้จุดกำกับ
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
   const imgName = n => { const m = state.imgs[n - 1]; return m ? `รูป ${n}${m.name ? ' · ' + m.name : ''}` : '' }
   const { coEditorHTML, coDocHTML } = new Function(
-    'state', 'coTab', 'scope', 'unitOf', 'OTHER', 'isNone', 'form', 'esc', 'imgName', 'MOCKUP_NOTE', 'allFields', 'visible',
+    'state', 'coTab', 'scope', 'unitOf', 'OTHER', 'isNone', 'form', 'esc', 'imgName', 'MOCKUP_NOTE', 'allFields', 'visible', 'allSecs', 'customerSees', 'customerCopy',
     fnSrc + '\nreturn { coEditorHTML, coDocHTML }',
   )(
     state,
@@ -201,6 +201,9 @@ test('ฟอร์มใบยืนยัน: ชี้จุดกำกับ
     imgName,
     'หมายเหตุทดสอบ',
     () => [],
+    () => true,
+    () => [],
+    () => true,
     () => true,
   )
   assert.match(coEditorHTML(), /class="co-tabs"/)

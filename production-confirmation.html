@@ -506,7 +506,7 @@ const COLOR_MATCH = R('color_match','การเทียบสี',['ตาม
 const FABRICS_MORE = () => ({ id:'fabric_rows', type:'itemTable', label:'ผ้าเพิ่ม (งานที่ใช้ผ้ามากกว่า 1 ชนิด / สี)', none:'ใช้ผ้าชนิดเดียว', addLabel:'+ เพิ่มผ้า',
   hint:'ผ้าหลักกรอกด้านบน · แถวนี้สำหรับผ้าชนิดหรือสีที่ 2 ขึ้นไป เช่น ปก แขน ตัวหลัง ขอบ · ใช้ผ้าชนิดเดียว = เว้นว่าง',
   cols:[ { c:'part', label:'ใช้ส่วนไหน', t:'text' }, { c:'fabric', label:'ชนิดผ้า (ถ้าต่าง)', t:'text', opt:true }, { c:'color', label:'สีผ้า', t:'text' },
-    { c:'print', label:'พิมพ์สี / หมายเหตุ', t:'text', opt:true } ] });
+    { c:'print', label:'พิมพ์สี / หมายเหตุ', t:'text', opt:true, factory:true } ] });
 /* กระเป๋า: 1 แถว = 1 ใบ */
 const POCKET_SHIRT = ['อกซ้าย','อกขวา','อกทั้งสองข้าง','ล่างซ้าย','ล่างขวา','ล่างทั้งสองข้าง','หน้าท้อง (กระเป๋าจิงโจ้)','ข้างลำตัว (ซ่อนในตะเข็บ)','แขนซ้าย','แขนขวา','ด้านใน (ซับใน)'];
 const POCKET_PANTS = ['ข้างซ้าย','ข้างขวา','ข้างทั้งสองข้าง','หน้ากลาง','หลังซ้าย','หลังขวา','หลังทั้งสองข้าง','หลังกลาง','ข้างขาซ้าย (คาร์โก้)','ข้างขาขวา (คาร์โก้)'];
@@ -539,7 +539,7 @@ const IMG_COL = { c:'img', label:'รูป', t:'img', opt:true };
 const VARIANTS = unit => ({ id:'items', type:'itemTable', label:'แบบและจำนวน', req:true, addLabel:'+ เพิ่มแบบ',
   hint:'1 แถวต่อ 1 แบบ (ลาย / สี) · มีแบบเดียวใส่แถวเดียว · เลือกรูปม็อคอัพของแต่ละแบบในคอลัมน์ "รูป"',
   cols:[ { c:'name', label:'แบบ / ลาย', t:'text', opt:true }, { c:'color', label:'สี', t:'text', opt:true }, IMG_COL, { c:'qty', label:`จำนวน (${unit})`, t:'number', sum:true } ] });
-const SPARE = unit => N('spare','ผลิตเผื่อเสีย',unit,{ hint:'ไม่นับรวมในยอดส่งลูกค้า' });
+const SPARE = unit => N('spare','ผลิตเผื่อเสีย',unit,{ hint:'ไม่นับรวมในยอดส่งลูกค้า · ไม่พิมพ์ในใบที่ส่งลูกค้า' });
 
 function printSec(methods, positions, x={}){
   return { title: x.title||'งานพิมพ์ / ตกแต่ง', fields:[
@@ -1128,6 +1128,11 @@ function load(key=LS){ try{ const s=JSON.parse(localStorage.getItem(key)); if(s&
 let warnedQuota=false, saveTimer=0;
 // เปิดดูจากระบบ (ฝ่ายผลิต / หน้างาน) ห้ามเขียนทับใบที่แอดมินกรอกค้างในเครื่องเดียวกัน
 let viewOnly=false;
+// ใบที่ส่งลูกค้าเซ็นแสดงเฉพาะรายการที่เจ้าของกำหนด (วัสดุ ไซซ์ จำนวน แพ็คกิ้ง) · ฝ่ายผลิตเปิดดูจากระบบเห็นครบ ข้อมูลที่บันทึกเข้าระบบไม่ถูกตัด
+const CUSTOMER_FIELDS=new Set(['fabric','fabric_color','fabric_rows','material','colors','lining_fabric','filling','handle_mat','sizes','size_chart','measure_rows','items','qty','dims','head_size']);
+const PACK_SEC='แพ็คกิ้ง';
+const customerCopy=()=>!viewOnly;
+const customerSees=(f,sec)=>f.type==='images'||sec.title===PACK_SEC||CUSTOMER_FIELDS.has(f.id);
 function save(){
   clearTimeout(saveTimer); saveTimer=0;
   if(viewOnly) return;
@@ -1448,16 +1453,17 @@ const CO_FIELDS=[
   ['color_match','การเทียบสี'],['art_file','ไฟล์งาน'],['notes','หมายเหตุ'],['edge','ริม'],['sew_style','รูปแบบการเย็บ'],
   ['logo_pos','ตำแหน่งโลโก้'],['print_pos','ตำแหน่งและขนาดโลโก้'],['bag','ใส่ถุง'],['fold','การพับ'],['box_note','การแพ็ค'],
 ];
-function coRefs(){
+function coRefs(forCustomer=false){
   const v=scope('p'), out=[], ms=[].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m));
   const pu=unitOf({ id:'placements', lenUnit:'ซม.' },v);
   const shownIds=new Set(allFields().filter(f=>visible(f,v)).map(f=>f.id));
-  Object.entries(shownIds.has('placements')?v.placements||{}:{}).forEach(([pos,x])=>{ if(!x||!x.on) return;
+  const customerIds=new Set(allSecs().flatMap(sec=>sec.fields.filter(f=>customerSees(f,sec)).map(f=>f.id)));
+  Object.entries(shownIds.has('placements')&&!forCustomer?v.placements||{}:{}).forEach(([pos,x])=>{ if(!x||!x.on) return;
     const size=String(x.size??'').trim();
     const val=[x.tech||(ms.length===1?ms[0]:''), size&&(/^[0-9 .,xX×*/-]+$/.test(size)?`${size} ${pu}`:size), x.note].filter(Boolean).join(' · ');
     out.push({ ref:'placement:'+pos, label:'ตำแหน่ง '+pos, val }); });
   CO_FIELDS.forEach(([k,l])=>{
-    if(v[k+'__na']||!shownIds.has(k)) return;
+    if(v[k+'__na']||!shownIds.has(k)||(forCustomer&&!customerIds.has(k))) return;
     const raw=v[k], fmt=x=>x===OTHER?`${OTHER}: ${v[k+'__other']||''}`:x;
     const val=Array.isArray(raw)?raw.map(fmt).filter(x=>!isNone(x)).join(', '):(isNone(raw)?'':fmt(String(raw??'').trim()));
     if(val) out.push({ ref:'field:'+k, label:l, val }); });
@@ -1475,7 +1481,7 @@ function coLabel(c,refs){ const r=refs.find(x=>x.ref===c.ref); return [r?`${r.la
 function coBoxInner(c,i,refs){ const sub=coLabel(c,refs); return `<b>${i+1}</b> ${esc(c.title||'(ยังไม่ตั้งชื่อ)')}${sub?`<small>${esc(sub)}</small>`:''}`; }
 function coStageHTML(edit, idx=coActiveImg()){
   const m=state.imgs[idx]; if(!m) return '';
-  const sz=coSizeOf(idx), w=sz.w, h=sz.h, refs=coRefs(), cs=coList();
+  const sz=coSizeOf(idx), w=sz.w, h=sz.h, refs=coRefs(!edit&&customerCopy()), cs=coList();
   const onImg=cs.map((c,i)=>({c,i})).filter(({c})=>coImgAt(c)===idx);
   const W=w*(1+2*CO_MX), H=h*(1+2*CO_MY);
   const lines=onImg.map(({c,i})=>`<line data-co-line="${i}" x1="${c.x*w}" y1="${c.y*h}" x2="${c.bx*w}" y2="${c.by*h}" stroke="#c08a3e" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`).join('');
@@ -1518,7 +1524,7 @@ function coEditorHTML(){
 }
 function coDocHTML(){
   const cs=coList(); if(!state.imgs.length||!cs.length) return '';
-  const refs=coRefs(), withCo=state.imgs.map((_,i)=>i).filter(i=>cs.some(c=>coImgAt(c)===i));
+  const refs=coRefs(customerCopy()), withCo=state.imgs.map((_,i)=>i).filter(i=>cs.some(c=>coImgAt(c)===i));
   if(!withCo.length) return '';
   const multi=state.imgs.length>1;
   return withCo.map(i=>{ const n=cs.filter(c=>coImgAt(c)===i).length;
@@ -1931,28 +1937,29 @@ function kvHTML(fs,v){
   return items?`<div class="kv">${items}</div>`:'';
 }
 function renderDoc(){
-  const h=state.h, v=scope('p'), P=prod();
+  const h=state.h, v=scope('p'), P=prod(), forCustomer=customerCopy();
   const qty=`${totalQty().toLocaleString()} ${P.unit}`;
   // หัวกระดาษ (พิมพ์ซ้ำทุกหน้า): โลโก้ + เลขที่ใบ + ลูกค้า + งาน เพื่อให้หยิบหน้าไหนก็รู้ว่าเป็นของงานอะไร
   const head=`<div class="ph">
     <img class="logo" src="${COMPANY.logo}" alt="${esc(COMPANY.name)}">
-    <div class="tt">ใบยืนยันการผลิต<small>${esc(P.name)}</small></div>
+    <div class="tt">ใบยืนยันการผลิต<small>${esc(P.name)}${forCustomer?'':' · ฉบับโรงงาน'}</small></div>
     <div class="no"><span class="big">${esc(h.doc_no||'—')}</span>${num(h.rev)>0?`<span class="rev">แก้ไขครั้งที่ ${esc(h.rev)}</span>`:''}</div>
     <div class="job"><span>ลูกค้า <b>${esc(h.customer||'—')}</b></span><span>งาน <b>${esc(h.job_name||'—')}</b></span><span>จำนวน <b>${qty}</b></span></div>
   </div>`;
 
   const hk=(label,val,w)=>isNone(val)?'':`<div${w?' class="w"':''}><span>${label}</span><b>${esc(val)}</b></div>`;
   const hv=id=>h[id+'__na']?'':h[id];
-  const hItems=[hk('ผู้ติดต่อ',hv('contact')), hk('เบอร์โทร',hv('phone')),
+  const coordinator=[hv('admin'),h.admin_phone].filter(x=>!isNone(x)).join(' · ');
+  const address=needsAddress(h.delivery)?hk('ที่อยู่จัดส่ง',hv('address'),true):'';
+  const hItems=forCustomer?[hk('วันที่สั่งงาน',h.issue_date?thDate(h.issue_date):''), hk('ผู้ประสานงาน',coordinator), hk('การจัดส่ง',h.delivery), address].join(''):[hk('ผู้ติดต่อ',hv('contact')), hk('เบอร์โทร',hv('phone')),
     hk('วันที่ออกใบ',h.issue_date?thDate(h.issue_date):''), hk('วันนัดส่งตัวอย่าง',sampleDateShown(h)&&h.sample_date?thDate(h.sample_date):''),
-    hk('การรับสินค้า',h.delivery), hk('แอดมินผู้ดูแล',[hv('admin'),h.admin_phone].filter(x=>!isNone(x)).join(' · ')),
-    needsAddress(h.delivery)?hk('ที่อยู่จัดส่ง',hv('address'),true):''].join('');
+    hk('การรับสินค้า',h.delivery), hk('แอดมินผู้ดูแล',coordinator), address].join('');
   let x=`<section class="ds">${hItems?`<div class="kv">${hItems}</div>`:''}
-  <div class="d-prod"><span>จำนวนรวม <b>${qty}</b>${num(v.spare)>0?` (+ เผื่อเสีย ${esc(v.spare)} ${P.unit})`:''}</span></div></section>`;
+  <div class="d-prod"><span>จำนวนรวม <b>${qty}</b>${!forCustomer&&num(v.spare)>0?` (+ เผื่อเสีย ${esc(v.spare)} ${P.unit})`:''}</span></div></section>`;
 
   let n=0, mockNoted=false;
   allSecs().forEach(sec=>{
-    const fs=sec.fields.filter(f=>visible(f,v)&&!(naAllowed(f)&&isNA(f,v)));
+    const fs=sec.fields.filter(f=>visible(f,v)&&!(naAllowed(f)&&isNA(f,v))&&(!forCustomer||customerSees(f,sec)));
     const simple=fs.filter(f=>!['sizeTable','itemTable','placements','images'].includes(f.type)&&f.id!=='spare');
     let body=kvHTML(simple,v), imgs='';
     fs.forEach(f=>{
@@ -1970,7 +1977,7 @@ function renderDoc(){
         const lab=f.none||f.printLabel?`<div class="tlabel">${esc(fieldLabel(f,v))}</div>`:'';
         // ไม่มีรายการ = ไม่พิมพ์หัวข้อนี้ · คอลัมน์ที่ว่างทุกแถวไม่แสดง ยกเว้นยอดรวม
         const cell=(c,r)=>c.t==='img'?(imgName(+r[c.c])?'รูป '+(+r[c.c]):''):isNone(r[c.c])?'':r[c.c];
-        const cols=f.cols.filter(c=>c.sum||rs.some(r=>cell(c,r)));
+        const cols=f.cols.filter(c=>!(forCustomer&&c.factory)&&(c.sum||rs.some(r=>cell(c,r))));
         if(rs.length) body+=lab+`<table class="dt"><thead><tr><th>#</th>${cols.map(c=>`<th>${esc(colLabel(c,f,v))}</th>`).join('')}</tr></thead><tbody>`+
           rs.map((r,i)=>`<tr><td>${i+1}</td>${cols.map(c=>`<td class="${c.t!=='number'&&c.t!=='img'?'l':''}">${esc(cell(c,r))}</td>`).join('')}</tr>`).join('')+
           `</tbody>${cols.some(c=>c.sum)?`<tfoot><tr><td colspan="${cols.length}">รวม</td><td>${totalQty()}</td></tr></tfoot>`:''}</table>`;
@@ -2017,6 +2024,7 @@ function estimatePages(){
   let n=$('#pageNote'); if(!n){ n=document.createElement('div'); n.id='pageNote'; d.parentNode.insertBefore(n,d); }
   n.className='page-note'+(pages>2?' warn':'');
   n.textContent=pages>2?`ประมาณ ${pages} หน้า A4 · เกินเป้า 2 หน้า ลองลดจำนวนภาพ หรือรวมแถวในตาราง`:`ประมาณ ${pages} หน้า A4 · ทุกหน้ามีโลโก้ เลขที่ใบ ลูกค้า และชื่องาน`;
+  if(customerCopy()) n.textContent+=' · ฉบับลูกค้า: แสดงเฉพาะเลขที่ใบ ประเภทสินค้า วันที่สั่งงาน ผู้ประสานงาน การจัดส่ง วัสดุ ไซซ์ จำนวน แพ็คกิ้ง ภาพ และช่องเซ็น (ระบบยังได้รับครบทุกช่อง)';
 }
 function setPageStyle(){
   const h=state.h, q=t=>String(t||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/[\r\n]+/g,' ');

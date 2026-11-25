@@ -11,7 +11,7 @@ export function boot(search=''){
     location:{search,pathname:'/confirmation',hash:'',protocol:'https:'}, history:{replaceState(){}}, scrollY:0, scrollTo(){}, addEventListener(){},
     CSS:{escape:s=>s}, alerts:[], confirmRet:true, toastMsgs:[], window:{open:()=>({})}, Image:class{}, URLSearchParams, setTimeout:()=>0, clearTimeout(){} }
   const fn=new Function(...Object.keys(g),'alert','confirm', js+`
-;return { get state(){return state}, set state(v){state=v}, scope, totalQty, validate, renderDoc, saveToSystem, loadData, startOver, coRefs, coDocHTML, valText, allFields, visible, takeNew, takeInbox, revising, changedLabels, PRODUCTS, rerender, fieldIssue, jobSnapshot, shrunk, fieldHTML, HEADER };`)
+;return { get state(){return state}, set state(v){state=v}, scope, totalQty, validate, renderDoc, saveToSystem, loadData, startOver, coRefs, coDocHTML, valText, allFields, visible, takeNew, takeInbox, revising, changedLabels, PRODUCTS, setViewOnly(x){viewOnly=x}, rerender, fieldIssue, jobSnapshot, shrunk, fieldHTML, HEADER };`)
   const api=fn(...Object.values(g), m=>g.alerts.push(m), ()=>g.confirmRet)
   return { api, g, store, document, els }
 }

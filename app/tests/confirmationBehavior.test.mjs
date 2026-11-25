@@ -150,6 +150,7 @@ test('ฟอร์มใบยืนยัน: เสื้อทุกแบบ
   assert.deepEqual(polo.options, ['ปกสำเร็จ', 'ปกพิมพ์', 'ปกจีน'])
 
   const { api, els, v } = filled('tshirt')
+  api.setViewOnly(true)
   Object.assign(v, { neck: 'คอวี', collar: 'ปกพิมพ์' })
   api.renderDoc()
   assert.match(els.get('#doc').innerHTML, /ปกพิมพ์/)
@@ -220,4 +221,79 @@ test('ฟอร์มใบยืนยัน: โหมดแก้ใบหล
   assert.match(api.fieldHTML(field, 'h', api.state.h), /data-k="doc_no"[^>]*disabled/)
   const fresh = boot()
   assert.doesNotMatch(fresh.api.fieldHTML(field, 'h', { doc_no: 'SC-NEW' }), /disabled/)
+})
+
+function withFactoryDetails(v) {
+  v.fabric = 'TC (คอตตอน/โพลี)'
+  v.fabric_color = 'กรมท่าเข้ม'
+  v.fabric_rows = [{ part: 'ปก', color: 'ขาวนวล', print: 'พิมพ์สีพิเศษ 2 สี' }]
+  v.collar = 'ปกจีน'
+  v.print_method = ['ซิลค์สกรีน', 'งานปัก']
+  v.placements = { 'หน้าอกซ้าย': { on: true, tech: 'งานปัก', size: '8x8' } }
+  v.ink_colors = 'หมึกขาวล้วน'
+  v.emb_colors = 'ด้ายปักทองเบอร์ 9'
+  v.sew_mode = 'ลูกค้ากำหนดวิธีเย็บเอง'
+  v.thread = 'อื่นๆ'
+  v.thread__other = 'ด้ายเย็บสีเทา'
+  v.spare = '7'
+  v.size_sets = ['ไซซ์ผู้ใหญ่']
+  v.sizes = [{ label: 'แบบหลัก', q: { M: '20' } }]
+  v.bag = 'แพ็ค 1/1 (ถุงแยกตัว)'
+  v.notes = 'หมายเหตุภายในโรงงาน'
+}
+const FACTORY_HEAD = { contact: 'คุณติดต่อภายใน', phone: '081-555-0000', admin: 'แอดมินน้ำ', admin_phone: '090-111-2222', delivery: 'รถบริษัทไปส่ง' }
+const FACTORY_TEXT = ['ซิลค์สกรีน', 'งานปัก', 'หมึกขาวล้วน', 'ด้ายปักทองเบอร์ 9', 'ด้ายเย็บสีเทา', 'เผื่อเสีย', 'ปกจีน', 'หน้าอกซ้าย', '8x8',
+  'พิมพ์สีพิเศษ 2 สี', 'หมายเหตุภายในโรงงาน', 'คุณติดต่อภายใน', '081-555-0000']
+const CUSTOMER_TEXT = ['SC-T1', 'เสื้อยืด', 'วันที่สั่งงาน', '24/11/2569', 'ผู้ประสานงาน', 'แอดมินน้ำ · 090-111-2222', 'การจัดส่ง', 'รถบริษัทไปส่ง',
+  'TC (คอตตอน/โพลี)', 'กรมท่าเข้ม', 'ขาวนวล', 'แบบหลัก', 'แพ็ค 1/1 (ถุงแยกตัว)', 'ลูกค้ายืนยันรายละเอียด']
+
+test('ฟอร์มใบยืนยัน: ใบที่ส่งลูกค้าแสดงเฉพาะเลขที่ใบ ประเภทสินค้า วันที่สั่งงาน ผู้ประสานงาน การจัดส่ง วัสดุ ไซซ์ จำนวน แพ็คกิ้ง + ช่องเซ็น · ระบบยังได้รับครบ', () => {
+  const { api, store, els, s, v } = filled()
+  Object.assign(s.h, FACTORY_HEAD)
+  withFactoryDetails(v)
+  api.renderDoc()
+  const doc = els.get('#doc').innerHTML
+  for (const t of FACTORY_TEXT) assert.equal(doc.includes(t), false, t)
+  for (const t of CUSTOMER_TEXT) assert.ok(doc.includes(t), t)
+  assert.equal(doc.includes('ฉบับโรงงาน'), false)
+  assert.match(doc, /จำนวนรวม <b>20 ตัว<\/b>/)
+  api.saveToSystem()
+  const p = sent(store).p.tshirt
+  assert.equal(p.spare, '7')
+  assert.deepEqual(p.print_method, ['ซิลค์สกรีน', 'งานปัก'])
+  assert.equal(p.ink_colors, 'หมึกขาวล้วน')
+  assert.equal(p.thread__other, 'ด้ายเย็บสีเทา')
+  assert.equal(p.collar, 'ปกจีน')
+  assert.equal(p.placements['หน้าอกซ้าย'].tech, 'งานปัก')
+  assert.equal(p.fabric_rows[0].print, 'พิมพ์สีพิเศษ 2 สี')
+})
+
+test('ฟอร์มใบยืนยัน: จุดกำกับบนม็อคอัพในใบลูกค้าอ้างได้เฉพาะช่องที่ลูกค้าเห็น · ในฟอร์มแอดมินยังเห็นทุกช่อง', () => {
+  const { api, s, v } = filled()
+  withFactoryDetails(v)
+  s.imgs = [{ src: 'data:image/png;base64,AA==', w: 4, h: 3 }]
+  s.callouts = [
+    { ref: 'field:print_method', title: 'โลโก้', body: '', x: 0.5, y: 0.5, bx: 0.8, by: 0.2 },
+    { ref: 'placement:หน้าอกซ้าย', title: 'อก', body: '', x: 0.3, y: 0.3, bx: 0.1, by: 0.1 },
+    { ref: 'field:thread', title: 'ตะเข็บ', body: '', x: 0.2, y: 0.8, bx: 0.1, by: 0.9 },
+    { ref: 'field:fabric_color', title: 'ตัวเสื้อ', body: 'ลายตามภาพ', x: 0.5, y: 0.7, bx: 0.9, by: 0.9 },
+  ]
+  const doc = api.coDocHTML()
+  for (const t of FACTORY_TEXT) assert.equal(doc.includes(t), false, t)
+  assert.match(doc, /สีผ้าพื้น: กรมท่าเข้ม · ลายตามภาพ/)
+  const formRefs = api.coRefs()
+  assert.match(formRefs.find(r => r.ref === 'field:print_method').val, /ซิลค์สกรีน/)
+  assert.match(formRefs.find(r => r.ref === 'placement:หน้าอกซ้าย').val, /งานปัก/)
+})
+
+test('ฟอร์มใบยืนยัน: ฝ่ายผลิตเปิดดูจากระบบ เห็นทุกช่องครบ (เผื่อเสีย เทคนิค แบบ ตำแหน่ง) และหัวใบบอกว่าเป็นฉบับโรงงาน', () => {
+  const { api, store, els } = boot()
+  const p = {}
+  withFactoryDetails(p)
+  store.set('pp142.confirmation.inbox', JSON.stringify({ view: true, h: { doc_no: 'SC-FAC', customer: 'ลูกค้า', ...FACTORY_HEAD }, product: 'tshirt', p: { tshirt: p } }))
+  api.takeInbox()
+  const doc = els.get('#doc').innerHTML
+  for (const t of FACTORY_TEXT) assert.ok(doc.includes(t), t)
+  assert.match(doc, /ฉบับโรงงาน/)
+  assert.match(doc, /เผื่อเสีย 7 ตัว/)
 })
