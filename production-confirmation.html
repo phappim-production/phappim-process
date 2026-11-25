@@ -319,7 +319,10 @@ const HEADER = [
 
 /* R=เลือก 1, C=เลือกหลาย, T=ข้อความ, N=ตัวเลข, D=ขนาด, A=ข้อความยาว */
 const R=(id,label,options,x={})=>({ id, type:'radio', label, options, req:true, ...x });
-const COLLAR=(when)=>R('collar','ชนิดปก',['ปกสำเร็จ','ปกพิมพ์','ปกจีน'],{ other:true, ...(when?{when}:{}) });
+// คอกลม / คอวี ใส่ปกได้ (ไม่ผูกกับตัวเลือกคอ) · ตั้งต้น "ไม่มีปก" ใบเดิมไม่ต้องกรอกเพิ่ม · "ไม่มี…" ไม่พิมพ์ลง PDF
+const COLLAR=()=>R('collar','ปก',['ไม่มีปก','ปกสำเร็จ','ปกพิมพ์','ปกจีน'],{ req:false, other:true, def:'ไม่มีปก' });
+const COLLAR_TYPES=['ปกสำเร็จ','ปกพิมพ์','ปกจีน'];
+const wantsCollar = v => /คอปก|เสื้อโปโล/.test(String(v.neck||'')+' '+String(v.cut||''));
 const C=(id,label,options,x={})=>({ id, type:'check', label, options, ...x });
 const T=(id,label,x={})=>({ id, type:'text', label, ...x });
 const N=(id,label,unit,x={})=>({ id, type:'number', label, unit, ...x });
@@ -644,7 +647,7 @@ const PRODUCTS = {
     fabrics:['คอตตอน 100%','TC (คอตตอน/โพลี)','TK (โพลี 65 / ฝ้าย 35)','ไมโครสปอร์ต (โพลีเอสเตอร์ 100%)','ไมโครเรียบ','ผ้าเม็ดข้าวสาร','ผ้าจูติ'],
     fabricHint:'ขั้นต่ำ 10 ตัว · เลือกเนื้อผ้าพิเศษได้เมื่อสั่ง 100 ตัวขึ้นไป', colorHint:'งานซับลิเมชั่นใช้ผ้าขาว · DTF/สกรีนใช้ผ้าสีได้',
     style:[
-      R('neck','คอเสื้อ',['คอกลม','คอวี'],{ other:true }),
+      R('neck','คอเสื้อ',['คอกลม','คอวี'],{ other:true }), COLLAR(),
       R('neck_fabric','ผ้าขอบคอ',['ผ้าเดียวกับตัว','ผ้าริบ','ผ้าจั๊ม'],{ hint:'แถบผ้ารอบคอเสื้อ (ไม่ใช่ปก)' }),
       T('neck_color','สีขอบคอ',{ ph:'เว้นว่าง = สีเดียวกับตัว' }),
       R('sleeve','แขน',['แขนสั้น','แขนยาว','แขนกุด','แขนแร็กแลน (Raglan)'],{ other:true }),
@@ -656,7 +659,7 @@ const PRODUCTS = {
   sport: garment({ name:'เสื้อกีฬา / เสื้อองค์กรพิมพ์ลาย', measure:v=>v.set==='เสื้อ + กางเกง'?'set':'top',
     fabrics:['ไมโครเรียบ','ไมโครสปอร์ต','ผ้าเม็ดข้าวสาร','ผ้าจูติ','ผ้ารังผึ้ง'], fabricHint:'ขั้นต่ำ 10 ตัว · พิมพ์ซับลิเมชั่นเต็มตัว 360°',
     style:[ R('cut','แบบเสื้อ',['คอกลม แขนสั้น','คอวี แขนสั้น','คอปก แขนสั้น','แขนกุด','เสื้อกล้ามวิ่ง','แขนยาว'],{ other:true }),
-      COLLAR(v=>/คอปก/.test(v.cut||'')),
+      COLLAR(),
       R('neck_fabric','ผ้าขอบคอ',['ผ้าเดียวกับตัว (พิมพ์ลาย)','ผ้าริบสีพื้น'],{ hint:'แถบผ้ารอบคอเสื้อ (ไม่ใช่ปก)' }), FIT,
       R('set','ชุด',['เสื้ออย่างเดียว','เสื้อ + กางเกง']),
       T('pants_spec','สเปกกางเกง',{ req:true, wide:true, ph:'เช่น ขาสั้น เอวยางยืด มีเชือก กระเป๋าข้าง', when:v=>v.set==='เสื้อ + กางเกง' }) ],
@@ -664,7 +667,7 @@ const PRODUCTS = {
   }),
   jersey: garment({ name:'เสื้อเจอร์ซีย์',
     fabrics:['ไมโครเรียบ','ไมโครสปอร์ต','ไมโครหนา','ผ้าตาข่าย','ผ้าริ้วเงา','ผ้ารังผึ้ง','ผ้าเม็ดข้าวสาร','ผ้าจูติ'], fabricHint:'ขั้นต่ำ 10 ตัว · พิมพ์ซับลิเมชั่นเต็มตัว 360° · ใช้หลายผ้า กรอกเพิ่มที่ "ผ้าเพิ่ม"',
-    style:[ R('neck','คอเสื้อ',['คอกลม','คอวี','คอปก'],{ other:true }), COLLAR(v=>v.neck==='คอปก'),
+    style:[ R('neck','คอเสื้อ',['คอกลม','คอวี','คอปก'],{ other:true }), COLLAR(),
       R('neck_fabric','ผ้าขอบคอ',['ผ้าเดียวกับตัว (พิมพ์ลาย)','ผ้าริบสีพื้น','ซกคอสำเร็จ (ริบทอลาย)'],{ hint:'แถบผ้ารอบคอเสื้อ (ไม่ใช่ปก)' }),
       T('neck_color','สีขอบคอ / ลายริ้ว',{ ph:'เช่น ดำริ้วขาว · เว้นว่าง = สีเดียวกับตัว' }),
       R('sleeve','แขน',['แขนสั้น','แขนยาว']),
@@ -673,7 +676,7 @@ const PRODUCTS = {
   }),
   running: garment({ name:'เสื้อวิ่ง / ชุดงานวิ่ง',
     fabrics:['ไมโครเรียบ','ไมโครสปอร์ต','ผ้ารังผึ้ง'], fabricHint:'ขั้นต่ำ 10 ตัว',
-    style:[ R('cut','แบบเสื้อ',['คอกลม แขนสั้น','คอวี แขนสั้น','แขนกุด','เสื้อกล้ามวิ่ง','แขนยาว'],{ other:true }), FIT ],
+    style:[ R('cut','แบบเสื้อ',['คอกลม แขนสั้น','คอวี แขนสั้น','แขนกุด','เสื้อกล้ามวิ่ง','แขนยาว'],{ other:true }), COLLAR(), FIT ],
     printDef:['ซับลิเมชั่น พิมพ์ทั้งตัว (All-over)'],
     extraSecs:[{ title:'แพ็กเกจงานวิ่ง', fields:[
       R('package','แพ็กเกจ',['สั่งเสื้ออย่างเดียว','Package A (เซ็ตเริ่มต้น)','Package B (เซ็ตยอดนิยม)','Package C (เซ็ตจัดเต็ม)','Package D (เซ็ตพรีเมียม)']),
@@ -684,7 +687,7 @@ const PRODUCTS = {
   polo: garment({ name:'เสื้อโปโล',
     fabrics:['TK','ลาครอส (Lacoste)','Dry Tech','Recycle Polyester (rPET)','ไมโครเรียบ (พิมพ์ลาย)'], fabricHint:'ขั้นต่ำ 10 ตัว',
     style:[
-      COLLAR(),
+      R('collar','ชนิดปก',COLLAR_TYPES,{ other:true }),
       T('collar_color','สีปก / ขลิบปก',{ ph:'เว้นว่าง = สีเดียวกับตัว' }),
       R('sleeve','แขน',['แขนสั้น','แขนยาว']),
       R('sleeve_end','ปลายแขน',['ปลายแขนจั๊ม (ริบ)','ปลายแขนพับ']),
@@ -699,7 +702,7 @@ const PRODUCTS = {
   }),
   worker: garment({ name:'เสื้อคนงาน / เสื้อปุ๋ย',
     fabrics:['TC','TK','โพลีเอสเตอร์ (ผ้าปุ๋ย)','คอตตอน'], fabricHint:'ขั้นต่ำ 12 ตัว',
-    style:[ R('cut','แบบเสื้อ',['คอกลม','คอปก']), COLLAR(v=>v.cut==='คอปก'), R('sleeve','แขน',['แขนสั้น','แขนยาว']), FIT ],
+    style:[ R('cut','แบบเสื้อ',['คอกลม','คอปก']), COLLAR(), R('sleeve','แขน',['แขนสั้น','แขนยาว']), FIT ],
     sizes:['ไซซ์ผู้ใหญ่','FS (อก 42)','ไซซ์เด็ก'],
     printDef:['ซิลค์สกรีน'],
   }),
@@ -707,7 +710,7 @@ const PRODUCTS = {
     fabrics:['ผ้าโทเร','ผ้าจูติ','ไมโครเรียบ'],
     style:[ R('pe_style','แบบ',['สีเดียวทั้งตัว','2 สี (แต่งสีที่แขนและปก)','2 สี (แต่งสีที่สาบและปก)'],{ other:true }),
       T('trim_color','สีที่แต่ง',{ req:true, when:v=>v.pe_style&&v.pe_style!=='สีเดียวทั้งตัว' }),
-      R('cut','คอเสื้อ',['คอปก','คอกลม','คอวี']), COLLAR(v=>v.cut==='คอปก'),
+      R('cut','คอเสื้อ',['คอปก','คอกลม','คอวี']), COLLAR(),
       R('set','ชุด',['เสื้ออย่างเดียว','เสื้อ + กางเกงพละ']),
       T('pants_spec','สเปกกางเกงพละ',{ req:true, wide:true, ph:'เช่น ขายาว เอวยางยืด แถบข้างสีกรม', when:v=>v.set==='เสื้อ + กางเกงพละ' }) ],
     sizes:['ไซซ์ตามรอบอก (นิ้ว)','ไซซ์ผู้ใหญ่','ไซซ์เด็ก'],
@@ -748,12 +751,12 @@ const PRODUCTS = {
   }),
   student: garment({ name:'เสื้อนักศึกษา',
     fabrics:['ผ้าโทเร','ผ้าวาเลนติโน่','ผ้า TC','ผ้าคอตตอน','ไมโครเรียบ (พิมพ์ลาย)'],
-    style:[ R('cut','แบบเสื้อ',['เสื้อเชิ้ต','เสื้อโปโล','เสื้อยืดคอกลม'],{ other:true }), COLLAR(v=>v.cut==='เสื้อโปโล'), R('sleeve','แขน',['แขนสั้น','แขนยาว']), FIT ],
+    style:[ R('cut','แบบเสื้อ',['เสื้อเชิ้ต','เสื้อโปโล','เสื้อยืดคอกลม'],{ other:true }), COLLAR(), R('sleeve','แขน',['แขนสั้น','แขนยาว']), FIT ],
     methods:['งานปัก','ซับลิเมชั่น + ตัดเลเซอร์','ซิลค์สกรีน','DTF (ฟิล์มรีดร้อน)'], printDef:['งานปัก'],
   }),
   mourning: garment({ name:'เสื้อดำ / เสื้อไว้ทุกข์',
     fabrics:['คอตตอน 100%','TC (คอตตอน/โพลี)','ไมโครเรียบ'],
-    style:[ R('cut','แบบเสื้อ',['เสื้อยืดคอกลม','เสื้อยืดคอวี','เสื้อโปโล']), COLLAR(v=>v.cut==='เสื้อโปโล'), R('sleeve','แขน',['แขนสั้น','แขนยาว']), FIT ],
+    style:[ R('cut','แบบเสื้อ',['เสื้อยืดคอกลม','เสื้อยืดคอวี','เสื้อโปโล']), COLLAR(), R('sleeve','แขน',['แขนสั้น','แขนยาว']), FIT ],
     printDef:['ไม่มีลาย'],
   }),
   kids: garment({ name:'ชุดเด็ก / เสื้อผ้าเด็กอ่อน', measure:v=>/กางเกง|ชุดนอน/.test(v.item||'')?'set':'top',
@@ -1843,6 +1846,8 @@ function validate(){
     if(bad) out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why, hard:s==='h'&&MUST_FILL.includes(f.id) });
   }); });
   if(state.h.issue_date&&state.h.due_date&&state.h.due_date<state.h.issue_date) out.push({id:'fld_h_due_date',sec:2,label:'ข้อมูลใบงาน › กำหนดส่งงาน',why:'อยู่ก่อนวันที่ออกใบ',hard:true});
+  { const v=scope('p'), sec=layout().find(x=>x.s==='p'&&x.fields?.some(f=>f.id==='collar'&&f.options.includes('ไม่มีปก')));
+    if(sec&&wantsCollar(v)&&(!v.collar||v.collar==='ไม่มีปก')) out.push({ id:'fld_p_collar', sec:sec.no, label:`${sec.title} › ปก`, why:'เลือกคอปก / เสื้อโปโลไว้ ให้เลือกชนิดปก' }); }
   if(sampleDateShown(state.h)&&state.h.sample_date&&state.h.due_date&&state.h.sample_date>state.h.due_date) out.push({id:'fld_h_sample_date',sec:2,label:'ข้อมูลใบงาน › วันนัดส่งตัวอย่าง',why:'อยู่หลังกำหนดส่งงาน',hard:true});
   return out;
 }

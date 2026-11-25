@@ -133,28 +133,39 @@ test('ฟอร์มใบยืนยัน: ใบเก่าที่ใช
   assert.ok(sleeve.includes('แขนแร็กแลน (Raglan)') && !sleeve.includes('แขนจั๊ม (Raglan)'))
 })
 
-test('ฟอร์มใบยืนยัน: เลือกคอปกแล้วมีช่องชนิดปก (ปกสำเร็จ / ปกพิมพ์ / ปกจีน) · ไม่ใช่คอปกไม่ขึ้นและไม่ส่ง', () => {
-  const collarOf = product => filled(product).api.PRODUCTS[product].sections.flatMap(s => s.fields).find(f => f.id === 'collar')
-  for (const [product, key, on, off] of [
-    ['sport', 'cut', 'คอปก แขนสั้น', 'คอกลม แขนสั้น'], ['jersey', 'neck', 'คอปก', 'คอกลม'], ['worker', 'cut', 'คอปก', 'คอกลม'],
-    ['pe', 'cut', 'คอปก', 'คอกลม'], ['student', 'cut', 'เสื้อโปโล', 'เสื้อเชิ้ต'], ['mourning', 'cut', 'เสื้อโปโล', 'เสื้อยืดคอกลม'],
-  ]) {
+test('ฟอร์มใบยืนยัน: เสื้อทุกแบบที่มีตัวเลือกคอ ใส่ปกได้ทุกคอ (คอกลม / คอวี มีปกได้) · ตั้งต้นไม่มีปก · ไม่มีปกไม่พิมพ์ลง PDF', () => {
+  const collarOf = (api, product) => api.PRODUCTS[product].sections.flatMap(s => s.fields).find(f => f.id === 'collar')
+  for (const [product, key, round] of [['tshirt', 'neck', 'คอวี'], ['sport', 'cut', 'คอกลม แขนสั้น'], ['jersey', 'neck', 'คอกลม'], ['running', 'cut', 'คอวี แขนสั้น'],
+    ['worker', 'cut', 'คอกลม'], ['pe', 'cut', 'คอวี'], ['student', 'cut', 'เสื้อยืดคอกลม'], ['mourning', 'cut', 'เสื้อยืดคอวี']]) {
     const { api, v } = filled(product)
-    const collar = collarOf(product)
-    assert.deepEqual(collar?.options, ['ปกสำเร็จ', 'ปกพิมพ์', 'ปกจีน'], product)
-    v[key] = on
-    assert.equal(api.visible(collar, v), true, `${product}: ${on}`)
-    v[key] = off
-    assert.equal(api.visible(collar, v), false, `${product}: ${off}`)
+    const collar = collarOf(api, product)
+    assert.deepEqual(collar?.options, ['ไม่มีปก', 'ปกสำเร็จ', 'ปกพิมพ์', 'ปกจีน'], product)
+    assert.equal(collar.def, 'ไม่มีปก', product)
+    v[key] = round
+    assert.equal(api.visible(collar, v), true, `${product}: ${round}`)
+    v.collar = 'ไม่มีปก'
+    assert.equal(api.validate().some(m => m.id === 'fld_p_collar'), false, `${product}: ไม่มีปก กับคอที่ไม่ใช่คอปก ไม่เตือน`)
   }
-  const polo = collarOf('polo')
+  const polo = filled('polo').api.PRODUCTS.polo.sections.flatMap(s => s.fields).find(f => f.id === 'collar')
   assert.deepEqual(polo.options, ['ปกสำเร็จ', 'ปกพิมพ์', 'ปกจีน'])
-  assert.equal(filled('polo').api.visible(polo, {}), true)
 
-  const { api, store, v } = filled('sport')
-  Object.assign(v, { cut: 'คอกลม แขนสั้น', collar: 'ปกสำเร็จ' })
-  api.saveToSystem()
-  assert.equal(sent(store).p.sport?.collar, undefined)
+  const { api, els, v } = filled('tshirt')
+  Object.assign(v, { neck: 'คอวี', collar: 'ปกพิมพ์' })
+  api.renderDoc()
+  assert.match(els.get('#doc').innerHTML, /ปกพิมพ์/)
+  v.collar = 'ไม่มีปก'
+  api.renderDoc()
+  assert.equal(els.get('#doc').innerHTML.includes('ไม่มีปก'), false)
+})
+
+test('ฟอร์มใบยืนยัน: เลือกคอปก / เสื้อโปโลแต่ยังเป็น "ไม่มีปก" ฟอร์มเตือนให้เลือกชนิดปก', () => {
+  for (const [product, key, value] of [['sport', 'cut', 'คอปก แขนสั้น'], ['jersey', 'neck', 'คอปก'], ['student', 'cut', 'เสื้อโปโล']]) {
+    const { api, v } = filled(product)
+    Object.assign(v, { [key]: value, collar: 'ไม่มีปก' })
+    assert.ok(api.validate().some(m => m.id === 'fld_p_collar' && /ชนิดปก/.test(m.why)), product)
+    v.collar = 'ปกสำเร็จ'
+    assert.equal(api.validate().some(m => m.id === 'fld_p_collar'), false, product)
+  }
 })
 
 test('ฟอร์มใบยืนยัน: ใบโปโลเก่าที่เลือกปกริบทอ / ปกผ้าเดียวกับตัว เปิดแล้วเป็นปกสำเร็จ / ปกพิมพ์', () => {
