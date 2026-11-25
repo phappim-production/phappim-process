@@ -309,7 +309,9 @@ function makeHelper(tab, origin) {
         if (flags !== null) return new RegExp(pat, flags).test(txt)
         return ex ? txt === pat : txt.includes(pat)
       })
-      const btn = btns[idx]
+      // ชื่อปุ่มที่ตรงทุกตัวอักษรมาก่อน ("ยืนยัน" ไม่ไปโดน "ดูใบยืนยัน")
+      const same = flags === null && !ex ? btns.filter(el => el.textContent.replace(/\s+/g, ' ').trim() === pat) : []
+      const btn = (same.length ? same : btns)[idx]
       if (!btn) {
         // งานที่ไม่ใช่คิวแรก รายละเอียดงานมีแต่ปุ่มเริ่มก่อนคิว (ต้องใส่เหตุผล)
         const skip = stationStart ? [...document.querySelectorAll('[role="dialog"] button')].find(el => el.getClientRects().length && !el.disabled && el.textContent.replace(/\s+/g, ' ').trim() === 'เริ่มก่อนคิว') : null

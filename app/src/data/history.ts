@@ -162,6 +162,7 @@ export function eventWords(e: EventRow, n: Names, unit = 'ชิ้น'): EventW
       return { title: p.resend === true ? word('ส่งรูปชิ้นแรกใหม่{at} · รออนุมัติ', { at }) : word('ส่งรูปชิ้นแรก{at} · รออนุมัติ', { at }), detail: word('{n} รูป', { n: num(p.photos) }), tone: 'warn' }
     case 'first_piece_ok': return { title: word('ชิ้นแรกผ่าน{at} · ทำทั้งล็อตได้', { at }), tone: 'ok' }
     case 'first_piece_rejected': return { title: word('ชิ้นแรกไม่ผ่าน{at}', { at }), detail: reason, tone: 'danger' }
+    case 'confirmation_ack': return { title: word('รับทราบใบยืนยันแก้ไขครั้งที่ {rev}{at}', { rev: num(p.rev), at }), tone: 'ok' }
     case 'finish_photo': return { title: word('ส่งรูปงานเสร็จ{at}', { at }), detail: word('{n} รูป', { n: num(p.photos) }), tone: 'ok' }
     case 'mockup': return { title: p.replaced ? word('เปลี่ยนรูปม็อคอัพ') : word('เพิ่มรูปม็อคอัพ'), tone: 'ok' }
     case 'mockup_approved':

@@ -9,6 +9,7 @@ import { MachinePicker } from '../components/MachinePicker'
 import { scrollToDelayReport } from './delayReport'
 import { StationPhotoPanel } from './StationPhotos'
 import { photoBlock } from '../data/stationPhotos'
+import { needsRevisionAck } from '../data/revisions'
 
 type Result = { ok: true; text: string } | { ok: false; reason: string }
 export type SewActions = {
@@ -18,6 +19,7 @@ export type SewActions = {
   assign: (jobId: string, code: string) => Promise<Result>
   release: (jobId: string, code: string) => Promise<Result>
   photo: (jobId: string, fn: 'submit_first_piece' | 'add_finish_photos', args: Record<string, unknown>) => Promise<Result>
+  ackRevision: (jobId: string) => Promise<Result>
 }
 
 const secondaryButton = 'min-h-12 rounded-xl border border-line px-4 font-semibold text-brand hover:bg-brand-soft'
@@ -113,6 +115,10 @@ export function SewingNow({ jobs, machines, now, onOpen, actions, needs = {}, sh
                         <button type="button" className={secondaryButton} onClick={() => show('report', job)}>รายงานปัญหา</button>
                         {job.sla === 'report'
                           ? <button type="button" className={reportButton} onClick={() => { onOpen(job.id); scrollToDelayReport() }}>เกินเวลา · ส่งรายงานปัญหาก่อนกดเย็บเสร็จ</button>
+                          : needsRevisionAck(job) && job.revision
+                          ? <button type="button" className={finishButton} onClick={async () => { const r = await actions.ackRevision(job.id); setNotice(r.ok ? { ok: true, text: r.text } : { ok: false, text: r.reason }) }}>
+                              <IconCheck className="size-5" />รับทราบใบแก้ครั้งที่ {job.revision.rev}
+                            </button>
                           : photoBlock(job.photos)
                           ? <p className="grid min-h-12 content-center rounded-xl bg-paper px-3 font-medium text-muted">ยังกดเย็บเสร็จไม่ได้: {photoBlock(job.photos)}</p>
                           : <button type="button" className={finishButton} onClick={() => show('finish', job)}>

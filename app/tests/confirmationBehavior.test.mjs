@@ -174,3 +174,19 @@ test('ฟอร์มใบยืนยัน: ใบโปโลเก่าท
   assert.equal(api.state.p.polo.collar, 'ปกสำเร็จ')
   assert.equal(api.state.p.sport.collar, 'ปกพิมพ์')
 })
+
+test('ฟอร์มใบยืนยัน: เปิดดูจากระบบ (ฝ่ายผลิต) แสดงใบล่าสุดแบบดูอย่างเดียว ไม่เขียนทับใบที่แอดมินกรอกค้างในเครื่อง', () => {
+  const { api, store, els } = boot()
+  const mine = { h: { doc_no: 'SC-DRAFT', customer: 'ใบที่แอดมินกรอกค้าง' }, product: 'tshirt', p: { tshirt: {} }, imgs: [] }
+  store.set('phappim-confirm-v1', JSON.stringify(mine))
+  store.set('pp142.confirmation.inbox', JSON.stringify({ view: true, h: { doc_no: 'SC-JOB', customer: 'ลูกค้างาน', rev: 2 }, product: 'polo', p: { polo: { collar: 'ปกสำเร็จ' } },
+    revision: { rev: 2, at: '25/11/2569 14:32', by: 'แอดมิน 1', fields: ['ปก', 'จำนวน'] } }))
+  api.takeInbox()
+  assert.equal(api.state.h.doc_no, 'SC-JOB')
+  assert.equal(api.state.p.polo.collar, 'ปกสำเร็จ')
+  assert.deepEqual(JSON.parse(store.get('phappim-confirm-v1')), mine)
+  api.rerender()
+  assert.deepEqual(JSON.parse(store.get('phappim-confirm-v1')), mine)
+  assert.equal(store.has('pp142.confirmation.inbox'), false)
+  assert.match(els.get('#doc').innerHTML, /แก้ไขครั้งที่ 2/)
+})

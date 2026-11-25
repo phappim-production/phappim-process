@@ -82,7 +82,10 @@ export type Job = {
   sla?: SlaLevel             // ไม่มี = ยังไม่ใกล้ครบหรือไม่จับเวลา
   specSheet?: { id: string; rev: number; acked: StationCode[] }
   photos?: PhotoGate         // ไม่มี = รอบนี้ไม่ต้องส่งรูป (ยังไม่เปิดใช้ หรือเริ่มก่อนเปิดใช้)
+  revision?: JobRevision     // ไม่มี = ใบยืนยันยังไม่เคยแก้หลังรับงาน
 }
+
+export type JobRevision = { rev: number; at: Date; by: string | null; fields: string[]; summary: string[]; eventId: number; acked: StationCode[] }
 
 export type FirstPieceStatus = 'pending' | 'approved' | 'rejected'
 export type PhotoGate = {

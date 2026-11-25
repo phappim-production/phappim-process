@@ -81,7 +81,7 @@ describe('machineCounts (จัดจักรแบบตั้งจำนว�
 
 describe('ปุ่มบนหน้าจอ', () => {
   const ok = async () => ({ ok: true as const, text: '' })
-  const actions: SewActions = { report: ok, resume: ok, finish: ok, assign: ok, release: ok, photo: ok }
+  const actions: SewActions = { report: ok, resume: ok, finish: ok, assign: ok, release: ok, photo: ok, ackRevision: ok }
   const sewing = (a?: SewActions, status: Job['status'] = 'doing') => renderToStaticMarkup(createElement(SewingNow, {
     jobs: [job('a', { status })], machines, now, onOpen: () => {}, actions: a,
   }))

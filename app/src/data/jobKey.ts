@@ -9,6 +9,7 @@ export function jobKey(j: Job): string {
     j.rework ? `${j.rework.qty}:${j.rework.reason}` : '', j.holdReason ?? '', at(j.heldSince), at(j.doneAt),
     j.delivered ? `${at(j.delivered.at)}:${j.delivered.note}` : '', j.mockup ?? '', j.sla ?? '',
     j.out ? `${j.out.id}:${at(j.out.backAt)}` : '', j.specSheet ? `${j.specSheet.id}:${j.specSheet.rev}:${j.specSheet.acked.join(',')}` : '',
+    j.revision ? `${j.revision.eventId}:${j.revision.acked.join(',')}` : '',
   ].join('|')
 }
 

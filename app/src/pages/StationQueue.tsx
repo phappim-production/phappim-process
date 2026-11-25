@@ -13,6 +13,8 @@ import { QueueReasonPrompt } from './QueueReason'
 import { SKIP_QUEUE_PLACEHOLDER, skipQueueHead } from './queueSkip'
 import { StationPhotoPanel } from './StationPhotos'
 import { photoBlock } from '../data/stationPhotos'
+import { needsRevisionAck } from '../data/revisions'
+import { RevisionPill } from './Revision'
 import { Perforation, RouteTrack } from '../components/RouteTrack'
 
 export type QueueCall = (name: string, args: Record<string, unknown>, reload?: boolean) => Promise<{ ok: true } | { ok: false; reason: string }>
@@ -157,6 +159,7 @@ function QueueCard({ job: j, now, badge, first, onOpen, children, station, track
           <b className="font-display text-xl font-semibold">{j.no}</b>
           {j.phase === 'sample' && <Pill tone="info">{t(j.develop ? 'ตัวอย่าง · Develop' : 'ตัวอย่าง')}</Pill>}
           {j.rework && <Pill tone="danger">{t('งานแก้ {qty} {unit}', { qty: j.rework.qty, unit: { th: j.unit } })}</Pill>}
+          <RevisionPill job={j} />
           {spec && <Pill tone={spec.rev > 1 ? 'danger' : 'warn'}>{spec.rev > 1 ? t('สเปกเปลี่ยน ฉบับ {rev} · ยังไม่รับทราบ', { rev: spec.rev }) : t('มีสเปกกำกับ · ยังไม่รับทราบ')}</Pill>}
           <IconChevronRight className="ml-auto size-5 text-muted" />
         </span>
@@ -240,6 +243,10 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
     <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
       {j.sla === 'report'
         ? <button type="button" disabled={busy} className={dangerBtn} onClick={() => { onOpen(); scrollToDelayReport() }}><IconAlert className="size-5" /><Tr th="เกินเวลา · ส่งรายงานปัญหาก่อนกดเสร็จ" /></button>
+        : needsRevisionAck(j) && j.revision
+        ? <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['ack_confirmation_revision', { p_station: station }]], w('{no} รับทราบใบแก้ครั้งที่ {n} แล้ว · ผลิตตามใบล่าสุด', { no: j.no, n: j.revision?.rev ?? 0 }))}>
+            <IconCheck className="size-5 shrink-0" /><Tr th="รับทราบใบแก้ครั้งที่ {n}" vars={{ n: j.revision.rev }} />
+          </button>
         : photoWait
         ? <p className="grid min-h-12 content-center rounded-xl bg-paper px-3 py-2 font-medium text-muted"><Tr th="ยังกดเสร็จไม่ได้: {why}" vars={{ why: { th: photoWait } }} /></p>
         : <button type="button" disabled={busy} className={okBtn} onClick={() => setMode('finish')}><IconCheck className="size-5 shrink-0" /><Tr th="{station}เสร็จ" vars={{ station: { th: name } }} /></button>}
