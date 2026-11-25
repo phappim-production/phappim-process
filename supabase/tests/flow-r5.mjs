@@ -39,10 +39,10 @@ const rules = {
   start_station: ['owner production qc', 'A'],
   start_in_queue: ['owner production qc', 'ABHP'],
   note_queue_skip: ['owner production qc', 'ABHJP'],
-  finish_station: ['owner production qc', 'K'],
+  finish_station: ['owner production qc', 'KM'],
   open_issue: ['owner admin production qc', 'ABCHJKMP'],
   close_issue: ['owner manager production', 'D'],
-  submit_delay_report: ['owner admin production qc', 'ABCDFGHIJKLMP'],
+  submit_delay_report: ['owner admin production qc', 'ABCDEFGHIJKLMP'],
   start_sewing: ['owner production', 'H'],
   finish_sewing: ['owner production', 'K'],
   report_sewing_issue: ['owner production', 'K'],
@@ -228,8 +228,7 @@ export async function flowR5Tests({ db, ok, as }) {
   await direct('production', 'start_sewing', k)
   const m = await build('M')
   await direct('production', 'start_station', m)
-  await db.exec("update public.stations set sla_days = 1 where code = 'cut'")
-  await db.query("update public.jobs set station_started_at = now() - interval '15 days' where id = $1", [m])
+  await db.query("update public.jobs set created_at = now() - interval '40 days' where id = $1", [m])
   const n = await build('N')
   await through(n, ['cut'])
   await direct('qc', 'start_station', n)
@@ -245,8 +244,8 @@ export async function flowR5Tests({ db, ok, as }) {
     parentRow.qty + childRow.qty === 10 && childRow.confirmation_no === parentRow.confirmation_no + '-2' &&
     childRow.current_station === parentRow.current_station && (await events(parent)).at(-1).type === 'job_split' &&
     (await events(p)).at(-1).type === 'job_split_from')
-  assert.equal((await live(m)).sla?.station_over, true)
-  assert.equal((await live(m)).sla?.station_reported, false)
+  assert.equal((await live(m)).sla?.lead_over, true)
+  assert.equal((await live(m)).sla?.lead_reported, false)
   const { code: delayReason } = await one('select code from public.reason_codes where active order by code limit 1')
   const delayWhen = (await one("select (now() + interval '1 day')::text as eta")).eta
 
@@ -336,9 +335,9 @@ export async function flowR5Tests({ db, ok, as }) {
   const withoutReason = await probe(db, as, 'production', 'start_in_queue', [b, null], async () => {}, false)
   ok('R5 คิวที่สองไม่มีเหตุผล: เริ่มไม่ได้', withoutReason.matches && /ไม่ใช่คิวแรก/.test(withoutReason.message), withoutReason.message)
   await rpc('production', 'submit_delay_report', [m, [delayReason], reason, delayWhen, null])
-  assert.equal((await live(m)).sla?.station_reported, true)
+  assert.equal((await live(m)).sla?.lead_reported, true)
   await finish(m, 'cut')
-  ok('R5 เกินเวลา: รายงานแล้วจึงผ่านไป QC', (await live(m)).current_station === 'qc_pack')
+  ok('R5 เกินเวลาผลิต: สถานีกลางทางส่งต่อ QC ได้ · รายงานแล้วนับทั้งงาน', (await live(m)).current_station === 'qc_pack' && (await live(m)).sla?.lead_reported === true)
 
   // เริ่มจาก QC ผ่านแล้ว 2 จาก 10 ชิ้น ตรวจขอบเขตยอดสะสมกับยอดส่งแก้จาก fixture เดิม
   // เพดาน = จำนวนงาน − ยอดผ่านสะสม · เกิน 1 ชิ้นต้องปฏิเสธ · พอดีต้องผ่าน

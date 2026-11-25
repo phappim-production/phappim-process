@@ -124,19 +124,6 @@ export async function stationPhotoTests({ db, ok, as }) {
     await db.exec(`update public.station_checks set sent_at = now() - interval '20 minutes' where id = ${cw}`)
     await db.exec(`update public.station_photo_settings set enabled_at = now() - interval '2 hours';
       update public.jobs set station_started_at = now() - interval '1 hour' where id = '${w}'`)
-    const waitVsWork = async () => (await db.query(`select private.work_days(sent_at, now()) w, private.first_piece_wait_days(job_id, sent_at - interval '1 day') fp from public.station_checks where id = ${cw}`)).rows[0]
-    const ww = await waitVsWork()
-    ok('ตอนรออนุมัติ หักเวลารอทั้งหมดออกจากเวลามาตรฐาน', Math.abs(Number(ww.w) - Number(ww.fp)) < 1e-6, JSON.stringify(ww))
-    await db.exec(`insert into public.issues (job_id, reason, opened_at, closed_at) select job_id, 'ทดสอบพักซ้อน', sent_at, now() + interval '1 hour' from public.station_checks where id = ${cw}`)
-    const wh = await waitVsWork()
-    ok('พักงานซ้อนช่วงรออนุมัติ ไม่หักเวลาซ้ำ (พักงานหักไปแล้ว)', Math.abs(Number(wh.fp)) < 1e-6, JSON.stringify(wh))
-    await db.exec(`update public.issues i set opened_at = c.sent_at, closed_at = c.sent_at from public.station_checks c where c.id = ${cw} and i.reason = 'ทดสอบพักซ้อน'`)
-    const back = await waitVsWork()
-    ok('ปิดพักงานแล้ว นับเวลารอกลับมาเต็ม', Math.abs(Number(back.w) - Number(back.fp)) < 1e-6, JSON.stringify(back))
-    await db.exec(`insert into public.events (job_id, type, phase, station_code, payload, at)
-      select job_id, 'resume', 'production', 'print', '{"requeued": true}', sent_at from public.station_checks where id = ${cw}`)
-    const wq = await waitVsWork()
-    ok('รอเครื่องว่างซ้อนช่วงรออนุมัติ ไม่หักเวลาซ้ำ', Math.abs(Number(wq.fp)) < 1e-6, JSON.stringify(wq))
     ok('สรุปสถานะส่งเวลาเตือนที่ตั้งไว้ให้หน้าเว็บ', (await as(U.qc, () => db.query(`select remind_minutes from public.station_photo_flags() where job_id = '${w}'`))).rows[0]?.remind_minutes === 15)
     ok('pg_cron เรียกตัวตรวจที่รวมเตือนรูปชิ้นแรก', Number(await val(`select count(*) from pg_proc where proname = 'inbox_scan_cron'`)) === 1
       && Number(await val(`select private.inbox_scan_cron()`)) >= 0)
@@ -151,7 +138,6 @@ export async function stationPhotoTests({ db, ok, as }) {
     await db.exec(`update public.jobs set station_status = 'doing' where id = '${w}'`)
 
     await db.exec(`update public.stations set first_piece_check = false where code = 'print'; delete from public.inbox_messages where dedupe_key = 'fpl:${cw}'`)
-    ok('เลิกล็อกชิ้นแรกของสถานีระหว่างรอ: ไม่หักเวลามาตรฐานต่อ', Number(await val(`select private.first_piece_wait_days('${w}', now() - interval '1 day')`)) === 0)
     await as(U.sup, () => db.query(`select public.inbox_scan()`))
     ok('เลิกล็อกชิ้นแรกของสถานีระหว่างรอ: ไม่เตือนรอนาน', Number(await val(`select count(*) from public.inbox_messages where dedupe_key = 'fpl:${cw}'`)) === 0)
     await db.exec(`update public.stations set first_piece_check = true where code = 'print'`)
@@ -228,7 +214,6 @@ export async function stationPhotoTests({ db, ok, as }) {
     await enable(true)
     await reject('งานออกจากสถานีแล้ว ตัดสินรูปที่ค้างไม่ได้', U.admin, `public.decide_first_piece(${cw}, true)`, /ออกจากสถานีนี้แล้ว/)
     await enable(false)
-    ok('รูปที่ค้างหลังงานออกจากสถานี ไม่หักเวลามาตรฐานของสถานีถัดไป', Number(await val(`select private.first_piece_wait_days('${w}', now() - interval '1 day')`)) === 0)
     await db.exec(`update public.station_checks set sent_at = now() - interval '30 minutes' where id = ${cw}; delete from public.inbox_messages where dedupe_key = 'fpl:${cw}'`)
     await as(U.sup, () => db.query(`select public.inbox_scan()`))
     ok('รูปที่ค้างหลังงานออกจากสถานี ไม่เตือนรอนาน', Number(await val(`select count(*) from public.inbox_messages where dedupe_key = 'fpl:${cw}'`)) === 0)

@@ -43,6 +43,9 @@ export function canCloseIssue(role: EmployeeRole, station: string | null | undef
   return station === 'sew' ? floor : floor || role === 'manager'
 }
 
+// ตรงกับ submit_delay_report
+export const canReportDelay = (role: EmployeeRole) => ['owner', 'admin', 'production', 'supervisor', 'qc', 'staff'].includes(role)
+
 // ตรงกับ cancel_job · ยกเลิกออเดอร์เป็นการตัดสินใจทางธุรกิจ ฝ่ายผลิต/แอดมินไม่มีสิทธิ์
 export function canCancelJob(role: EmployeeRole): boolean {
   return role === 'manager' || role === 'owner'

@@ -20,7 +20,7 @@ import { IconSliders } from '../../components/icons'
 const HEADINGS: Record<SettingsTab, [string, string]> = {
   users: ['ผู้ใช้งาน', 'เพิ่มบัญชี · ปิดบัญชี · เปลี่ยนบทบาท'],
   assign: ['จับคู่สถานี', 'จับคู่พนักงานสถานีกับสถานีที่ทำงาน'],
-  stations: ['ตั้งค่าระบบ', 'สถานี · เวลามาตรฐาน · วัตถุดิบ · เหตุผล · จักร · การแจ้งเตือน'],
+  stations: ['ตั้งค่าระบบ', 'สถานี · เวลาผลิต · วัตถุดิบ · เหตุผล · จักร · การแจ้งเตือน'],
 }
 
 function IconHeading({ tab = 'stations' }: { tab?: SettingsTab }) {

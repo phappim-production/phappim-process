@@ -10,7 +10,8 @@ import { draftLabel, formDataFromDraft, INBOX_KEY, type DraftRow } from '../data
 import { specMockups } from '../data/jobMockups'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
 import { receiveForecast, type SewFloor } from '../proto/capacity'
-import { dueDateWarning } from '../proto/format'
+import { dueDateWarning, shortDate } from '../proto/format'
+import { leadDueDate, leadLateDays, leadTimeFor } from '../proto/leadTime'
 import { Dialog, fieldClass, primaryBtn, secondaryBtn } from '../components/Dialog'
 import { IconInbox } from '../components/icons'
 import { FilePick } from '../components/FilePick'
@@ -101,6 +102,9 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
     : null, [jobs, now, floor, product, draft.route, draft.qty, draft.needsSample, draft.develop, draft.due])
   const pdfIssue = pdfProblem(pdf)
   const dueWarning = dueDateWarning(draft.due, now)
+  const lead = draft.qty > 0 && !draft.develop ? leadTimeFor(now, draft.qty) : null
+  const dueBeforeLead = !!lead && /^\d{4}-\d{2}-\d{2}$/.test(draft.due) && draft.due < lead.due
+  const forecastOverLead = lead && forecast ? leadLateDays(forecast.finish, lead.due) : 0
   const recipeIssue = product ? sewRecipeProblem(draft.route, floor.needsOf(product.code)) : null
   const missing = [
     !draft.no.trim() && 'เลขที่ใบยืนยัน', !draft.customer.trim() && 'ชื่อลูกค้า', !product && 'ประเภทสินค้า',
@@ -216,6 +220,8 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
           <label className={label}>กำหนดส่ง
             <input type="date" value={draft.due} onChange={e => set('due', e.target.value)} className={fieldClass} aria-describedby={dueWarning ? 'due-warning' : undefined} />
             {dueWarning && <span id="due-warning" role="alert" className="text-sm font-medium text-warn">{dueWarning}</span>}
+            {lead && <span className="text-sm font-normal text-muted">เวลาผลิต {lead.days} วันทำงาน · ต้องผลิตเสร็จภายใน {shortDate(leadDueDate(lead.due))} (นับวันนี้เป็นวันที่ 1 ไม่นับวันอาทิตย์)</span>}
+            {lead && dueBeforeLead && <span role="alert" className="text-sm font-medium text-warn">กำหนดส่งเร็วกว่าเวลาผลิตมาตรฐาน · ตกลงวันส่งกับลูกค้าหรือวางแผนเร่งงาน (ยังรับงานได้)</span>}
           </label>
           <label className={label}>เส้นทางผลิต
             <select value={draft.route ?? ''} onChange={e => set('route', (e.target.value || null) as RouteCode | null)} className={fieldClass}>
@@ -256,6 +262,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
             {forecast.late === null ? '' : forecast.late > 0
               ? ` · ช้ากว่ากำหนดส่ง ${forecast.late} วัน · แจ้งลูกค้าหรือตกลงวันส่งใหม่ก่อน (ยังส่งงานเข้าได้)`
               : ' · ทันกำหนดส่ง'}
+            {forecastOverLead > 0 && ` · คาดเกินเวลาผลิต ${forecastOverLead} วัน`}
           </p>
         )}
         {error && <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 font-medium text-danger">{error}</p>}

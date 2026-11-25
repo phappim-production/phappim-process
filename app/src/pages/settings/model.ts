@@ -13,11 +13,8 @@ export type UserRow = {
   name: string | null; role: EmployeeRole | null; active: boolean | null; section: Section | null
 }
 export type ProfileDraft = { name: string; role: EmployeeRole | ''; active: boolean; section: Section | null }
-export type Sla = { sla_days: number | null; warn_pct: number; big_qty: number | null; big_sla_days: number | null }
-export type SlaDraft = { days: string; warn: string; bigQty: string; bigDays: string }
-export type Station = NamedCode & Sla & { section: Section; substeps: Substep[]; machines: number | null; machine_pool: string | null }
-export type StationDraft = SlaDraft & { name: string; section: Section; substeps: Substep[]; machines: string; machine_pool: string }
-export type Segment = NamedCode & Sla & { route_code: string; from_station: string; to_station: string }
+export type Station = NamedCode & { section: Section; substeps: Substep[]; machines: number | null; machine_pool: string | null }
+export type StationDraft = { name: string; section: Section; substeps: Substep[]; machines: string; machine_pool: string }
 export type RouteStation = { route_code: string; station_code: string; seq: number }
 export type Material = {
   id: number; key: string | null; name: string; dept: Dept
@@ -51,32 +48,6 @@ export function integer(value: string, label: string, min: number, max = MAX_INT
   return n
 }
 
-function parseDays(value: string, label: string, required = false): number | null {
-  const text = value.trim()
-  if (!text && !required) return null
-  const n = Number(text)
-  if (!/^(?:\d+(?:\.\d)?|\.\d)$/.test(text) || !Number.isFinite(n) || n <= 0) {
-    throw new Error(`กรุณากรอก${label}มากกว่า 0 วัน ทศนิยมได้ 1 ตำแหน่ง`)
-  }
-  return n
-}
-
-export function slaDraft(sla: Sla): SlaDraft {
-  return {
-    days: String(sla.sla_days ?? ''), warn: String(sla.warn_pct),
-    bigQty: String(sla.big_qty ?? ''), bigDays: String(sla.big_sla_days ?? ''),
-  }
-}
-
-export function readSla(draft: SlaDraft, required = false): Sla {
-  const sla_days = parseDays(draft.days, 'เวลามาตรฐาน', required)
-  const warn_pct = integer(draft.warn, 'เปอร์เซ็นต์เตือน', 1, 100)
-  const big_qty = draft.bigQty.trim() ? integer(draft.bigQty, 'จำนวนชิ้นสำหรับงานใหญ่', 1) : null
-  const big_sla_days = parseDays(draft.bigDays, 'เวลามาตรฐานงานใหญ่')
-  if (big_sla_days !== null && big_qty === null) throw new Error('กรุณาระบุจำนวนชิ้นสำหรับงานใหญ่')
-  return { sla_days, warn_pct, big_qty, big_sla_days }
-}
-
 export function isProtectedStep(step: Substep): boolean {
   return step.kind === 'lock' || PROTECTED_STEP_KEYS.has(step.key)
 }
@@ -100,7 +71,7 @@ export function moveStep(steps: Substep[], index: number, offset: -1 | 1): Subst
 
 export function readStation(draft: StationDraft) {
   return {
-    ...readSla(draft), name: requireText(draft.name, 'ชื่อสถานี'), section: draft.section,
+    name: requireText(draft.name, 'ชื่อสถานี'), section: draft.section,
     machines: draft.machines.trim() ? integer(draft.machines, 'จำนวนเครื่อง', 1, 50) : null,
     machine_pool: draft.machine_pool.trim() || null,
     substeps: draft.substeps.map(step => ({ ...step, name: requireText(step.name, 'ชื่อขั้นย่อยทุกขั้น') })),

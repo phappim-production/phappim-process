@@ -4,6 +4,7 @@ import { DEFAULT_SEW_PRODUCT, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, hasSewMinute
 import { MACHINE_TYPE_NAME } from '../proto/sewing'
 import { ROUTES, STATION_NAME, WORK_END, byQueue, filmLabel, isFilmNotOrdered, isOutLate, stationCounts, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
 import { dayDiff, duration, shortDate, stageSteps, stageText } from '../proto/format'
+import { leadDueDate, leadLateDays, leadTimeFor } from '../proto/leadTime'
 import { Card, CardHeader, DueLabel, MockupThumb, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
 import { TONE, type Tone } from '../components/tone'
 import { STATION_THEME } from '../components/stationTheme'
@@ -15,7 +16,7 @@ import { IconAlert, IconCalculator, IconCheck, IconChevronRight, IconClipboard, 
 
 type Product = { code: string; name: string }
 type Props = { jobs: Job[]; now: Date; forecast: Forecast; floor: SewFloor; products: Product[]; onOpen: (id: string) => void }
-type Row = { job: Job; finish: Date; late: number }
+type Row = { job: Job; finish: Date; late: number; leadLate?: number }
 
 const OVERVIEW_VIEWS = [
   // ป้ายสั้นให้ครบ 3 แท็บบนจอ 375 px
@@ -28,10 +29,11 @@ export default function Overview({ initialView = 'follow', jobs, now, forecast, 
   const [view, setView] = useState<OverviewView>(initialView)
   const rows: Row[] = useMemo(() => jobs.filter(j => j.phase !== 'done').map(j => {
     const finish = workdayToDate(forecast.finishDay.get(j.id) ?? 0, now)
-    return { job: j, finish, late: lateDays(finish, j.due) }
+    return { job: j, finish, late: lateDays(finish, j.due), leadLate: j.lead ? leadLateDays(finish, j.lead.due) : 0 }
   }).sort((a, b) => b.late - a.late || a.job.due.getTime() - b.job.due.getTime()), [jobs, forecast, now])
 
   const atRisk = rows.filter(r => r.late > 0)
+  const followUp = rows.filter(r => r.late > 0 || (r.leadLate ?? 0) > 0)
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-4">
@@ -40,7 +42,7 @@ export default function Overview({ initialView = 'follow', jobs, now, forecast, 
       <section hidden={view !== 'follow'} className="grid gap-4">
         <StationNow jobs={jobs} now={now} />
         <OutsideCard jobs={jobs} now={now} onOpen={onOpen} />
-        <AdminTodo jobs={jobs} now={now} atRisk={atRisk} onOpen={onOpen} />
+        <AdminTodo jobs={jobs} now={now} atRisk={followUp} onOpen={onOpen} />
       </section>
       <section hidden={view !== 'find'}>
         <JobFinder jobs={jobs} now={now} forecast={forecast} onOpen={onOpen} />
@@ -137,11 +139,17 @@ function NewJobCheck({ shown, jobs, now, floor, products }: { shown: boolean; jo
   // แท็บนี้ถูกซ่อนเป็นส่วนใหญ่ · จำลองคิวเฉพาะตอนที่เปิดดู (ช่องที่กรอกไว้ยังอยู่)
   const r = useMemo(() => shown ? simulate(jobs, now, { route, qty: Math.max(1, qty || 0), productCode: product }, floor) : null, [shown, jobs, now, route, qty, product, floor])
   // ตารางเทียบวันเสร็จตามจำนวน (เส้นทางเดียวกัน) ไว้ตอบลูกค้าได้ทันที
-  const quotes = useMemo(() => !shown ? [] : [100, 500, 1000, 2000].map(q => ({ q, d: workdayToDate(simulate(jobs, now, { route, qty: q, productCode: product }, floor).extraFinishDay ?? 0, now) })), [shown, jobs, now, route, product, floor])
+  const quotes = useMemo(() => !shown ? [] : [100, 500, 1000, 2000].map(q => {
+    const d = workdayToDate(simulate(jobs, now, { route, qty: q, productCode: product }, floor).extraFinishDay ?? 0, now)
+    const std = leadTimeFor(now, q)
+    return { q, d, std, over: leadLateDays(d, std.due) > 0 }
+  }), [shown, jobs, now, route, product, floor])
   if (!r) return null
   const finish = workdayToDate(r.extraFinishDay ?? 0, now)
   const dueDate = due ? new Date(`${due}T${WORK_END}`) : null
   const late = dueDate ? lateDays(finish, dueDate) : null
+  const std = leadTimeFor(now, Math.max(1, qty || 0))
+  const overStd = leadLateDays(finish, std.due)
   const input = 'w-full min-w-0 rounded-xl border border-line bg-card px-3 pt-2 pb-3 outline-none focus:border-brand focus:ring-2 focus:ring-brand/15'
 
   return (
@@ -192,15 +200,22 @@ function NewJobCheck({ shown, jobs, now, floor, products }: { shown: boolean; jo
         </div>
       </div>
       )}
+      {qtyOk && (
+        <p className={`mx-5 mt-3 rounded-xl px-3 py-2 text-sm font-medium ${overStd > 0 ? 'bg-danger-soft text-danger' : 'bg-ok-soft text-ok'}`}>
+          เวลาผลิตมาตรฐาน {std.days} วันทำงาน (นับวันนี้เป็นวันที่ 1 ไม่นับวันอาทิตย์) · ต้องเสร็จภายใน {shortDate(leadDueDate(std.due))}
+          {overStd > 0 ? ` · คิวตอนนี้คาดว่าเกิน ${overStd} วัน ต้องแทรกคิวหรือเร่งงาน` : ' · คิวตอนนี้ทันเวลาผลิต'}
+        </p>
+      )}
       <div className="mx-5 mt-auto pt-5 pb-5">
         <p className="mb-2 text-xs font-medium text-muted">เทียบวันเสร็จตามจำนวน · {ROUTES[route].short}</p>
         <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {quotes.map(({ q, d }) => (
+          {quotes.map(({ q, d, std, over }) => (
             <li key={q}>
               <button onClick={() => setQty(q)} aria-pressed={qty === q}
                 className={`w-full rounded-xl border px-3 py-2 text-left transition hover:border-brand ${qty === q ? 'border-brand bg-brand-soft' : 'border-line bg-card'}`}>
                 <span className="block text-xs text-muted">{q.toLocaleString('th-TH')} ชิ้น</span>
                 <span className="block font-semibold tabular-nums">{shortDate(d)}</span>
+                <span className={`block text-xs ${over ? 'font-semibold text-danger' : 'text-muted'}`}>มาตรฐาน {std.days} วัน · {shortDate(leadDueDate(std.due))}</span>
               </button>
             </li>
           ))}
@@ -371,9 +386,10 @@ export function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Dat
     if (isOutLate(j, now)) items.push({ id: j.id + 'o', tone: 'danger', tag: 'ของข้างนอกเลยกำหนด', text: `${j.out!.vendor} · คาดว่าถึง ${shortDate(j.out!.backAt)}`, job: j })
     // แอดมินไม่ได้แก้ปัญหาของสถานี แค่เห็นไว้แจ้งลูกค้า · ผู้บริหารหรือฝ่ายผลิตเป็นคนกดแก้
     else if (j.status === 'hold') items.push({ id: j.id + 'h', tone: 'danger', tag: 'ติดปัญหา · รอผู้บริหารแก้', text: j.holdReason ?? '', job: j })
-    // ผู้บริหารต้องเห็นงานเกินเวลามาตรฐานจากภาพรวม ไม่ต้องรอสถานีแจ้ง
-    else if (j.sla === 'report' || j.sla === 'over') items.push({ id: j.id + 't', tone: 'danger', tag: 'เกินเวลามาตรฐาน',
-      text: `${j.station ? STATION_NAME[j.station] : ''} · ${j.sla === 'report' ? 'ยังไม่ส่งรายงานปัญหา' : 'รายงานปัญหาแล้ว'}`, job: j })
+    // ผู้บริหารต้องเห็นงานเกินเวลาผลิตจากภาพรวม ไม่ต้องรอสถานีแจ้ง
+    else if (j.sla === 'report' || j.sla === 'over') items.push({ id: j.id + 't', tone: 'danger', tag: 'เกินเวลาผลิต',
+      text: [j.lead && `ครบ ${shortDate(leadDueDate(j.lead.due))} (${j.lead.days} วันทำงาน)`, j.station && STATION_NAME[j.station],
+        j.sla === 'report' ? 'ยังไม่ส่งรายงานสาเหตุ' : 'รายงานสาเหตุแล้ว'].filter(Boolean).join(' · '), job: j })
     else if (isOverdue(j, now)) items.push({ id: j.id + 'd', tone: 'danger', tag: `เลยกำหนด ${-dayDiff(j.due, now)} วัน`, text: `กำหนดส่ง ${shortDate(j.due)}`, job: j })
     else if (j.film && !j.film.received) {
       const late = isFilmLate(j, now)
@@ -387,7 +403,12 @@ export function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Dat
     // ยังไม่เลยกำหนดแต่คาดว่าไม่ทัน → แจ้งลูกค้าล่วงหน้า หรือให้หัวหน้าพิจารณาแทรกคิว
     else if (lateBy.has(j.id)) {
       const r = lateBy.get(j.id)!
-      items.push({ id: j.id + 'r', tone: 'warn', tag: `คาดไม่ทัน ${r.late} วัน`, text: `คาดเสร็จ ${shortDate(r.finish)} · ส่ง ${shortDate(j.due)} · แจ้งลูกค้าหรือขอแทรกคิว`, job: j })
+      const leadLate = r.leadLate ?? 0
+      const leadDue = j.lead && `ต้องเสร็จภายใน ${shortDate(leadDueDate(j.lead.due))} (${j.lead.days} วันทำงาน)`
+      if (r.late > 0) items.push({ id: j.id + 'r', tone: 'warn', tag: `คาดไม่ทัน ${r.late} วัน`,
+        text: [`คาดเสร็จ ${shortDate(r.finish)}`, `ส่ง ${shortDate(j.due)}`, leadLate > 0 && `เกินเวลาผลิต ${leadLate} วัน`, 'แจ้งลูกค้าหรือขอแทรกคิว'].filter(Boolean).join(' · '), job: j })
+      else items.push({ id: j.id + 'l', tone: 'warn', tag: `คาดเกินเวลาผลิต ${leadLate} วัน`,
+        text: [`คาดเสร็จ ${shortDate(r.finish)}`, leadDue, 'ขอแทรกคิวหรือเร่งงาน'].filter(Boolean).join(' · '), job: j })
     }
   }
   const rank: Partial<Record<Tone, number>> = { danger: 0, warn: 1, info: 2 }

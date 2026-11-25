@@ -46,7 +46,7 @@ const DANGER_KINDS = new Set<InboxKind>([
 
 const KIND_LABELS: Record<InboxKind, string> = {
   hold: 'พักงาน',
-  sla_over: 'เกินเวลา',
+  sla_over: 'เกินเวลาผลิต',
   film_late: 'ฟิล์มช้า',
   rework: 'งานแก้',
   machine_broken: 'จักรเสีย',

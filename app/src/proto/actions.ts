@@ -1,5 +1,5 @@
 // 1 การ์ด = 1 สิ่งที่ต้องทำต่อ
-import { DEPT_NAME, byQueue, filmLabel, isFilmNotOrdered, isOutLate, isOverdue, isWaitingFilm, missingDepts, STATION_NAME, type Job } from './model.ts'
+import { DEPT_NAME, byQueue, filmLabel, isFilmNotOrdered, isOutLate, isOverdue, isWaitingFilm, leadReportBlocksFinish, missingDepts, STATION_NAME, type Job } from './model.ts'
 import { spaced } from './format.ts'
 import { thai, word, type Word } from '../i18n/word.ts'
 
@@ -36,10 +36,9 @@ export function nextAction(j: Job, now: Date): NextAction | null {
   const prefix = j.phase === 'sample' ? { th: 'ตัวอย่าง · ' } : ''
   if (j.status === 'queued' && j.station === 'outside') return make(word('{prefix}แอดมินส่งออกบริษัทภายนอก', { prefix }), 'neutral', 5)
   if (j.status === 'queued') return make(word('{prefix}เริ่ม{station}', { prefix, station }), 'neutral', 5)
-  // ให้เห็นเวลามาตรฐานจากรายการเลย ไม่ต้องเปิดทีละงาน
-  if (j.sla === 'report') return make(word('{station} เกินเวลามาตรฐาน · ส่งรายงานปัญหาก่อนกดเสร็จ', { station: { th: at } }), 'danger', 1)
-  if (j.sla === 'over') return make(word('{prefix}กำลังทำ{station} · เกินเวลามาตรฐาน (รายงานแล้ว)', { prefix, station }), 'danger', 2)
-  if (j.sla === 'warn') return make(word('{prefix}กำลังทำ{station} · ใกล้ครบเวลามาตรฐาน', { prefix, station }), 'warn', 3)
+  if (leadReportBlocksFinish(j)) return make(word('เกินเวลาผลิต · ส่งรายงานสาเหตุก่อนกด QC + Packing เสร็จ'), 'danger', 1)
+  if (j.sla === 'report' || j.sla === 'over') return make(word('{prefix}กำลังทำ{station} · เกินเวลาผลิต', { prefix, station }), 'danger', 2)
+  if (j.sla === 'warn') return make(word('{prefix}กำลังทำ{station} · ใกล้ครบเวลาผลิต', { prefix, station }), 'warn', 3)
   return make(word('{prefix}กำลังทำ{station}', { prefix, station }), 'info', 6)
 }
 

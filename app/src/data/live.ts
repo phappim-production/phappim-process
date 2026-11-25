@@ -58,7 +58,7 @@ export function toVendors(rows: VendorRow[]): Vendor[] {
   }).sort((a, b) => a.name.localeCompare(b.name, 'th'))
 }
 // 1 งาน = 1 รอบเปิด
-export type SlaFlagRow = { job_id: string; warn: boolean; over: boolean; need_report: boolean }
+export type SlaFlagRow = { job_id: string; warn: boolean; over: boolean; need_report: boolean; lead_days?: number | null; lead_due?: string | null }
 
 // งานที่ไม่ส่งมา = ปกติ
 export function attachSla(jobs: Job[], rows: SlaFlagRow[]): Job[] {
@@ -66,10 +66,10 @@ export function attachSla(jobs: Job[], rows: SlaFlagRow[]): Job[] {
   return jobs.map(j => {
     const r = byJob.get(j.id)
     const sla: SlaLevel | undefined = !r ? undefined : r.need_report ? 'report' : r.over ? 'over' : r.warn ? 'warn' : undefined
-    if (sla === j.sla) return j
-    if (sla) return { ...j, sla }
-    const { sla: _gone, ...rest } = j
-    return rest
+    const lead = r?.lead_days && r.lead_due ? { days: r.lead_days, due: r.lead_due.slice(0, 10) } : undefined
+    if (sla === j.sla && lead?.due === j.lead?.due && lead?.days === j.lead?.days) return j
+    const { sla: _sla, lead: _lead, ...rest } = j
+    return { ...rest, ...(sla ? { sla } : {}), ...(lead ? { lead } : {}) }
   })
 }
 

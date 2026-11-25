@@ -3,7 +3,6 @@ import { IconAlert, IconChart, IconCheck, IconClipboard, IconClock, IconLayers }
 import { TONE, type Tone } from '../../components/tone'
 import type { Ranked, ReportMetrics } from './metrics'
 import { formatReportDate } from './format'
-import { slaAmount } from '../../proto/format'
 
 const integer = new Intl.NumberFormat('th-TH')
 const decimal = new Intl.NumberFormat('th-TH', { maximumFractionDigits: 2 })
@@ -27,15 +26,18 @@ export function ReportView({ data }: { data: ReportMetrics }) {
 
   return (
     <>
-      <section aria-label="สรุปงานเสร็จ" className="grid min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+      <section aria-label="สรุปงานเสร็จ" className="grid min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3 2xl:grid-cols-5">
         <ReportTile icon={IconCheck} label="งานเสร็จ" value={integer.format(summary.finished)} tone="brand"
           note={summary.develop ? `ไม่รวมงาน Develop ${integer.format(summary.develop)} งาน (นับแยก)` : 'งานผลิต'} />
         <ReportTile icon={IconChart} label="เสร็จทันกำหนด" value={percent(summary.onTimePct)}
           note={summary.finished ? `${integer.format(summary.onTime)} จาก ${integer.format(summary.finished)} งาน` : 'ยังไม่มีงานเสร็จ'}
           tone={summary.onTimePct === 100 ? 'ok' : summary.onTimePct === 0 ? 'danger' : 'brand'} />
+        <ReportTile icon={IconClock} label="เสร็จภายในเวลาผลิต" value={percent(summary.withinLeadPct)}
+          note={summary.leadJobs ? `${integer.format(summary.withinLead)} จาก ${integer.format(summary.leadJobs)} งาน` : 'ยังไม่มีงานเสร็จ'}
+          tone={summary.withinLeadPct === 100 ? 'ok' : summary.withinLeadPct === 0 ? 'danger' : 'brand'} />
         <ReportTile icon={IconClock} label="รับงานถึงเสร็จเฉลี่ย" value={summary.averageLeadDays === null ? '—' : decimal.format(summary.averageLeadDays)}
           note="วันทำงาน · ไม่นับวันอาทิตย์" tone="brand" />
-        <StatTile icon={IconAlert} label="งานส่งแก้ (ชิ้น)" value={summary.reworkQty} tone="danger" />
+        <div className="col-span-2 grid lg:col-span-1"><StatTile icon={IconAlert} label="งานส่งแก้ (ชิ้น)" value={summary.reworkQty} tone="danger" /></div>
       </section>
       {summary.finished === 0 ? (
         <Card>
@@ -135,11 +137,6 @@ function StationTimes({ data }: { data: ReportMetrics['stations'] }) {
                   {item.code === data.bottleneck && <Pill tone="warn">คอขวด</Pill>}
                 </div>
                 <p className="mt-1 text-sm text-muted">{integer.format(item.count)} รอบ</p>
-                {item.slaDays !== null && (
-                  <p className={`mt-1 text-sm ${TONE[item.workDays > item.slaDays ? 'danger' : 'ok'].text}`}>
-                    เฉลี่ย {slaAmount(item.workDays)} / มาตรฐาน {slaAmount(item.slaDays)}
-                  </p>
-                )}
               </div>
               <div className="grid min-w-0 content-center gap-2">
                 <TimeBar label={item.external ? 'เวลาอยู่ร้านนอก' : 'ทำงาน'} ms={item.workMs} scale={scale} color="bg-info" />

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { OUTSIDE_START_BLOCK, SLA_LABEL, STATION_NAME, doingFirst, filmLabel, isOutLate, isOverdue, waitingAt, type Job, type StationCode } from '../proto/model'
+import { OUTSIDE_START_BLOCK, SLA_LABEL, STATION_NAME, doingFirst, filmLabel, isOutLate, isOverdue, leadReportBlocksFinish, waitingAt, type Job, type StationCode } from '../proto/model'
 import { spaced } from '../proto/format'
 import { DueLabel, MockupThumb, Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
@@ -86,7 +86,7 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
           {working.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">{t(station === 'outside' ? 'สถานีนี้ไม่มีงานทำในโรงงาน · แอดมินส่งออกจากรายละเอียดงาน' : 'ยังไม่มีงานที่กำลังทำ · กดเริ่มงานคิว 1 ในคิวรอเริ่ม')}</p>}
           {working.map(j => (
             <QueueCard key={j.id} job={j} now={now} station={station} track onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger"><IconPause className="size-4" />{t('พักงาน')}</Pill>
-              : j.sla ? <Pill tone={SLA_LABEL[j.sla].tone}><IconAlert className="size-4" />{t(SLA_LABEL[j.sla].text)}</Pill> : <Pill tone="info"><IconPlay className="size-4" />{t('กำลังทำ')}</Pill>}>
+              : j.sla ? <Pill wrap tone={SLA_LABEL[j.sla].tone}><IconAlert className="size-4 shrink-0" />{t(SLA_LABEL[j.sla].text)}</Pill> : <Pill tone="info"><IconPlay className="size-4" />{t('กำลังทำ')}</Pill>}>
               {j.status === 'doing' && j.photos && (
                 <StationPhotoPanel job={j} gate={j.photos} canSend={canPress && !staffAtSew} now={now}
                   send={async (fn, args) => (await run(j, [[fn, args]], w(fn === 'submit_first_piece' ? '{no} ส่งรูปชิ้นแรกแล้ว · รอแอดมินอนุมัติ' : '{no} ส่งรูปงานเสร็จแล้ว', { no: j.no })))
@@ -223,7 +223,9 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
   if (station === 'qc_pack' && j.phase !== 'sample') {
     return (
       <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
-        <button type="button" className={primaryBtn} onClick={onOpen}><Tr th="บันทึกผล QC / Packing" /></button>
+        {leadReportBlocksFinish(j)
+          ? <button type="button" className={dangerBtn} onClick={() => { onOpen(); scrollToDelayReport() }}><IconAlert className="size-5 shrink-0" /><Tr th="เกินเวลาผลิต · ส่งรายงานสาเหตุก่อนกด QC + Packing เสร็จ" /></button>
+          : <button type="button" className={primaryBtn} onClick={onOpen}><Tr th="บันทึกผล QC / Packing" /></button>}
         <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('hold')}><IconPause className="size-5 shrink-0" /><Tr th="พักงาน" /></button>
       </div>
     )
@@ -241,9 +243,7 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
     </div>
   ) : (
     <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
-      {j.sla === 'report'
-        ? <button type="button" disabled={busy} className={dangerBtn} onClick={() => { onOpen(); scrollToDelayReport() }}><IconAlert className="size-5" /><Tr th="เกินเวลา · ส่งรายงานปัญหาก่อนกดเสร็จ" /></button>
-        : needsRevisionAck(j) && j.revision
+      {needsRevisionAck(j) && j.revision
         ? <button type="button" disabled={busy} className={primaryBtn} onClick={() => void run(j, [['ack_confirmation_revision', { p_station: station }]], w('{no} รับทราบใบแก้ครั้งที่ {n} แล้ว · ผลิตตามใบล่าสุด', { no: j.no, n: j.revision?.rev ?? 0 }))}>
             <IconCheck className="size-5 shrink-0" /><Tr th="รับทราบใบแก้ครั้งที่ {n}" vars={{ n: j.revision.rev }} />
           </button>

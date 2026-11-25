@@ -55,16 +55,6 @@ export function stageSteps(j: Job) {
   return { steps, current }
 }
 
-// 1 วันทำงานในฐานข้อมูล = 24 ชม. (private.work_days นับจันทร์–เสาร์) · ไม่ถึงครึ่งวันแสดงเป็นชั่วโมง
-export function slaAmount(days: number): string {
-  return thai(slaAmountWord(days))
-}
-
-export function slaAmountWord(days: number): Word {
-  if (days < 0.5) return word('{n} ชม.', { n: (Math.round(days * 24 * 10) / 10).toLocaleString('th-TH') })
-  return word('{n} วัน', { n: (Math.round(days * 10) / 10).toLocaleString('th-TH') })
-}
-
 // แอดมินพิมพ์ปี พ.ศ. ในช่องวันที่ได้ (เช่น 2569) · เกิน 1 ปีจึงถือว่าพิมพ์ปีผิด
 export function dueDateWarning(due: string, now: Date): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) return null

@@ -3,7 +3,7 @@ import { Card, ViewSwitch } from '../../components/ui'
 import { Dialog, primaryBtn, secondaryBtn } from '../../components/Dialog'
 import { AssignTab, InboxTab, ReasonsTab, UsersTab } from './accounts'
 import { MachinesTab, MaterialsTab } from './inventory'
-import { SegmentsTab, StationsTab } from './stations'
+import { LeadTimeTab, StationsTab } from './stations'
 import { loaders, loadOwnUserId, tabOptions, type Tab } from './data'
 import { SelectField, type Controls } from './editor'
 
@@ -83,8 +83,7 @@ export function SettingsView({ userId, initialTab = 'users' }: { userId: string;
         <AssignTab data={data} controls={actions} />}</Section>}
       {tab === 'stations' && <Section load={loaders.stations} controls={controls}>{(data, actions) =>
         <StationsTab data={data} controls={actions} />}</Section>}
-      {tab === 'segments' && <Section load={loaders.segments} controls={controls}>{(data, actions) =>
-        <SegmentsTab data={data} controls={actions} />}</Section>}
+      {tab === 'leadtime' && <LeadTimeTab />}
       {tab === 'materials' && <Section load={loaders.materials} controls={controls}>{(data, actions) =>
         <MaterialsTab data={data} controls={actions} />}</Section>}
       {tab === 'reasons' && <Section load={loaders.reasons} controls={controls}>{(data, actions) =>

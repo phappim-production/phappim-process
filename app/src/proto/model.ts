@@ -79,7 +79,8 @@ export type Job = {
   delivered?: { at: Date; note: string }  // แอดมินบันทึกส่งให้ลูกค้าแล้ว (เฉพาะงานเสร็จ)
   queue?: number             // jobs.queue_seq · แทรกงานด่วนได้
   out?: OutRun
-  sla?: SlaLevel             // ไม่มี = ยังไม่ใกล้ครบหรือไม่จับเวลา
+  sla?: SlaLevel             // ไม่มี = ยังไม่ถึง 80% ของเวลาผลิต
+  lead?: { days: number; due: string }  // เวลาผลิตทั้งงาน (วันทำงาน) · due = วันที่ไทยที่ต้องเสร็จ
   specSheet?: { id: string; rev: number; acked: StationCode[] }
   photos?: PhotoGate         // ไม่มี = รอบนี้ไม่ต้องส่งรูป (ยังไม่เปิดใช้ หรือเริ่มก่อนเปิดใช้)
   revision?: JobRevision     // ไม่มี = ใบยืนยันยังไม่เคยแก้หลังรับงาน
@@ -98,13 +99,16 @@ export type PhotoGate = {
   remindMinutes: number
 }
 
-// ส้ม = ใกล้ครบ · แดง = เกินแล้ว (report = ยังไม่ส่งรายงานปัญหา กดเสร็จไม่ได้ · over = รายงานแล้ว)
+// ส้ม = ใช้เวลาผลิตถึง 80% · แดง = เกินแล้ว (report = ยังไม่รายงานสาเหตุ · over = รายงานแล้ว)
 export type SlaLevel = 'warn' | 'over' | 'report'
 export const SLA_LABEL: Record<SlaLevel, { tone: 'warn' | 'danger'; text: string }> = {
-  warn: { tone: 'warn', text: 'ใกล้ครบเวลามาตรฐาน' },
-  over: { tone: 'danger', text: 'เกินเวลามาตรฐาน' },
-  report: { tone: 'danger', text: 'เกินเวลา · ต้องรายงาน' },
+  warn: { tone: 'warn', text: 'ใกล้ครบเวลาผลิต' },
+  over: { tone: 'danger', text: 'เกินเวลาผลิต' },
+  report: { tone: 'danger', text: 'เกินเวลาผลิต · ต้องรายงาน' },
 }
+
+// ฐานข้อมูลบังคับรายงานเฉพาะตอนปิดงานที่ QC + Packing (finish_station)
+export const leadReportBlocksFinish = (j: Job) => j.sla === 'report' && j.phase === 'production' && j.station === 'qc_pack'
 
 // รอบส่งออกที่ยังเปิดอยู่ (outsource_runs) · บริษัททำ stations แล้วของถึงที่ต่อไปตาม backAt
 export type OutRun = {

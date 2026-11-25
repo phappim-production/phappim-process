@@ -71,9 +71,19 @@ describe('งานเสร็จ ผลตัวอย่าง และง�
     expect(data.lateJobs.map(item => [item.id, item.daysLate])).toEqual([['late2', 2], ['late1', 1]])
   })
 
-  it('คำนวณเวลาเฉลี่ยรับงานถึงเสร็จโดยข้ามอาทิตย์', () => {
+  it('เวลาเฉลี่ยรับงานถึงเสร็จ นับวันรับงานเป็นวันที่ 1 ข้ามอาทิตย์ (เสาร์ 21 → จันทร์ 23 = 2 วัน)', () => {
     const data = metrics({ jobs: [job, { ...job, id: 'j2', created_at: at('20'), finished_at: at('23') }] })
-    expect(data.summary.averageLeadDays).toBe(1.5)
+    expect(data.summary.averageLeadDays).toBe(2.5)
+  })
+
+  it('ใช้วันที่ใช้ไปจากฐานข้อมูลเมื่อมี (งานที่แบ่งใบนับจากงานแม่) และนับงานที่เสร็จภายในเวลาผลิต', () => {
+    const data = metrics({ jobs: [
+      { ...job, sla: { lead_days: 10, lead_due: '2026-11-24', lead_used: 9, lead_over: false } },
+      { ...job, id: 'late', sla: { lead_days: 10, lead_due: '2026-11-20', lead_used: 12, lead_over: true } },
+      { ...job, id: 'old' },
+    ] })
+    expect(data.summary).toMatchObject({ leadJobs: 2, withinLead: 1, withinLeadPct: 50 })
+    expect(data.summary.averageLeadDays).toBeCloseTo((9 + 12 + 2) / 3)
   })
 
   it('นับตัวอย่างเฉพาะงานที่เลือกขึ้นตัวอย่าง และแยกงานที่ข้าม', () => {
@@ -107,7 +117,7 @@ describe('งานเสร็จ ผลตัวอย่าง และง�
 
   it('ช่วงว่างแสดงค่าที่คำนวณไม่ได้เป็น null และยอดนับเป็น 0', () => {
     const data = metrics({})
-    expect(data.summary).toEqual({ finished: 0, onTime: 0, onTimePct: null, averageLeadDays: null, reworkQty: 0, develop: 0 })
+    expect(data.summary).toEqual({ finished: 0, onTime: 0, onTimePct: null, withinLead: 0, leadJobs: 0, withinLeadPct: null, averageLeadDays: null, reworkQty: 0, develop: 0 })
     expect(data.samples.firstPassPct).toBeNull()
     expect(data.stations).toEqual({ items: [], bottleneck: null })
   })
@@ -181,13 +191,13 @@ describe('เวลาเฉลี่ยต่อสถานีและคอ�
     expect(data.stations.items[0]).toMatchObject({ code: 'cut', count: 1, workMs: 4 * HOUR })
   })
 
-  it('เก็บเวลาใช้จริงและเวลาวันทำงานสำหรับเทียบมาตรฐานแยกกัน', () => {
+  it('เก็บเวลาใช้จริงและเวลาวันทำงานแยกกัน', () => {
     const data = metrics({
       jobs: [job], visits: [emb],
-      stations: [{ code: 'emb', name: 'ส่งปัก', sla_days: 0.75 }],
+      stations: [{ code: 'emb', name: 'ส่งปัก' }],
       issues: [{ id: 1, job_id: job.id, opened_at: at('22', '03:00:00'), closed_at: at('22', '04:00:00'), reason: 'ร้านหยุด' }],
     })
-    expect(data.stations.items[0]).toMatchObject({ name: 'ส่งปัก', workMs: 41 * HOUR, workDays: 0.75, slaDays: 0.75 })
+    expect(data.stations.items[0]).toMatchObject({ name: 'ส่งปัก', workMs: 41 * HOUR, workDays: 0.75 })
   })
 })
 
@@ -195,7 +205,7 @@ describe('งานแก้และสาเหตุที่รายงา�
   it('นับงานแก้จากใบงานที่เสร็จในช่วง รวมประวัติก่อนวันเริ่ม และนับสาเหตุซ้ำในรายการเดียวเพียงครั้งเดียว', () => {
     const data = metrics({
       jobs: [job],
-      stations: [{ code: 'sew', name: 'เย็บงาน', sla_days: 2 }],
+      stations: [{ code: 'sew', name: 'เย็บงาน' }],
       qc: [
         { job_id: job.id, failed: 5, source_station: 'sew', reasons: ['ด้ายหลุด', 'ด้ายหลุด', 'ตะเข็บเบี้ยว'] },
         { job_id: job.id, failed: 2, source_station: null, reasons: [] },

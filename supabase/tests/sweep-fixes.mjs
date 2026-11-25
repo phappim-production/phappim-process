@@ -21,8 +21,7 @@ export async function sweepFixTests({ db, ok, as }) {
   }
   const one = async (sql, args = []) => (await db.query(sql, args)).rows[0]
   const job = id => one('select * from public.jobs where id = $1', [id])
-  const sla = async id => (await one('select private.sla_state($1) s', [id])).s
-  const near = (a, b) => Math.abs(Number(a) - Number(b)) < 0.01
+  const sla = async id => (await one('select private.lead_state($1) s', [id])).s
   const jobAt = async (no, route, seq, { product = 'tshirt', phase = 'production', status = 'queued', qty = 10, sample = false } = {}) => (await one(`
     insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date,
       route_code, phase, station_seq, station_status, needs_sample, dtf_film_received_at)
@@ -64,7 +63,7 @@ export async function sweepFixTests({ db, ok, as }) {
     insert into public.product_machine_needs (product_type_code, type_code, qty) values ('hat', 'swp', 1);
   `)
   try {
-    await splitSla()
+    await splitLead()
     await requeueClock()
     await queueRule()
     await noRecipeMessages()
@@ -91,70 +90,37 @@ export async function sweepFixTests({ db, ok, as }) {
     `)
   }
 
-  async function splitSla() {
-    const overdue = async no => {
-      const id = await jobAt(no, 'normal', 2)
-      await db.query(`insert into public.events (job_id, type, phase, station_code, at) values ($1, 'station_start', 'production', 'print', now() - interval '10 days')`, [id])
-      await db.query(`insert into public.issues (job_id, station_code, reason, prev_status, opened_at, closed_at)
-        values ($1, 'print', 'รอหมึก', 'doing', now() - interval '9 days', now() - interval '8 days')`, [id])
+  async function splitLead() {
+    const overdue = async (no, qty) => {
+      const id = await jobAt(no, 'normal', 2, { qty })
+      await db.query(`update public.jobs set created_at = now() - interval '40 days' where id = $1`, [id])
       return id
     }
-    const parent = await overdue('SC-SWP-SLA1')
+    const parent = await overdue('SC-SWP-SLA1', 600)
     const before = await sla(parent)
-    ok('งานแม่เกินเวลาช่วง พิมพ์ + รีด + ตัด ก่อนแบ่ง', before.segment_over === true && before.segment_reported === false, JSON.stringify(before))
-    const child = await pass('แบ่งงานที่เกินเวลาช่วง', U.admin, `public.split_job('${parent}', 4)`)
+    ok('งาน 600 ชิ้น = 15 วันทำงาน · รับมา 40 วัน = เกินเวลาผลิต', before.lead_days === 15 && before.lead_over === true && before.lead_reported === false, JSON.stringify(before))
+    const child = await pass('แบ่งงานที่เกินเวลาผลิต', U.admin, `public.split_job('${parent}', 400)`)
     const part = await sla(child)
-    ok('ส่วนที่แบ่งถูกจับเวลาช่วงเดียวกับงานแม่ (หักเวลาพักของงานแม่ด้วย)',
-      part.segment_over === true && part.segment_reported === false && near(part.segment_days, (await sla(parent)).segment_days), JSON.stringify(part))
-    await pass('เริ่มรีดงานแม่ (คิวแรก)', U.prod, `public.start_station('${parent}')`)
-    await pass('เริ่มรีดส่วนที่แบ่ง (มีเหตุผลข้ามคิว)', U.prod, `public.start_in_queue('${child}', 'ทดสอบ')`)
-    await reject('งานแม่เกินเวลาช่วง ไม่รายงานกดเสร็จไม่ได้', U.prod, `public.finish_station('${parent}', 'press')`, /ช่วง .* เกินเวลามาตรฐาน/)
-    await reject('ส่วนที่แบ่งเกินเวลาช่วง ไม่รายงานกดเสร็จไม่ได้เหมือนงานแม่', U.prod, `public.finish_station('${child}', 'press')`, /ช่วง .* เกินเวลามาตรฐาน/)
+    ok('ส่วนที่แบ่ง 400 ชิ้น ใช้จำนวนรวม 600 และวันรับงานของงานแม่ (ยังเป็น 15 วัน)',
+      part.lead_qty === 600 && part.lead_days === 15 && part.lead_start === before.lead_start && part.lead_due === before.lead_due && part.lead_over === true, JSON.stringify(part))
+    ok('งานแม่หลังแบ่งเหลือ 200 ชิ้น แต่กำหนดเวลาผลิตไม่เปลี่ยน', (await sla(parent)).lead_days === 15)
     await pass('งานแม่ส่งรายงานหลังแบ่ง', U.prod, report(parent))
-    await pass('งานแม่รายงานแล้วกดเสร็จได้', U.prod, `public.finish_station('${parent}', 'press')`)
-    await reject('รายงานของงานแม่หลังแบ่ง ไม่นับให้ส่วนที่แบ่ง', U.prod, `public.finish_station('${child}', 'press')`, /ช่วง .* เกินเวลามาตรฐาน/)
-    await pass('ส่วนที่แบ่งส่งรายงานเอง', U.prod, report(child))
-    await pass('ส่วนที่แบ่งรายงานแล้วกดเสร็จได้', U.prod, `public.finish_station('${child}', 'press')`)
+    ok('รายงานของงานแม่หลังแบ่ง ไม่นับให้ส่วนที่แบ่ง', (await sla(parent)).lead_reported === true && (await sla(child)).lead_reported === false)
+    await retire(child)
+    ok('ส่วนที่แบ่งถูกยกเลิก ไม่นับจำนวน → งานแม่ 200 ชิ้น = 10 วัน', (await sla(parent)).lead_qty === 200 && (await sla(parent)).lead_days === 10)
 
-    const reported = await overdue('SC-SWP-SLA2')
+    const reported = await overdue('SC-SWP-SLA2', 10)
     await pass('งานแม่ส่งรายงานก่อนแบ่ง', U.prod, report(reported))
     const heir = await pass('แบ่งงานที่รายงานแล้ว', U.admin, `public.split_job('${reported}', 3)`)
-    ok('รายงานของงานแม่ก่อนแบ่ง นับให้ส่วนที่แบ่ง', (await sla(heir)).segment_reported === true)
-    await pass('เริ่มรีดส่วนที่แบ่ง', U.prod, `public.start_in_queue('${heir}', 'ทดสอบ')`)
-    await pass('ส่วนที่แบ่งจากงานที่รายงานแล้ว กดเสร็จได้', U.prod, `public.finish_station('${heir}', 'press')`)
+    ok('รายงานของงานแม่ก่อนแบ่ง นับให้ส่วนที่แบ่ง', (await sla(heir)).lead_reported === true)
     const grand = await pass('แบ่งซ้ำจากส่วนที่แบ่ง', U.admin, `public.split_job('${heir}', 1)`)
     const deep = await sla(grand)
-    ok('ส่วนที่แบ่งซ้ำ (-2-2) ยังถูกจับเวลาช่วงจากงานแม่ต้นทาง', deep.segment_over === true && deep.segment_reported === true, JSON.stringify(deep))
-    for (const id of [parent, child, reported, heir, grand]) await retire(id)
+    ok('ส่วนที่แบ่งซ้ำ (-2-2) ยังนับวันจากงานแม่ต้นทาง', deep.lead_over === true && deep.lead_reported === true
+      && deep.lead_start === (await sla(reported)).lead_start && deep.lead_qty === 10, JSON.stringify(deep))
+    for (const id of [parent, reported, heir, grand]) await retire(id)
   }
 
   async function requeueClock() {
-    await db.exec(`update public.stations set sla_days = 0.5, big_qty = null, big_sla_days = null, warn_pct = 80, machines = null where code = 'cut'`)
-    const { worked } = await one(`select private.work_days(now() - interval '9 days', now() - interval '6 days') worked`)
-    const waiting = await jobAt('SC-SWP-RQ1', 'cut_only', 1)
-    await db.query(`update public.jobs set station_started_at = now() - interval '9 days' where id = $1`, [waiting])
-    await db.query(`insert into public.issues (job_id, station_code, reason, prev_status, opened_at, closed_at)
-      values ($1, 'cut', 'ใบมีดหัก', 'doing', now() - interval '6 days', now() - interval '2 days')`, [waiting])
-    await db.query(`insert into public.events (job_id, type, phase, station_code, payload, at) values
-      ($1, 'station_start', 'production', 'cut', '{}', now() - interval '9 days'),
-      ($1, 'hold', 'production', 'cut', '{}', now() - interval '6 days'),
-      ($1, 'resume', 'production', 'cut', '{"requeued": true}', now() - interval '2 days')`, [waiting])
-    const queued = await sla(waiting)
-    ok('กลับเข้าคิวเพราะเครื่องเต็ม: นับเฉพาะเวลาที่ทำไปแล้ว ไม่นับเวลาพักและเวลารอคิว', near(queued.station_days, worked), `${queued.station_days} / ${worked}`)
-
-    const part = await jobAt('SC-SWP-RQ1-2', 'cut_only', 1)
-    await db.query(`update public.jobs set station_started_at = now() - interval '9 days' where id = $1`, [part])
-    await db.query(`insert into public.events (job_id, type, phase, station_code, payload, at)
-      values ($1, 'job_split_from', 'production', 'cut', '{"parent": "SC-SWP-RQ1"}', now() - interval '1 day')`, [part])
-    const inherited = await sla(part)
-    ok('ส่วนที่แบ่งจากงานที่รอคิวอยู่: เวลาสถานีเท่างานแม่ ไม่นับเวลารอของตัวเอง', near(inherited.station_days, worked), `${inherited.station_days} / ${worked}`)
-
-    await pass('เริ่มต่องานที่กลับเข้าคิว', U.prod, `public.start_station('${waiting}')`)
-    const restarted = await one(`select station_started_at < now() - interval '8 days' as kept from public.jobs where id = $1`, [waiting])
-    ok('เริ่มต่อแล้วเวลาเริ่มสถานีเดิมไม่ถูกล้าง', restarted.kept === true && near((await sla(waiting)).station_days, worked))
-    await reject('เริ่มต่อแล้วยังเกินเวลาสถานี ไม่รายงานกดเสร็จไม่ได้', U.prod, `public.finish_station('${waiting}', 'cut')`, /เกินเวลามาตรฐานของสถานีนี้/)
-    await retire(waiting); await retire(part)
-
     await db.exec(`update public.stations set machines = 1, machine_pool = 'cut' where code = 'cut'`)
     const held = await jobAt('SC-SWP-RQ2', 'cut_only', 1)
     const other = await jobAt('SC-SWP-RQ3', 'cut_only', 1)
@@ -168,14 +134,12 @@ export async function sweepFixTests({ db, ok, as }) {
     await pass('งานถัดไปเสร็จ เครื่องว่าง', U.prod, `public.finish_station('${other}', 'cut')`)
     await pass('เริ่มงานแรกอีกครั้ง', U.prod, `public.start_station('${held}')`)
     ok('เริ่มใหม่หลังกลับเข้าคิว: เวลาเริ่มสถานีเดิมอยู่ครบ', (await one(`select station_started_at < now() - interval '8 days' as kept from public.jobs where id = $1`, [held])).kept === true)
-    await reject('เวลาที่ทำไปก่อนพักยังนับ: เกินเวลาแล้วต้องรายงานก่อนกดเสร็จ', U.prod, `public.finish_station('${held}', 'cut')`, /เกินเวลามาตรฐานของสถานีนี้/)
-    await pass('ส่งรายงานปัญหา', U.prod, report(held))
-    await pass('รายงานแล้วกดเสร็จได้', U.prod, `public.finish_station('${held}', 'cut')`)
+    await pass('สถานีกลางทางกดเสร็จได้', U.prod, `public.finish_station('${held}', 'cut')`)
     const fresh = await jobAt('SC-SWP-RQ4', 'cut_only', 1)
     await pass('งานที่เริ่มครั้งแรก', U.prod, `public.start_station('${fresh}')`)
     ok('เริ่มครั้งแรกยังเริ่มนับเวลาตอนกดเริ่ม', (await one(`select station_started_at > now() - interval '1 minute' as fresh from public.jobs where id = $1`, [fresh])).fresh === true)
     for (const id of [held, other, fresh]) await retire(id)
-    await db.exec(`update public.stations set machines = null, sla_days = null where code = 'cut'`)
+    await db.exec(`update public.stations set machines = null where code = 'cut'`)
   }
 
   async function queueRule() {

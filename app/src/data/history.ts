@@ -106,7 +106,7 @@ export function eventWords(e: EventRow, n: Names, unit = 'ชิ้น'): EventW
     case 'hold': return { title: word('พักงาน{at}', { at }), detail: reason, tone: 'danger' }
     case 'resume': return { title: word('แก้แล้ว ทำต่อ'), detail: free(str(p.note)), tone: 'ok' }
     case 'delay_report':
-      return { title: word('ส่งรายงานปัญหา (เกินเวลามาตรฐาน)'), detail: joined(free(list(p.reasons)), !!str(p.new_eta) && word('คาดว่าเสร็จ {at}', { at: date(p.new_eta) })), tone: 'warn' }
+      return { title: word('ส่งรายงานสาเหตุที่ช้า'), detail: joined(free(list(p.reasons)), !!str(p.new_eta) && word('คาดว่าเสร็จ {at}', { at: date(p.new_eta) })), tone: 'warn' }
     case 'sewing_issue_reported': return { title: word('รายงานปัญหาที่สถานีเย็บ'), detail: reason, tone: 'warn' }
     case 'machines_assigned': return { title: word('จ่ายจักร'), detail: free(list(p.machines)), tone: 'neutral' }
     // คืนเพราะจักรเสีย/ปิดใช้งาน ต้องเห็นสาเหตุและอาการ ไม่ใช่แค่รหัส
@@ -213,7 +213,7 @@ export function pauseRanges(events: Pick<EventRow, 'type' | 'at'>[], now: Date):
   return out
 }
 
-// รูปที่ยังไม่ได้ตัดสินนับถึงตอนนี้ แต่ถ้ารอบสถานีจบแล้ว (ปิดระบบรูประหว่างรอ) ไม่หัก เหมือนเวลามาตรฐานในฐานข้อมูล
+// รูปที่ยังไม่ได้ตัดสินนับถึงตอนนี้ แต่ถ้ารอบสถานีจบแล้ว (ปิดระบบรูประหว่างรอ) ไม่หัก
 export function firstPieceWaits(events: Pick<EventRow, 'type' | 'at'>[], now: Date): { from: number; to: number; open: boolean }[] {
   const out: { from: number; to: number; open: boolean }[] = []
   let from: number | null = null
@@ -237,7 +237,7 @@ function coveredMs(ranges: { from: number; to: number }[], start: number, end: n
   return total
 }
 
-// หักช่วงพักงานและรออนุมัติชิ้นแรกออก เพราะเวลามาตรฐานและหน้ารายงานไม่นับ · ช่วงที่ซ้อนกันหักครั้งเดียว
+// หักช่วงพักงานและรออนุมัติชิ้นแรกออก เพราะหน้ารายงานเวลาต่อสถานีไม่นับ · ช่วงที่ซ้อนกันหักครั้งเดียว
 export function visitLines(rows: VisitRow[], n: Pick<Names, 'station'>, now: Date, events: Pick<EventRow, 'type' | 'at'>[] = []): VisitLine[] {
   const pauses = pauseRanges(events, now)
   const waits = firstPieceWaits(events, now)

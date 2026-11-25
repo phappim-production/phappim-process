@@ -111,7 +111,7 @@ describe('C14 ผลิตข้างนอกทั้งหมด', () => {
       jobs: [done('external', 'outside'), done('internal', 'cut_only')],
       visits: [visit('external', 'qc_pack', 2, 70, 100), visit('internal', 'cut', 1, 0, 20),
         visit('internal', 'qc_pack', 2, 65, 105)],
-      stations: ['outside', 'cut', 'qc_pack'].map(code => ({ code, name: code, sla_days: 1 })),
+      stations: ['outside', 'cut', 'qc_pack'].map(code => ({ code, name: code })),
       routes: [
         { route_code: 'outside', station_code: 'outside', seq: 1 }, { route_code: 'outside', station_code: 'qc_pack', seq: 2 },
         { route_code: 'cut_only', station_code: 'cut', seq: 1 }, { route_code: 'cut_only', station_code: 'qc_pack', seq: 2 },
