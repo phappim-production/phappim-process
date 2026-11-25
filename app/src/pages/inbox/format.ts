@@ -17,6 +17,9 @@ export type InboxKind =
   | 'mockup_approved'
   | 'job_cancelled'
   | 'spec_revised'
+  | 'first_piece_pending'
+  | 'first_piece_late'
+  | 'first_piece_rejected'
 
 export type InboxItem = {
   id: number
@@ -37,6 +40,8 @@ const DANGER_KINDS = new Set<InboxKind>([
   'sample_failed',
   'mockup_returned',
   'job_cancelled',
+  'first_piece_late',
+  'first_piece_rejected',
 ])
 
 const KIND_LABELS: Record<InboxKind, string> = {
@@ -55,6 +60,9 @@ const KIND_LABELS: Record<InboxKind, string> = {
   mockup_approved: 'สเปกอนุมัติแล้ว',
   job_cancelled: 'ยกเลิกงาน',
   spec_revised: 'แก้ใบยืนยัน',
+  first_piece_pending: 'ชิ้นแรกรออนุมัติ',
+  first_piece_late: 'ชิ้นแรกรอนาน',
+  first_piece_rejected: 'ชิ้นแรกไม่ผ่าน',
 }
 
 export function kindTone(kind: InboxKind): Tone {

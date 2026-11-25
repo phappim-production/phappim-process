@@ -25,6 +25,10 @@ export async function confirmationTests({ db, ok, as }) {
   await pass('บันทึกซ้ำเลขเดิม = แก้ใบเดิม', U.admin, `public.save_confirmation_draft(${form('SC-DR-1', 'ลูกค้าแก้ชื่อ')})`)
   const same = (await db.query(`select count(*)::int n, max(customer_name) c from public.confirmation_drafts where confirmation_no = 'SC-DR-1'`)).rows[0]
   ok('แก้ใบเดิม ไม่สร้างใบใหม่', same.n === 1 && same.c === 'ลูกค้าแก้ชื่อ')
+  const formOf = (no, product) => `'${JSON.stringify({ h: { doc_no: no, customer: 'ลูกค้า' }, product, p: { [product]: {} } })}'::jsonb`
+  await reject('เลขที่ใบเดิมแต่คนละสินค้า ไม่ทับใบเดิม · บอกให้ต่อท้ายเลข', U.admin, `public.save_confirmation_draft(${formOf('SC-DR-1', 'polo')})`, /บันทึกไว้แล้วเป็นสินค้าอื่น.*SC-DR-1-0002/)
+  ok('ใบเดิมยังเป็นสินค้าเดิม', (await draft('SC-DR-1'))?.data?.product === 'tshirt')
+  ok('ค่าที่อ้างจากจุดกำกับ: "อื่นๆ" แสดงข้อความที่พิมพ์ (ตรงกับ PDF)', (await db.query(`select private.mockup_ref_value('{"product":"tshirt","p":{"tshirt":{"fabric":"อื่นๆ","fabric__other":"ผ้าไมโครพีช","fit":["ทรงตรง","อื่นๆ"],"fit__other":"ทรงโอเวอร์ไซซ์"}}}'::jsonb, r) v from unnest(array['field:fabric','field:fit']) r`)).rows.map(r => r.v).join(' | ') === 'อื่นๆ: ผ้าไมโครพีช | ทรงตรง, อื่นๆ: ทรงโอเวอร์ไซซ์')
   await reject('ไม่มีเลขที่ใบ บันทึกไม่ได้', U.admin, `public.save_confirmation_draft('{"h":{"doc_no":" "}}'::jsonb)`, /ใส่เลขที่ใบยืนยัน/)
   await reject('ข้อมูลไม่ใช่ใบยืนยัน บันทึกไม่ได้', U.admin, `public.save_confirmation_draft('[1]'::jsonb)`, /ไม่ถูกต้อง/)
   await reject('ฝ่ายผลิตบันทึกใบยืนยันไม่ได้', U.prod, `public.save_confirmation_draft(${form('SC-DR-P')})`, /ทำขั้นนี้ไม่ได้/)

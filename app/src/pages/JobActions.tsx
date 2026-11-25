@@ -25,6 +25,8 @@ import { Tr } from '../i18n/Tr'
 import { useT, type Word } from '../i18n/lang'
 import { QueueReasonPrompt } from './QueueReason'
 import { SKIP_QUEUE_PLACEHOLDER, skipQueueHead } from './queueSkip'
+import { StationPhotoPanel } from './StationPhotos'
+import { photoBlock } from '../data/stationPhotos'
 
 type Material = { id: number; name: string; dept: Dept; key: string | null; checked_at: string | null }
 type Reason = { code: string; grp: string; name: string }
@@ -134,7 +136,15 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
       )}
       {inStation && st === 'sew' && (<>
         {(d.sla.station_over || d.sla.segment_over || d.sla.station_warn || d.sla.segment_warn) && <SlaBanner sla={d.sla} />}
-        <Section title="เย็บงาน"><p className="text-muted"><Tr th="เริ่มเย็บ จัดการจักร และเย็บเสร็จ กดที่แท็บ จักรเย็บ · เกินเวลามาตรฐานให้ส่งรายงานปัญหาด้านล่างก่อนกดเย็บเสร็จ" /></p></Section>
+        <Section title="เย็บงาน"><p className="text-muted"><Tr th="เริ่มเย็บ จัดการจักร และเย็บเสร็จ กดที่แท็บ จักรเย็บ · เกินเวลามาตรฐานให้ส่งรายงานปัญหาด้านล่างก่อนกดเย็บเสร็จ" /></p>
+          {j.status === 'doing' && j.photos && (
+            <div className="mt-3">
+              <StationPhotoPanel job={j} gate={j.photos} canSend={canStation} now={now}
+                send={async (fn, args) => (await act(fn, args, fn === 'submit_first_piece' ? 'ส่งรูปชิ้นแรกแล้ว · รอแอดมินอนุมัติ' : 'ส่งรูปงานเสร็จแล้ว'))
+                  ? { ok: true } : { ok: false, reason: '' }} />
+            </div>
+          )}
+        </Section>
         {j.phase === 'production' && canStation && <SlaReport sla={d.sla} reasons={d.reasons} busy={busy} now={now} act={act} />}
       </>)}
       {inStation && st !== 'sew' && (
@@ -542,7 +552,9 @@ function Station({ job: j, queueHead, detail: d, canPress, canResume, role, busy
   // ข้อความเดียวกับฐานข้อมูล (finish_station) · บอกสิ่งที่ต้องทำจริง ไม่ใช่ชื่อขั้นย่อย
   const missingText = (m: Substep): Word => m.kind === 'lock' ? { th: 'รอแอดมินบันทึก "{step}"', vars: { step: { th: m.name } } }
     : m.key === 'inspect' ? { th: 'QC ตรวจผ่าน {passed}/{qty} ชิ้น ยังไม่ครบ (ชิ้นไม่ผ่านให้กด "ส่งแก้")', vars: { passed: d.qcPassed, qty: j.qty } } : { th: m.name }
-  const finishBlock: Word | null = missing.length ? { th: 'ยังกดเสร็จไม่ได้: {list}', vars: { list: missing.map(missingText) } }
+  const photoWait = photoBlock(j.photos)
+  const blocks: Word[] = [...missing.map(missingText), ...(photoWait ? [{ th: photoWait }] : [])]
+  const finishBlock: Word | null = blocks.length ? { th: 'ยังกดเสร็จไม่ได้: {list}', vars: { list: blocks } }
     : needReport ? { th: 'เกินเวลามาตรฐาน ต้องส่งรายงานปัญหาก่อน' } : null
   const sample = j.phase === 'sample'
   const noFilm = st === 'dtf_press' && !j.film?.received
@@ -591,6 +603,11 @@ function Station({ job: j, queueHead, detail: d, canPress, canResume, role, busy
             {/* ไม่มีเช็คลิสต์ขั้นย่อย: คนหน้างานรู้ขั้นตอนเอง */}
             {j.rework && st !== 'qc_pack' && <p className="text-muted"><Tr th="งานแก้ · แก้เสร็จกดเสร็จ งานกลับไป QC" /></p>}
             {st === 'qc_pack' && !sample && canPress && <QcPanel job={j} passed={d.qcPassed} busy={busy} act={act} />}
+            {j.photos && (
+              <StationPhotoPanel job={j} gate={j.photos} canSend={canPress} now={now}
+                send={async (fn, args) => (await act(fn, args, fn === 'submit_first_piece' ? 'ส่งรูปชิ้นแรกแล้ว · รอแอดมินอนุมัติ' : 'ส่งรูปงานเสร็จแล้ว'))
+                  ? { ok: true } : { ok: false, reason: '' }} />
+            )}
             {canPress && (confirmFinish
               ? <Confirm text={{ th: 'ยืนยัน{station}เสร็จทั้งก้อน? งานจะส่งต่ออัตโนมัติ', vars: { station: { th: spaced(name) } } }} busy={busy}
                   onYes={async () => { if (await act('finish_station', { p_station: st }, { th: '{station}เสร็จ · ส่งต่อแล้ว', vars: { station: after } })) setConfirmFinish(false) }} onNo={() => setConfirmFinish(false)} />
@@ -674,7 +691,7 @@ function QcPanel({ job: j, passed, busy, act }: { job: Job; passed: number; busy
         <label className="grid gap-1 font-medium">
           <Tr th="จำนวนที่ผ่าน" />
           <span className="flex items-center gap-2">
-            <input type="number" min={1} inputMode="numeric" value={pass} onChange={e => setPass(e.target.value)} className={`${fieldClass} flex-1`} />
+            <input type="number" min={1} inputMode="numeric" aria-label={t('จำนวนที่ผ่าน')} value={pass} onChange={e => setPass(e.target.value)} className={`${fieldClass} flex-1`} />
             <span className="shrink-0 font-normal text-muted">{t('/ {qty} {unit}', { qty: j.qty.toLocaleString('th-TH'), unit })}</span>
           </span>
         </label>

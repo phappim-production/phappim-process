@@ -3,6 +3,8 @@
 @theme {
   /* Sarabun เป็นตัวไทยมีหัว อ่านง่ายสำหรับคนหน้างานทุกวัย (แบบไม่มีหัวอ่านยากเมื่อตัวเล็ก) */
   --font-sans: "Sarabun", "Noto Sans Myanmar", system-ui, sans-serif;
+  /* หัวข้อและตัวเลขใหญ่ใช้ Prompt ใกล้ตัวอักษรในโลโก้ · เนื้อหายังเป็น Sarabun ตัวมีหัว */
+  --font-display: "Prompt", "Sarabun", "Noto Sans Myanmar", system-ui, sans-serif;
 
   /* ขนาดตัวอักษรขั้นต่ำ 14 px · ข้อความรอง 16 px · ตัวหลัก 17 px ให้อ่านได้บนแท็บเล็ตที่วางห่างตัว */
   /* สระ+วรรณยุกต์ไทยซ้อนสูง 1.29 em และ ญู ฐุ ลงต่ำ 0.36 em → บรรทัดที่ชิดกว่า ~1.5 เท่าหัววรรณยุกต์ชนบรรทัดบน */
@@ -23,12 +25,30 @@
   --leading-tight: 1.4;
   --leading-snug: 1.5;
 
-  --color-brand: #0f4a42;
-  --color-brand-700: #0b3a34;
-  --color-brand-500: #1b6b5f;
-  --color-brand-soft: #e4f1ed;
-  --color-gold: #c9a24c;
-  --color-gold-soft: #f8f0dc;
+  /* เขียว/ทองวัดจากไฟล์โลโก้ · ทองใช้กับแบรนด์เท่านั้น ไม่ใช้บอกสถานะ (ใกล้ส้มที่แปลว่ารอ) */
+  --color-brand: #0b3e3d;
+  --color-brand-700: #072b2a;
+  --color-brand-500: #1a5c5a;
+  --color-brand-soft: #e3efee;
+  --color-gold: #dea256;
+  --color-gold-ink: #8a5a1c;
+  --color-gold-soft: #fbf3e8;
+
+  /* สีประจำสถานี · เข้มทั้งหมดเพื่อไม่ชนสีสถานะที่สด · ใช้กับหัวจอ ไอคอน เส้นทางงานเท่านั้น */
+  --color-st-print: #a8175a;
+  --color-st-print-soft: #f8edf2;
+  --color-st-press: #963a0e;
+  --color-st-press-soft: #f6eee9;
+  --color-st-cut: #2b3a8f;
+  --color-st-cut-soft: #edeff7;
+  --color-st-emb: #5a2aa6;
+  --color-st-emb-soft: #f1edf8;
+  --color-st-sew: #525c17;
+  --color-st-sew-soft: #f1f2e9;
+  --color-st-qc: #27303a;
+  --color-st-qc-soft: #edeef0;
+  --color-st-outside: #74502d;
+  --color-st-outside-soft: #f4efea;
 
   /* ตัวอักษรรองต้องคอนทราสต์ ≥ 7:1 บนพื้นขาว */
   --color-paper: #f2f4f3;
@@ -59,10 +79,11 @@
   @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
 }
 
-/* overflow: hidden ตัดหัววรรณยุกต์ที่สูงเกินบรรทัด จึงตัดแค่แนวนอน · ไม่อยู่ใน @layer จึงชนะ utility ของ Tailwind */
+/* overflow: hidden ตัดหัววรรณยุกต์ที่สูงเกินบรรทัด จึงตัดแค่แนวนอน · clip ไม่ยอมหดในกล่อง flex/grid เองจึงต้อง min-width: 0 · ไม่อยู่ใน @layer จึงชนะ utility ของ Tailwind */
 .truncate {
   overflow: visible;
   overflow-x: clip;
+  min-width: 0;
 }
 
 body {
@@ -83,7 +104,7 @@ body {
 }
 
 /* กดด้วยคีย์บอร์ด/สแกนเนอร์ต้องเห็นชัดว่าอยู่ปุ่มไหน */
-:focus-visible { outline: 3px solid var(--color-gold); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--color-gold-ink); outline-offset: 2px; }
 
 .scroll-thin { scrollbar-width: thin; scrollbar-color: #b9c4bf transparent; }
 

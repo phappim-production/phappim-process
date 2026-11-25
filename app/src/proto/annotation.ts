@@ -175,7 +175,7 @@ export function redo(h: History): History {
 }
 
 const FIELD_LABEL: Record<string, string> = {
-  fit: 'ทรง', neck: 'คอเสื้อ', neck_fabric: 'ผ้าคอ', neck_color: 'สีคอ', sleeve: 'แขน', sleeve_end: 'ปลายแขน',
+  fit: 'ทรง', neck: 'คอเสื้อ', neck_fabric: 'ผ้าขอบคอ', neck_color: 'สีขอบคอ', sleeve: 'แขน', sleeve_end: 'ปลายแขน',
   fabric: 'ชนิดผ้า', fabric_color: 'สีผ้าพื้น', gsm: 'น้ำหนักผ้า', fabric_width: 'หน้าผ้า', print_method: 'เทคนิคพิมพ์', side_seam: 'ตะเข็บข้าง',
   hem: 'ชายเสื้อ', thread: 'สีด้าย', neck_label: 'ป้ายคอ', size_label: 'ป้ายไซซ์', color_match: 'การเทียบสี',
   art_file: 'ไฟล์งาน', notes: 'หมายเหตุ', edge: 'ริม', sew_style: 'รูปแบบการเย็บ', logo_pos: 'ตำแหน่งโลโก้', print_pos: 'ตำแหน่งและขนาดโลโก้',
@@ -210,9 +210,12 @@ export function refValue(spec: unknown, ref: string | null): string | null {
     return [tech, size && (/^[0-9 .,xX×*/-]+$/.test(size) ? `${size} ${unit}` : size), text(x.note)].filter(Boolean).join(' · ') || null
   }
   if (ref.startsWith('field:')) {
-    const v = base[ref.slice(6)]
-    if (Array.isArray(v)) return v.map(text).filter(Boolean).join(', ') || null
-    return text(v) || null
+    const key = ref.slice(6)
+    const v = base[key]
+    const other = text(base[`${key}__other`])
+    const shown = (x: string) => (x === 'อื่นๆ' && other ? `อื่นๆ: ${other}` : x)
+    if (Array.isArray(v)) return v.map(text).filter(Boolean).map(shown).join(', ') || null
+    return shown(text(v)) || null
   }
   return null
 }

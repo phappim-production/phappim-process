@@ -11,7 +11,7 @@ function setup({ start = Date.UTC(2026, 10, 21, 2) } = {}) {
     FILES: fakeR2(), ALLOWED_ORIGINS: `${ORIGIN},http://localhost:5176`, SUPABASE_URL: 'https://db.example.test',
     SUPABASE_ANON_KEY: 'anon', RECORD_SECRET: 'record-secret-0123456789abcdef0123456789', LINK_SECRET: 'link-secret-0123456789abcdef0123456789',
   }
-  const users = { admin: { role: 'admin', active: true }, qc: { role: 'qc', active: true }, off: { role: 'admin', active: false } }
+  const users = { admin: { role: 'admin', active: true }, qc: { role: 'qc', active: true }, off: { role: 'admin', active: false }, sup: { role: 'supervisor', active: true } }
   const db = { records: new Map(), referenced: new Set(), calls: [], down: false, expired: new Set() }
   let clock = start
   const fetcher = async (url, init) => {
@@ -25,7 +25,8 @@ function setup({ start = Date.UTC(2026, 10, 21, 2) } = {}) {
     const user = users[token]
     if (!user?.active) return reply(400, { code: '42501', message: 'บัญชีนี้ถูกปิดหรือยังไม่ได้ล็อกอิน ให้ล็อกอินใหม่หรือแจ้งเจ้าของระบบ' })
     if (fn === 'file_read_allowed') return reply(200, args.p_paths.filter(p => db.referenced.has(`${args.p_kind}/${p}`)))
-    if (user.role !== 'admin') return reply(400, { code: '42501', message: `บทบาทของคุณ (${user.role}) ทำขั้นนี้ไม่ได้` })
+    const canUpload = args.p_kind === 'station_photos' ? ['supervisor', 'qc'].includes(user.role) : user.role === 'admin'
+    if (!canUpload) return reply(400, { code: '42501', message: `บทบาทของคุณ (${user.role}) ทำขั้นนี้ไม่ได้` })
     if (args.p_size > MAX_BYTES) return reply(400, { code: '23514', message: 'ไฟล์ใหญ่เกิน 20 MB ให้ย่อไฟล์ก่อน' })
     if (fn === 'file_upload_allowed') return reply(204)
     if (fn === 'record_file_upload') {
@@ -370,4 +371,33 @@ test('ติดต่อฐานข้อมูลไม่ได้ ไม่�
   assert.equal(res.status, 502)
   assert.match((await res.json()).error, /ลองอีกครั้ง/)
   assert.equal(env.FILES.puts.length, 0)
+})
+
+const STATION_JPG = 'SC-1/print/2/aabbccddeeff0011.jpg'
+
+test('รูปจากสถานี: JPG ในโฟลเดอร์ งาน/สถานี/รอบ เท่านั้น', () => {
+  assert.equal(typeOfPath('station_photos', STATION_JPG), 'image/jpeg')
+  for (const path of ['SC-1/print/2/ab.png', 'SC-1/ab.jpg', 'SC-1/PRINT/2/ab.jpg', 'SC-1/print/x/ab.jpg', '../print/2/ab.jpg', 'SC-1/print/2/a b.jpg']) {
+    assert.equal(typeOfPath('station_photos', path), null, path)
+  }
+})
+
+test('หัวหน้าสถานีอัปโหลดรูปจากสถานีได้ แล้วบันทึกลงฐานข้อมูล · เปิดลิงก์ได้', async () => {
+  const { put, sign, open, db } = setup()
+  const res = await put('station_photos', STATION_JPG, fileBytes('image/jpeg', 300_000), { token: 'sup', type: 'image/jpeg' })
+  assert.equal(res.status, 200, await res.clone().text())
+  assert.equal(db.records.get(`station_photos/${STATION_JPG}`), 300_000)
+  db.referenced.add(`station_photos/${STATION_JPG}`)
+  const { urls } = await (await sign('station_photos', [STATION_JPG], { token: 'qc' })).json()
+  const pic = await open(urls[STATION_JPG])
+  assert.equal(pic.status, 200)
+  assert.equal(pic.headers.get('Content-Type'), 'image/jpeg')
+})
+
+test('รูปจากสถานีต้องเป็น JPG จริง', async () => {
+  const { put } = setup()
+  const res = await put('station_photos', STATION_JPG, fileBytes('image/png', 100), { token: 'sup', type: 'image/jpeg' })
+  assert.equal(res.status, 415)
+  assert.match((await res.json()).error, /ภาพ JPG/)
+  assert.equal((await put('station_photos', STATION_JPG.replace('.jpg', '.png'), fileBytes('image/png', 100), { token: 'sup', type: 'image/png' })).status, 400)
 })

@@ -6,6 +6,9 @@ import { ROUTES, STATION_NAME, WORK_END, byQueue, filmLabel, isFilmNotOrdered, i
 import { dayDiff, duration, shortDate, stageSteps, stageText } from '../proto/format'
 import { Card, CardHeader, DueLabel, MockupThumb, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
 import { TONE, type Tone } from '../components/tone'
+import { STATION_THEME } from '../components/stationTheme'
+import { StationPattern } from '../components/StationPattern'
+import { StationIcon } from '../components/StationNav'
 import JobFinder from '../components/JobFinder'
 import { ContactLinks } from './OutsourcePanel'
 import { IconAlert, IconCalculator, IconCheck, IconChevronRight, IconClipboard, IconFactory, IconLayers, IconPause, IconTrendingUp, IconPackage } from '../components/icons'
@@ -238,6 +241,7 @@ function StationLoadCard({ forecast }: { forecast: Forecast }) {
           return (
             <li key={s}>
               <div className="mb-1.5 flex items-baseline gap-2">
+                <span className={`grid size-7 shrink-0 place-items-center self-center rounded-lg ${STATION_THEME[s].soft} ${STATION_THEME[s].text}`}><StationIcon station={s} className="size-4" /></span>
                 <span className="font-semibold">{STATION_NAME[s]}</span>
                 {s === forecast.bottleneck && <Pill tone="danger">คอขวด</Pill>}
                 <span className={`ml-auto font-bold tabular-nums ${TONE[tone].text}`}>{days(l.days)} วัน</span>
@@ -290,13 +294,20 @@ export function StationNow({ jobs, now, stations }: { jobs: Job[]; now: Date; st
       <ul className="grid grid-cols-2 gap-2 px-4 pb-4 sm:grid-cols-4">
         {rows.map(r => {
           const bad = r.hold > 0 || r.late > 0
+          const station = r.key in STATION_THEME ? r.key as StationCode : null
+          const theme = station ? STATION_THEME[station] : null
           return (
             <li key={r.key} className="min-w-0">
               <a href={`#/board?station=${r.key}`}
-                className={`flex h-full min-h-24 flex-col gap-1 rounded-xl border-2 px-3 py-2.5 hover:border-brand ${bad ? 'border-danger/50 bg-danger-soft/40' : 'border-line bg-card'}`}>
-                <span className="font-semibold">{r.name}</span>
+                className={`flex h-full min-h-24 flex-col overflow-hidden rounded-xl border-2 hover:border-brand ${bad ? 'border-danger/50 bg-danger-soft/40' : 'border-line bg-card'}`}>
+                <span className={`relative flex items-center gap-2 px-3 py-2 font-semibold ${theme ? `${theme.solid} text-white` : 'bg-paper'}`}>
+                  {theme && <StationPattern kind={theme.pattern} fadeFrom={0.3} />}
+                  {station && <StationIcon station={station} className="relative size-5 shrink-0" />}
+                  <span className="relative min-w-0 truncate">{r.name}</span>
+                </span>
+                <span className="flex flex-col gap-1 px-3 py-2">
                 <span className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-bold tabular-nums">{r.waiting + r.doing + r.hold + r.out}</span>
+                  <span className="font-display text-2xl font-medium tabular-nums">{r.waiting + r.doing + r.hold + r.out}</span>
                   <span className="text-sm text-muted">งาน</span>
                 </span>
                 <span className="flex flex-wrap gap-x-2 text-sm">
@@ -306,6 +317,7 @@ export function StationNow({ jobs, now, stations }: { jobs: Job[]; now: Date; st
                   {r.out > 0 && <span className="text-info">ข้างนอก {r.out}</span>}
                   {r.late > 0 && <span className="font-semibold text-danger">เลยกำหนด {r.late}</span>}
                   {r.waiting + r.doing + r.hold + r.out === 0 && <span className="text-muted">ว่าง</span>}
+                </span>
                 </span>
               </a>
             </li>

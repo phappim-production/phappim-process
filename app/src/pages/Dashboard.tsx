@@ -18,6 +18,7 @@ import { roleSummary, type SewingView, type SummaryIcon } from '../proto/summary
 import Overview, { StationNow } from './Overview'
 import { DASH_TAB_NAME, FACTORY_SCOPE, boardColumnOf, jobInScope, type BoardScope, type DashTab } from '../auth/scope'
 import { SewingFloor, TodoPanel } from './WorkPanels'
+import { FirstPieceQueue } from './FirstPieceReview'
 import { pausesJob, type MachineStatus } from '../proto/sewing'
 import { BookingPanel } from './BookingPanel'
 import { ErrorBoundary } from '../components/ErrorBoundary'
@@ -139,6 +140,10 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
     release: async (jobId, code) => {
       const r = await call('release_machines', { p_job: jobId, p_machine_codes: [code] })
       return r.ok ? { ok: true, text: `คืนจักร ${code} แล้ว · งานอื่นใช้ได้` } : r
+    },
+    photo: async (jobId, fn, args) => {
+      const r = await call(fn, { p_job: jobId, ...args })
+      return r.ok ? { ok: true, text: `${noOf(jobId)} ${fn === 'submit_first_piece' ? 'ส่งรูปชิ้นแรกแล้ว · รอแอดมินอนุมัติ' : 'ส่งรูปงานเสร็จแล้ว · กดเย็บเสร็จได้'}` } : r
     },
   }
   // คนหน้างานเห็นเฉพาะงานของตัวเองก่อน · กดดูทั้งโรงงานได้เมื่ออยากรู้ว่างานกำลังจะมาถึง
@@ -272,6 +277,9 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
       actions={<JobActions job={openJob} queueHead={queueHead(openJob, allJobs)} role={role} myStations={myScope.pressStations} version={openVersion} now={now} refresh={refresh} vendors={data.vendors} onCancelled={setClosedNotice} />}
       history={<JobHistory key={openJob.id} jobId={openJob.id} unit={openJob.unit} role={role} version={openVersion} now={now} onChanged={refresh} />} />
   )
+  const approvals = (role === 'admin' || role === 'manager' || role === 'owner') && (
+    <FirstPieceQueue jobs={allJobs} now={now} call={call} onOpen={setOpenId} />
+  )
   const receive = receiving && (
     <ReceiveJob jobs={allJobs} now={now} floor={floor} draftId={draftId} onClose={() => setReceiving(false)} onDone={async no => {
       setReceiving(false)
@@ -300,7 +308,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-4 p-4 sm:p-6">
           <PageHeader title={title} today={today} updated={loadedAt} />
-          {linkNotice}{doneNotice}
+          {linkNotice}{doneNotice}{approvals}
           {view === 'issues' && <IssuesView jobs={allJobs} now={now} role={role} stations={deptStations} call={call} onOpen={setOpenId} />}
           {view === 'report' && <ReportIssueView jobs={allJobs} now={now} stations={myStationsOf(role, myScope.pressStations)} call={call} onOpen={setOpenId} />}
           {view === 'reviews' && <ReviewsView jobs={allJobs} now={now} role={role} call={call} onOpen={setOpenId} />}
@@ -323,7 +331,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-5 p-4 sm:p-6">
           <PageHeader title="ภาพรวมการผลิต" today={today} updated={loadedAt} />
-          {linkNotice}{doneNotice}
+          {linkNotice}{doneNotice}{approvals}
           {receiveBar}
           <Overview initialView={overviewView} jobs={jobs} now={now} forecast={forecast} floor={floor} products={products} onOpen={setOpenId} />
         </div>
@@ -352,7 +360,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
     <div data-scroll="dashboard" className="min-h-0 flex-1 overflow-y-auto">
      <div className="mx-auto flex max-w-[1400px] flex-col gap-4 p-4 sm:p-6">
       <PageHeader title={myScope.titleT ?? myScope.title} today={today} updated={loadedAt} />
-      {linkNotice}{doneNotice}
+      {linkNotice}{doneNotice}{approvals}
       {receiveBar}
       {!focusStation && <RoleSummary scope={myScope} jobs={allJobs} machines={machines} now={now}
         onPick={(t, v) => {

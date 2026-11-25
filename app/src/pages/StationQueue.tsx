@@ -11,6 +11,9 @@ import { Tr } from '../i18n/Tr'
 import { useT, type Vars, type Word } from '../i18n/lang'
 import { QueueReasonPrompt } from './QueueReason'
 import { SKIP_QUEUE_PLACEHOLDER, skipQueueHead } from './queueSkip'
+import { StationPhotoPanel } from './StationPhotos'
+import { photoBlock } from '../data/stationPhotos'
+import { Perforation, RouteTrack } from '../components/RouteTrack'
 
 export type QueueCall = (name: string, args: Record<string, unknown>, reload?: boolean) => Promise<{ ok: true } | { ok: false; reason: string }>
 
@@ -80,8 +83,13 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
           <SectionHead id="q-working" title="กำลังทำ" count={[t('{n} งาน', { n: working.filter(j => j.status === 'doing').length }), working.some(j => j.status === 'hold') ? t('พักงาน {n} งาน', { n: working.filter(j => j.status === 'hold').length }) : ''].filter(Boolean).join(' · ')} />
           {working.length === 0 && <p className="rounded-xl border border-dashed border-line px-4 py-3 text-muted">{t(station === 'outside' ? 'สถานีนี้ไม่มีงานทำในโรงงาน · แอดมินส่งออกจากรายละเอียดงาน' : 'ยังไม่มีงานที่กำลังทำ · กดเริ่มงานคิว 1 ในคิวรอเริ่ม')}</p>}
           {working.map(j => (
-            <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger"><IconPause className="size-4" />{t('พักงาน')}</Pill>
+            <QueueCard key={j.id} job={j} now={now} station={station} track onOpen={() => onOpen(j.id)} badge={j.status === 'hold' ? <Pill tone="danger"><IconPause className="size-4" />{t('พักงาน')}</Pill>
               : j.sla ? <Pill tone={SLA_LABEL[j.sla].tone}><IconAlert className="size-4" />{t(SLA_LABEL[j.sla].text)}</Pill> : <Pill tone="info"><IconPlay className="size-4" />{t('กำลังทำ')}</Pill>}>
+              {j.status === 'doing' && j.photos && (
+                <StationPhotoPanel job={j} gate={j.photos} canSend={canPress && !staffAtSew} now={now}
+                  send={async (fn, args) => (await run(j, [[fn, args]], w(fn === 'submit_first_piece' ? '{no} ส่งรูปชิ้นแรกแล้ว · รอแอดมินอนุมัติ' : '{no} ส่งรูปงานเสร็จแล้ว', { no: j.no })))
+                    ? { ok: true } : { ok: false, reason: '' }} />
+              )}
               {j.status === 'hold'
                 ? <HoldActions job={j} station={station} canResume={canCloseIssue(role, station)} busy={busy === j.id} run={run} />
                 : canPress && <WorkingActions job={j} station={station} busy={busy === j.id} run={run} onOpen={() => onOpen(j.id)} />}
@@ -132,8 +140,8 @@ function SectionHead({ id, title, count }: { id: string; title: string; count: s
   )
 }
 
-function QueueCard({ job: j, now, badge, first, onOpen, children, station }: {
-  job: Job; now: Date; badge: ReactNode; first?: boolean; onOpen: () => void; children?: ReactNode; station?: StationCode
+function QueueCard({ job: j, now, badge, first, onOpen, children, station, track }: {
+  job: Job; now: Date; badge: ReactNode; first?: boolean; onOpen: () => void; children?: ReactNode; station?: StationCode; track?: boolean
 }) {
   const spec = j.specSheet && station && !j.specSheet.acked.includes(station) ? j.specSheet : null
   const late = isOverdue(j, now)
@@ -146,7 +154,7 @@ function QueueCard({ job: j, now, badge, first, onOpen, children, station }: {
         <span className="grid min-w-0 flex-1 gap-1">
         <span className="flex flex-wrap items-center gap-2">
           {badge}
-          <b className="text-xl">{j.no}</b>
+          <b className="font-display text-xl font-semibold">{j.no}</b>
           {j.phase === 'sample' && <Pill tone="info">{t(j.develop ? 'ตัวอย่าง · Develop' : 'ตัวอย่าง')}</Pill>}
           {j.rework && <Pill tone="danger">{t('งานแก้ {qty} {unit}', { qty: j.rework.qty, unit: { th: j.unit } })}</Pill>}
           {spec && <Pill tone={spec.rev > 1 ? 'danger' : 'warn'}>{spec.rev > 1 ? t('สเปกเปลี่ยน ฉบับ {rev} · ยังไม่รับทราบ', { rev: spec.rev }) : t('มีสเปกกำกับ · ยังไม่รับทราบ')}</Pill>}
@@ -154,12 +162,14 @@ function QueueCard({ job: j, now, badge, first, onOpen, children, station }: {
         </span>
         <span className="truncate text-base">{j.customer}</span>
         <span className="flex flex-wrap items-baseline gap-x-3 text-base text-muted">
-          <span>{j.product} · <span className="whitespace-nowrap"><b className="text-ink">{j.qty.toLocaleString('th-TH')}</b> {t(j.unit)}</span></span>
+          <span>{j.product} · <span className="whitespace-nowrap"><b className="font-display font-semibold text-ink">{j.qty.toLocaleString('th-TH')}</b> {t(j.unit)}</span></span>
           <span className="ml-auto"><DueLabel job={j} now={now} /></span>
         </span>
         {j.holdReason && <span className="text-base font-medium text-danger"><Tr inline th="สาเหตุ" />: {j.holdReason}</span>}
         </span>
       </button>
+      {track && <RouteTrack route={j.route} station={station} />}
+      {track && children && <Perforation />}
       {children}
     </article>
   )
@@ -216,6 +226,7 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
     )
   }
   const finishFn = station === 'sew' ? 'finish_sewing' : 'finish_station'
+  const photoWait = photoBlock(j.photos)
   return mode === 'finish' ? (
     <div className="grid gap-2 rounded-xl bg-paper p-3">
       <p className="font-semibold"><Tr th="ยืนยัน {no} {station}เสร็จทั้งก้อน? งานจะส่งต่อสถานีถัดไป" vars={{ no: j.no, station: { th: name } }} /></p>
@@ -229,6 +240,8 @@ function WorkingActions({ job: j, station, busy, run, onOpen }: { job: Job; stat
     <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
       {j.sla === 'report'
         ? <button type="button" disabled={busy} className={dangerBtn} onClick={() => { onOpen(); scrollToDelayReport() }}><IconAlert className="size-5" /><Tr th="เกินเวลา · ส่งรายงานปัญหาก่อนกดเสร็จ" /></button>
+        : photoWait
+        ? <p className="grid min-h-12 content-center rounded-xl bg-paper px-3 py-2 font-medium text-muted"><Tr th="ยังกดเสร็จไม่ได้: {why}" vars={{ why: { th: photoWait } }} /></p>
         : <button type="button" disabled={busy} className={okBtn} onClick={() => setMode('finish')}><IconCheck className="size-5 shrink-0" /><Tr th="{station}เสร็จ" vars={{ station: { th: name } }} /></button>}
       <button type="button" disabled={busy} className={secondaryBtn} onClick={() => setMode('hold')}><IconPause className="size-5 shrink-0" /><Tr th="พักงาน" /></button>
     </div>

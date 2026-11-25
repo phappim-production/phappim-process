@@ -369,7 +369,7 @@ async function runA1(ctx) {
     await t.clickButton('ยืนยัน', { exact: true })
     await t.waitText('ส่งต่อแล้ว')
     await openJobDirect(t, 'prod1', jid)
-    const disabledBefore = await t.ev(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('เริ่มไม่ได้ · ยังไม่ได้รับฟิล์ม DTF'))?.disabled)
+    const disabledBefore = await waitFor(() => t.ev(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('เริ่มไม่ได้ · ยังไม่ได้รับฟิล์ม DTF'))?.disabled), 'ปุ่มเริ่มรีดฟิล์มล็อก')
     assert.equal(disabledBefore, true)
 
     await openJobDirect(t, 'admin1', jid)
@@ -478,7 +478,7 @@ async function runA1(ctx) {
 
     const outsideId = await jobIdByNo(stack, 'TEST-A1-OUTSIDE')
     await openJobDirect(t, 'staff_qc', outsideId)
-    await t.clickButton('เริ่ม QC + Packing')
+    await t.clickButton('เริ่ม QC + Packing', { inside: '[role="dialog"]' })
     await t.fillInput('input[aria-label="จำนวนที่ผ่าน"]', '15')
     await t.clickButton('บันทึกผ่าน')
     await t.waitText('ผ่านแล้ว 15 จาก 15')
@@ -814,9 +814,9 @@ async function runA3(ctx) {
 
     await t.goto('staff_single', '#/report', 375)
     await t.waitText('เลือกงานที่มีปัญหา')
-    await t.clickButton('แจ้งปัญหา')
+    await t.clickButton('รายงานปัญหา')
     await t.fillInput('input[placeholder*="ผ้าไม่พอ"]', 'มีดตัดทื่อ')
-    await t.clickButton('แจ้งปัญหา')
+    await t.clickButton('รายงานปัญหา')
     await t.waitText('งานพักไว้รอฝ่ายผลิตแก้')
 
     await t.goto('staff_single', '#/board?station=cut', 375)
@@ -835,7 +835,7 @@ async function runA3(ctx) {
 
     await openJobDirect(t, 'staff_single', cutId, 375)
     await waitFor(() => t.ev(() => {
-      const a = document.querySelector('a[aria-label="เปิดม็อคอัพกำกับสเปก"]')
+      const a = document.querySelector('[role="dialog"] a[href^="#/mockup?id="]')
       if (!a) return false
       a.click()
       return true
@@ -1077,7 +1077,7 @@ async function runA6(ctx) {
     await waitFor(() => t.ev(() => !document.querySelector('form button[type="submit"]')), 'ปิดฟอร์มผู้ใช้')
 
     await t.goto('owner', '#/roles', 1440)
-    await t.waitText('Roles & Permissions')
+    await t.waitText('บทบาทและสิทธิ์')
 
     await t.goto('owner', '#/assign', 1440)
     await t.waitText('จับคู่พนักงานกับสถานี')
@@ -1193,7 +1193,7 @@ async function runA6(ctx) {
     await t.waitText('ปิด')
 
     await t.goto('owner', '#/audit', 1440)
-    await t.waitText('Audit Log')
+    await t.waitText('บันทึกการเปลี่ยนแปลง')
     await t.waitText('เพิ่มจักรเย็บ')
     await t.waitText('สาเหตุจำลอง R14')
     return 'owner ครบ 6 เมนู + ตั้งค่าครบทุกแท็บ + Audit Log'
