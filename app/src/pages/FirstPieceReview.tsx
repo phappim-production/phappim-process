@@ -14,7 +14,10 @@ type Call = (name: string, args: Record<string, unknown>) => Promise<{ ok: true 
 export function FirstPieceQueue({ jobs, now, call, onOpen }: { jobs: Job[]; now: Date; call: Call; onOpen: (id: string) => void }) {
   const [reviewing, setReviewing] = useState<Pending | null>(null)
   const pending = pendingFirstPieces(jobs)
-  if (!pending.length) return null
+  // แอดมินอีกคนตัดสินไปก่อน รายการหายจากคิว · กล่องที่เปิดอยู่ต้องบอก ไม่ใช่หายไปเฉยๆ
+  const dialog = reviewing && <ReviewDialog item={reviewing} gone={!pending.some(p => p.checkId === reviewing.checkId)}
+    call={call} onOpen={onOpen} onClose={() => setReviewing(null)} />
+  if (!pending.length) return dialog || null
   return (
     <Card>
       <CardHeader icon={IconCamera} tone="warn" title={`รออนุมัติชิ้นแรก ${pending.length} งาน`} sub="หน้างานหยุดรอ · ตรวจรูปเทียบม็อคอัพแล้วกดผ่าน / ไม่ผ่าน" />
@@ -40,14 +43,14 @@ export function FirstPieceQueue({ jobs, now, call, onOpen }: { jobs: Job[]; now:
           )
         })}
       </ul>
-      {reviewing && <ReviewDialog item={reviewing} call={call} onOpen={onOpen} onClose={() => setReviewing(null)} />}
+      {dialog}
     </Card>
   )
 }
 
 type Loaded = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; urls: string[]; note: string | null }
 
-function ReviewDialog({ item, call, onOpen, onClose }: { item: Pending; call: Call; onOpen: (id: string) => void; onClose: () => void }) {
+function ReviewDialog({ item, gone, call, onOpen, onClose }: { item: Pending; gone: boolean; call: Call; onOpen: (id: string) => void; onClose: () => void }) {
   const { job: j } = item
   const [loaded, setLoaded] = useState<Loaded>({ status: 'loading' })
   const [rejecting, setRejecting] = useState(false)
@@ -101,8 +104,14 @@ function ReviewDialog({ item, call, onOpen, onClose }: { item: Pending; call: Ca
       {loaded.status === 'ready' && loaded.note && <p className="mt-3 rounded-xl bg-paper px-3 py-2">หน้างานบอก: {loaded.note}</p>}
       <button type="button" className="mt-2 min-h-12 font-semibold text-brand" onClick={() => { onOpen(j.id); onClose() }}>ดูสเปกและรายละเอียดงาน</button>
 
-      {rejecting ? (
-        <div className="mt-2 grid gap-2 rounded-xl bg-danger-soft p-3">
+      <div className="sticky -bottom-5 -mx-5 -mb-5 mt-2 grid gap-2 border-t border-line bg-card px-5 pt-3 pb-5">
+      {gone ? (
+        <div className="grid gap-2">
+          <p role="status" className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">รูปชิ้นแรกนี้มีคนตัดสินไปแล้ว หรืองานออกจากสถานีแล้ว · ไม่ต้องทำอะไรต่อ</p>
+          <button type="button" className={secondaryBtn} onClick={onClose}>ปิด</button>
+        </div>
+      ) : rejecting ? (
+        <div className="grid gap-2 rounded-xl bg-danger-soft p-3">
           <p className="font-semibold text-danger">ไม่ผ่านเพราะ (เลือกได้หลายข้อ)</p>
           <div className="flex flex-wrap gap-2">
             {REJECT_REASONS.map(r => {
@@ -120,14 +129,15 @@ function ReviewDialog({ item, call, onOpen, onClose }: { item: Pending; call: Ca
           </div>
         </div>
       ) : (
-        <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button type="button" disabled={busy} className={dangerBtn} onClick={() => setRejecting(true)}>ไม่ผ่าน…</button>
           <button type="button" disabled={busy || !!block} className={okBtn} onClick={() => void decide(true)}>
             {busy ? 'กำลังบันทึก…' : block === 'loading' ? 'รอรูปโหลดครบทุกรูป' : block === 'broken' ? 'มีรูปเปิดไม่ได้ · กดผ่านไม่ได้' : block ? 'ยังไม่เห็นรูป กดผ่านไม่ได้' : 'ผ่าน ทำทั้งล็อตได้'}
           </button>
         </div>
       )}
-      {error && <p role="alert" className="mt-2 rounded-xl bg-danger-soft px-3 py-2 font-medium text-danger">{error}</p>}
+      {error && !gone && <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 font-medium text-danger">{error}</p>}
+      </div>
     </Dialog>
   )
 }

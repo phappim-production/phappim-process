@@ -23,6 +23,7 @@ export type ReportVisit = {
   started_at: string | null; done_at: string | null; rework: boolean | null
 }
 export type ReportIssue = { id: number; job_id: string; opened_at: string; closed_at: string | null; reason: string }
+export type ReportFirstPiece = { job_id: string; sent_at: string; decided_at: string | null }
 export type ReportQc = { job_id: string; failed: number; source_station: string | null; reasons: unknown }
 export type ReportSample = { job_id: string; round: number; result: 'pass' | 'fail' }
 export type ReportDelay = { at: string; reasons: string[] }
@@ -34,6 +35,7 @@ export type ReportRows = {
   jobs: ReportJob[]
   visits: ReportVisit[]
   issues: ReportIssue[]
+  firstPieces: ReportFirstPiece[]
   qc: ReportQc[]
   samples: ReportSample[]
   delays: ReportDelay[]
@@ -118,11 +120,14 @@ function stationTimes(rows: ReportRows, jobs: ReportJob[]) {
 
   const visits = groupByJob(rows.visits)
   const issues = groupByJob(rows.issues)
+  // รูปที่ไม่ได้ตัดสิน (ปิดระบบรูประหว่างรอ) ไม่หักเวลา เหมือนเวลามาตรฐานในฐานข้อมูล
+  const waits = groupByJob(rows.firstPieces.filter(c => c.decided_at !== null)
+    .map(c => ({ id: 0, job_id: c.job_id, opened_at: c.sent_at, closed_at: c.decided_at, reason: '' })))
   const totals = new Map<string, StationTotal>()
 
   for (const job of jobs) {
     const route = routes.get(job.route_code) ?? []
-    const holds = issues.get(job.id) ?? []
+    const holds = [...(issues.get(job.id) ?? []), ...(waits.get(job.id) ?? [])]
     const readings = (visits.get(job.id) ?? [])
       .filter(visit => visit.phase === 'production' && visit.rework !== true)
       .map(visit => ({ ...visit, start: timestamp(visit.started_at), end: timestamp(visit.done_at) }))

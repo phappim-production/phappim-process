@@ -5,6 +5,7 @@ import { invalidateStatic } from '../../data/staticCache'
 import { Card, CardHeader, Pill } from '../../components/ui'
 import { okBtn, secondaryBtn } from '../../components/Dialog'
 import { IconCamera } from '../../components/icons'
+import { STATION_ORDER } from '../../proto/model'
 
 type PhotoSettings = { enabledAt: string | null; remindMinutes: number; stations: { code: string; name: string; firstPiece: boolean }[] }
 type State = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; data: PhotoSettings }
@@ -13,7 +14,7 @@ async function loadPhotoSettings(): Promise<PhotoSettings> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่าระบบ')
   const [settings, stations] = await Promise.all([
     supabase.from('station_photo_settings').select('enabled_at, remind_minutes').maybeSingle(),
-    supabase.from('stations').select('code, name, first_piece_check').neq('code', 'outside').order('sort').order('code'),
+    supabase.from('stations').select('code, name, first_piece_check').in('code', STATION_ORDER).order('sort').order('code'),
   ])
   if (settings.error || stations.error) throw new Error('ฐานข้อมูลยังไม่มีระบบรูปยืนยันงาน แจ้งผู้พัฒนาให้ลง migration')
   const s = settings.data as { enabled_at: string | null; remind_minutes: number } | null

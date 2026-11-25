@@ -56,7 +56,7 @@ export function StationRail({ columns, counts, urgent, station, onPick }: {
     )
   }
   return (
-    <nav ref={rail} aria-label={t('เลือกสถานี')} className="-mx-4 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6">
+    <nav ref={rail} aria-label={t('เลือกสถานี')} className="relative -mx-4 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6">
       <ol className="flex gap-2 md:flex-wrap">
         {chip('all', 'ทุกสถานี')}
         {stations.map(s => chip(s, columns.find(c => c.key === s)!.name))}

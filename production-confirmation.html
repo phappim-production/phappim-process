@@ -1181,6 +1181,20 @@ function totalQty(){
   }
   return 0;
 }
+const MAX_QTY=100000;
+// ช่องจำนวนชิ้น (ตารางไซซ์ / ตารางรายการ / จำนวน / ผลิตเผื่อเสีย) ที่กรอกแล้ว · ระบบรับงานเป็นจำนวนเต็มเท่านั้น
+function pieceFields(){
+  const v=scope('p'), out=[], filled=x=>x!==''&&x!=null;
+  for(const sec of layout().filter(x=>x.s==='p'&&x.fields)) for(const f of sec.fields){
+    if(!visible(f,v)||(naAllowed(f)&&isNA(f,v))) continue;
+    let values=null;
+    if(f.type==='sizeTable'){ const cols=sizeCols(v); values=rows(v,f.id).flatMap(r=>cols.map(c=>r.q[c]).filter(filled)); }
+    else if(f.type==='itemTable'){ const c=f.cols.find(c=>c.sum); if(c) values=rows(v,f.id).map(r=>r[c.c]).filter(filled); }
+    else if(f.id==='qty'||f.id==='spare') values=filled(v[f.id])?[v[f.id]]:[];
+    if(values) out.push({ sec, f, values:values.map(num) });
+  }
+  return out;
+}
 // เส้นทางผลิตคิดจากเทคนิคที่เลือก (สินค้าที่ไม่ใช่งานผ้ากำหนดเส้นทางเองใน route)
 
 // ลำดับหัวข้อในฟอร์ม: เลือกประเภทสินค้าก่อน เพราะตัวเลือกทั้งหมดด้านล่างเปลี่ยนตามประเภท
@@ -1867,6 +1881,11 @@ function validate(){
     if(negativeIn(f,v)){ out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why:'มีขนาดหรือจำนวนติดลบ แก้เป็นค่าบวก', hard:true }); return; }
     if(bad) out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why, hard:s==='h'&&MUST_FILL.includes(f.id) });
   }); });
+  pieceFields().forEach(({ sec, f, values })=>{
+    const where={ id:`fld_p_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, hard:true };
+    if(values.some(x=>!Number.isInteger(x))) out.push({ ...where, why:'จำนวนชิ้นต้องเป็นจำนวนเต็ม (ไม่มีทศนิยม)' });
+    else if(f.id!=='spare'&&totalQty()>MAX_QTY) out.push({ ...where, why:`รวม ${totalQty().toLocaleString()} มากเกินไป ตรวจว่าพิมพ์ตัวเลขถูกไหม (ไม่เกิน ${MAX_QTY.toLocaleString()})` });
+  });
   if(state.h.issue_date&&state.h.due_date&&state.h.due_date<state.h.issue_date) out.push({id:'fld_h_due_date',sec:2,label:'ข้อมูลใบงาน › กำหนดส่งงาน',why:'อยู่ก่อนวันที่ออกใบ',hard:true});
   { const v=scope('p'), sec=layout().find(x=>x.s==='p'&&x.fields?.some(f=>f.id==='collar'&&f.options.includes('ไม่มีปก')));
     if(sec&&wantsCollar(v)&&(!v.collar||v.collar==='ไม่มีปก')) out.push({ id:'fld_p_collar', sec:sec.no, label:`${sec.title} › ปก`, why:'เลือกคอปก / เสื้อโปโลไว้ ให้เลือกชนิดปก' }); }
