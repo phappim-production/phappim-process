@@ -79,13 +79,14 @@ npm run dev
 6. กลับไป Supabase **Authentication → URL Configuration** ใส่ Site URL เป็นลิงก์ `.pages.dev`
 
 ## 5. งานอัตโนมัติใน GitHub
-1. ใน repo: **Settings → Secrets and variables → Actions → New repository secret** สร้าง 3 ค่า:
+1. ใน repo: **Settings → Secrets and variables → Actions → New repository secret** สร้าง 4 ค่า:
    | Secret | ค่า |
    |---|---|
    | `SUPABASE_URL` | Project URL |
    | `SUPABASE_ANON_KEY` | anon public key |
    | `SUPABASE_DB_URL` | Supabase → Connect → **Session pooler** connection string (ใส่ Database password แทน `[YOUR-PASSWORD]`) |
-2. แท็บ **Actions** → เลือก `keep-alive` → Run workflow → ต้องขึ้นสีเขียว · ทำซ้ำกับ `db-backup` → ดาวน์โหลดไฟล์ `.dump` ได้จากหน้าผลการรัน
+   | `BACKUP_PASSPHRASE` | รหัสเข้ารหัสไฟล์สำรอง (สุ่มยาว 16 ตัวขึ้นไป · เก็บสำเนานอก GitHub · หายแล้วกู้ไฟล์สำรองไม่ได้) |
+2. แท็บ **Actions** → เลือก `keep-alive` → Run workflow → ต้องขึ้นสีเขียว · ทำซ้ำกับ `db-backup` → ดาวน์โหลดไฟล์ `.dump.gpg` ได้จากหน้าผลการรัน (ถอดรหัสด้วย `BACKUP_PASSPHRASE` · ดู `docs/สำรองและกู้ข้อมูล.md`)
 3. ตั้งเตือนตัวเอง: ดาวน์โหลดไฟล์สำรองเก็บไว้นอก GitHub เดือนละครั้ง (Artifact อยู่ได้ 90 วัน)
 
 > ใช้ Session pooler เพราะเครื่องของ GitHub Actions ต่อแบบ IPv4 · การต่อตรง (Direct connection) ของ Supabase เป็น IPv6
