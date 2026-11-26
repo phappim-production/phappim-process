@@ -163,6 +163,7 @@ export function eventWords(e: EventRow, n: Names, unit = 'ชิ้น'): EventW
       return { title: word('แก้กำหนดงานข้างนอก'), detail: back && old ? { th: '{a} {b}', vars: { a: back, b: old } } : back ?? old, tone: 'warn' }
     }
     case 'job_split': return { title: word('แบ่งงาน {qty} ชิ้นเป็น {child}', { qty: num(p.qty), child: str(p.child) }), detail: word('งานนี้เหลือ {n} ชิ้น', { n: num(p.left) }), tone: 'neutral' }
+    case 'confirmation_no_freed': return { title: word('ใช้เลข {from} กับใบใหม่ · งานนี้เปลี่ยนเลขเป็น {to}', { from: str(p.from), to: str(p.to) }), tone: 'neutral' }
     case 'job_split_from': return { title: word('แบ่งมาจาก {parent}', { parent: str(p.parent) }), detail: word('{n} ชิ้น', { n: num(p.qty) }), tone: 'neutral' }
     case 'queue_insert': return { title: word('แทรกคิวงานด่วน (ก่อน {no})', { no: str(p.before) }), detail: reason, tone: 'warn' }
     case 'queue_skip': return { title: word('เริ่มก่อนคิว{at}', { at }), detail: joined(reason, !!list(p.ahead) && word('ข้ามคิว {jobs}', { jobs: list(p.ahead) })), tone: 'warn' }

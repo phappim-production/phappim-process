@@ -45,6 +45,13 @@ describe('ไทม์ไลน์: ยกเลิกงาน', () => {
   })
 })
 
+describe('ไทม์ไลน์: ใช้เลขที่ใบของงานที่ยกเลิกกับใบใหม่', () => {
+  it('บอกเลขเดิมและเลขใหม่ของงานที่ยกเลิก', () => {
+    const row: EventRow = { id: 6, type: 'confirmation_no_freed', phase: 'cancelled', station_code: null, payload: { from: 'SC690123', to: 'SC690123 (ยกเลิก)' }, by: null, at: '2026-11-26T03:00:00Z' }
+    expect(eventLine(row, names).title).toBe('ใช้เลข SC690123 กับใบใหม่ · งานนี้เปลี่ยนเลขเป็น SC690123 (ยกเลิก)')
+  })
+})
+
 describe('ไทม์ไลน์: แก้ใบยืนยันหลังรับงาน', () => {
   const row = (payload: Record<string, unknown>): EventRow =>
     ({ id: 5, type: 'spec_revised', phase: 'production', station_code: 'print', payload, by: null, at: '2026-11-23T03:00:00Z' })
