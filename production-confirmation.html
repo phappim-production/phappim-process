@@ -1673,6 +1673,7 @@ document.addEventListener('click',e=>{
   if(act==='savefile'){ const { sent_sig, pickOpen, ...keep }=state; const blob=new Blob([JSON.stringify({ app:'phappim-confirm', v:1, ...keep, summary:{ qty:totalQty() }, sys:systemCopy() })],{type:'application/json'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fileBase()+'.json'; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href),2000); toast('บันทึกไฟล์ '+a.download+' แล้ว'); }
+  if(act==='back'){ if(history.length>1) history.back(); else location.href='/'; }
   if(act==='savedb'){ saveToSystem(); }
   if(act==='preview'){ togglePreview(); }
   if(act==='export'){ exportPdf(); }
@@ -1700,6 +1701,8 @@ $('#openFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) 
 
 /* ฟอร์มอยู่เว็บเดียวกับระบบ จึงส่งใบผ่าน localStorage ให้หน้าระบบที่ล็อกอินแล้วบันทึก ฟอร์มไม่ต้องล็อกอินเอง */
 const OUTBOX='pp142.confirmation.outbox', INBOX='pp142.confirmation.inbox';
+// แอปที่ติดตั้งบน iPhone เก็บข้อมูลแยกจาก Safari · ฟอร์มเปิดในหน้าเดิมของแอป จึงส่งกลับหน้าระบบในหน้าเดิมด้วย
+const IN_APP=navigator.standalone===true||(typeof matchMedia==='function'&&(matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches));
 // ค่าของงานตอนเปิดจากระบบ ใช้บอกฝ่ายผลิตว่าใบแก้เปลี่ยนช่องไหน
 function jobSnapshot(){ return JSON.stringify({ product:state.product, h:state.h, p:scope('p'), co:state.callouts }); }
 function jobBase(){ try{ return JSON.parse(state.job_base||'null'); }catch(e){ return null; } }
@@ -1775,6 +1778,7 @@ function saveToSystem(){
   state.sent_sig=formSig(state); save();
   showAfterSave(state.h.doc_no, revise);
   const url='/#/board?confirmation=save';
+  if(IN_APP){ location.href=url; return; }
   const w=window.open(url,'pp142-system');
   // มือถือบางเครื่องคืน null ทั้งที่เปิดแท็บได้ จึงไม่เปลี่ยนหน้าเอง (กัน 2 แท็บแย่งใบเดียวกัน) ให้ลิงก์ไว้กดเองแทน
   if(w){ toast('ส่งใบ '+state.h.doc_no+' ไปบันทึกที่หน้าระบบแล้ว · ดูผลที่แท็บระบบ'); return; }
@@ -2082,6 +2086,7 @@ async function exportPdf(){
 }
 
 document.getElementById('barLogo').src=COMPANY.logo;
+if(IN_APP){ const back=document.createElement('button'); back.className='btn'; back.dataset.act='back'; back.textContent='กลับหน้าระบบ'; $('#barLogo').before(back); }
 renderForm();
 refreshThumb();
 // ต้องอยู่ท้ายสุด: โหลดใบแล้ววาดฟอร์มทันที ค่าคงที่ที่ประกาศหลังจุดเรียกจะยังใช้ไม่ได้ (สคริปต์หยุดทั้งก้อน)

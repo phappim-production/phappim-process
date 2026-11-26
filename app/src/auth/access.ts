@@ -87,3 +87,14 @@ export const canApproveMockup = (role: EmployeeRole) => ['owner', 'admin', 'mana
 export const canReturnMockup = (role: EmployeeRole) => ['owner', 'manager', 'production'].includes(role)
 export const canAckMockup = (role: EmployeeRole) => ['owner', 'production', 'supervisor', 'qc', 'staff'].includes(role)
 export const canSeeMockupDraft = (role: EmployeeRole) => ['owner', 'manager', 'admin', 'production', 'supervisor'].includes(role)
+
+// สิ่งที่แต่ละบทบาททำได้ในระบบ · ให้คนเพิ่งได้บัญชีรู้ทันทีว่าตัวเองมีหน้าที่อะไร (ฐานข้อมูลบังคับสิทธิ์จริงอีกชั้น)
+export const ROLE_CAN: Record<EmployeeRole, string[]> = {
+  owner: ['ทำได้ทุกอย่างในระบบ', 'ตั้งค่าสถานี จักร สินค้า และบัญชีพนักงาน', 'ดูรายงานทั้งโรงงาน'],
+  admin: ['รับงานใหม่ และบันทึกใบยืนยันการผลิต', 'แนบ PDF ที่ลูกค้าเซ็น · บันทึกฟิล์ม / ผลตัวอย่าง', 'ตามงานและตอบลูกค้าว่างานถึงไหน'],
+  production: ['เริ่ม / เสร็จ / พักงาน ทุกสถานีผลิต', 'จ่ายจักร จองจักร และแจ้งจักรเสีย', 'แทรกงานด่วนเข้าคิว (ต้องใส่เหตุผล)'],
+  supervisor: ['เริ่ม / เสร็จ / พักงาน ในเฟสที่ดูแล', 'แทรกงานด่วนเข้าคิว (ต้องใส่เหตุผล)'],
+  qc: ['ตรวจ QC + Packing และบันทึกจำนวนผ่าน', 'ส่งชิ้นที่ไม่ผ่านกลับไปแก้'],
+  manager: ['ดูภาพรวมและรายงานทั้งโรงงาน', 'แทรกงานด่วนเข้าคิว (ต้องใส่เหตุผล)'],
+  staff: ['เริ่ม / เสร็จ / พักงาน เฉพาะสถานีที่เจ้าของจับคู่ให้', 'รายงานปัญหาของงานที่สถานีตัวเอง'],
+}

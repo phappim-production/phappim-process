@@ -46,7 +46,17 @@
   node tools/qa-r14/qa-part-a.mjs
   node tools/qa-r14/qa-part-b.mjs
   node tools/qa-r14/qa-part-c.mjs
+  node tools/qa-r14/boot-recovery.mjs
+  node tools/qa-r14/qa-mobile.mjs
   ```
+  - `qa-part-a` ทั้ง flow ทุกบทบาท (ใบยืนยัน → รับงาน → ฟิล์ม → แบ่ง/ส่งนอก → ตัวอย่าง → ม็อคอัพ → ทุกสถานี → เย็บ/จักร → เกินเวลาผลิต → QC) · `qa-part-b` ทุกหน้า × ทุกบทบาทที่ 375 / 412 / 768 / 1440 px + โหลด/ว่าง/ผิดพลาด + เน็ตช้า + PDF · `qa-part-c` ข้อมูลผิดรูปแบบ (ตัวเลข วันที่ ไฟล์ผิดชนิด XSS) + ลืมกดบันทึก
+  - `boot-recovery` หลังขึ้นรุ่นใหม่ไฟล์เก่าหาย ต้องไม่จอขาว (กู้เอง 1 ครั้ง แล้วขึ้นปุ่มโหลดใหม่)
+  - `qa-mobile` ปุ่มติดตั้งแอป Android / iPhone / เปิดจากไอคอนแล้ว · กันจอดับที่หน้าสถานี/QC · ฟอร์มใบยืนยันเปิดในหน้าเดิมของแอปที่ติดตั้ง · ล็อกอินค้างหลังโหลดใหม่
+- รูปยืนยันงานสถานี ปลายทางถึงปลายทาง (ชิ้นแรก → แอดมินอนุมัติ → รูปงานเสร็จ):
+  ```powershell
+  node tools/qa-r14/e2e-photos.mjs
+  ```
+- พอร์ต 5214 ถูกใช้อยู่ (เช่น อีก session เปิดระบบจำลองค้างไว้): ตั้ง `$env:QA_PORT` / `$env:QA_FILES_PORT` เป็นพอร์ตอื่น แล้ว build ใหม่ให้ `VITE_SUPABASE_URL` / `VITE_FILES_URL` ชี้พอร์ตเดียวกัน · ก่อนรัน `npm test` ใน `app/` ให้ล้าง `VITE_*` ออกจาก env
 - ใบยืนยันครบทุกสินค้า (กรอกทุกช่องบังคับ + ตาราง + ตำแหน่ง + ม็อคอัพ 1 จุด แล้วพิมพ์ PDF + ข้อความ + `report.json`):
   ```powershell
   node tools/qa-r14/confirmation-all.mjs <โฟลเดอร์ผลลัพธ์> [tshirt,elephant]

@@ -1,19 +1,9 @@
 import { ChangePasswordForm, SignOutButton } from '../auth/EmployeeLogin'
-import type { EmployeeRole } from '../auth/access'
+import { ROLE_CAN, type EmployeeRole } from '../auth/access'
 import { Card, CardHeader } from '../components/ui'
+import { InstallApp } from '../components/InstallApp'
 import { IconAlert, IconBook, IconCheck, IconLock, IconLogOut } from '../components/icons'
 import { Tr } from '../i18n/Tr'
-
-// สิ่งที่แต่ละบทบาททำได้ในระบบ · ให้คนเพิ่งได้บัญชีรู้ทันทีว่าตัวเองมีหน้าที่อะไร (ฐานข้อมูลบังคับสิทธิ์จริงอีกชั้น)
-const ROLE_CAN: Record<EmployeeRole, string[]> = {
-  owner: ['ทำได้ทุกอย่างในระบบ', 'ตั้งค่าสถานี จักร สินค้า และบัญชีพนักงาน', 'ดูรายงานทั้งโรงงาน'],
-  admin: ['รับงานใหม่ และบันทึกใบยืนยันการผลิต', 'แนบ PDF ที่ลูกค้าเซ็น · บันทึกฟิล์ม / ผลตัวอย่าง', 'ตามงานและตอบลูกค้าว่างานถึงไหน'],
-  production: ['เริ่ม / เสร็จ / พักงาน ทุกสถานีผลิต', 'จ่ายจักร จองจักร และแจ้งจักรเสีย', 'แทรกงานด่วนเข้าคิว (ต้องใส่เหตุผล)'],
-  supervisor: ['เริ่ม / เสร็จ / พักงาน ในเฟสที่ดูแล', 'แทรกงานด่วนเข้าคิว (ต้องใส่เหตุผล)'],
-  qc: ['ตรวจ QC + Packing และบันทึกจำนวนผ่าน', 'ส่งชิ้นที่ไม่ผ่านกลับไปแก้'],
-  manager: ['ดูภาพรวมและรายงานทั้งโรงงาน', 'แทรกงานด่วนเข้าคิว (ต้องใส่เหตุผล)'],
-  staff: ['เริ่ม / เสร็จ / พักงาน เฉพาะสถานีที่เจ้าของจับคู่ให้', 'รายงานปัญหาของงานที่สถานีตัวเอง'],
-}
 
 // เครื่องหน้างานใช้ร่วมกันได้ จึงให้ชื่อผู้ใช้และปุ่มออกจากระบบเด่นที่สุด
 export default function AccountPage({ name, role, roleLabel, email }: { name: string; role: EmployeeRole; roleLabel: string; email?: string }) {
@@ -37,12 +27,12 @@ export default function AccountPage({ name, role, roleLabel, email }: { name: st
             </a>
           )}
           <section aria-labelledby="role-can">
-            <h2 id="role-can" className="mb-2 font-semibold text-muted">บัญชีนี้ทำอะไรได้</h2>
+            <h2 id="role-can" className="mb-2 font-semibold text-muted"><Tr th="บัญชีนี้ทำอะไรได้" /></h2>
             <ul className="grid gap-2">
               {ROLE_CAN[role].map(t => (
                 <li key={t} className="flex items-start gap-2">
                   <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-ok-soft text-ok"><IconCheck className="size-4" /></span>
-                  <span>{t}</span>
+                  <span><Tr th={t} /></span>
                 </li>
               ))}
             </ul>
@@ -50,15 +40,17 @@ export default function AccountPage({ name, role, roleLabel, email }: { name: st
 
           <div className="grid gap-2 border-t border-line pt-4">
             <SignOutButton className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-danger/40 bg-card px-5 font-semibold text-danger hover:bg-danger-soft disabled:opacity-60">
-              <IconLogOut className="size-5" />ออกจากระบบ
+              <IconLogOut className="size-5" /><Tr th="ออกจากระบบ" />
             </SignOutButton>
             <p className="flex items-start gap-2 rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn">
               <IconAlert className="mt-0.5 size-4 shrink-0" />
-              ใช้เครื่องร่วมกับคนอื่น ให้กดออกจากระบบทุกครั้งก่อนส่งเครื่องต่อ · ทุกการกดในระบบบันทึกชื่อผู้กด
+              <Tr th="ใช้เครื่องร่วมกับคนอื่น ให้กดออกจากระบบทุกครั้งก่อนส่งเครื่องต่อ · ทุกการกดในระบบบันทึกชื่อผู้กด" />
             </p>
           </div>
         </div>
       </Card>
+
+      <InstallApp />
 
       <Card>
         <CardHeader icon={IconLock} title="เปลี่ยนรหัสผ่าน" sub="รหัสที่ได้จากเจ้าของระบบ ควรเปลี่ยนเป็นรหัสของตัวเอง" />

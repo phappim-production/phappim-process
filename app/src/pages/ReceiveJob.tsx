@@ -7,6 +7,7 @@ import { uploadFile } from '../data/files'
 import { contentKey, signedUrls } from '../data/mockups'
 import { confirmationPath, draftFromConfirmation, FORM_LOCK_REASON, isFormDraft, pdfProblem, sewRecipeProblem, specYearProblem, syncConfirmationSpec, type ReceiveDraft } from '../data/confirmation'
 import { draftLabel, formDataFromDraft, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
+import { openFormWindow, runsAsApp } from '../lib/install'
 import { specMockups } from '../data/jobMockups'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
 import { receiveForecast, type SewFloor } from '../proto/capacity'
@@ -81,7 +82,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
     const row = drafts?.find(r => r.id === picked)
     if (!row || openingForm) return
     // เปิดหน้าต่างก่อนรอลิงก์รูป ไม่อย่างนั้นเบราว์เซอร์บนมือถือจะบล็อกป๊อปอัป
-    const win = window.open('', '_blank')
+    const win = openFormWindow()
     setOpeningForm(true)
     const path = typeof (row.data as { mockup_path?: unknown } | null)?.mockup_path === 'string' ? (row.data as { mockup_path: string }).mockup_path : null
     const data = formDataFromDraft(row.data, await signedUrls(specMockups(row.data, path).map(m => m.path)))
@@ -184,7 +185,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
             </select>
           </label>
           <div className="grid gap-2 sm:grid-cols-2">
-            <a href={NEW_CONFIRMATION_FORM} target="_blank" rel="noopener" className={`${secondaryBtn} text-center`}>เปิดฟอร์มใบยืนยัน (ใบใหม่)</a>
+            <a href={NEW_CONFIRMATION_FORM} target={runsAsApp() ? undefined : "_blank"} rel="noopener" className={`${secondaryBtn} text-center`}>เปิดฟอร์มใบยืนยัน (ใบใหม่)</a>
             <button type="button" className={secondaryBtn} disabled={!picked || openingForm} onClick={() => void openInForm()}
               title={picked ? undefined : 'เลือกใบยืนยันก่อน'}>{openingForm ? 'กำลังเปิดใบยืนยัน…' : picked ? 'แก้ใบนี้ในฟอร์ม' : 'แก้ใบในฟอร์ม (เลือกใบก่อน)'}</button>
           </div>
