@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
   COLUMNS, DEPT_NAME, ROUTES, SLA_LABEL, byQueue, isOutLate, STATION_NAME, STATUS_NAME, stationNo,
@@ -31,6 +31,7 @@ import { JobVariants } from './JobVariants'
 import { StationQueue } from './StationQueue'
 import { ReceiveJob } from './ReceiveJob'
 import { ConfirmationOutbox } from './ConfirmationOutbox'
+import { DeliveriesView } from './DeliveriesView'
 import { JobHistory } from './JobHistory'
 import { isStationCode } from '../proto/model'
 import type { EmployeeRole, FactoryView } from '../auth/access'
@@ -215,6 +216,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
   const floor = useMemo(() => sewFloorOf(machines, needs, shared), [machines, needs, shared])
   // คิดจากงานทั้งโรงงาน งานนอกขอบเขตของบทบาทก็แย่งกำลังผลิตเหมือนกัน
   const forecast = useMemo(() => simulate(allJobs, now, undefined, floor), [allJobs, now, floor])
+  const finishOf = useCallback((j: Job) => { const d = forecast.finishDay.get(j.id); return d === undefined ? undefined : workdayToDate(d, now) }, [forecast, now])
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -304,7 +306,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
   )
 
   const VIEW_TITLE: Partial<Record<View, string>> = {
-    issues: 'ปัญหา / งานแก้', reviews: 'รายการรออนุมัติ', report: 'รายงานปัญหา', history: 'ประวัติการทำงาน', queueAll: 'คิวการผลิต', dept: 'ภาพรวมแผนก',
+    issues: 'ปัญหา / งานแก้', reviews: 'รายการรออนุมัติ', report: 'รายงานปัญหา', history: 'ประวัติการทำงาน', queueAll: 'คิวการผลิต', dept: 'ภาพรวมแผนก', deliveries: 'กำหนดส่งลูกค้า',
   }
   const title = VIEW_TITLE[view]
   if (title) {
@@ -313,12 +315,13 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-4 p-4 sm:p-6">
           <PageHeader title={title} today={today} updated={loadedAt} />
-          {linkNotice}{doneNotice}{approvals}
+          <div className="contents print:hidden">{linkNotice}{doneNotice}{approvals}</div>
           {view === 'issues' && <IssuesView jobs={allJobs} now={now} role={role} stations={deptStations} call={call} onOpen={setOpenId} />}
           {view === 'report' && <ReportIssueView jobs={allJobs} now={now} stations={myStationsOf(role, myScope.pressStations)} call={call} onOpen={setOpenId} />}
           {view === 'reviews' && <ReviewsView jobs={allJobs} now={now} role={role} call={call} onOpen={setOpenId} />}
           {view === 'history' && <MyHistoryView jobs={allJobs} onOpen={setOpenId} />}
           {view === 'queueAll' && <QueueAllView jobs={allJobs} now={now} onOpen={setOpenId} />}
+          {view === 'deliveries' && <DeliveriesView jobs={allJobs} now={now} finishOf={finishOf} onOpen={setOpenId} />}
           {view === 'dept' && <>
             <RoleSummary scope={myScope} jobs={allJobs} machines={machines} now={now}
               onPick={t => { window.location.hash = t === 'todo' ? '#/queue' : t === 'sewing' ? '#/sewing' : '#/board' }} />

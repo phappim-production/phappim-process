@@ -9,11 +9,11 @@ const SUMMARY_PATH = fileURLToPath(new URL('./part-b-results.json', import.meta.
 const WIDTHS = [375, 412, 768, 1440]
 
 const ROLE_PAGES = {
-  owner: ['#/admin', '#/users', '#/roles', '#/assign', '#/audit', '#/settings', '#/production', '#/board', '#/reports', '#/inbox', '#/system'],
-  manager: ['#/', '#/jobs', '#/board', '#/reports', '#/reviews', '#/inbox', '#/system'],
-  admin1: ['#/', '#/jobs', '#/production-queue', '#/board', '#/reports', '#/inbox', '#/system'],
-  prod1: ['#/dept', '#/queue', '#/board', '#/issues', '#/reports', '#/inbox', '#/system'],
-  sup1: ['#/dept', '#/queue', '#/board', '#/issues', '#/reports', '#/inbox', '#/system'],
+  owner: ['#/admin', '#/users', '#/roles', '#/assign', '#/audit', '#/settings', '#/production', '#/deliveries', '#/board', '#/reports', '#/inbox', '#/system'],
+  manager: ['#/', '#/deliveries', '#/jobs', '#/board', '#/reports', '#/reviews', '#/inbox', '#/system'],
+  admin1: ['#/', '#/deliveries', '#/jobs', '#/production-queue', '#/board', '#/reports', '#/inbox', '#/system'],
+  prod1: ['#/dept', '#/queue', '#/deliveries', '#/board', '#/issues', '#/reports', '#/inbox', '#/system'],
+  sup1: ['#/dept', '#/queue', '#/deliveries', '#/board', '#/issues', '#/reports', '#/inbox', '#/system'],
   qc: ['#/mine', '#/board', '#/history', '#/report', '#/inbox', '#/system'],
   staff_multi: ['#/mine', '#/board', '#/history', '#/report', '#/inbox', '#/system'],
   staff_empty: ['#/mine', '#/board', '#/history', '#/report', '#/inbox', '#/system'],

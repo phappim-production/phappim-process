@@ -28,6 +28,7 @@ export const ROUTES: Record<string, Route> = {
   '#/report': { page: 'report' },
   '#/history': { page: 'history' },
   '#/production-queue': { page: 'queueAll' },
+  '#/deliveries': { page: 'deliveries' },
   '#/inbox': { page: 'inbox' },
   '#/reports': { page: 'reports' },
   '#/users': { page: 'settings', settingsTab: 'users' },
@@ -44,19 +45,21 @@ export function routeOf(path: string): Route {
   return ROUTES[path] ?? ROUTES['#/']
 }
 
-export type MenuIcon = 'gauge' | 'list' | 'columns' | 'chart' | 'queue' | 'users' | 'sliders' | 'inbox' | 'flag' | 'clock' | 'shield' | 'pin' | 'log'
+export type MenuIcon = 'gauge' | 'list' | 'columns' | 'chart' | 'queue' | 'users' | 'sliders' | 'inbox' | 'flag' | 'clock' | 'shield' | 'pin' | 'log' | 'truck'
 
 export type MenuItem = { hash: string; name: string; short: string; icon: MenuIcon }
 export type MenuGroup = { title: string; items: MenuItem[] }
 
 const item = (hash: string, name: string, icon: MenuIcon, short = name): MenuItem => ({ hash, name, short, icon })
 const INBOX = item('#/inbox', 'กล่องจดหมาย', 'inbox')
+const DELIVERIES = item('#/deliveries', 'กำหนดส่งลูกค้า', 'truck', 'กำหนดส่ง')
 
 export function roleMenu(role: EmployeeRole): MenuGroup[] {
   switch (role) {
     case 'manager':
       return [{ title: 'เมนู', items: [
         item('#/', 'ภาพรวมการผลิต', 'gauge', 'ภาพรวม'),
+        DELIVERIES,
         item('#/jobs', 'ใบงานทั้งหมด', 'list', 'ใบงาน'),
         item('#/board', 'ทุกสถานี', 'columns', 'สถานี'),
         item('#/reports', 'รายงาน', 'chart'),
@@ -75,6 +78,7 @@ export function roleMenu(role: EmployeeRole): MenuGroup[] {
         ] },
         { title: 'งานผลิต', items: [
           item('#/production', 'ภาพรวมการผลิต', 'chart', 'การผลิต'),
+          DELIVERIES,
           item('#/board', 'ทุกสถานี', 'columns', 'สถานี'),
           item('#/reports', 'รายงาน', 'chart'),
           INBOX,
@@ -83,6 +87,7 @@ export function roleMenu(role: EmployeeRole): MenuGroup[] {
     case 'admin':
       return [{ title: 'เมนู', items: [
         item('#/', 'ภาพรวมใบงาน', 'gauge', 'ภาพรวม'),
+        DELIVERIES,
         item('#/jobs', 'จัดการใบงาน', 'list', 'ใบงาน'),
         item('#/production-queue', 'คิวการผลิต', 'queue', 'คิว'),
         item('#/board', 'ติดตามสถานี', 'columns', 'สถานี'),
@@ -94,6 +99,7 @@ export function roleMenu(role: EmployeeRole): MenuGroup[] {
       return [{ title: 'เมนู', items: [
         item('#/dept', 'ภาพรวมแผนก', 'gauge', 'ภาพรวม'),
         item('#/queue', 'คิวงาน', 'queue'),
+        DELIVERIES,
         item('#/board', 'สถานีที่ดูแล', 'columns', 'สถานี'),
         item('#/issues', 'ปัญหา / งานแก้', 'flag', 'ปัญหา'),
         item('#/reports', 'รายงานแผนก', 'chart', 'รายงาน'),

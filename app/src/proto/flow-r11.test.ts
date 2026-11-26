@@ -7,10 +7,10 @@ import { reportMetrics, reportWindow, type ReportRows } from '../pages/reports/m
 import { confirmationDraft, forStation, parseSize, refValue, submitProblems, toPayload } from './annotation'
 
 const menus = {
-  owner: ['admin', 'users', 'roles', 'assign', 'audit', 'settings', 'production', 'board', 'reports', 'inbox'],
-  manager: ['', 'jobs', 'board', 'reports', 'reviews', 'inbox'],
-  admin: ['', 'jobs', 'production-queue', 'board', 'reports', 'inbox'],
-  production: ['dept', 'queue', 'board', 'issues', 'reports', 'inbox'],
+  owner: ['admin', 'users', 'roles', 'assign', 'audit', 'settings', 'production', 'deliveries', 'board', 'reports', 'inbox'],
+  manager: ['', 'deliveries', 'jobs', 'board', 'reports', 'reviews', 'inbox'],
+  admin: ['', 'deliveries', 'jobs', 'production-queue', 'board', 'reports', 'inbox'],
+  production: ['dept', 'queue', 'deliveries', 'board', 'issues', 'reports', 'inbox'],
   staff: ['mine', 'board', 'history', 'report', 'inbox'],
 } as const
 
