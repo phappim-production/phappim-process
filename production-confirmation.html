@@ -563,6 +563,7 @@ function printSec(methods, positions, x={}){
   ]};
 }
 const SIZE_OWN='กำหนดขนาดเอง (ตามตารางด้านล่าง)';
+const SIZE_OTHER_PH='พิมพ์ไซซ์ที่ไม่มีในชุด คั่นด้วย , เช่น เด็ก 2XL, 10 ปี, 12 ปี';
 const SIZE_STD='ตารางไซซ์มาตรฐานโรงงาน';
 const MEASURE_TOP=[ { c:'chest', label:'รอบอก', t:'text', opt:true }, { c:'length', label:'ความยาวตัว', t:'text', opt:true }, { c:'sleeve', label:'ความยาวแขน', t:'text', opt:true } ];
 const MEASURE_PANTS=[ { c:'waist', label:'รอบเอว', t:'text', opt:true }, { c:'hip', label:'รอบสะโพก', t:'text', opt:true }, { c:'leg', label:'ความยาวขา', t:'text', opt:true } ];
@@ -580,7 +581,7 @@ const measureRows = kindOf => Object.entries(MEASURE_COLS).map(([kind,cols])=>({
   cols:[ { c:'size', label:'ไซซ์', t:'text' }, ...cols, { c:'other', label:'อื่นๆ (ระบุ)', t:'text', opt:true } ] }));
 function sizeSec(sets, unit, x={}){
   return { title:'ไซซ์และจำนวน', fields:[
-    C('size_sets','ชุดไซซ์',sets,{ req:true, def:[sets[0]] }),
+    C('size_sets','ชุดไซซ์',sets,{ req:true, def:[sets[0]], other:true, otherPh:SIZE_OTHER_PH }),
     { id:'sizes', type:'sizeTable', label:'จำนวนแยกตามไซซ์', req:true, chart:x.chart, rowLabel:x.rowLabel||'แบบ / สี', hint:'แยกบรรทัดตามแบบหรือสี ถ้ามีหลายแบบในงานเดียว' },
     R('size_chart','ตารางไซซ์',[SIZE_STD,'ตารางไซซ์ของลูกค้า (แนบมา)',SIZE_OWN]),
     ...measureRows(x.measure),
@@ -1106,7 +1107,7 @@ const SUPPLY = (x={}) => {
   ]};
 };
 const SERVICE_SIZES = label => ({ title:'ไซซ์และจำนวน', fields:[
-  C('size_sets','ชุดไซซ์',['ไซซ์ผู้ใหญ่','ไซซ์เด็ก'],{ req:true, def:['ไซซ์ผู้ใหญ่'] }),
+  C('size_sets','ชุดไซซ์',['ไซซ์ผู้ใหญ่','ไซซ์เด็ก'],{ req:true, def:['ไซซ์ผู้ใหญ่'], other:true, otherPh:SIZE_OTHER_PH }),
   { id:'sizes', type:'sizeTable', label, req:true, rowLabel:'แบบ / สี' },
 ]});
 const GARMENT_NAMES = Object.values(PRODUCTS).filter(x=>x.cat==='garment').map(x=>x.name);
@@ -1256,7 +1257,13 @@ const num = x => { const n=parseFloat(x); return isFinite(n)?n:0; };
 const visible = (f,v) => !f.when || f.when(v);
 const sampleDateShown = h => h.sample===SAMPLE_YES||h.sample===SAMPLE_DEV;
 
-function sizeCols(v){ return (v.size_sets||[]).flatMap(n=>SIZESETS[n]||[]); }
+// ไซซ์ที่แอดมินพิมพ์เองในช่อง "อื่นๆ" (คั่นด้วย , ) ต่อท้ายชุดที่เลือก · ชื่อซ้ำกับชุดอื่นไม่สร้างคอลัมน์ซ้ำ
+const otherSizes = v => String(v.size_sets__other||'').split(/[,\n]/).map(s=>s.trim()).filter(Boolean).slice(0,20);
+function sizeCols(v){
+  const sets=v.size_sets||[], cols=sets.flatMap(n=>SIZESETS[n]||[]);
+  if(sets.includes(OTHER)) otherSizes(v).forEach(s=>{ if(!cols.includes(s)) cols.push(s); });
+  return cols;
+}
 function allFields(){ return allSecs().flatMap(sec=>sec.fields); }
 function rows(v,id,opt){ if(!Array.isArray(v[id])||(!opt&&!v[id].length)) v[id]=opt?[]:[{q:{}}]; return v[id]; }
 
@@ -1362,7 +1369,7 @@ function fieldHTML(f,s,v){
       const lock=sampleLocked(f,s);
       b=`<div class="opts${opts.some(o=>OPT_DESC[o])?' has-desc':''}">`+opts.map(o=>`<label class="opt"><input type="${f.type==='radio'?'radio':'checkbox'}" name="${s}_${f.id}" ${a} value="${esc(o)}" ${on(o)?'checked':''} ${lock?'disabled':''}><span>${esc(o)}${OPT_DESC[o]?`<small class="desc">${esc(OPT_DESC[o])}</small>`:''}</span></label>`).join('')+`</div>`;
       if(lock) b+=`<div class="hint">รับงานแบบนี้แล้ว เปลี่ยนในใบแก้ไม่ได้ · ถ้าต้องเปลี่ยน ให้ผู้บริหารยกเลิกงานแล้วรับใบใหม่</div>`;
-      if(f.other&&on(OTHER)) b+=`<input type="text" class="other" data-s="${s}" data-k="${f.id}__other" value="${esc(v[f.id+'__other'])}" placeholder="ระบุ ${esc(f.label)}...">`;
+      if(f.other&&on(OTHER)) b+=`<input type="text" class="other" data-s="${s}" data-k="${f.id}__other" value="${esc(v[f.id+'__other'])}" placeholder="${esc(f.otherPh||`ระบุ ${f.label}...`)}">`;
       break; }
     case 'dims':
       b=`<div class="dims">`+f.parts.map((p,i)=>`<label><span>${esc(p)}</span><input type="number" min="0" step="any" data-s="${s}" data-k="${f.id}_${i}" value="${esc(v[f.id+'_'+i])}"></label>`).join('<b>×</b>')+`</div>`; break;
@@ -1689,6 +1696,8 @@ form.addEventListener('change',e=>{
     c[d.cf]=t.value;
     const box=form.querySelector(`.co-box[data-co-i="${d.co}"]`); if(box) box.innerHTML=coBoxInner(c,+d.co,coRefs()); save(); return; }
   if(t.type==='radio'&&d.k){ scope(d.s)[d.k]=t.value; return rerender(); }
+  // ไซซ์อื่นๆ เปลี่ยนคอลัมน์ตารางจำนวน · วาดใหม่ตอนออกจากช่อง (วาดทุกตัวอักษรจะเสียตำแหน่งพิมพ์)
+  if(d.k==='size_sets__other'){ scope(d.s)[d.k]=t.value; return rerender(); }
   if(t.type==='checkbox'&&d.k){ const v=scope(d.s); const arr=new Set(v[d.k]||[]); t.checked?arr.add(t.value):arr.delete(t.value); v[d.k]=[...arr]; return rerender(); }
   if(t.type==='checkbox'&&d.std!==undefined){ scope('p')[d.t][+d.r][d.c]=t.checked?d.std:''; return rerender(); }
   if(t.type==='checkbox'&&d.pl){ const v=scope('p'); v[d.pl]=v[d.pl]||{}; (v[d.pl][d.pos]=v[d.pl][d.pos]||{}).on=t.checked; rerender();
