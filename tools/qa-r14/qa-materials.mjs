@@ -207,6 +207,30 @@ try {
     await waitFor(async () => (await sql('select phase from public.jobs where id = $1', [sample]))[0].phase === 'sample', 'งานไปขึ้นตัวอย่าง', 10000)
     return 'งานขึ้นตัวอย่างไปขั้นตัวอย่าง'
   })
+
+  await step('outsource-from-waiting-without-check', async () => {
+    const outJob = (await as(id('admin1'), `public.receive_job(p_confirmation_no => 'SC888010', p_customer_name => 'บ.ส่งออก', p_job_name => 'ผ้าเช็ดแว่น', p_product_type_code => 'glasses',
+      p_qty => 500, p_unit => 'ผืน', p_due_date => (current_date + 20), p_route_code => 'outside', p_confirmation_pdf_path => null,
+      p_spare_qty => 0, p_confirmation_rev => 0, p_spec => '{}'::jsonb, p_needs_sample => false) as id`, []))[0].id
+    await h.goto('admin1', `#/board?job=${outJob}`, 375)
+    await waitDialog(/ส่งออกได้เลยไม่ต้องเช็ควัตถุดิบ/, 'คำบอกส่งออกจากรอผลิต')
+    await h.clickButton('ส่งออกบริษัทภายนอก', { exact: true, inside: '[role="dialog"]' })
+    await waitDialog(/ส่ง SC888010 ออกบริษัทภายนอก/, 'ฟอร์มส่งออก')
+    await h.ev(() => {
+      const sel = [...document.querySelectorAll('[role="dialog"] select')].find(s => s.closest('label')?.textContent.includes('บริษัท'))
+      sel.value = [...sel.options].find(o => o.value).value
+      sel.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await h.screenshot('materials-outsource-375', { fullPage: true })
+    await h.clickButton('บันทึกส่งออก', { exact: true, inside: '[role="dialog"]' })
+    await waitFor(async () => (await sql('select station_status from public.jobs where id = $1', [outJob]))[0].station_status === 'out', 'งานอยู่ที่บริษัทภายนอก', 12000)
+    const [j] = await sql('select phase, station_status, current_station from public.job_live where id = $1', [outJob])
+    if (j.phase !== 'production' || j.current_station !== 'outside') throw new Error(JSON.stringify(j))
+    await waitDialog(/อยู่ที่บริษัทภายนอก/, 'แผงอยู่ที่บริษัทภายนอก', 12000)
+    await waitDialog(/ส่งออกบริษัทภายนอก · ไม่ต้องเช็ควัตถุดิบ/, 'ประวัติบอกไม่ต้องเช็ควัตถุดิบ', 12000)
+    if (/รอผลิต · เช็ควัตถุดิบ/.test(await dialogText())) throw new Error('แผงรอผลิตยังอยู่')
+    return 'งานรอผลิตส่งออกได้เลย · ไม่มีรายการ/รูปก็ได้ · ประวัติบอกไม่ต้องเช็ค'
+  })
 } finally {
   await chrome.close()
   await stack.close?.()

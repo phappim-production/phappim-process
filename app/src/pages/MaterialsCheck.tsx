@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type FormEvent } from 'react'
-import { ROUTES, STATION_NAME, type Job } from '../proto/model'
+import { OUTSOURCEABLE, ROUTES, STATION_NAME, type Job } from '../proto/model'
 import { MAX_MATERIAL_NAME, MAX_MATERIAL_PHOTOS, releaseBlocker, withItem, withoutItem, type MaterialItem, type MaterialPhoto } from '../data/materialsCheck'
 import { mockupProblem, mockupThumbUrl, shrinkImage, signMockups, uploadMockup } from '../data/mockups'
 import { leadTimeFor } from '../proto/leadTime'
@@ -23,6 +23,7 @@ export function MaterialsCheck({ job, items, photos, admin, busy, now, act }: {
         <p className="text-muted">
           <Tr th="งานยังไม่เข้าคิวสถานี · แอดมินเช็ควัตถุดิบครบ + ถ่ายรูป แล้วกดปล่อยเข้าไลน์การผลิต" />
         </p>
+        {admin && OUTSOURCEABLE.includes(ROUTES[job.route].stations[0]) && <p className="text-sm text-muted">ส่งออกบริษัทภายนอก (บริษัทจัดหาวัตถุดิบเอง) ไม่ต้องเช็ค · กด "ส่งออกบริษัทภายนอก" ด้านบน</p>}
         <p className="font-medium"><Tr th="ติ๊กแล้ว {done}/{n} รายการ · รูป {m} รูป" vars={{ done, n: items.length, m: photos.length }} /></p>
       </div>
       <Checklist items={items} admin={admin} busy={busy} act={act} />

@@ -81,6 +81,10 @@ export function eventWords(e: EventRow, n: Names, unit = 'ชิ้น'): EventW
     case 'material_photos': return { title: word('ถ่ายรูปวัตถุดิบ {n} รูป', { n: num(p.added) }), tone: 'info' }
     case 'material_photo_removed': return { title: word('ลบรูปวัตถุดิบ 1 รูป'), tone: 'warn' }
     case 'released':
+      if (p.manual === true && p.outsource === true) return {
+        title: word('ปล่อยเข้าไลน์การผลิต'), tone: 'ok',
+        detail: word('ส่งออกบริษัทภายนอก · ไม่ต้องเช็ควัตถุดิบ'),
+      }
       if (p.manual === true) return {
         title: word('ปล่อยเข้าไลน์การผลิต'), tone: 'ok',
         detail: joined(word('เช็ควัตถุดิบครบ {n} รายการ · รูป {m} รูป', { n: num(p.materials), m: num(p.photos) }),
