@@ -47,6 +47,9 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 
 `receive_job` ปล่อยเองเฉพาะในธุรกรรมที่รับงานตอนปิดขั้นนี้ · งานที่ค้างรออยู่ไม่หลุดเข้าไลน์ตอน `order_film` · `inbox_scan_all` เตือนแอดมิน `materials_late` เมื่อรอผลิตเกิน 2 วันทำงาน (แม้ยังไม่มีรายการ)
 
+## ใบงานบริการ (`20261207000000`)
+ใบ `svc_sew` `svc_print` `svc_press` `svc_dtf` → เส้นทาง `sew_only` `print_only` / `print_press_only` `press_only` `dtf_only` · trigger `jobs_guard_service` (insert / update ของ `spec` `route_code` `product_type_code`): เส้นทางต้องตรงใบ (`private.service_kind` → `service_route`) · เส้นทางเหล่านี้ใช้ได้เฉพาะใบงานบริการ + สินค้า `service` · `svc_sew` สินค้าของงาน = `spec.p.svc_sew.garment_code` · แก้ใบเปลี่ยนแบบบริการไม่ได้ · `svc_dtf` ลูกค้าส่งฟิล์มเอง = ตั้ง `dtf_film_ordered_at / eta / received_at` ตอนรับงาน · `revise_job_spec` เทียบสินค้าผ่าน `private.spec_product` · หน้ารับงานใส่รายการรอผลิตจาก `supplied` ด้วย `set_job_materials`
+
 ฟอร์ม `/confirmation` (ไฟล์ `production-confirmation.html` · build คัดลอกขึ้นเว็บ) ไม่มี key: กด "บันทึกเข้าระบบ" → `localStorage['pp142.confirmation.outbox']` → เปิด `#/board?confirmation=save` → `ConfirmationOutbox` เรียก `save_confirmation_draft` · หน้ารับงานกด "แก้ใบนี้ในฟอร์ม" → `localStorage['pp142.confirmation.inbox']` → ฟอร์มโหลดใบ (`app/src/data/confirmationDrafts.ts`)
 ค่าที่จุดกำกับม็อคอัพอ้างจากสเปก (`private.mockup_ref_value` · ใช้นับ `mockup_stale` ใน `revise_job_spec`): ตัวเลือก "อื่นๆ" แสดงเป็น "อื่นๆ: ข้อความที่พิมพ์" จากช่อง `…__other` ตรงกับ PDF (`20261129000001`)
 

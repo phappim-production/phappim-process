@@ -1,3 +1,4 @@
+import { serviceLabel } from '../data/service'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ROUTES, STATION_NAME, STATUS_NAME, isFilmLate, isWaitingFilm, type Job } from '../proto/model'
 import { lateDays, workdayToDate, type Forecast } from '../proto/capacity'
@@ -62,7 +63,7 @@ export default function JobFinder({ jobs, now, forecast, onOpen }: Props) {
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-brand-soft/50">
                   <MockupThumb job={j} />
                   <span className="shrink-0 font-semibold whitespace-nowrap">{j.no}</span>
-                  <span className="min-w-0 flex-1 truncate text-muted">{j.customer} · {j.product}</span>
+                  <span className="min-w-0 flex-1 truncate text-muted">{j.customer} · {[serviceLabel(j).service, serviceLabel(j).product].filter(Boolean).join(' · ')}</span>
                   <span className="hidden truncate text-xs sm:block">{stageText(j)}</span>
                 </button>
               </li>

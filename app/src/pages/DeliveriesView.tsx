@@ -1,3 +1,4 @@
+import { serviceLabel } from '../data/service'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Card, CardHeader, Pill, StatTile, ViewSwitch } from '../components/ui'
@@ -81,7 +82,7 @@ function Row({ item, ship, now, showDate, onOpen }: { item: DeliveryItem; ship?:
         </span>
         <span className="grid min-w-0 gap-0.5">
           <span className={`truncate font-medium ${wrapOnPrint}`}>{j.customer}</span>
-          <span className={`truncate text-sm text-muted ${wrapOnPrint}`}>{j.product} · {j.qty.toLocaleString('th-TH')} {j.unit}</span>
+          <span className={`truncate text-sm text-muted ${wrapOnPrint}`}>{[serviceLabel(j).service, serviceLabel(j).product].filter(Boolean).join(' · ')} · {j.qty.toLocaleString('th-TH')} {j.unit}</span>
           {ship?.delivery && (
             <span className="flex min-w-0 items-center gap-1 text-sm text-muted">
               <IconTruck className="size-4 shrink-0" />
