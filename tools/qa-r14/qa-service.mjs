@@ -187,6 +187,21 @@ try {
     return 'เสื้อยืดไม่มีเส้นทางงานบริการให้เลือก'
   })
 
+  await step('form-size-other-columns', async () => {
+    await t.goto('admin1', '', 1440, '/confirmation')
+    await t.waitText('ใบยืนยันการผลิต')
+    await t.ev(() => { if (document.body.classList.contains('preview')) togglePreview(false); state = fresh(); state.pickOpen = false; state.product = 'svc_sew'; scope('p').size_sets = ['ไซซ์เด็ก']; renderForm() })
+    await t.ev(() => [...document.querySelectorAll('input[type=checkbox][data-k="size_sets"]')].find(c => c.value === 'อื่นๆ').click())
+    await t.fillInput('input[data-k="size_sets__other"]', 'เด็ก 2XL, 10 ปี')
+    await t.ev(() => document.querySelector('input[data-k="size_sets__other"]').dispatchEvent(new Event('change', { bubbles: true })))
+    await waitFor(() => t.ev(() => [...document.querySelectorAll('th')].some(h => h.textContent.trim() === '10 ปี')), 'คอลัมน์ไซซ์ที่พิมพ์เอง', 8000)
+    const heads = await t.ev(() => [...new Set([...document.querySelectorAll('th')].map(h => h.textContent.trim()))].filter(x => /เด็ก|ปี/.test(x)))
+    if (!heads.includes('เด็ก 2XL') || !heads.includes('เด็ก XL')) throw new Error(heads.join(','))
+    await t.ev(() => document.querySelector('input[data-k="size_sets__other"]').scrollIntoView({ block: 'center' }))
+    await t.screenshot('service-size-other-1440')
+    return heads.join(' · ')
+  })
+
   for (const w of [375, 768]) {
     await step(`form-${w}`, async () => {
       await fillForm('svc_dtf', 'SC889099', { film_source: 'ลูกค้าส่งฟิล์มมาเอง' })

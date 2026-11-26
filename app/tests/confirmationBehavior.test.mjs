@@ -405,3 +405,18 @@ test('ฟอร์มใบยืนยัน: ไฟล์ที่บันท
   const html = readFileSync(new URL('../../production-confirmation.html', import.meta.url), 'utf8')
   assert.match(html, /act==='savefile'[^\n]*sys:systemCopy\(\)/)
 })
+
+test('ฟอร์มใบยืนยัน: ชุดไซซ์ "อื่นๆ" พิมพ์ไซซ์เองได้ · เป็นคอลัมน์ในตารางจำนวน · นับยอด · ส่งเข้าระบบครบ', () => {
+  for (const product of ['tshirt', 'svc_sew']) {
+    const { api, v } = filled(product)
+    v.size_sets = ['ไซซ์เด็ก', 'อื่นๆ']
+    v.size_sets__other = 'เด็ก 2XL, 10 ปี,\n12 ปี , เด็ก M'
+    v.sizes = [{ label: 'สีขาว', q: { 'เด็ก M': 5, 'เด็ก 2XL': 3, '10 ปี': 2, '12 ปี': 1, 'ไม่ได้เลือก': 9 } }]
+    assert.equal(api.totalQty(), 11, `${product}: นับเฉพาะคอลัมน์ที่มี (ไม่นับไซซ์ที่ไม่ได้เลือก · เด็ก M ซ้ำไม่นับสองครั้ง)`)
+    const sys = api.systemCopy().p[product]
+    assert.equal(sys.size_sets__other, 'เด็ก 2XL, 10 ปี,\n12 ปี , เด็ก M')
+    assert.deepEqual(Object.keys(sys.sizes[0].q).sort(), ['10 ปี', '12 ปี', 'เด็ก 2XL', 'เด็ก M'].sort())
+    v.size_sets__other = ''
+    assert.ok(api.validate().some(m => m.id === 'fld_p_size_sets'), `${product}: ติ๊กอื่นๆ แต่ไม่พิมพ์ไซซ์ = ฟอร์มเตือน`)
+  }
+})
