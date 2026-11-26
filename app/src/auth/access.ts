@@ -43,9 +43,9 @@ export function canCloseIssue(role: EmployeeRole, station: string | null | undef
   return station === 'sew' ? floor : floor || role === 'manager'
 }
 
-// ตรงกับ submit_delay_report (lock_job ปฏิเสธพนักงานที่งานไม่ได้อยู่สถานีของตัวเอง)
+// ตรงกับ submit_delay_report · พนักงานสถานีและ QC รายงานได้เฉพาะงานที่อยู่สถานีของตัวเอง (QC = QC + Packing)
 export const canReportDelay = (role: EmployeeRole, atMyStation: boolean) =>
-  ['owner', 'admin', 'production', 'supervisor', 'qc', 'staff'].includes(role) && (role !== 'staff' || atMyStation)
+  ['owner', 'admin', 'production', 'supervisor', 'qc', 'staff'].includes(role) && ((role !== 'staff' && role !== 'qc') || atMyStation)
 
 // ตรงกับ cancel_job · ยกเลิกออเดอร์เป็นการตัดสินใจทางธุรกิจ ฝ่ายผลิต/แอดมินไม่มีสิทธิ์
 export function canCancelJob(role: EmployeeRole): boolean {

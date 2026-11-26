@@ -281,7 +281,7 @@ export async function flowR5Tests({ db, ok, as }) {
     for (const [name, args] of Object.entries(calls)) {
       const [allowedRoles, allowedStates] = rules[name]
       for (const role of roles) {
-        const limitedQC = ['start_station', 'start_in_queue', 'note_queue_skip', 'finish_station'].includes(name)
+        const limitedQC = ['start_station', 'start_in_queue', 'note_queue_skip', 'finish_station', 'submit_delay_report'].includes(name)
         const expected = allowedRoles.split(' ').includes(role) && allowedStates.includes(state) &&
           !(role === 'qc' && limitedQC && station !== 'qc_pack')
         const cell = await probe(db, as, role, name, args, async result => {

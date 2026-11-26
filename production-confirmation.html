@@ -1101,7 +1101,10 @@ const TAIL = [
 const LS = 'phappim-confirm-v1';
 const $ = s => document.querySelector(s);
 const form = $('#form');
-let state = load() || fresh();
+// ฟอร์มหลายแท็บใช้ localStorage ร่วมกัน (แท็บที่บันทึกล่าสุดชนะ) · แต่ละแท็บจำใบของตัวเองไว้อีกชุด รีเฟรชแล้วได้ใบเดิมของแท็บนั้น
+const TAB_LS = LS + '.tab';
+function tabStore(){ try{ return typeof sessionStorage!=='undefined'?sessionStorage:null; }catch(e){ return null; } }
+let state = load(TAB_LS, tabStore()) || load() || fresh();
 let missing = [];
 let coTab = 0;
 
@@ -1130,7 +1133,7 @@ function startOver(keepOrder){
 }
 function fresh(){ return { h:{ issue_date: today() }, product:'tshirt', pickOpen:true, p:{}, imgs:[], callouts:[], co_size:null, co_sizes:[] }; }
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function load(key=LS){ try{ const s=JSON.parse(localStorage.getItem(key)); if(s&&s.h&&s.p&&PRODUCTS[s.product]){ upgradeOpts(s.p); s.pickOpen=false; s.imgs=Array.isArray(s.imgs)?s.imgs:[]; s.callouts=Array.isArray(s.callouts)?s.callouts:[]; s.co_sizes=Array.isArray(s.co_sizes)?s.co_sizes:[]; return s; } }catch(e){} return null; }
+function load(key=LS, store=localStorage){ try{ if(!store) return null; const s=JSON.parse(store.getItem(key)); if(s&&s.h&&s.p&&PRODUCTS[s.product]){ upgradeOpts(s.p); s.pickOpen=false; s.imgs=Array.isArray(s.imgs)?s.imgs:[]; s.callouts=Array.isArray(s.callouts)?s.callouts:[]; s.co_sizes=Array.isArray(s.co_sizes)?s.co_sizes:[]; return s; } }catch(e){} return null; }
 let warnedQuota=false, saveTimer=0;
 // เปิดดูจากระบบ (ฝ่ายผลิต / หน้างาน) ห้ามเขียนทับใบที่แอดมินกรอกค้างในเครื่องเดียวกัน
 let viewOnly=false;
@@ -1147,6 +1150,8 @@ function save(){
     try{ const {imgs,...rest}=state; localStorage.setItem(LS, JSON.stringify({...rest,imgs:[]})); }catch(e2){}
     if(!warnedQuota&&state.imgs.length){ warnedQuota=true; toast('ภาพใหญ่เกินกว่าจะจำอัตโนมัติ กด "บันทึกไฟล์" เพื่อเก็บภาพไว้'); }
   }
+  const tab=tabStore();
+  if(tab){ try{ tab.setItem(TAB_LS, JSON.stringify(state)); }catch(e){ try{ tab.removeItem(TAB_LS); }catch(e2){} } }
 }
 // พิมพ์ทีละตัวอักษรไม่เขียน state ทั้งก้อน (รวมรูป base64 หลาย MB) ลงเครื่องทุกครั้ง · รอหยุดพิมพ์ 0.4 วิ แล้วเขียนครั้งเดียว
 function saveSoon(){ clearTimeout(saveTimer); saveTimer=setTimeout(save,400); }
@@ -1687,8 +1692,8 @@ function loadData(d, label){
   if(typeof d.mockup_path==='string'&&d.mockup_path) state.mockup_path=d.mockup_path;
   if((typeof d.mockup_path==='string'&&d.mockup_path)||state.imgs.some(m=>m.path)) state.mockup_no=String(d.h.doc_no||'').trim();
   $('#alert').innerHTML='';
-  if(d.from_job){ state.job_no=String(d.h.doc_no||'').trim(); state.job_imgs=imgSnap(); }
-  else if(typeof d.job_no==='string'&&d.job_no&&typeof d.job_base==='string'&&d.job_base){ state.job_no=d.job_no; state.job_base=d.job_base; state.job_imgs=typeof d.job_imgs==='string'?d.job_imgs:imgSnap(); }
+  if(d.from_job){ state.job_no=String(d.h.doc_no||'').trim(); state.job_imgs=imgSnap(); state.base_token=typeof d.rev_token==='string'?d.rev_token:''; }
+  else if(typeof d.job_no==='string'&&d.job_no&&typeof d.job_base==='string'&&d.job_base){ state.job_no=d.job_no; state.job_base=d.job_base; state.job_imgs=typeof d.job_imgs==='string'?d.job_imgs:imgSnap(); if(typeof d.base_token==='string') state.base_token=d.base_token; }
   if(document.body.classList.contains('preview')) togglePreview(false); rerender();
   if(d.from_job){ state.job_base=jobSnapshot(); rerender(); }
   scrollTo(0,0); save(); toast(label);
@@ -1701,6 +1706,48 @@ $('#openFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) 
 
 /* ฟอร์มอยู่เว็บเดียวกับระบบ จึงส่งใบผ่าน localStorage ให้หน้าระบบที่ล็อกอินแล้วบันทึก ฟอร์มไม่ต้องล็อกอินเอง */
 const OUTBOX='pp142.confirmation.outbox', INBOX='pp142.confirmation.inbox';
+// ลิงก์รูปจากระบบอยู่ 1–2 ชม. · ฟอร์มไม่ได้เข้าสู่ระบบ จึงขอลิงก์ใหม่จากแท็บระบบที่เปิดอยู่ (ชื่อ key ตรงกับ app/src/data/formRelink.ts)
+const RELINK_REQ='pp142.confirmation.relink', RELINK_RES='pp142.confirmation.relinked';
+const linkExp=src=>{ try{ if(!/^https?:/i.test(src||'')) return null; const e=Number(new URL(src).searchParams.get('exp')); return e>0?e*1000:null; }catch(e){ return null; } };
+const staleLinks=ms=>state.imgs.map((m,i)=>({ no:i+1, path:sysPath(m,i), exp:linkExp(m.src) })).filter(x=>x.path&&x.exp!==null&&x.exp<Date.now()+ms);
+let relinkWait=null;
+function requestRelink(list){
+  const id=Date.now()+'-'+Math.random().toString(36).slice(2);
+  try{ localStorage.setItem(RELINK_REQ, JSON.stringify({ id, paths:[...new Set(list.map(x=>x.path))] })); }catch(e){ return Promise.resolve(false); }
+  return new Promise(res=>{ relinkWait={ id, res }; setTimeout(()=>{ if(relinkWait?.id===id){ relinkWait=null; res(false); } }, 5000); });
+}
+function applyRelink(raw){
+  let r=null; try{ r=JSON.parse(raw); }catch(e){}
+  if(!r||!relinkWait||r.id!==relinkWait.id||!r.urls||typeof r.urls!=='object') return;
+  let n=0;
+  state.imgs.forEach((m,i)=>{ const p=sysPath(m,i), u=p&&r.urls[p]; if(typeof u==='string'&&/^https?:/i.test(u)){ m.src=u; n++; } });
+  const w=relinkWait; relinkWait=null;
+  if(n){ rerender(); save(); }
+  w.res(n>0);
+}
+async function keepLinks(){ const soon=staleLinks(10*60e3); if(soon.length&&!relinkWait&&document.visibilityState!=='hidden') await requestRelink(soon); }
+async function linksReady(){
+  const dead=staleLinks(30e3);
+  if(!dead.length) return true;
+  if(await requestRelink(dead)&&!staleLinks(30e3).length) return true;
+  const nos=staleLinks(30e3).map(x=>x.no).join(', ');
+  alert('รูปที่ '+nos+' เป็นรูปจากระบบที่ลิงก์หมดอายุแล้ว (เปิดฟอร์มไว้นาน) · ส่งออก PDF ตอนนี้รูปจะหาย\n\n'+(IN_APP
+    ? 'กด "บันทึกเข้าระบบ" ก่อน แล้วกด "กลับหน้าระบบ" และเปิดใบจากระบบอีกครั้ง'
+    : 'เปิดหน้าระบบที่เข้าสู่ระบบไว้ในอีกแท็บของเบราว์เซอร์นี้ แล้วกด "ส่งออก PDF" อีกครั้ง · ข้อมูลที่แก้ในฟอร์มยังอยู่'));
+  return false;
+}
+let warnedTab=false;
+function warnOtherTab(){
+  if(warnedTab||viewOnly) return;
+  warnedTab=true;
+  const n=document.createElement('div'); n.className='view-note'; n.setAttribute('role','status');
+  n.innerHTML='<b>ฟอร์มใบยืนยันเปิดอยู่อีกแท็บ</b><span>แท็บนี้ยังจำใบของตัวเอง (รีเฟรชแล้วไม่หาย) · แต่แท็บที่เปิดใหม่จะได้ใบที่บันทึกล่าสุดจากแท็บไหนก็ได้ · ใช้ฟอร์มทีละแท็บ แล้วปิดแท็บที่ไม่ใช้</span>';
+  $('#alert').before(n);
+}
+addEventListener('storage', e=>{
+  if(e.key===LS&&e.newValue) warnOtherTab();
+  if(e.key===RELINK_RES&&e.newValue) applyRelink(e.newValue);
+});
 // แอปที่ติดตั้งบน iPhone เก็บข้อมูลแยกจาก Safari · ฟอร์มเปิดในหน้าเดิมของแอป จึงส่งกลับหน้าระบบในหน้าเดิมด้วย
 const IN_APP=navigator.standalone===true||(typeof matchMedia==='function'&&(matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches));
 // ค่าของงานตอนเปิดจากระบบ ใช้บอกฝ่ายผลิตว่าใบแก้เปลี่ยนช่องไหน
@@ -1766,6 +1813,7 @@ function saveToSystem(){
   const payload={ app:'phappim-confirm', v:1, ...state, imgs:[], summary:{ qty:totalQty() }, ...systemCopy() };
   payload.mockups=state.imgs.map((m,i)=>{ const path=sysPath(m,i); return path?{ name:m.name||'', path }:{ name:m.name||'', data:shrunk.get(m.src) }; });
   if(revise){ payload.revise_job=true; payload.changes=changes; payload.base_rev=num(jobBase()?.h?.rev); }
+  else delete payload.base_token;
   // รูปเดิมจากระบบใช้ได้เฉพาะใบเลขเดิม (เปลี่ยนเลขใบเพื่อทำใบใหม่ = ไม่เอารูปใบเดิมไป)
   if(String(state.mockup_no||'')!==String(state.h.doc_no||'').trim()) delete payload.mockup_path;
   delete payload.mockup_no; delete payload.job_no; delete payload.job_base; delete payload.job_imgs; delete payload.sent_sig; delete payload.pickOpen;
@@ -2072,6 +2120,7 @@ function docFontsReady(){
 docFontsReady();
 async function exportPdf(){
   flushSave();
+  if(!(await linksReady())) return;
   missing=validate(); showAlert();
   const hard=missing.filter(m=>m.hard).length, soft=missing.length-hard;
   const back=()=>{ if(document.body.classList.contains('preview')) togglePreview(false); else rerender(); scrollTo(0,0); };
@@ -2092,6 +2141,7 @@ refreshThumb();
 // ต้องอยู่ท้ายสุด: โหลดใบแล้ววาดฟอร์มทันที ค่าคงที่ที่ประกาศหลังจุดเรียกจะยังใช้ไม่ได้ (สคริปต์หยุดทั้งก้อน)
 takeNew();
 takeInbox();
+if(typeof setInterval==='function'){ setInterval(()=>{ void keepLinks(); }, 60e3); setTimeout(()=>{ void keepLinks(); }, 1500); }
 </script>
 </body>
 </html>
