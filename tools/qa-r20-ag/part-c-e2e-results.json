@@ -1,0 +1,20 @@
+{
+  "externalAttempts": [],
+  "results": [
+    {
+      "id": "C1.all-routes-with-materials",
+      "status": "PASS",
+      "detail": "เดินครบ 8 เส้นทางผ่านขั้นรอผลิตจนเสร็จ/จัดส่ง (done=8, shipped=7)"
+    },
+    {
+      "id": "C4-C5.staff-qc-burmese-375",
+      "status": "PASS",
+      "detail": "staff & QC 375px โหมดพม่าไม่ล้น"
+    },
+    {
+      "id": "C7.station-photos-with-materials-check",
+      "status": "PASS",
+      "detail": "รูปวัตถุดิบ + รูปชิ้นแรก + รูปงานเสร็จ ทำงานร่วมกันไม่ชน"
+    }
+  ]
+}
