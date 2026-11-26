@@ -13,6 +13,7 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
   const plan = [...production, 'manager', 'phase1']
   const floor = [...production, 'phase2']
   const all = Object.keys(roster).filter(actor => actor !== 'disabled')
+  const stationHands = [...production, 'phase1', 'phase2', 'qc', 'multi', 'single', 'staffQc']
   const result = []
   const begin = async (actor, name, id) => {
     await skipQueue(actor, id)
@@ -111,6 +112,12 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
       set_repair_eta: [production, [broken.code, window.ends, reason]],
       record_qc: [qc, [qcDoing, 1]],
       send_rework: [qc, [qcDoing, 1, reason, 'cut']],
+      ack_mockup_sheet: [stationHands, ['00000000-0000-4000-8000-000000000013', 'cut']],
+      submit_first_piece: [stationHands, [doing, 'cut', ['TEST-R13-MATRIX-DOING/station/cut-1.jpg'], null]],
+      add_finish_photos: [stationHands, [doing, 'cut', ['TEST-R13-MATRIX-DOING/station/cut-2.jpg']]],
+      decide_first_piece: [['owner', 'admin', 'manager'], [0, true, null]],
+      set_station_photos_enabled: [['owner'], [false, null]],
+      station_photo_flags: [all, []],
     }
     const probes = [...Object.keys(roster), 'anon']
     const discrepancies = []
@@ -138,7 +145,7 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
       result.push({ name, expected, cells })
     }
     console.log('R13_MATRIX ' + JSON.stringify({ probes, result, discrepancies }))
-    assert.equal(result.length, 42)
+    assert.equal(result.length, 48)
     assert.equal(discrepancies.filter(item => ['anon', 'disabled'].includes(item.actor)).length, 0)
     assert.deepEqual(documented.sort(), Object.keys(rowsToTest).sort())
     return result.length + ' RPC × ' + probes.length + ' บัญชี'
