@@ -91,6 +91,19 @@ export function attachSpecSheets(jobs: Job[], sheets: SpecSheetRow[], acks: Spec
 
 export type HoldRow = { job_id: string; opened_at: string }
 
+export type MaterialRow = { job_id: string; name: string; eta: string | null; checked_at: string | null }
+
+export function attachMaterials(jobs: Job[], rows: MaterialRow[]): Job[] {
+  if (!rows.length) return jobs
+  const byJob = new Map<string, NonNullable<Job['materialLines']>>()
+  for (const r of rows) {
+    const list = byJob.get(r.job_id) ?? []
+    list.push({ name: r.name, eta: r.eta ? new Date(r.eta) : null, checked: !!r.checked_at })
+    byJob.set(r.job_id, list)
+  }
+  return jobs.map(j => (j.phase === 'materials' && byJob.has(j.id) ? { ...j, materialLines: byJob.get(j.id) } : j))
+}
+
 export function attachHolds(jobs: Job[], holds: HoldRow[]): Job[] {
   if (!holds.length) return jobs
   const opened = new Map<string, string>()

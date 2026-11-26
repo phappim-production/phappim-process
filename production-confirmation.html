@@ -1101,7 +1101,7 @@ const SUPPLY = (x={}) => {
       cols:[ { c:'item', label:'ของที่ส่งมา', t:'text' }, { c:'qty', label:'จำนวน', t:'number' },
         { c:'unit', label:'หน่วย', t:'select', options:['ชิ้น','ตัว','ชุด','หลา','แผ่น','ม้วน'] }, { c:'note', label:'สี / สภาพ / หมายเหตุ', t:'text', opt:true } ] },
     R('supply_by','ส่งของเข้าโรงงาน',['ลูกค้าส่งมาเอง','ให้โรงงานไปรับ'],{ when:any }),
-    T('supply_date','วันที่ของจะถึงโรงงาน',{ ph:'เช่น 28 พ.ย. 2569', when:any }),
+    { id:'supply_date', type:'date', label:'วันที่ของจะถึงโรงงาน', req:true, hint:'ระบบใส่วันนี้เป็นวันคาดว่าได้รับในรายการเช็คของตอนรอผลิต', when:any },
     N('supply_spare','ของเผื่อเสียที่ลูกค้าส่งมา',x.spareUnit||'ชิ้น',{ hint:'แนะนำให้ลูกค้าส่งเผื่อ 3–5%', when:any }),
   ]};
 };

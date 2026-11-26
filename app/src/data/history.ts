@@ -78,6 +78,13 @@ export function eventWords(e: EventRow, n: Names, unit = 'ชิ้น'): EventW
       const items = Array.isArray(p.items) ? p.items.map(str).filter(Boolean) : []
       return { title: word('ตั้งรายการวัตถุดิบ {n} รายการ', { n: items.length }), detail: free(items.join(', ')), tone: 'neutral' }
     }
+    case 'material_added':
+      return { title: word('เพิ่มวัตถุดิบ: {name}', { name: str(p.name) }), tone: 'neutral',
+        detail: p.have === true ? word('มีของแล้ว') : p.eta ? word('คาดว่าได้รับ {at} น.', { at: date(p.eta) }) : undefined }
+    case 'material_eta':
+      if (!p.from) return { title: word('ใส่วันที่คาดว่าได้รับ: {name}', { name: str(p.name) }), tone: 'neutral', detail: word('คาดว่าได้รับ {at} น.', { at: date(p.eta) }) }
+      return { title: word('เลื่อนวันที่คาดว่าได้รับ: {name}', { name: str(p.name) }), tone: 'warn',
+        detail: word('{from} น. → {at} น.', { from: date(p.from), at: date(p.eta) }) }
     case 'material_photos': return { title: word('ถ่ายรูปวัตถุดิบ {n} รูป', { n: num(p.added) }), tone: 'info' }
     case 'material_photo_removed': return { title: word('ลบรูปวัตถุดิบ 1 รูป'), tone: 'warn' }
     case 'released':

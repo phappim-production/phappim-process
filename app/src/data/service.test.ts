@@ -46,11 +46,18 @@ describe('เย็บอย่างเดียวใช้รหัสสิ�
 
 describe('รายการเช็คของตั้งต้นตอนรอผลิต', () => {
   it('จากของที่ลูกค้าส่งมา + ฟิล์มของลูกค้า', () => {
-    const s = spec('svc_dtf', { film_source: 'ลูกค้าส่งฟิล์มมาเอง', supplied: [
+    const s = spec('svc_dtf', { film_source: 'ลูกค้าส่งฟิล์มมาเอง', supply_date: '2026-11-30', supplied: [
       { item: 'เสื้อยืดสีดำ', qty: 1200, unit: 'ตัว', note: 'ไม่มีตำหนิ' }, { item: ' ', qty: 1 }, { item: 'ถุงแพ็ค', qty: '', unit: 'ชิ้น' },
     ] })
     expect(customerFilm(s)).toBe(true)
-    expect(suppliedChecklist(s)).toEqual(['เสื้อยืดสีดำ 1,200 ตัว (ไม่มีตำหนิ)', 'ถุงแพ็ค', 'ฟิล์ม DTF ของลูกค้า'])
+    const eta = new Date('2026-11-30T17:00:00+07:00')
+    expect(suppliedChecklist(s)).toEqual([
+      { name: 'เสื้อยืดสีดำ 1,200 ตัว (ไม่มีตำหนิ)', eta }, { name: 'ถุงแพ็ค', eta }, { name: 'ฟิล์ม DTF ของลูกค้า', eta },
+    ])
+  })
+  it('วันที่ของจะถึงว่าง / ปี พ.ศ. = ยังไม่มีวันคาดว่าได้รับ (หน้ารับงานไม่ใส่ให้ แอดมินเพิ่มเอง)', () => {
+    expect(suppliedChecklist(spec('svc_press', { supplied: [{ item: 'ผ้า' }] }))[0].eta).toBeNull()
+    expect(suppliedChecklist(spec('svc_press', { supply_date: '2569-11-30', supplied: [{ item: 'ผ้า' }] }))[0].eta).toBeNull()
   })
   it('สินค้าปกติไม่ใส่รายการให้', () => {
     expect(suppliedChecklist(spec('tshirt', { supplied: [{ item: 'ผ้า' }] }))).toEqual([])

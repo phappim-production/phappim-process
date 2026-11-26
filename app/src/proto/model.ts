@@ -73,6 +73,7 @@ export type Job = {
   needsSample?: boolean      // false = ลูกค้าไม่จ่ายค่าตัวอย่าง เข้าผลิตจริงเลย
   develop?: boolean          // งาน Develop: ลูกค้ายืนยันตัวอย่างผ่าน = งานเสร็จ ไม่ผลิตจริง
   materials: Record<Dept, boolean>
+  materialLines?: { name: string; eta: Date | null; checked: boolean }[]  // เฉพาะงานรอผลิต
   film?: { eta: Date; received: boolean }  // เฉพาะเส้นทางที่สั่งฟิล์ม (DTF / DTG / สกรีน)
   sewCount?: number
   sewingReports?: { reason: string; at: Date; paused: boolean }[]

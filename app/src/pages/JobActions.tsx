@@ -50,7 +50,7 @@ async function loadDetail(id: string, station: StationCode | undefined, phase: J
   const none = Promise.resolve({ data: [], error: null })
   const [live, materials, photos, stations, reasons] = await Promise.all([
     supabase.from('job_live').select('visit, qc_passed, sla, dtf_film_ordered_at, confirmation_pdf_path').eq('id', id).single(),
-    phase === 'materials' ? supabase.from('job_materials').select('id, name, checked_at').eq('job_id', id).order('id') : none,
+    phase === 'materials' ? supabase.from('job_materials').select('id, name, checked_at, eta').eq('job_id', id).order('id') : none,
     phase === 'materials' ? supabase.from('job_material_photos').select('id, path').eq('job_id', id).order('id') : none,
     station ? stationInfo.get() : Promise.resolve([]),
     reasonCodes.get(),

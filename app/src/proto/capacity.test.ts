@@ -273,3 +273,15 @@ it('งานรอผลิตที่ต้องขึ้นตัวอย�
   const sample = simulate([{ ...waiting, needsSample: true }], friday).finishDay.get('j1')!
   expect(sample - plain).toBeCloseTo(LEAD.sample + LEAD.sampleReview, 5)
 })
+
+it('งานรอผลิตที่ของชิ้นสุดท้ายยังไม่มา คาดเสร็จหลังวันของถึง', () => {
+  const waiting = { ...job, phase: 'materials' as const, station: undefined, status: undefined, needsSample: false }
+  const base = simulate([waiting], friday).finishDay.get('j1')!
+  const later = simulate([{ ...waiting, materialLines: [
+    { name: 'ผ้า', eta: new Date(2026, 11, 7, 10), checked: false },
+    { name: 'หมึก', eta: new Date(2026, 11, 20, 10), checked: true },
+  ] }], friday).finishDay.get('j1')!
+  expect(later).toBeGreaterThan(base)
+  const received = simulate([{ ...waiting, materialLines: [{ name: 'ผ้า', eta: new Date(2026, 11, 7, 10), checked: true }] }], friday).finishDay.get('j1')!
+  expect(received).toBe(base)
+})

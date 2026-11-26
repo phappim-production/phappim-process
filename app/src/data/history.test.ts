@@ -110,3 +110,15 @@ it('ไทม์ไลน์: ส่งออกบริษัทภายน�
   const row: EventRow = { id: 5, type: 'released', phase: 'production', station_code: null, payload: { manual: true, outsource: true, materials: 0, photos: 0 }, by: null, at: '2026-11-26T03:00:00Z' }
   expect(eventLine(row, names)).toEqual({ title: 'ปล่อยเข้าไลน์การผลิต', detail: 'ส่งออกบริษัทภายนอก · ไม่ต้องเช็ควัตถุดิบ', tone: 'ok' })
 })
+
+describe('ไทม์ไลน์: วันที่คาดว่าได้รับวัตถุดิบ', () => {
+  const row = (type: string, payload: Record<string, unknown>): EventRow => ({ id: 6, type, phase: 'materials', station_code: null, payload, by: null, at: '2026-11-26T03:00:00Z' })
+  it('เพิ่มรายการบอกวันคาดว่าได้รับ หรือมีของแล้ว · เลื่อนวันบอกวันเดิมและวันใหม่', () => {
+    expect(eventLine(row('material_added', { name: 'ผ้า', eta: '2026-11-28T07:30:00Z', have: false }), names).detail).toMatch(/^คาดว่าได้รับ 28 พ\.ย\. 14:30 น\.$/)
+    expect(eventLine(row('material_added', { name: 'หมึก', eta: null, have: true }), names)).toEqual({ title: 'เพิ่มวัตถุดิบ: หมึก', detail: 'มีของแล้ว', tone: 'neutral' })
+    expect(eventLine(row('material_eta', { name: 'ผ้า', eta: '2026-11-30T03:00:00Z', from: '2026-11-28T07:30:00Z' }), names))
+      .toEqual({ title: 'เลื่อนวันที่คาดว่าได้รับ: ผ้า', detail: '28 พ.ย. 14:30 น. → 30 พ.ย. 10:00 น.', tone: 'warn' })
+    expect(eventLine(row('material_eta', { name: 'ผ้า', eta: '2026-11-30T03:00:00Z', from: null }), names))
+      .toEqual({ title: 'ใส่วันที่คาดว่าได้รับ: ผ้า', detail: 'คาดว่าได้รับ 30 พ.ย. 10:00 น.', tone: 'neutral' })
+  })
+})

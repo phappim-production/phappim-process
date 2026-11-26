@@ -87,29 +87,68 @@ try {
     return b.reason
   })
 
-  await step('admin-adds-items', async () => {
-    for (const name of ['ผ้าคอตตอน 32 สีขาว 60 หลา', 'ด้ายสีดำ', 'ป้ายคอ']) {
-      await h.fillInput('[role="dialog"] input[placeholder^="เช่น ผ้า"]', name)
-      await h.clickButton('เพิ่ม', { exact: true, inside: '[role="dialog"]' })
-      await waitDialog(new RegExp(`เพิ่ม "${name}" แล้ว`), `เพิ่ม ${name}`)
-    }
-    await h.fillInput('[role="dialog"] input[placeholder^="เช่น ผ้า"]', ' ด้ายสีดำ ')
+  // เวลาไทยของวันพรุ่งนี้ / เมื่อวาน สำหรับช่องวันเวลา (YYYY-MM-DDTHH:mm)
+  const bkk = (days, hhmm) => {
+    const d = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(Date.now() + days * 86_400_000))
+    return `${d}T${hhmm}`
+  }
+  const addItem = async (name, { eta = '', have = false } = {}) => {
+    await h.fillInput('[role="dialog"] input[placeholder^="เช่น ผ้า"]', name)
+    if (eta) await h.fillInput('[role="dialog"] form input[type="datetime-local"]', eta)
+    if (have) await h.ev(() => { const c = [...document.querySelectorAll('[role="dialog"] input[type="checkbox"]')].find(x => x.closest('label')?.textContent.includes('มีของแล้ว')); if (!c.checked) c.click() })
     await h.clickButton('เพิ่ม', { exact: true, inside: '[role="dialog"]' })
+  }
+
+  await step('admin-adds-items-with-eta', async () => {
+    await addItem('ผ้าคอตตอน 32 สีขาว 60 หลา')
+    await waitDialog(/ใส่วันเวลาที่คาดว่าจะได้รับ "ผ้าคอตตอน 32 สีขาว 60 หลา" หรือติ๊ก "มีของแล้ว"/, 'ต้องมีวันที่หรือมีของแล้ว')
+    await addItem('ผ้าคอตตอน 32 สีขาว 60 หลา', { eta: bkk(1, '14:30') })
+    await waitDialog(/เพิ่ม "ผ้าคอตตอน 32 สีขาว 60 หลา" แล้ว/, 'เพิ่มผ้า')
+    await addItem('ด้ายสีดำ', { have: true })
+    await waitDialog(/เพิ่ม "ด้ายสีดำ" \(มีของแล้ว\) แล้ว/, 'เพิ่มด้าย มีของแล้ว')
+    await addItem('ป้ายคอ', { eta: bkk(-1, '09:00') })
+    await waitDialog(/เพิ่ม "ป้ายคอ" แล้ว/, 'เพิ่มป้ายคอ')
+    await addItem(' ด้ายสีดำ ', { eta: bkk(2, '10:00') })
     await waitDialog(/มี "ด้ายสีดำ" ในรายการแล้ว/, 'ชื่อซ้ำ')
-    const [{ n }] = await sql('select count(*)::int n from public.job_materials where job_id = $1', [plain])
-    if (n !== 3) throw new Error('ในฐานมี ' + n)
-    return '3 รายการ · ชื่อซ้ำไม่เพิ่ม'
+    await waitDialog(/คาดว่าได้รับ \d+ \S+ 14:30 น\./, 'วันคาดว่าได้รับของผ้า')
+    await waitDialog(/เลยกำหนดรับ \d+ \S+ 09:00 น\./, 'ป้ายคอเลยกำหนด')
+    await waitDialog(/วัตถุดิบเลยกำหนดรับ 1 รายการ: ป้ายคอ/, 'แถบเตือนเลยกำหนด')
+    const rows = await sql('select name, eta is not null e, checked_at is not null c from public.job_materials where job_id = $1 order by id', [plain])
+    if (JSON.stringify(rows.map(r => [r.name, r.e, r.c])) !== JSON.stringify([['ผ้าคอตตอน 32 สีขาว 60 หลา', true, false], ['ด้ายสีดำ', false, true], ['ป้ายคอ', true, false]])) throw new Error(JSON.stringify(rows))
+    await h.screenshot('materials-eta-375', { fullPage: true })
+    return 'ต้องมีวันที่หรือมีของแล้ว · มีของแล้วติ๊กให้เลย · เลยกำหนดขึ้นแดง'
+  })
+
+  await step('late-card-then-reschedule', async () => {
+    await h.goto('admin1', '#/board', 1440)
+    await h.waitText('วัตถุดิบเลยกำหนดรับ')
+    await h.screenshot('materials-late-card-1440')
+    await h.goto('admin1', `#/board?job=${plain}`, 375)
+    await waitDialog(/เลื่อนวันที่คาดว่าได้รับ/, 'ปุ่มเลื่อนวัน')
+    await h.clickButton('เลื่อนวันที่คาดว่าได้รับ', { exact: true, inside: '[role="dialog"]', index: 1 })
+    await h.fillInput('[role="dialog"] li form input[type="datetime-local"]', bkk(2, '11:00'))
+    await h.clickButton('บันทึกวันที่', { exact: true, inside: '[role="dialog"]' })
+    await waitDialog(/บันทึกวันที่คาดว่าได้รับ "ป้ายคอ" แล้ว/, 'บันทึกวันใหม่')
+    await waitFor(async () => !/วัตถุดิบเลยกำหนดรับ 1 รายการ/.test(await dialogText()), 'แถบเตือนหายหลังเลื่อนวัน', 10000)
+    await waitDialog(/เลื่อนวันที่คาดว่าได้รับ: ป้ายคอ/, 'ประวัติเลื่อนวัน', 10000)
+    await h.goto('admin1', '#/board', 1440)
+    await h.waitText('ของถึง')
+    if (await h.ev(() => document.body.innerText.includes('วัตถุดิบเลยกำหนดรับ'))) throw new Error('การ์ดยังแดงหลังเลื่อนวัน')
+    await h.goto('admin1', `#/board?job=${plain}`, 375)
+    await waitDialog(/รอผลิต · เช็ควัตถุดิบ/, 'กลับมาที่แผง')
+    return 'การ์ดแดงเมื่อเลยกำหนด · เลื่อนวันแล้วการ์ดบอกวันของถึง · ประวัติบันทึก'
   })
 
   await step('tick-and-remove', async () => {
-    await h.clickButton('ผ้าคอตตอน 32 สีขาว 60 หลา', { exact: true, inside: '[role="dialog"]' })
+    await h.clickButton(/^ผ้าคอตตอน 32 สีขาว 60 หลา/, { inside: '[role="dialog"]' })
     await waitDialog(/ติ๊ก "ผ้าคอตตอน 32 สีขาว 60 หลา" แล้ว/, 'ติ๊กผ้า')
-    await h.clickButton('ด้ายสีดำ', { exact: true, inside: '[role="dialog"]' })
     await waitDialog(/ติ๊กแล้ว 2\/3 รายการ/, 'ยอดติ๊ก 2/3')
+    await waitDialog(/ได้รับแล้ว/, 'ได้รับแล้ว')
     const b = await releaseButton()
     if (!b?.disabled || b.reason !== 'ยังไม่ได้ติ๊กวัตถุดิบ: ป้ายคอ · เช็คของให้ครบก่อนปล่อยเข้าไลน์') throw new Error(JSON.stringify(b))
     await h.ev(() => document.querySelector('[role="dialog"] button[aria-label=\'ลบ "ป้ายคอ" ออกจากรายการ\']').click())
     await waitDialog(/ลบ "ป้ายคอ" ออกจากรายการแล้ว/, 'ลบป้ายคอ')
+    await waitFor(() => h.ev(() => document.querySelectorAll('[role="dialog"] [role="checkbox"]').length === 2), 'รายการโหลดใหม่หลังลบ', 10000)
     const checked = await h.ev(() => [...document.querySelectorAll('[role="dialog"] [role="checkbox"]')].map(b => b.getAttribute('aria-checked')))
     if (checked.join() !== 'true,true') throw new Error('สถานะติ๊กหลังลบ ' + checked)
     const again = await releaseButton()
@@ -161,7 +200,7 @@ try {
   })
 
   await step('production-read-only', async () => {
-    await as(id('admin1'), 'public.set_job_materials($2::uuid, $3::text[])', [sample, ['ผ้าโพลี', 'หมึกสีแดง']])
+    for (const name of ['ผ้าโพลี', 'หมึกสีแดง']) await as(id('admin1'), "public.add_job_material($2::uuid, $3, now() + interval '2 days')", [sample, name])
     await h.goto('prod1', `#/board?job=${sample}`, 768)
     await waitDialog(/ติ๊กแล้ว 0\/2 รายการ/, 'แผงอ่านอย่างเดียว')
     const controls = await h.ev(() => ({

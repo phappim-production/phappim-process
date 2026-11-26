@@ -2,6 +2,7 @@
 import { byQueue, filmLabel, isFilmNotOrdered, isOutLate, isOverdue, isWaitingFilm, leadReportBlocksFinish, STATION_NAME, type Job } from './model.ts'
 import { spaced } from './format.ts'
 import { thai, word, type Word } from '../i18n/word.ts'
+import { materialsOutlook } from '../data/materialsCheck.ts'
 
 export type ActionTone = 'danger' | 'warn' | 'info' | 'neutral'
 export type NextAction = { job: Job; text: string; word: Word; tone: ActionTone; urgency: number }
@@ -15,8 +16,12 @@ export function nextAction(j: Job, now: Date): NextAction | null {
   switch (j.phase) {
     case 'done':
       return null
-    case 'materials':
-      return make(word('เช็ควัตถุดิบ + ถ่ายรูป แล้วปล่อยเข้าไลน์การผลิต'), 'warn', 3)
+    case 'materials': {
+      const late = materialsOutlook(j.materialLines ?? [], now).late
+      return late.length
+        ? make(word('วัตถุดิบเลยกำหนดรับ: {names} · ตามของ แล้วติ๊กเมื่อได้รับ', { names: late.map(l => l.name).join(', ') }), 'danger', 1)
+        : make(word('เช็ควัตถุดิบ + ถ่ายรูป แล้วปล่อยเข้าไลน์การผลิต'), 'warn', 3)
+    }
     case 'sample_review':
       return make(word('แอดมินบันทึกผลตัวอย่างรอบ {n}', { n: j.sampleRound }), 'info', 4)
   }

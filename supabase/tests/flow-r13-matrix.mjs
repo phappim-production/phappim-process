@@ -127,11 +127,13 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
       decide_first_piece: [['owner', 'admin', 'manager'], [0, true, null]],
       set_station_photos_enabled: [['owner'], [false, null]],
       station_photo_flags: [all, []],
-      set_job_materials: [admin, [waiting, ['ผ้า', 'ด้าย']]],
+      set_job_materials: [admin, [waiting, ['ผ้า']]],
       check_material: [admin, [item.id]],
       add_material_photos: [admin, [waiting, [materialPhoto]]],
       remove_material_photo: [admin, [readyPhoto.id]],
       release_job: [admin, [ready]],
+      add_job_material: [admin, [waiting, 'ด้าย', null, true]],
+      set_material_eta: [admin, [item.id, '2099-01-05T03:00:00Z']],
     }
     const probes = [...Object.keys(roster), 'anon']
     const discrepancies = []
@@ -159,7 +161,7 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
       result.push({ name, expected, cells })
     }
     console.log('R13_MATRIX ' + JSON.stringify({ probes, result, discrepancies }))
-    assert.equal(result.length, 53)
+    assert.equal(result.length, 55)
     assert.equal(discrepancies.filter(item => ['anon', 'disabled'].includes(item.actor)).length, 0)
     assert.deepEqual(documented.sort(), Object.keys(rowsToTest).sort())
     return result.length + ' RPC × ' + probes.length + ' บัญชี'

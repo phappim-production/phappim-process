@@ -490,3 +490,16 @@ test('ไม่มีงานเลยกำหนดหรือติดป�
   assert.equal(noteText(tile(t, 'urgent').note), 'ไม่มีงานเลยกำหนดหรือติดปัญหา')
   assert.equal(noteText(tile(t, 'machines').note), 'จาก 0 ตัว')
 })
+
+test('งานรอผลิตที่วัตถุดิบเลยกำหนดรับ = สิ่งที่ต้องทำสีแดง บอกชื่อของที่ยังไม่มา', () => {
+  const lines = [
+    { name: 'ผ้า', eta: new Date(now.getTime() - 3_600_000), checked: false },
+    { name: 'หมึก', eta: new Date(now.getTime() - 7_200_000), checked: true },
+    { name: 'ด้าย', eta: new Date(now.getTime() + 86_400_000), checked: false },
+  ]
+  const late = nextAction(job({ phase: 'materials', station: undefined, status: undefined, materialLines: lines }), now)
+  assert.equal(late.tone, 'danger')
+  assert.equal(late.text, 'วัตถุดิบเลยกำหนดรับ: ผ้า · ตามของ แล้วติ๊กเมื่อได้รับ')
+  const onTime = nextAction(job({ phase: 'materials', station: undefined, status: undefined, materialLines: lines.slice(1) }), now)
+  assert.equal(onTime.tone, 'warn')
+})

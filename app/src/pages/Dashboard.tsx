@@ -1,3 +1,4 @@
+import { materialsOutlook } from '../data/materialsCheck'
 import { serviceLabel } from '../data/service'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
@@ -548,6 +549,7 @@ function PageHeader({ title, today, updated }: { title: string | Word; today: st
 function stripe(j: Job, now: Date): Tone {
   if (j.phase === 'done') return 'ok'
   if (j.status === 'hold' || isOverdue(j, now) || isOutLate(j, now) || j.sla === 'over' || j.sla === 'report') return 'danger'
+  if (materialsLate(j, now)) return 'danger'
   if (isFilmLate(j, now) || j.phase === 'materials' || j.sla === 'warn' || blockedByFilmOrder(j)) return 'warn'
   if (j.status === 'doing') return 'info'
   return 'neutral'
@@ -557,6 +559,13 @@ function productLine(j: Job, tx: (th: string) => string) {
   const { service, product } = serviceLabel(j)
   return service ? [tx(service), product].filter(Boolean).join(' · ') : product
 }
+
+function materialsLabel(j: Job, now: Date, tx: ReturnType<typeof useT>) {
+  const o = materialsOutlook(j.materialLines ?? [], now)
+  return o.late.length ? tx('วัตถุดิบเลยกำหนดรับ') : o.next ? tx('ของถึง {at} น.', { at: { at: o.next, time: true } }) : tx('รอเช็ควัตถุดิบ')
+}
+
+const materialsLate = (j: Job, now: Date) => j.phase === 'materials' && materialsOutlook(j.materialLines ?? [], now).late.length > 0
 
 function receivedWhere(jobs: Job[], no: string): string {
   const phase = jobs.find(j => j.no === no)?.phase
@@ -574,7 +583,7 @@ function JobCard({ job: j, now, sampleTag, onOpen }: { job: Job; now: Date; samp
     : isWaitingFilm(j) ? tx('รอฟิล์ม')
     : blockedByFilmOrder(j) ? tx('ยังไม่ได้สั่งฟิล์ม')
     : j.phase === 'done' ? tx(j.delivered ? 'จัดส่งแล้ว' : 'เสร็จ · รอส่ง')
-    : j.phase === 'materials' ? tx('รอเช็ควัตถุดิบ')
+    : j.phase === 'materials' ? materialsLabel(j, now, tx)
     : j.phase === 'sample' && j.station ? tx(STATION_NAME[j.station])
     : j.status ? tx(STATUS_NAME[j.status]) : null
   const tone = stripe(j, now)
@@ -617,7 +626,13 @@ function CardStatus({ job: j, now }: { job: Job; now: Date }) {
   const rows: ReactNode[] = []
   const day = (at: Date) => ({ at })
 
-  if (j.phase === 'materials') rows.push(<Pill key="m" tone="warn" dot>{t('รอเช็ควัตถุดิบ')}</Pill>)
+  if (j.phase === 'materials') {
+    const o = materialsOutlook(j.materialLines ?? [], now)
+    rows.push(o.late.length
+      ? <Pill key="m" tone="danger" dot>{t('วัตถุดิบเลยกำหนดรับ {n} รายการ', { n: o.late.length })}</Pill>
+      : o.next ? <Pill key="m" tone="warn" dot>{t('ของถึง {at} น.', { at: { at: o.next, time: true } })}</Pill>
+      : <Pill key="m" tone="warn" dot>{t('รอเช็ควัตถุดิบ')}</Pill>)
+  }
   if ((j.phase === 'sample' || j.phase === 'production') && j.station && j.status) {
     const tone: Tone = j.status === 'doing' ? 'info' : j.status === 'hold' ? 'danger' : 'neutral'
     rows.push(<Pill key="s" tone={tone} dot>{j.phase === 'sample' ? `${t(STATION_NAME[j.station])} · ` : ''}{t(STATUS_NAME[j.status])}</Pill>)
