@@ -123,6 +123,9 @@ try {
     await t.clickButton('บันทึกเข้าระบบ', { exact: true })
     await waitFor(() => tab.ev(() => location.pathname === '/'), 'บันทึกแล้วกลับหน้าระบบในหน้าเดิม')
     await t.waitText('บันทึกใบยืนยัน TEST-APP-1 เข้าระบบแล้ว')
+    await waitFor(() => tab.ev(() => { const a = [...document.querySelectorAll('a')].find(x => x.textContent.includes('ทำสินค้าถัดไป')); a?.click(); return !!a }), 'ลิงก์ทำสินค้าถัดไปในแอป')
+    await waitFor(() => tab.ev(() => location.pathname === '/confirmation' && document.querySelector('[data-s="h"][data-k="doc_no"]')?.value === 'TEST-APP-2'
+      && document.querySelector('[data-s="h"][data-k="customer"]')?.value === 'ลูกค้าแอปจำลอง'), 'ทำสินค้าถัดไปในแอป: เลขใบถัดไป + ลูกค้าเดิม')
 
     await t.goto('admin1', '#/', 412)
     await t.clickButton('รับงานใหม่')
@@ -135,7 +138,7 @@ try {
     })
     await t.clickButton('แก้ใบนี้ในฟอร์ม', { exact: true })
     await waitFor(() => tab.ev(() => location.pathname === '/confirmation' && document.querySelector('[data-s="h"][data-k="doc_no"]')?.value === 'TEST-APP-1'), 'ฟอร์มเปิดในหน้าเดิมพร้อมใบจากระบบ')
-    await t.clickButton('กลับหน้าระบบ', { exact: true })
+    await t.clickButton('กลับหน้าระบบ')
     await waitFor(() => tab.ev(() => location.pathname === '/'), 'ปุ่มกลับหน้าระบบ')
     await tab.ev(() => sessionStorage.removeItem('qa-standalone'))
   })

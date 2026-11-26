@@ -207,6 +207,8 @@ table.dt tfoot td{font-weight:700;background:#f7f8f6}
 }
 @media (max-width:700px){
   .bar{position:static}
+  /* แถบบนเลื่อนหายบนมือถือ · ปุ่มกลับในแอปบน iPhone ต้องอยู่บนจอเสมอ (ไม่มีปุ่มย้อนของเบราว์เซอร์) */
+  .bar .back-float{position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:30;min-height:48px;padding:10px 16px;font-size:16px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
   .bar .btn{padding:6px 10px;font-size:14px}
   .grid{grid-template-columns:minmax(0,1fr)}
   .opts{--opt-min:140px}
@@ -1709,21 +1711,28 @@ const OUTBOX='pp142.confirmation.outbox', INBOX='pp142.confirmation.inbox';
 // ลิงก์รูปจากระบบอยู่ 1–2 ชม. · ฟอร์มไม่ได้เข้าสู่ระบบ จึงขอลิงก์ใหม่จากแท็บระบบที่เปิดอยู่ (ชื่อ key ตรงกับ app/src/data/formRelink.ts)
 const RELINK_REQ='pp142.confirmation.relink', RELINK_RES='pp142.confirmation.relinked';
 const linkExp=src=>{ try{ if(!/^https?:/i.test(src||'')) return null; const e=Number(new URL(src).searchParams.get('exp')); return e>0?e*1000:null; }catch(e){ return null; } };
-const staleLinks=ms=>state.imgs.map((m,i)=>({ no:i+1, path:sysPath(m,i), exp:linkExp(m.src) })).filter(x=>x.path&&x.exp!==null&&x.exp<Date.now()+ms);
-let relinkWait=null;
+// รูปจากระบบที่ไม่มีลิงก์เลย (ขอลิงก์ไม่สำเร็จตอนเปิด) ถือว่าหมดอายุ ไม่อย่างนั้นส่งออก PDF แล้วรูปหายเงียบๆ
+const staleLinks=ms=>state.imgs.map((m,i)=>({ no:i+1, path:sysPath(m,i), src:m.src||'', exp:linkExp(m.src) }))
+  .filter(x=>x.path&&(x.exp===null?!/^(https?|blob):/i.test(x.src):x.exp<Date.now()+ms));
+let relinkWait=null, lastRelink='';
 function requestRelink(list){
   const id=Date.now()+'-'+Math.random().toString(36).slice(2);
+  lastRelink=id;
   try{ localStorage.setItem(RELINK_REQ, JSON.stringify({ id, paths:[...new Set(list.map(x=>x.path))] })); }catch(e){ return Promise.resolve(false); }
-  return new Promise(res=>{ relinkWait={ id, res }; setTimeout(()=>{ if(relinkWait?.id===id){ relinkWait=null; res(false); } }, 5000); });
+  return new Promise(res=>{ relinkWait={ id, res }; setTimeout(()=>{ if(relinkWait?.id===id){ relinkWait=null; res(false); } }, 8000); });
 }
+// เปลี่ยนแค่ลิงก์ของรูปที่แสดงอยู่ · ไม่วาดฟอร์มใหม่ (ช่องที่กำลังพิมพ์ไม่หลุด) · คำตอบที่มาช้ากว่าที่รอยังใช้ได้
 function applyRelink(raw){
   let r=null; try{ r=JSON.parse(raw); }catch(e){}
-  if(!r||!relinkWait||r.id!==relinkWait.id||!r.urls||typeof r.urls!=='object') return;
+  if(!r||r.id!==lastRelink||!r.urls||typeof r.urls!=='object') return;
   let n=0;
-  state.imgs.forEach((m,i)=>{ const p=sysPath(m,i), u=p&&r.urls[p]; if(typeof u==='string'&&/^https?:/i.test(u)){ m.src=u; n++; } });
-  const w=relinkWait; relinkWait=null;
-  if(n){ rerender(); save(); }
-  w.res(n>0);
+  state.imgs.forEach((m,i)=>{
+    const p=sysPath(m,i), u=p&&r.urls[p];
+    if(typeof u!=='string'||!/^https?:/i.test(u)) return;
+    const old=m.src; m.src=u; n++;
+    if(old) document.querySelectorAll('img').forEach(el=>{ if(el.getAttribute('src')===old) el.setAttribute('src',u); });
+  });
+  if(relinkWait?.id===r.id){ const w=relinkWait; relinkWait=null; w.res(n>0); }
 }
 async function keepLinks(){ const soon=staleLinks(10*60e3); if(soon.length&&!relinkWait&&document.visibilityState!=='hidden') await requestRelink(soon); }
 async function linksReady(){
@@ -1731,8 +1740,11 @@ async function linksReady(){
   if(!dead.length) return true;
   if(await requestRelink(dead)&&!staleLinks(30e3).length) return true;
   const nos=staleLinks(30e3).map(x=>x.no).join(', ');
-  alert('รูปที่ '+nos+' เป็นรูปจากระบบที่ลิงก์หมดอายุแล้ว (เปิดฟอร์มไว้นาน) · ส่งออก PDF ตอนนี้รูปจะหาย\n\n'+(IN_APP
-    ? 'กด "บันทึกเข้าระบบ" ก่อน แล้วกด "กลับหน้าระบบ" และเปิดใบจากระบบอีกครั้ง'
+  const inApp=viewOnly
+    ? 'กด "กลับหน้าระบบ" แล้วกด "ดูใบยืนยัน" ที่งานอีกครั้ง'
+    : 'กด "'+(revising()?'บันทึกการแก้เข้างาน':'บันทึกเข้าระบบ')+'" ก่อน (ข้อมูลที่แก้จะไม่หาย) แล้วเปิดใบจากระบบอีกครั้งเพื่อส่งออก PDF';
+  alert('รูปที่ '+nos+' เป็นรูปจากระบบที่ลิงก์หมดอายุแล้ว หรือเปิดไม่ได้ · ส่งออก PDF ตอนนี้รูปจะหาย\n\n'+(IN_APP
+    ? inApp
     : 'เปิดหน้าระบบที่เข้าสู่ระบบไว้ในอีกแท็บของเบราว์เซอร์นี้ แล้วกด "ส่งออก PDF" อีกครั้ง · ข้อมูลที่แก้ในฟอร์มยังอยู่'));
   return false;
 }
@@ -1748,8 +1760,8 @@ addEventListener('storage', e=>{
   if(e.key===LS&&e.newValue) warnOtherTab();
   if(e.key===RELINK_RES&&e.newValue) applyRelink(e.newValue);
 });
-// แอปที่ติดตั้งบน iPhone เก็บข้อมูลแยกจาก Safari · ฟอร์มเปิดในหน้าเดิมของแอป จึงส่งกลับหน้าระบบในหน้าเดิมด้วย
-const IN_APP=navigator.standalone===true||(typeof matchMedia==='function'&&(matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches));
+// แอปบนหน้าจอโฮมของ iPhone/iPad เก็บข้อมูลแยกจาก Safari · ฟอร์มเปิดในหน้าเดิมของแอป จึงส่งกลับหน้าระบบในหน้าเดิมด้วย (ตรงกับ formInSameWindow ในแอป)
+const IN_APP=typeof navigator!=='undefined'&&navigator.standalone===true;
 // ค่าของงานตอนเปิดจากระบบ ใช้บอกฝ่ายผลิตว่าใบแก้เปลี่ยนช่องไหน
 function jobSnapshot(){ return JSON.stringify({ product:state.product, h:state.h, p:scope('p'), co:state.callouts }); }
 function jobBase(){ try{ return JSON.parse(state.job_base||'null'); }catch(e){ return null; } }
@@ -1837,12 +1849,19 @@ function saveToSystem(){
   toast.h=setTimeout(()=>t.classList.remove('on','link'),20000);
 }
 // ใบที่บันทึกเข้าระบบแล้วจำลายเซ็นไว้ · เปิดใบใหม่ทับได้เลย ไม่ต้องเก็บแยก
-const formSig = s => hashText(JSON.stringify([s.h, s.p, s.product, s.callouts, (s.imgs||[]).map(m=>m.src||m.path||'')]));
+// รูปจากระบบเทียบด้วย path (ลิงก์เปลี่ยนทุกครั้งที่ขอใหม่ ไม่ได้แปลว่าใบเปลี่ยน)
+const formSig = s => hashText(JSON.stringify([s.h, s.p, s.product, s.callouts, (s.imgs||[]).map(m=>m.path||m.src||'')]));
 function hashText(t){ let a=0x811c9dc5, b=0x01000193; for(let i=0;i<t.length;i++){ const c=t.charCodeAt(i); a=Math.imul(a^c,0x01000193)>>>0; b=Math.imul(b^c,0x5bd1e995)>>>0; } return a.toString(36)+'.'+b.toString(36)+'.'+t.length; }
 // ปุ่ม "เปิดฟอร์มใบยืนยัน (ใบใหม่)" ส่ง ?new มา · ใบที่กรอกค้างในเครื่องเก็บแยกไว้เปิดคืนได้ ไม่ทิ้งเงียบๆ
 const PREV=LS+'.prev';
 // ส่วนสินค้า (p) มีค่าตั้งต้นทันทีที่วาดฟอร์ม จึงดูแค่หัวใบกับรูป
 const hasWork = s => Object.entries(s.h||{}).some(([k,v])=>k!=='issue_date'&&String(v??'').trim()) || (s.imgs||[]).length>0;
+// แอปบน iPad/iPhone ออกจากฟอร์มทันทีหลังบันทึก จึงไม่เห็นปุ่มทำสินค้าถัดไป · หน้าระบบส่ง ?next กลับมาแทน
+function takeNext(){
+  const q=new URLSearchParams(location.search); if(!q.has('next')) return;
+  q.delete('next'); history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')+location.hash);
+  if(state.sent_sig===formSig(state)) startOver(true);
+}
 function takeNew(){
   const q=new URLSearchParams(location.search); if(!q.has('new')) return;
   q.delete('new'); history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')+location.hash);
@@ -2111,6 +2130,13 @@ function togglePreview(force){
   if(!on) rerender();
   scrollTo(0,0);
 }
+// Chrome พิมพ์ทันทีไม่รอรูปที่ยังโหลดไม่เสร็จ (เช่น ลิงก์รูปที่เพิ่งขอใหม่) · รอรูปในใบก่อน ไม่เกิน 8 วิ
+function docImagesReady(){
+  const imgs=[...document.querySelectorAll('#doc img')].filter(i=>!i.complete);
+  if(!imgs.length) return Promise.resolve();
+  const each=imgs.map(i=>new Promise(r=>{ i.addEventListener('load',r,{once:true}); i.addEventListener('error',r,{once:true}); }));
+  return Promise.race([Promise.all(each),new Promise(r=>setTimeout(r,8000))]);
+}
 // ฟอนต์เว็บโหลดเมื่อมีตัวอักษรใช้จริง · เอกสารซ่อนอยู่จนกดพิมพ์ จึงต้องรอให้โหลดก่อน ไม่งั้น PDF ออกเป็นฟอนต์สำรอง
 function docFontsReady(){
   if(!document.fonts) return Promise.resolve();
@@ -2128,6 +2154,7 @@ async function exportPdf(){
   if(soft&&!confirm(`ยังไม่ได้กรอก ${soft} ช่อง (ไม่บังคับ)\nช่องที่ว่างจะไม่พิมพ์ลง PDF\n\nกด "ตกลง" = ส่งออก PDF เลย · "ยกเลิก" = กลับไปดูช่องที่ว่าง`)){ back(); return; }
   renderDoc();
   await docFontsReady();
+  await docImagesReady();
   const old=document.title;
   document.title=fileBase();
   window.print();
@@ -2135,11 +2162,12 @@ async function exportPdf(){
 }
 
 document.getElementById('barLogo').src=COMPANY.logo;
-if(IN_APP){ const back=document.createElement('button'); back.className='btn'; back.dataset.act='back'; back.textContent='กลับหน้าระบบ'; $('#barLogo').before(back); }
+if(IN_APP){ const back=document.createElement('button'); back.className='btn back-float'; back.dataset.act='back'; back.textContent='กลับหน้าระบบ · ပြန်သွားမယ်'; $('#barLogo').before(back); }
 renderForm();
 refreshThumb();
 // ต้องอยู่ท้ายสุด: โหลดใบแล้ววาดฟอร์มทันที ค่าคงที่ที่ประกาศหลังจุดเรียกจะยังใช้ไม่ได้ (สคริปต์หยุดทั้งก้อน)
 takeNew();
+takeNext();
 takeInbox();
 if(typeof setInterval==='function'){ setInterval(()=>{ void keepLinks(); }, 60e3); setTimeout(()=>{ void keepLinks(); }, 1500); }
 </script>

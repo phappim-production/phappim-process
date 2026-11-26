@@ -1,4 +1,4 @@
-import { ROUTES, byQueue, startOfDay, type Job, type RouteCode, type StationCode } from './model'
+import { ROUTES, byQueue, thaiStart, type Job, type RouteCode, type StationCode } from './model'
 import type { Machine, MachineType, Need } from './sewing'
 
 // ปัดลงเพราะชิ้นที่ทำไม่จบไม่นับ
@@ -215,7 +215,7 @@ const isWorkday = (d: Date) => WORKDAYS.includes(d.getDay())
 
 // 0–1 = วันนี้ ถ้าวันนี้เป็นวันทำงาน
 export function workdayToDate(days: number, now: Date) {
-  const d = startOfDay(now)
+  const d = thaiStart(now)
   while (!isWorkday(d)) d.setDate(d.getDate() + 1)
   let left = Math.max(0, Math.ceil(days) - 1)
   while (left > 0) {
@@ -227,8 +227,8 @@ export function workdayToDate(days: number, now: Date) {
 
 // ของถึงวันหยุด = ใช้ได้วันทำงานถัดไป
 export function workdaysUntil(date: Date, now: Date) {
-  const d = startOfDay(now)
-  const end = startOfDay(date)
+  const d = thaiStart(now)
+  const end = thaiStart(date)
   while (end > d && !isWorkday(end)) end.setDate(end.getDate() + 1)
   let n = 0
   while (d < end) {
@@ -240,7 +240,7 @@ export function workdaysUntil(date: Date, now: Date) {
 
 // ค่าบวก = ไม่ทัน
 export function lateDays(finish: Date, due: Date) {
-  return Math.round((startOfDay(finish).getTime() - startOfDay(due).getTime()) / 86_400_000)
+  return Math.round((thaiStart(finish).getTime() - thaiStart(due).getTime()) / 86_400_000)
 }
 
 // เตือนอย่างเดียว ไม่บล็อกการรับงาน

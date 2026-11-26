@@ -14,7 +14,7 @@ const my = (th: string) => translate('my', th)
 // ตารางเดียวกันสำหรับคนไทยและคนพม่า · พิมพ์ติดหน้างานหรือใช้ตอนอบรม (ไม่ขึ้นกับปุ่มสลับภาษา)
 export default function WordsPage() {
   return (
-    <div className="mx-auto grid w-full max-w-4xl gap-4 p-4 sm:p-6 print:max-w-none print:p-0">
+    <div className="print-flow mx-auto grid w-full max-w-4xl gap-4 p-4 sm:p-6 print:max-w-none print:p-0">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand print:hidden"><IconBook className="size-6" /></span>

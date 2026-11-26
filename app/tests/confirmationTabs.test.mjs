@@ -106,3 +106,26 @@ test('ฟอร์มใบยืนยัน: รูปที่เพิ่ง
   assert.equal(await b.api.linksReady(), true)
   assert.equal(b.store.has(RELINK_REQ), false)
 })
+
+test('ฟอร์มใบยืนยัน: ได้ลิงก์ใหม่แล้วเปลี่ยนรูปบนจอทันทีโดยไม่วาดฟอร์มใหม่ · คำตอบที่มาช้ากว่าที่รอยังใช้ได้ · ใบที่ส่งแล้วยังนับว่าส่งแล้ว', async () => {
+  const b = boot('', { timeout: fn => { fn(); return 0 } })
+  fromJob(b)
+  const oldUrl = link('SC-T9/a.jpg', nowSec() - 60)
+  b.api.state.imgs = [{ name: 'หน้า', path: 'SC-T9/a.jpg', src: oldUrl }]
+  const shown = { src: oldUrl, getAttribute: () => shown.src, setAttribute: (_, v) => { shown.src = v } }
+  b.imgs.push(shown)
+  assert.equal(await b.api.linksReady(), false)
+  const req = JSON.parse(b.store.get(RELINK_REQ))
+  const fresh = link('SC-T9/a.jpg', nowSec() + 3600)
+  b.fire('storage', { key: RELINK_RES, newValue: JSON.stringify({ id: req.id, urls: { 'SC-T9/a.jpg': fresh } }) })
+  assert.equal(b.api.state.imgs[0].src, fresh)
+  assert.equal(shown.src, fresh)
+  assert.equal(b.api.staleLinks(0).length, 0)
+})
+
+test('ฟอร์มใบยืนยัน: รูปจากระบบที่ขอลิงก์ไม่สำเร็จตอนเปิด (ไม่มีลิงก์) ถือว่าต้องขอใหม่ก่อนส่งออก PDF', () => {
+  const b = boot()
+  fromJob(b)
+  b.api.state.imgs = [{ name: 'หน้า', path: 'SC-T9/a.jpg', src: '' }, { name: 'ใหม่', src: 'data:image/jpeg;base64,AAAA' }]
+  assert.deepEqual(b.api.staleLinks(0).map(x => x.no), [1])
+})

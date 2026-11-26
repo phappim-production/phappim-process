@@ -190,6 +190,11 @@ export const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d
 // แท็บเล็ตที่ตั้งเขตเวลาผิดต้องยังขึ้นเลยกำหนดทันทีหลังเที่ยงคืนไทย
 const thaiDayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' })
 export const thaiDay = (d: Date) => thaiDayFormat.format(d)
+// เที่ยงคืนตามเวลาเครื่องของ "วันไทย" นั้น · ใช้นับวันทำงานให้ตรงวันไทยแม้แท็บเล็ตตั้งเขตเวลาผิด
+export function thaiStart(d: Date): Date {
+  const [y, m, day] = thaiDay(d).split('-').map(Number)
+  return new Date(y, m - 1, day)
+}
 // ติดลบ = a อยู่ก่อน b
 export function thaiDayDiff(a: Date, b: Date) {
   return Math.round((Date.parse(thaiDay(a)) - Date.parse(thaiDay(b))) / DAY)

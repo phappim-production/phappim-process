@@ -82,7 +82,7 @@ describe('เส้นทางฟิล์มที่ยังไม่ได�
 })
 
 it('บอร์ดโหลดงานเสร็จที่ยังไม่จัดส่งเสมอ · งานเสร็จที่ส่งแล้วเก็บ 14 วัน', () => {
-  expect(boardJobsFilter(new Date('2026-11-24T03:00:00Z'))).toBe('phase.neq.done,finished_at.gte.2026-11-10T03:00:00.000Z,delivered_at.is.null')
+  expect(boardJobsFilter(new Date('2026-11-24T03:00:00Z'))).toBe('phase.neq.done,finished_at.gte.2026-11-10T03:00:00.000Z,delivered_at.is.null,delivered_at.gte.2026-11-23T03:00:00.000Z')
 })
 
 describe('หน้ารับงาน: ใบที่มาจากฟอร์มล็อกจำนวนและสินค้า', () => {

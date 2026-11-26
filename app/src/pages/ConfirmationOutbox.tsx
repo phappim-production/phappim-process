@@ -6,6 +6,7 @@ import { reviseArgs } from '../data/confirmation'
 import { SAVE_HASH, recentlyTaken, takeOutbox } from '../data/confirmationDrafts'
 import { dataUrlBlob, mockupDataUrl, mockupFolder, uploadFormMockups, uploadMockup } from '../data/mockups'
 import { cardPath, formMockups, type JobMockup } from '../data/jobMockups'
+import { formInSameWindow } from '../lib/install'
 
 type Revised = { ok: 'revised'; no: string; rev: number; changed: boolean; picSaved: boolean; mockupRev: number | null; stale: number; parts: string[]; warning?: string | undefined }
 type Result = { ok: true; no: string; id: string; warning?: string | undefined } | { ok: false; text: string } | { ok: 'elsewhere'; no: string } | Revised
@@ -131,6 +132,7 @@ export function ConfirmationOutbox({ onReceive, onRevised }: { onReceive: (draft
         {result.stale > 0 && <span className="text-warn">ม็อคอัพกำกับสเปกฉบับ {result.mockupRev} ยังเป็นค่าเก่า {result.stale} จุด · เปิดหน้าม็อคอัพของงานแล้วทำฉบับใหม่</span>}
         {result.warning && <span className="text-warn">{result.warning}</span>}
         <span className="text-sm font-normal text-ink">ลูกค้าเซ็นใบใหม่แล้ว แนบที่รายละเอียดงาน → "เปลี่ยนเป็น PDF ใบใหม่"</span>
+        {formInSameWindow() && <a href="/confirmation" className="mt-1 inline-flex min-h-12 items-center justify-self-start rounded-xl border border-ok/40 bg-card px-4 font-semibold text-ok">เปิดฟอร์มเพื่อส่งออก PDF ใบแก้ไข</a>}
       </div>
     )
   }
@@ -143,6 +145,7 @@ export function ConfirmationOutbox({ onReceive, onRevised }: { onReceive: (draft
         className="min-h-12 rounded-xl border border-ok/40 bg-card px-4 font-semibold text-ok">
         ส่งงานเข้าโรงงานเลย
       </button>
+      {formInSameWindow() && <a href="/confirmation?next=1" className="inline-flex min-h-12 items-center rounded-xl border border-ok/40 bg-card px-4 font-semibold text-ok">ทำสินค้าถัดไป (ใช้ข้อมูลลูกค้าเดิม)</a>}
     </div>
   )
 }

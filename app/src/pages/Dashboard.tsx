@@ -321,7 +321,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
           {view === 'reviews' && <ReviewsView jobs={allJobs} now={now} role={role} call={call} onOpen={setOpenId} />}
           {view === 'history' && <MyHistoryView jobs={allJobs} onOpen={setOpenId} />}
           {view === 'queueAll' && <QueueAllView jobs={allJobs} now={now} onOpen={setOpenId} />}
-          {view === 'deliveries' && <DeliveriesView jobs={allJobs} now={now} finishOf={finishOf} onOpen={setOpenId} />}
+          {view === 'deliveries' && <DeliveriesView jobs={allJobs} now={now} finishOf={finishOf} canDeliver={canReceive} onOpen={setOpenId} />}
           {view === 'dept' && <>
             <RoleSummary scope={myScope} jobs={allJobs} machines={machines} now={now}
               onPick={t => { window.location.hash = t === 'todo' ? '#/queue' : t === 'sewing' ? '#/sewing' : '#/board' }} />

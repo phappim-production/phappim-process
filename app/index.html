@@ -16,7 +16,7 @@
         var KEY = 'pp142-boot-recover'
         var failed = false
         function mounted() { return !document.getElementById('boot') }
-        function showFailure() {
+        function showFailure(slow) {
           var box = document.getElementById('boot')
           if (!box) return
           box.setAttribute('role', 'alert')
@@ -24,13 +24,17 @@
             + '<p class="text-muted">ระบบอาจเพิ่งอัปเดตรุ่นใหม่ กดโหลดใหม่ ถ้ายังไม่หายให้แจ้งเจ้าของระบบ</p>'
             + '<p class="text-muted">ဖွင့်လို့ မရဘူး · ပြန်ဖွင့်ကြည့်ပါ</p>'
             + '<button type="button" id="boot-reload" class="mt-2 min-h-12 rounded-xl bg-danger px-5 font-semibold text-white">โหลดใหม่ · ပြန်ဖွင့်မယ်</button>'
-          document.getElementById('boot-reload').onclick = function () { recover(true) }
+          // เน็ตช้าเฉยๆ แค่โหลดใหม่ · ไม่ล้างไฟล์ที่แอปเก็บไว้ใช้ตอนเน็ตหลุด
+          document.getElementById('boot-reload').onclick = function () { if (slow) location.reload(); else recover(true) }
         }
         function recover(byUser) {
           var last = 0
           try { last = Number(sessionStorage.getItem(KEY)) || 0 } catch (e) { last = Date.now() }
           if (!byUser && Date.now() - last < 60000) return showFailure()
-          try { sessionStorage.setItem(KEY, String(Date.now())) } catch (e) {}
+          var stored = false
+          try { sessionStorage.setItem(KEY, String(Date.now())); stored = sessionStorage.getItem(KEY) !== null } catch (e) {}
+          // จดไม่ได้ว่ากู้ไปแล้ว = โหลดใหม่เองซ้ำไม่รู้จบ จึงให้คนกดเอง
+          if (!byUser && !stored) return showFailure()
           var jobs = []
           if ('serviceWorker' in navigator) {
             jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister() })) }))
@@ -45,14 +49,16 @@
           failed = true
           recover(false)
         }
+        // นับเฉพาะไฟล์ของแอปเอง · error จากส่วนขยายเบราว์เซอร์หรือสคริปต์ของเว็บอื่นไม่ล้างแคช
+        var own = function (url) { return typeof url === 'string' && url.indexOf(location.origin + '/') === 0 }
         window.addEventListener('error', function (e) {
           var t = e.target
-          var asset = t && (t.tagName === 'SCRIPT' || (t.tagName === 'LINK' && t.rel === 'modulepreload'))
-          if (asset || e instanceof ErrorEvent) fail()
+          var asset = t && (t.tagName === 'SCRIPT' ? own(t.src) : t.tagName === 'LINK' && t.rel === 'modulepreload' && own(t.href))
+          if (asset || (e instanceof ErrorEvent && own(e.filename))) fail()
         }, true)
         window.addEventListener('unhandledrejection', function () { fail() })
         // เน็ตช้ายังโหลดอยู่ได้ · แค่บอกทางออก ไม่ล้างแคช (React ขึ้นทีหลังจะแทนที่ข้อความนี้เอง)
-        setTimeout(function () { if (!mounted()) showFailure() }, 30000)
+        setTimeout(function () { if (!mounted() && !failed) showFailure(true) }, 30000)
       })()
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />

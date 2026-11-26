@@ -8,9 +8,9 @@ import { confirmationDraft, forStation, parseSize, refValue, submitProblems, toP
 
 const menus = {
   owner: ['admin', 'users', 'roles', 'assign', 'audit', 'settings', 'production', 'deliveries', 'board', 'reports', 'inbox'],
-  manager: ['', 'deliveries', 'jobs', 'board', 'reports', 'reviews', 'inbox'],
-  admin: ['', 'deliveries', 'jobs', 'production-queue', 'board', 'reports', 'inbox'],
-  production: ['dept', 'queue', 'deliveries', 'board', 'issues', 'reports', 'inbox'],
+  manager: ['', 'jobs', 'board', 'reviews', 'reports', 'deliveries', 'inbox'],
+  admin: ['', 'deliveries', 'jobs', 'board', 'production-queue', 'reports', 'inbox'],
+  production: ['dept', 'queue', 'board', 'issues', 'reports', 'deliveries', 'inbox'],
   staff: ['mine', 'board', 'history', 'report', 'inbox'],
 } as const
 

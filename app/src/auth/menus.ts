@@ -59,11 +59,11 @@ export function roleMenu(role: EmployeeRole): MenuGroup[] {
     case 'manager':
       return [{ title: 'เมนู', items: [
         item('#/', 'ภาพรวมการผลิต', 'gauge', 'ภาพรวม'),
-        DELIVERIES,
         item('#/jobs', 'ใบงานทั้งหมด', 'list', 'ใบงาน'),
         item('#/board', 'ทุกสถานี', 'columns', 'สถานี'),
-        item('#/reports', 'รายงาน', 'chart'),
         item('#/reviews', 'รายการรออนุมัติ', 'flag', 'รออนุมัติ'),
+        item('#/reports', 'รายงาน', 'chart'),
+        DELIVERIES,
         INBOX,
       ] }]
     case 'owner':
@@ -89,8 +89,8 @@ export function roleMenu(role: EmployeeRole): MenuGroup[] {
         item('#/', 'ภาพรวมใบงาน', 'gauge', 'ภาพรวม'),
         DELIVERIES,
         item('#/jobs', 'จัดการใบงาน', 'list', 'ใบงาน'),
-        item('#/production-queue', 'คิวการผลิต', 'queue', 'คิว'),
         item('#/board', 'ติดตามสถานี', 'columns', 'สถานี'),
+        item('#/production-queue', 'คิวการผลิต', 'queue', 'คิว'),
         item('#/reports', 'รายงาน', 'chart'),
         INBOX,
       ] }]
@@ -99,10 +99,10 @@ export function roleMenu(role: EmployeeRole): MenuGroup[] {
       return [{ title: 'เมนู', items: [
         item('#/dept', 'ภาพรวมแผนก', 'gauge', 'ภาพรวม'),
         item('#/queue', 'คิวงาน', 'queue'),
-        DELIVERIES,
         item('#/board', 'สถานีที่ดูแล', 'columns', 'สถานี'),
         item('#/issues', 'ปัญหา / งานแก้', 'flag', 'ปัญหา'),
         item('#/reports', 'รายงานแผนก', 'chart', 'รายงาน'),
+        DELIVERIES,
         INBOX,
       ] }]
     case 'qc':

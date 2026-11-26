@@ -29,9 +29,9 @@ const WATCH = ['jobs', 'outsource_runs', 'events', 'job_materials', 'issues', 's
 // เฉพาะคอลัมน์ที่หน้าจอใช้ · ไม่ดึง spec (คำตอบทั้งใบยืนยัน) เพราะโหลดใหม่ทุกครั้งที่มีคนกด
 const JOB_COLUMNS = 'id, confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, phase, current_station, station_status, stage_entered_at, sample_round, needs_sample, develop, materials_waiting_depts, dtf_film_eta, dtf_film_received_at, sew_count, is_rework, rework_qty, hold_reason, finished_at, queue_seq, mockup_path, delivered_at, delivery_note'
 
-// งานเสร็จที่จัดส่งแล้วเก่ากว่า 14 วันไม่ต้องแสดง · งานเสร็จที่ยังไม่จัดส่งต้องอยู่จนกว่าแอดมินจะบันทึกส่ง
+// งานเสร็จที่จัดส่งแล้วเก่ากว่า 14 วันไม่ต้องแสดง · งานเสร็จที่ยังไม่จัดส่งต้องอยู่จนกว่าแอดมินจะบันทึกส่ง · ส่งใน 24 ชม. ยังอยู่ (หน้ากำหนดส่ง "ส่งแล้ววันนี้")
 export function boardJobsFilter(now: Date): string {
-  return `phase.neq.done,finished_at.gte.${new Date(now.getTime() - 14 * DAY).toISOString()},delivered_at.is.null`
+  return `phase.neq.done,finished_at.gte.${new Date(now.getTime() - 14 * DAY).toISOString()},delivered_at.is.null,delivered_at.gte.${new Date(now.getTime() - DAY).toISOString()}`
 }
 
 export function isJobId(id: string) {
