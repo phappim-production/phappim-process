@@ -478,7 +478,7 @@ try {
             add()
             scope('p').fabric_rows[0].part = 'แขน'
             const incomplete = validate().some(x => x.id.endsWith('_fabric_rows') && x.why.includes('ไม่ครบ'))
-            Object.assign(scope('p').fabric_rows[0], { fabric: 'ผ้าจำลอง', color: 'เขียว' })
+            Object.assign(scope('p').fabric_rows[0], { fabric: 'ผ้าจำลอง', color: 'เขียว', qty: '12', unit: 'หลา' })
             add()
             document.querySelector('button[data-act="delrow"][data-id="fabric_rows"][data-r="1"]').click()
             rerender()
@@ -496,7 +496,7 @@ try {
               HTMLAnchorElement.prototype.click = click
             }
             const data = JSON.parse(await blob.text())
-            const expected = JSON.stringify([{ part: 'แขน', fabric: 'ผ้าจำลอง', color: 'เขียว' }])
+            const expected = JSON.stringify([{ part: 'แขน', fabric: 'ผ้าจำลอง', color: 'เขียว', qty: '12', unit: 'หลา' }])
             state.p[key].fabric_rows = []
             const input = document.querySelector('#openFile')
             const transfer = new DataTransfer()

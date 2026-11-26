@@ -243,6 +243,31 @@ test('ฟอร์มใบยืนยัน: โหมดแก้ใบหล
   assert.doesNotMatch(fresh.api.fieldHTML(field, 'h', { doc_no: 'SC-NEW' }), /disabled/)
 })
 
+test('ฟอร์มใบยืนยัน: ผ้าเพิ่มต้องกรอกจำนวน + หน่วย (หลา หรือ ชิ้น) · พิมพ์ลง PDF ทั้งฉบับโรงงานและฉบับลูกค้า', () => {
+  const { api, els, v } = filled('tshirt')
+  const table = api.PRODUCTS.tshirt.sections.flatMap(s => s.fields).find(f => f.id === 'fabric_rows')
+  assert.deepEqual(table.cols.find(c => c.c === 'unit').options, ['หลา', 'ชิ้น'])
+  const rowProblem = () => api.validate().some(m => m.id === 'fld_p_fabric_rows' && /ไม่ครบ/.test(m.why))
+  v.fabric_rows = [{ part: 'แขน', color: 'แดง' }]
+  assert.ok(rowProblem())
+  v.fabric_rows[0].qty = '40'
+  assert.ok(rowProblem())
+  v.fabric_rows[0].unit = 'ชิ้น'
+  assert.equal(rowProblem(), false)
+  v.fabric_rows.push({ part: 'ปก', fabric: 'ผ้าริบ', color: 'ขาว', qty: '0', unit: 'หลา' })
+  assert.ok(rowProblem())
+  v.fabric_rows[1].qty = '12.5'
+  assert.equal(rowProblem(), false)
+  api.setViewOnly(true)
+  api.renderDoc()
+  const factory = els.get('#doc').innerHTML
+  assert.match(factory, /40<\/td><td class="l">ชิ้น/)
+  assert.match(factory, /12\.5<\/td><td class="l">หลา/)
+  api.setViewOnly(false)
+  api.renderDoc()
+  assert.match(els.get('#doc').innerHTML, /12\.5<\/td><td class="l">หลา/)
+})
+
 function withFactoryDetails(v) {
   v.fabric = 'TC (คอตตอน/โพลี)'
   v.fabric_color = 'กรมท่าเข้ม'
