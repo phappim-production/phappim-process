@@ -31,7 +31,9 @@ export function StationRail({ columns, counts, urgent, station, onPick }: {
     rail.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [station])
   const stations = STATION_ORDER.filter(s => columns.some(c => c.key === s))
-  const others = columns.filter(c => !numbered(c.key))
+  // งานทุกงานผ่านขั้นรอผลิตก่อนเข้าสถานีแรก
+  const waiting = columns.filter(c => c.key === 'materials')
+  const others = columns.filter(c => !numbered(c.key) && c.key !== 'materials')
   const chip = (key: ColumnKey | 'all', name: string) => {
     const on = station === key
     const Icon = isStation(key) ? STATION_ICON[key] : key === 'done' ? IconCheck : IconFactory
@@ -59,6 +61,7 @@ export function StationRail({ columns, counts, urgent, station, onPick }: {
     <nav ref={rail} aria-label={t('เลือกสถานี')} className="relative -mx-4 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6">
       <ol className="flex gap-2 md:flex-wrap">
         {chip('all', 'ทุกสถานี')}
+        {waiting.map(c => chip(c.key, c.name))}
         {stations.map(s => chip(s, columns.find(c => c.key === s)!.name))}
         {others.map(c => chip(c.key, c.name))}
       </ol>
