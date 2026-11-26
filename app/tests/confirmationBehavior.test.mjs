@@ -169,6 +169,26 @@ test('ฟอร์มใบยืนยัน: เลือกคอปก / เ
   }
 })
 
+test('ฟอร์มใบยืนยัน: ปกสำเร็จต้องระบุสีปก · ปกแบบอื่นไม่ถาม · สีปกพิมพ์ลง PDF ฉบับโรงงาน', () => {
+  for (const product of ['tshirt', 'sport', 'jersey', 'running', 'worker', 'pe', 'student', 'mourning']) {
+    const { api, v } = filled(product)
+    const color = api.PRODUCTS[product].sections.flatMap(s => s.fields).find(f => f.id === 'collar_color')
+    v.collar = 'ปกจีน'
+    assert.equal(api.visible(color, v), false, product)
+    assert.equal(api.validate().some(m => m.id === 'fld_p_collar_color'), false, product)
+    v.collar = 'ปกสำเร็จ'
+    assert.equal(api.visible(color, v), true, product)
+    assert.ok(api.validate().some(m => m.id === 'fld_p_collar_color'), product)
+    v.collar_color = 'ขาว ริ้วกรม'
+    assert.equal(api.validate().some(m => m.id === 'fld_p_collar_color'), false, product)
+  }
+  const { api, els, v } = filled('tshirt')
+  api.setViewOnly(true)
+  Object.assign(v, { collar: 'ปกสำเร็จ', collar_color: 'ขาว ริ้วกรม' })
+  api.renderDoc()
+  assert.match(els.get('#doc').innerHTML, /ขาว ริ้วกรม/)
+})
+
 test('ฟอร์มใบยืนยัน: ใบโปโลเก่าที่เลือกปกริบทอ / ปกผ้าเดียวกับตัว เปิดแล้วเป็นปกสำเร็จ / ปกพิมพ์', () => {
   const { api } = boot()
   api.loadData({ h: { doc_no: 'SC-POLO', customer: 'x' }, product: 'polo', p: { polo: { collar: 'ปกริบทอ' }, sport: { collar: 'ปกผ้าเดียวกับตัว' } } }, 'x')
