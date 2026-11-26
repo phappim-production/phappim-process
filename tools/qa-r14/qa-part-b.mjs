@@ -175,8 +175,8 @@ async function main() {
             await t.goto(role, hash, w)
             await waitFor(() => t.ev(() => !document.body.innerText.includes('กำลังโหลดข้อมูลงาน')), `โหลด ${role} ${hash}`)
             const m = await t.measureFloorUx(w)
-            if (m.docScrollWidth > w || m.mainOverflow > 1 || m.overflows.length > 0) {
-              uxIssues.push({ type: 'overflow', role, w, hash, docScrollWidth: m.docScrollWidth, mainOverflow: m.mainOverflow, overflows: m.overflows })
+            if (m.docScrollWidth > w || m.pageScroll > 0 || m.mainOverflow > 1 || m.overflows.length > 0) {
+              uxIssues.push({ type: 'overflow', role, w, hash, docScrollWidth: m.docScrollWidth, pageScroll: m.pageScroll, mainOverflow: m.mainOverflow, overflows: m.overflows })
             }
             if (m.smallButtons.length > 0) {
               uxIssues.push({ type: 'smallButtons', role, w, hash, smallButtons: m.smallButtons })
@@ -198,12 +198,24 @@ async function main() {
           await t.goto('admin1', extraHash, w)
           await waitFor(() => t.ev(() => !document.body.innerText.includes('กำลังโหลด')), extraHash)
           const m = await t.measureFloorUx(w)
-          if (m.docScrollWidth > w || m.mainOverflow > 1 || m.overflows.length > 0) {
-            uxIssues.push({ type: 'overflow', role: 'admin1', w, hash: extraHash, docScrollWidth: m.docScrollWidth, mainOverflow: m.mainOverflow, overflows: m.overflows })
+          if (m.docScrollWidth > w || m.pageScroll > 0 || m.mainOverflow > 1 || m.overflows.length > 0) {
+            uxIssues.push({ type: 'overflow', role: 'admin1', w, hash: extraHash, docScrollWidth: m.docScrollWidth, pageScroll: m.pageScroll, mainOverflow: m.mainOverflow, overflows: m.overflows })
           }
           if (m.badTokens.length > 0) uxIssues.push({ type: 'badTokens', role: 'admin1', w, hash: extraHash, badTokens: m.badTokens })
         }
       }
+      // ส่วนขยายเบราว์เซอร์ / ของที่หลุดนอกกรอบแอป ต้องไม่ทำให้ทั้งหน้าเลื่อนลงไปเจอพื้นที่ว่าง
+      const strayGrowsPage = await t.ev(() => {
+        const tall = document.createElement('div')
+        tall.style.height = '2000px'
+        const far = document.createElement('span')
+        far.style.cssText = 'position:absolute;top:3000px;width:1px;height:1px'
+        document.body.append(tall, far)
+        const grown = document.documentElement.scrollHeight - innerHeight
+        tall.remove(); far.remove()
+        return grown
+      })
+      if (strayGrowsPage > 0) uxIssues.push({ type: 'pageScroll', hash: 'stray elements', pageScroll: strayGrowsPage })
       await t.goto('admin1', '#/production-queue', 375)
       await t.waitText('TEST-B-DOING')
       await t.screenshot('b1-admin-queue-375')
