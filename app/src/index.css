@@ -94,6 +94,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* แอปเลื่อนเฉพาะกล่องในหน้า · ของที่หลุดนอกกรอบ (เช่น ส่วนขยายเบราว์เซอร์) ทำให้ทั้งหน้าเลื่อนลงไปเจอพื้นที่ว่างได้ · ตอนพิมพ์ยังยาวต่อหลายหน้า */
+@media screen {
+  html { overflow: auto; }
+  body { position: relative; height: 100dvh; overflow: clip; }
+}
+
 /* ชื่อจากธีมก่อน · พื้นขาวเรียบ ไม่ใช้ไล่สีเพราะลดคอนทราสต์ */
 @utility glass {
   background: var(--color-card);

@@ -443,6 +443,7 @@ function makeHelper(tab, origin) {
       return {
         viewport: innerWidth,
         docScrollWidth: document.documentElement.scrollWidth,
+        pageScroll: document.documentElement.scrollHeight - innerHeight,
         mainOverflow: main.scrollWidth - main.clientWidth,
         overflows,
         smallButtons,
