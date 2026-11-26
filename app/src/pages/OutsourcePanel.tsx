@@ -40,7 +40,10 @@ export function OutsourcePanel({ job: j, vendors, admin, now, refresh }: {
 
   const st = j.station
   const inStation = (j.phase === 'sample' || j.phase === 'production') && !!st
-  const canSend = admin && inStation && j.status === 'queued' && !!st && OUTSOURCEABLE.includes(st)
+  // รอผลิต: ส่งออกจากสถานีแรกได้เลย ไม่ต้องเช็ควัตถุดิบ (บริษัทจัดหาเอง)
+  const waiting = j.phase === 'materials'
+  const sendFrom = waiting ? ROUTES[j.route].stations[0] : st
+  const canSend = admin && !!sendFrom && OUTSOURCEABLE.includes(sendFrom) && (waiting || (inStation && j.status === 'queued'))
   const canSplit = admin && j.phase === 'production' && j.status === 'queued' && !j.rework && st !== 'qc_pack' && j.qty > 1
   if (!j.out && !canSend && !canSplit) return null
 
@@ -97,14 +100,16 @@ export function OutsourcePanel({ job: j, vendors, admin, now, refresh }: {
         <div className="grid gap-2 sm:grid-cols-2">
           {canSend && <button type="button" className={primaryBtn} onClick={() => setMode('send')}>ส่งออกบริษัทภายนอก</button>}
           {canSplit && <button type="button" className={secondaryBtn} onClick={() => setMode('split')}>แบ่งจำนวน (ส่งออกบางส่วน)</button>}
-          <p className="text-sm text-muted sm:col-span-2">ส่งออกได้ตอนงานยังไม่เริ่มสถานีนี้ · ส่งบางส่วน ให้กด "แบ่งจำนวน" ก่อน แล้วส่งออกงานที่แบ่ง</p>
+          <p className="text-sm text-muted sm:col-span-2">{waiting
+            ? 'งานยังรอผลิต: ส่งออกได้เลยไม่ต้องเช็ควัตถุดิบ (บริษัทจัดหาเอง) · ระบบปล่อยเข้าไลน์ให้ เวลาผลิตเริ่มนับวันนี้'
+            : 'ส่งออกได้ตอนงานยังไม่เริ่มสถานีนี้ · ส่งบางส่วน ให้กด "แบ่งจำนวน" ก่อน แล้วส่งออกงานที่แบ่ง'}</p>
         </div>
       )}
-      {!out && mode === 'send' && st && (
-        <PlanForm job={j} vendors={vendors} from={st} busy={busy} now={now} refresh={refresh}
+      {!out && mode === 'send' && sendFrom && (
+        <PlanForm job={j} vendors={vendors} from={sendFrom} busy={busy} now={now} refresh={refresh}
           title={`ส่ง ${j.no} ออกบริษัทภายนอก`} saveLabel="บันทึกส่งออก" onCancel={() => setMode(null)}
           onSave={p => act('send_out', { p_job: j.id, p_vendor: p.vendor, p_last_station: p.last, p_arrive_at: p.arrive, p_lead_days: p.days, p_back_at: p.back, p_note: p.note || null },
-            `ส่ง ${j.no} ออกแล้ว · ปุ่มเริ่มงานที่โรงงานจะกดไม่ได้จนกว่ารับของกลับ`)} />
+            `ส่ง ${j.no} ออกแล้ว${waiting ? ' (ไม่ต้องเช็ควัตถุดิบ · เวลาผลิตเริ่มนับวันนี้)' : ''} · ปุ่มเริ่มงานที่โรงงานจะกดไม่ได้จนกว่ารับของกลับ`)} />
       )}
       {!out && mode === 'split' && (
         <SplitForm job={j} busy={busy} onCancel={() => setMode(null)}

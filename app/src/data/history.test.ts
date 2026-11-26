@@ -105,3 +105,8 @@ describe('ไทม์ไลน์: เช็ควัตถุดิบก่�
     expect(eventLine(row('released', {}, 'production'), names).title).toBe('เข้าผลิตจริงที่สถานีแรก')
   })
 })
+
+it('ไทม์ไลน์: ส่งออกบริษัทภายนอกจากรอผลิต = บอกว่าไม่ต้องเช็ควัตถุดิบ', () => {
+  const row: EventRow = { id: 5, type: 'released', phase: 'production', station_code: null, payload: { manual: true, outsource: true, materials: 0, photos: 0 }, by: null, at: '2026-11-26T03:00:00Z' }
+  expect(eventLine(row, names)).toEqual({ title: 'ปล่อยเข้าไลน์การผลิต', detail: 'ส่งออกบริษัทภายนอก · ไม่ต้องเช็ควัตถุดิบ', tone: 'ok' })
+})
