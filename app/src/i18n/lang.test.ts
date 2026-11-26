@@ -3,7 +3,7 @@ import { hasBurmese, translate } from './lang'
 import { DB_ERRORS } from './dbErrors'
 import { MY } from './my'
 import { KIND_LABELS } from '../pages/inbox/format'
-import { DEPT_NAME, STATUS_NAME } from '../proto/model'
+import { DEPT_NAME, ROUTES, STATUS_NAME } from '../proto/model'
 
 const THAI = /[ก-๛]/
 const QUOTED = /'([^']+)'/g
@@ -57,8 +57,8 @@ it('ทุกข้อความที่ส่งเข้าตัวแป�
 })
 
 // ข้อความที่มาจากตารางค่าคงที่ (ไม่ได้เขียนตรงใน t('…')) ชุดตรวจข้างบนมองไม่เห็น
-it('ชื่อประเภทกล่องจดหมาย ฝ่าย และสถานะงาน มีคำแปลพม่าครบ', () => {
-  const labels = [...Object.values(KIND_LABELS), ...Object.values(DEPT_NAME), ...Object.values(STATUS_NAME)]
+it('ชื่อประเภทกล่องจดหมาย ฝ่าย สถานะงาน และเส้นทางผลิต มีคำแปลพม่าครบ', () => {
+  const labels = [...Object.values(KIND_LABELS), ...Object.values(DEPT_NAME), ...Object.values(STATUS_NAME), ...Object.values(ROUTES).flatMap(r => [r.name, r.short]).filter(th => THAI.test(th))]
   expect(labels.filter(th => !(th in MY))).toEqual([])
 })
 

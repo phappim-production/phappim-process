@@ -509,6 +509,10 @@ const TERMS=[
   'ขออนุญาตใช้รูปภาพตัวอย่างผลงานที่ผลิตกับทางบริษัทเพื่อประชาสัมพันธ์ให้ทางบริษัทและลูกค้า',
   'หลังเซ็นใบยืนยันผลิต จะถือว่าลูกค้ายอมรับตามข้อกำหนดและข้อตกลงของทางบริษัทที่ได้แจ้งไว้ทั้งในใบยืนยันผลิตและแชทไลน์',
 ];
+// ร่างรอเจ้าของอนุมัติถ้อยคำ (เงื่อนไขของลูกค้าที่ส่งของมาให้ทำ)
+const TERMS_SERVICE=[
+  'งานบริการ: ของที่ลูกค้าส่งมาเสียหายระหว่างผลิต โรงงานรับผิดชอบไม่เกินค่าบริการของชิ้นนั้น · แนะนำให้ส่งของเผื่อเสีย 3–5% · โรงงานนับและถ่ายรูปของที่รับเข้าก่อนเริ่มงาน',
+];
 const COLOR_MATCH = R('color_match','การเทียบสี',['ตามไฟล์ (คลาดเคลื่อนได้ตามปกติของงานพิมพ์)','ตามตัวอย่างจริง / Pantone ที่ลูกค้าให้'],{ when:hasPrint });
 /* ผ้าชนิดที่ 2 ขึ้นไปในงานเดียว: 1 แถว = ผ้า 1 ชนิด/สี · ผ้าหลักกรอกช่องด้านบน */
 const FABRICS_MORE = () => ({ id:'fabric_rows', type:'itemTable', label:'ผ้าเพิ่ม (งานที่ใช้ผ้ามากกว่า 1 ชนิด / สี)', none:'ใช้ผ้าชนิดเดียว', addLabel:'+ เพิ่มผ้า',
@@ -651,6 +655,7 @@ const CATS = [
   ['bag','ถุงและกระเป๋า'],
   ['hat','หมวก'],
   ['other','ของพรีเมียม / อื่นๆ'],
+  ['service','งานบริการ (ลูกค้าส่งของมา)'],
 ];
 
 const PRODUCTS = {
@@ -1075,16 +1080,82 @@ const PRODUCTS = {
       extra:[ T('print_pos','ตำแหน่งและขนาดโลโก้',{ req:true, wide:true }) ] }),
     packSec(['กล่องแยกชิ้น','ถุงแยกชิ้น','แพ็คตามที่ซัพพลายเออร์ส่งมา']),
   ]},
-  service: { cat:'other', name:'งานบริการ (ลูกค้าส่งวัสดุ / ชิ้นงานมาเอง)', unit:'ชิ้น', route:'งานบริการ: กำหนดสถานีตามบริการที่เลือก', sections:[
+  service: { cat:'service', name:'งานบริการอื่นๆ (ลูกค้าส่งวัสดุ / ชิ้นงานมาเอง)', unit:'ชิ้น', route:'งานบริการ: กำหนดสถานีตามบริการที่เลือก', sections:[
     { title:'บริการ', fields:[
       C('services','บริการที่ต้องการ',['พิมพ์ผ้าซับลิเมชั่น (ผ้าเมตร)','ตัดผ้าเลเซอร์','ตัดสกรีนผ้า','สกรีน DTF','สกรีน UV DTF','รีดแพค','แซกรางดุม / ติดกระดุม','พิมพ์/สกรีนผ้าหลังตัดเย็บ','พิมพ์หนัง','พิมพ์/ตัดเฟล็ก'],{ req:true, other:true }),
       A('material','วัสดุ / ชิ้นงานที่ลูกค้าส่งมา',{ req:true, hint:'ชนิด สี จำนวนที่รับเข้า สภาพ' }),
-      N('meters','จำนวนเมตร (ถ้าเป็นผ้าเมตร)','เมตร') ]},
+      N('meters','จำนวนหลา (ถ้าเป็นผ้าหลา)','หลา') ]},
     itemsSec('ชิ้น',{ nameLabel:'รายการ / ลาย', hint:'ขนาดงานพิมพ์หรือขนาดชิ้นงาน' }),
     { title:'รายละเอียดงาน', fields:[ A('work_detail','รายละเอียดการทำงาน',{ req:true, hint:'ตำแหน่ง อุณหภูมิ/เวลา (ถ้ามี) เงื่อนไขพิเศษ' }), COLOR_MATCH ]},
     packSec(['ส่งคืนตามที่รับมา','พับใส่ถุง','ม้วน']),
   ]},
 };
+// งานบริการทำขั้นเดียว · หน้าระบบตั้งเส้นทางผลิตจากใบ (private.service_kind อ่านข้อความตัวเลือกเหล่านี้ ห้ามเปลี่ยนคำ)
+const PRINT_PAPER='ส่งกระดาษให้ลูกค้า (ลูกค้ารีดเอง)', PRINT_ON_FABRIC='พิมพ์แล้วรีดลงผ้าของลูกค้า';
+const FILM_FACTORY='โรงงานสั่งฟิล์ม', FILM_CUSTOMER='ลูกค้าส่งฟิล์มมาเอง';
+const SUPPLY = (x={}) => {
+  const any=v=>!x.none||rows(v,'supplied',true).length>0;
+  return { title:'ของที่ลูกค้าส่งมา', fields:[
+    { id:'supplied', type:'itemTable', label:'รายการของที่ลูกค้าส่งมา', req:x.req!==false, none:x.none, addLabel:'+ เพิ่มรายการ',
+      hint:'1 แถวต่อ 1 รายการ · ระบบใส่รายการนี้ให้แอดมินนับของจริงอีกครั้งตอนรอผลิต (เช็ควัตถุดิบ)',
+      cols:[ { c:'item', label:'ของที่ส่งมา', t:'text' }, { c:'qty', label:'จำนวน', t:'number' },
+        { c:'unit', label:'หน่วย', t:'select', options:['ชิ้น','ตัว','ชุด','หลา','แผ่น','ม้วน'] }, { c:'note', label:'สี / สภาพ / หมายเหตุ', t:'text', opt:true } ] },
+    R('supply_by','ส่งของเข้าโรงงาน',['ลูกค้าส่งมาเอง','ให้โรงงานไปรับ'],{ when:any }),
+    T('supply_date','วันที่ของจะถึงโรงงาน',{ ph:'เช่น 28 พ.ย. 2569', when:any }),
+    N('supply_spare','ของเผื่อเสียที่ลูกค้าส่งมา',x.spareUnit||'ชิ้น',{ hint:'แนะนำให้ลูกค้าส่งเผื่อ 3–5%', when:any }),
+  ]};
+};
+const SERVICE_SIZES = label => ({ title:'ไซซ์และจำนวน', fields:[
+  C('size_sets','ชุดไซซ์',['ไซซ์ผู้ใหญ่','ไซซ์เด็ก'],{ req:true, def:['ไซซ์ผู้ใหญ่'] }),
+  { id:'sizes', type:'sizeTable', label, req:true, rowLabel:'แบบ / สี' },
+]});
+const GARMENT_NAMES = Object.values(PRODUCTS).filter(x=>x.cat==='garment').map(x=>x.name);
+PRODUCTS.svc_sew = { cat:'service', name:'เย็บอย่างเดียว (ลูกค้าส่งชิ้นส่วนที่ตัดแล้ว)', unit:'ตัว', route:'เย็บ → QC + Packing', sections:[
+  { title:'สินค้า', fields:[
+    R('garment','สินค้าที่จะเย็บ',GARMENT_NAMES,{ hint:'ฝ่ายผลิตจ่ายจักรตามสินค้านี้ · ไม่มีในรายการ = ใช้ "งานบริการอื่นๆ"' }),
+    T('garment_style','แบบ / ทรง',{ wide:true, ph:'เช่น คอกลม แขนสั้น ทรงตรง' }) ]},
+  SUPPLY({ spareUnit:'ชุด' }),
+  SERVICE_SIZES('จำนวนชุดชิ้นส่วนแยกตามไซซ์'),
+  { title:'การเย็บ', fields:[ R('thread_owner','ด้าย',['โรงงานใช้ด้ายของโรงงาน','ลูกค้าส่งด้ายมา'],{ keepStd:true }), THREAD,
+    A('sew_detail','จุดที่ต้องเย็บ / วิธีเย็บที่ลูกค้ากำหนด',{ req:true, hint:'ตะเข็บ ริม ชาย การติดคอ ฯลฯ' }), PIPING ]},
+  LABEL_SEC,
+  GARMENT_PACK,
+]};
+PRODUCTS.svc_print = { cat:'service', name:'พิมพ์อย่างเดียว (ส่งกระดาษ / รีดลงผ้าลูกค้า)', unit:'หลา', route:'ส่งกระดาษ: พิมพ์ → QC + Packing · รีดลงผ้าลูกค้า: พิมพ์ → รีด → QC + Packing', sections:[
+  { title:'งานพิมพ์', fields:[
+    R('print_output','ลูกค้าได้อะไรกลับ',[PRINT_PAPER,PRINT_ON_FABRIC],{ hint:'กำหนดขั้นตอนผลิต · เปลี่ยนหลังรับงานไม่ได้' }),
+    R('print_kind','ชนิดงานพิมพ์',['ซับลิเมชั่น (พิมพ์ลงกระดาษทรานเฟอร์)'],{ other:true, def:'ซับลิเมชั่น (พิมพ์ลงกระดาษทรานเฟอร์)' }),
+    R('paper_owner','กระดาษ',['กระดาษของโรงงาน','ลูกค้าส่งกระดาษมา']),
+    R('mirror','พิมพ์กลับด้าน (Mirror)',['กลับด้าน (ลูกค้านำไปรีดเอง)','ไม่กลับด้าน'],{ when:v=>v.print_output===PRINT_PAPER }),
+    T('fabric_kind','ผ้าของลูกค้า: ชนิด / สี / หน้าผ้า',{ req:true, wide:true, when:v=>v.print_output===PRINT_ON_FABRIC }),
+    R('color_match','การเทียบสี',COLOR_MATCH.options),
+  ]},
+  SUPPLY({ req:false, none:'ไม่มี (ใช้ของโรงงานทั้งหมด)', spareUnit:'หลา' }),
+  itemsSec('หลา',{ nameLabel:'ลาย / ไฟล์', hLabel:'ยาว', hint:'ขนาดงานพิมพ์ (กว้าง × ยาว) · จำนวนเป็นหลา' }),
+  packSec(['ม้วน','พับใส่ถุง','ส่งคืนตามที่รับมา']),
+]};
+PRODUCTS.svc_press = { cat:'service', name:'รีดอย่างเดียว (ลูกค้าส่งกระดาษพิมพ์แล้ว + ผ้า / ชิ้นงาน)', unit:'ชิ้น', route:'รีด → QC + Packing', sections:[
+  { title:'งานรีด', fields:[
+    R('press_target','รีดลงอะไร',['ผ้าหลา','ชิ้นงาน (เสื้อ ถุง ผ้าผืน ฯลฯ)']),
+    T('press_material','ชนิดผ้า / ชิ้นงาน · สี',{ req:true, wide:true }),
+    N('press_yards','จำนวนผ้า','หลา',{ req:true, when:v=>v.press_target==='ผ้าหลา' }),
+    T('press_pos','ตำแหน่งและขนาดลาย',{ req:true, wide:true, when:v=>!!v.press_target&&v.press_target!=='ผ้าหลา' }),
+    T('press_temp','อุณหภูมิ / เวลารีด',{ ph:'ไม่กรอก = มาตรฐานโรงงาน' }),
+  ]},
+  SUPPLY(),
+  itemsSec('ชิ้น',{ size:false, nameLabel:'รายการ / ลาย', hint:'ผ้าหลา: จำนวน = จำนวนผืนที่ได้ (ไม่ตัดเป็นผืน ใส่ 1 ต่อ 1 ม้วน)' }),
+  packSec(['ส่งคืนตามที่รับมา','พับใส่ถุง','ม้วน']),
+]};
+PRODUCTS.svc_dtf = { cat:'service', name:'DTF อย่างเดียว (ลูกค้าส่งชิ้นงานมา)', unit:'ชิ้น', route:'รีดฟิล์ม → QC + Packing', sections:[
+  { title:'ชิ้นงานและฟิล์ม', fields:[
+    T('dtf_item','ชิ้นงานที่ลูกค้าส่งมา: ชนิด / สี',{ req:true, wide:true, ph:'เช่น เสื้อยืดคอตตอนสีดำ' }),
+    R('film_source','ฟิล์ม DTF',[FILM_FACTORY,FILM_CUSTOMER],{ hint:'โรงงานสั่ง = แอดมินบันทึกสั่ง / ได้รับฟิล์มเหมือนงาน DTF ปกติ · ลูกค้าส่งมา = เช็คฟิล์มตอนรอผลิต' }),
+  ]},
+  SUPPLY(),
+  SERVICE_SIZES('จำนวนชิ้นแยกตามไซซ์'),
+  printSec(['สกรีน DTF'],POS_SHIRT,{ customerFabric:false, def:['สกรีน DTF'], title:'ตำแหน่งลาย' }),
+  packSec(['ส่งคืนตามที่รับมา','พับใส่ถุง']),
+]};
 // แอดมินกับลูกค้ามักไม่รู้วิธีเย็บ จึงตั้งต้นเป็นมาตรฐานโรงงาน · ใบเก่าที่ไม่มีค่านี้ยังเห็นช่องเย็บเดิม
 const SEW_STD='เย็บตามมาตรฐานโรงงาน', SEW_CUSTOM='ลูกค้ากำหนดวิธีเย็บเอง';
 Object.values(PRODUCTS).forEach(P=>P.sections.filter(sec=>sec.title==='การเย็บ').forEach(sec=>{
@@ -1140,7 +1211,8 @@ let warnedQuota=false, saveTimer=0;
 // เปิดดูจากระบบ (ฝ่ายผลิต / หน้างาน) ห้ามเขียนทับใบที่แอดมินกรอกค้างในเครื่องเดียวกัน
 let viewOnly=false;
 // ใบที่ส่งลูกค้าเซ็นแสดงเฉพาะรายการที่เจ้าของกำหนด (วัสดุ ไซซ์ จำนวน แพ็คกิ้ง) · ฝ่ายผลิตเปิดดูจากระบบเห็นครบ ข้อมูลที่บันทึกเข้าระบบไม่ถูกตัด
-const CUSTOMER_FIELDS=new Set(['fabric','fabric_rows','material','filling','handle_mat','sizes','size_chart','measure_rows','items','qty','dims','head_size']);
+const CUSTOMER_FIELDS=new Set(['fabric','fabric_rows','material','filling','handle_mat','sizes','size_chart','measure_rows','items','qty','dims','head_size',
+  'supplied','supply_by','supply_date','supply_spare','garment','print_output','fabric_kind','press_target','press_material','press_yards','dtf_item','film_source']);
 const PACK_SEC='แพ็คกิ้ง';
 const customerCopy=()=>!viewOnly;
 const customerSees=(f,sec)=>f.type==='images'||sec.title===PACK_SEC||CUSTOMER_FIELDS.has(f.id);
@@ -1789,6 +1861,8 @@ function systemCopy(){
     part.sizes=part.sizes.map(r=>({ ...r, q:Object.fromEntries(Object.entries(r.q||{}).filter(([k])=>cols.has(k))) })); }
   const head={...state.h};
   HEADER.flatMap(sec=>sec.fields).forEach(f=>{ if(!visible(f,head)||(naAllowed(f)&&isNA(f,head))) drop(head,f); });
+  // หน้าระบบรับงานเย็บอย่างเดียวด้วยรหัสสินค้าเสื้อผ้า (สูตรจักร) · ฐานข้อมูลเทียบรหัสนี้กับงาน
+  if(state.product==='svc_sew') part.garment_code=Object.keys(PRODUCTS).find(k=>PRODUCTS[k].cat==='garment'&&PRODUCTS[k].name===part.garment)||'';
   return { h:head, p:{ [state.product]:part } };
 }
 function saveToSystem(){
@@ -2086,7 +2160,7 @@ function renderDoc(){
   const sig=t=>`<div><div class="t">${t}</div><div class="ln"></div>(.......................................)<br>วันที่ ....../....../......</div>`;
   x+=`<div class="close">${mockup?'':`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`}
     <div class="d-accept"><b>${esc(ACCEPT_TITLE)}</b>${esc(ACCEPT_TEXT)}</div>
-    <ol class="d-terms">${TERMS.map(t=>`<li>${esc(t)}</li>`).join('')}</ol>
+    <ol class="d-terms">${[...TERMS,...(P.cat==='service'?TERMS_SERVICE:[])].map(t=>`<li>${esc(t)}</li>`).join('')}</ol>
     <div class="d-note"><b>ข้อตกลง:</b> ลูกค้าตรวจสอบรายละเอียดทั้งหมดในใบนี้แล้ว ${state.h.sample===SAMPLE_YES?'ฝ่ายผลิตจะผลิตตัวอย่าง 1 ชิ้นให้ลูกค้ายืนยันก่อนผลิตจริง':state.h.sample===SAMPLE_DEV?'งานนี้เป็นงาน Develop ฝ่ายผลิตทำตัวอย่างให้ลูกค้ายืนยัน งานจบที่ตัวอย่าง ไม่ผลิตจริง (ผลิตจริงต้องทำใบยืนยันใหม่)':'งานนี้ไม่ขึ้นตัวอย่าง ฝ่ายผลิตผลิตจริงตามใบนี้'}
     และผลิตตามรายละเอียดในใบนี้เท่านั้น <b>รายการที่ไม่ได้ระบุในใบนี้ถือว่าไม่มี / ไม่ต้องทำ</b> การแก้ไขหลังเซ็นต้องออกใบยืนยันฉบับใหม่ และอาจมีผลต่อกำหนดส่ง</div>
     <div class="sign">${sig('ลูกค้ายืนยันรายละเอียด')}${sig('ผู้ควบคุมงาน (รับงานเข้าโรงงาน)')}</div></div>`;

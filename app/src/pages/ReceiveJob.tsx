@@ -9,6 +9,7 @@ import { confirmationPath, draftFromConfirmation, FORM_LOCK_REASON, isFormDraft,
 import { draftLabel, formDataFromDraft, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
 import { formInSameWindow, openFormWindow } from '../lib/install'
 import { specMockups } from '../data/jobMockups'
+import { SERVICE_ROUTES, serviceRoute, specProduct, suppliedChecklist } from '../data/service'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
 import { receiveForecast, type SewFloor } from '../proto/capacity'
 import { dueDateWarning, shortDate, thaiFullDate, yearOutOfRange } from '../proto/format'
@@ -97,6 +98,9 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
   const fromForm = isFormDraft(draft)
   // สินค้าในใบที่ไม่อยู่ในรายการ (ปิดใช้แล้ว) ต้องเลือกเองได้ ไม่อย่างนั้นรับงานไม่ได้เลย
   const productLocked = fromForm && (!products || !!product)
+  const fixedRoute = serviceRoute(draft.spec)
+  // เส้นทางสถานีเดียวใช้กับใบงานบริการเท่านั้น (ฐานข้อมูลปฏิเสธสินค้าอื่น)
+  const routeChoices = (Object.keys(ROUTES) as RouteCode[]).filter(r => fixedRoute || draft.product === 'service' || !SERVICE_ROUTES.includes(r))
   // เตือนอย่างเดียว ไม่บล็อกการส่งงานเข้า
   const forecast = useMemo(() => product && draft.route && draft.qty > 0 && draft.needsSample !== null
     ? receiveForecast(jobs, now, floor, { route: draft.route, qty: draft.qty, productCode: product.code, needsSample: draft.needsSample, develop: draft.develop, due: draft.due })
@@ -113,6 +117,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
     !draft.no.trim() && 'เลขที่ใบยืนยัน', !draft.customer.trim() && 'ชื่อลูกค้า', !product && 'ประเภทสินค้า',
     draft.qty <= 0 && 'จำนวน', !draft.due && 'กำหนดส่ง', yearOutOfRange(draft.due) && 'ปีของกำหนดส่ง (ใช้ ค.ศ.)',
     specYearProblem(draft) && `ปีของ${specYearProblem(draft)}ในใบยืนยัน (${FORM_LOCK_REASON})`,
+    draft.spec.product === 'svc_sew' && !specProduct(draft.spec) && 'สินค้าที่จะเย็บ (เลือกในฟอร์มใบยืนยัน)',
     !draft.route && 'เส้นทางผลิต', draft.needsSample === null && 'ขึ้นตัวอย่างหรือไม่', pdf && pdfIssue && 'PDF ใบยืนยัน',
   ].filter(Boolean) as string[]
 
@@ -147,13 +152,17 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
       }
     }
     setSaving('กำลังรับงาน…')
+    const spec = syncConfirmationSpec(draft, product.name)
     const r = await rpc<string>('receive_job', {
       p_confirmation_no: draft.no.trim(), p_customer_name: draft.customer.trim(), p_job_name: draft.jobName.trim() || product.name,
       p_product_type_code: product.code, p_qty: draft.qty, p_unit: product.unit, p_due_date: draft.due, p_route_code: draft.route,
-      p_confirmation_pdf_path: path, p_spare_qty: draft.spare, p_confirmation_rev: draft.rev, p_spec: syncConfirmationSpec(draft, product.name),
+      p_confirmation_pdf_path: path, p_spare_qty: draft.spare, p_confirmation_rev: draft.rev, p_spec: spec,
       p_needs_sample: draft.needsSample, p_develop: draft.develop,
     })
     if (!r.ok) { setSaving(null); setError(r.reason); return }
+    // ใส่ไม่สำเร็จ (เช่น ปิดขั้นรอผลิตอยู่ งานเข้าไลน์แล้ว) ไม่ใช่เหตุให้รับงานซ้ำ · แอดมินพิมพ์เองได้
+    const checklist = suppliedChecklist(spec)
+    if (checklist.length) await rpc('set_job_materials', { p_job: r.data, p_items: checklist })
     setSaving('กำลังสร้างร่างม็อคอัพจากจุดในใบยืนยัน…')
     const seeded = await seedFromConfirmation(r.data)
     setSaving(null)
@@ -231,10 +240,12 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
             {lead && dueBeforeLead && <span role="alert" className="text-sm font-medium text-warn">กำหนดส่งเร็วกว่าเวลาผลิตมาตรฐาน · ตกลงวันส่งกับลูกค้าหรือวางแผนเร่งงาน (ยังรับงานได้)</span>}
           </label>
           <label className={label}>เส้นทางผลิต
-            <select value={draft.route ?? ''} onChange={e => set('route', (e.target.value || null) as RouteCode | null)} className={fieldClass}>
+            <select value={draft.route ?? ''} onChange={e => set('route', (e.target.value || null) as RouteCode | null)} className={fieldClass}
+              disabled={!!fixedRoute} aria-describedby={fixedRoute ? 'route-fixed' : undefined}>
               <option value="">เลือกเส้นทางผลิตของงานนี้</option>
-              {(Object.keys(ROUTES) as RouteCode[]).map(r => <option key={r} value={r}>{ROUTES[r].name}</option>)}
+              {routeChoices.map(r => <option key={r} value={r}>{ROUTES[r].name}</option>)}
             </select>
+            {fixedRoute && <span id="route-fixed" className="text-sm font-normal text-muted">ใบงานบริการกำหนดเส้นทางเอง · {FORM_LOCK_REASON}</span>}
           </label>
         </div>
         <p className="text-sm text-muted">{draft.route

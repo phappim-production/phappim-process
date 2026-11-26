@@ -1,6 +1,7 @@
 // เติมช่องหน้ารับงานจากไฟล์ของฟอร์มใบยืนยัน เพราะพิมพ์ซ้ำ = โอกาสพิมพ์ผิด
 import { ROUTES, type RouteCode } from '../proto/model.ts'
 import { yearOutOfRange } from '../proto/format.ts'
+import { serviceRoute, specProduct } from './service.ts'
 
 export type ReceiveDraft = {
   no: string
@@ -99,11 +100,11 @@ export function draftFromConfirmation(raw: unknown): ReceiveDraft | null {
     rev: num(d.h.rev),
     customer: text(d.h.customer),
     jobName: text(d.h.job_name),
-    product: d.product,
+    product: specProduct(spec) ?? d.product,
     qty: sumQty > 0 ? sumQty : totalQty(ans),
     spare: num(ans.spare),
     due: /^\d{4}-\d{2}-\d{2}$/.test(text(d.h.due_date)) ? text(d.h.due_date) : '',
-    route: null,
+    route: serviceRoute(spec),
     needsSample: sampleChoice(d.h),
     develop: developChoice(d.h),
     spec,
@@ -141,6 +142,11 @@ export function syncConfirmationSpec(draft: ReceiveDraft, productName: string): 
     job_name: draft.jobName.trim() || productName,
     due_date: draft.due || s.h.due_date,
     sample: draft.needsSample === null ? s.h.sample : !draft.needsSample ? SAMPLE_TEXT.no : draft.develop ? SAMPLE_TEXT.develop : SAMPLE_TEXT.yes,
+  }
+  // ใบงานบริการเก็บคำตอบไว้ที่ชนิดใบ (svc_*) แม้งานเย็บอย่างเดียวใช้รหัสสินค้าเสื้อผ้า
+  if (serviceRoute(s)) {
+    const own = s.p[s.product]
+    return { ...s, h, p: isRecord(own) ? { [s.product]: { ...own, spare: draft.spare > 0 ? draft.spare : '' } } : s.p }
   }
   // สินค้าในใบปิดใช้แล้ว แอดมินเลือกสินค้าใหม่ · สเปกต้องเป็นสินค้าเดียวกับงาน ไม่อย่างนั้นแก้ใบภายหลังไม่ได้
   const part = s.p[draft.product] ?? s.p[s.product]

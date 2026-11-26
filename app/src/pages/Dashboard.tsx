@@ -1,3 +1,4 @@
+import { serviceLabel } from '../data/service'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
@@ -552,6 +553,11 @@ function stripe(j: Job, now: Date): Tone {
   return 'neutral'
 }
 
+function productLine(j: Job, tx: (th: string) => string) {
+  const { service, product } = serviceLabel(j)
+  return service ? [tx(service), product].filter(Boolean).join(' · ') : product
+}
+
 function receivedWhere(jobs: Job[], no: string): string {
   const phase = jobs.find(j => j.no === no)?.phase
   if (phase === 'materials') return ' · อยู่คอลัมน์ "รอผลิต" เช็ควัตถุดิบ + ถ่ายรูป แล้วกดปล่อยเข้าไลน์การผลิต'
@@ -583,7 +589,7 @@ function JobCard({ job: j, now, sampleTag, onOpen }: { job: Job; now: Date; samp
         <span className="ml-auto text-sm"><DueLabel job={j} now={now} /></span>
       </span>
       <span className="truncate">{j.customer}</span>
-      <span className="truncate text-sm text-muted">{j.product} · {j.qty.toLocaleString('th-TH')} {tx(j.unit)}</span>
+      <span className="truncate text-sm text-muted">{productLine(j, tx)} · {j.qty.toLocaleString('th-TH')} {tx(j.unit)}</span>
       {(label || j.rework) && (
         <span className="mt-0.5 flex flex-wrap gap-1">
           {/* ป้ายเวลาผลิตใช้สีของตัวเอง (ส้ม/แดง) ไม่ใช้สีแถบ ซึ่งอาจแดงเพราะเลยกำหนดส่ง */}
