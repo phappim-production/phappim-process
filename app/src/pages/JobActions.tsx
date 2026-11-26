@@ -9,7 +9,7 @@ import { openFormWindow } from '../lib/install'
 import { contentKey, mockupProblem, shrinkImage, uploadMockup } from '../data/mockups'
 import { signFiles, uploadFile } from '../data/files'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
-import { DEPT_NAME, OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, stationNo, usesFilm, type Dept, type Job, type StationCode, type Vendor } from '../proto/model'
+import { OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, stationNo, usesFilm, type Job, type StationCode, type Vendor } from '../proto/model'
 import { OutsourcePanel } from './OutsourcePanel'
 import { FilePick } from '../components/FilePick'
 import { relDayWord, spaced, thaiFullDate, wholeCount } from '../proto/format'
@@ -19,9 +19,8 @@ import { reasonCodes, stationInfo } from '../data/lookups'
 import { touchJob } from '../data/jobKey'
 import { bookingDay } from '../proto/sewing'
 import { canCancelJob, canCloseIssue, canReportDelay, type EmployeeRole } from '../auth/access'
-import { Pill } from '../components/ui'
 import { dangerBtn, fieldClass, okBtn, primaryBtn, secondaryBtn } from '../components/Dialog'
-import { IconAlert, IconCheck, IconClock, IconFilm, IconPackage, IconPause, IconPlay } from '../components/icons'
+import { IconAlert, IconCheck, IconFilm, IconPackage, IconPause, IconPlay } from '../components/icons'
 import { Tr } from '../i18n/Tr'
 import { useT, type Word } from '../i18n/lang'
 import { QueueReasonPrompt } from './QueueReason'
@@ -31,8 +30,9 @@ import { photoBlock } from '../data/stationPhotos'
 import { loadFormData } from '../data/jobForm'
 import { needsRevisionAck } from '../data/revisions'
 import { RevisionBanner, ViewConfirmation } from './Revision'
+import { MaterialsCheck } from './MaterialsCheck'
+import type { MaterialItem, MaterialPhoto } from '../data/materialsCheck'
 
-type Material = { id: number; name: string; dept: Dept; key: string | null; checked_at: string | null }
 type Reason = { code: string; grp: string; name: string }
 type Lead = {
   lead_qty?: number; lead_days?: number; lead_start?: string; lead_due?: string; lead_used?: number
@@ -40,28 +40,30 @@ type Lead = {
 }
 type Detail = {
   qcPassed: number; sla: Lead; filmOrdered: boolean; pdfPath: string | null
-  materials: Material[]; steps: Substep[]; done: Map<string, unknown>; reasons: Reason[]
+  materials: MaterialItem[]; photos: MaterialPhoto[]; steps: Substep[]; done: Map<string, unknown>; reasons: Reason[]
 }
 type Notice = { ok: boolean; text: Word } | null
 const CONFIRMATION_FORM = '/confirmation'
 
 async function loadDetail(id: string, station: StationCode | undefined, phase: Job['phase']): Promise<Detail> {
   if (!supabase) throw new Error('ยังไม่ได้ตั้งค่า Supabase')
-  const [live, materials, stations, reasons] = await Promise.all([
+  const none = Promise.resolve({ data: [], error: null })
+  const [live, materials, photos, stations, reasons] = await Promise.all([
     supabase.from('job_live').select('visit, qc_passed, sla, dtf_film_ordered_at, confirmation_pdf_path').eq('id', id).single(),
-    // ขั้นวัตถุดิบยกเลิกแล้ว เหลือเฉพาะงานเก่าที่ยังค้างขั้นนี้
-    phase === 'materials' ? supabase.from('job_materials').select('id, name, dept, key, checked_at').eq('job_id', id).order('id') : Promise.resolve({ data: [], error: null }),
+    phase === 'materials' ? supabase.from('job_materials').select('id, name, checked_at').eq('job_id', id).order('id') : none,
+    phase === 'materials' ? supabase.from('job_material_photos').select('id, path').eq('job_id', id).order('id') : none,
     station ? stationInfo.get() : Promise.resolve([]),
     reasonCodes.get(),
   ])
-  const failed = [live, materials].find(r => r.error)
+  const failed = [live, materials, photos].find(r => r.error)
   if (failed?.error) throw new Error(failed.error.message)
   const row = live.data as { visit: number; qc_passed: number; sla: Lead | null; dtf_film_ordered_at: string | null; confirmation_pdf_path: string | null }
   const subs = await supabase.from('job_substeps').select('substep_key, value').eq('job_id', id).eq('visit', row.visit)
   if (subs.error) throw new Error(subs.error.message)
   return {
     qcPassed: row.qc_passed, sla: row.sla ?? {}, filmOrdered: !!row.dtf_film_ordered_at, pdfPath: row.confirmation_pdf_path,
-    materials: materials.data as Material[],
+    materials: materials.data as MaterialItem[],
+    photos: photos.data as MaterialPhoto[],
     steps: stations.find(s => s.code === station)?.substeps ?? [],
     done: new Map((subs.data as { substep_key: string; value: unknown }[]).map(s => [s.substep_key, s.value])),
     reasons: reasons.filter(r => r.active),
@@ -125,8 +127,7 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
       {notice && <NoticeBox notice={notice} />}
       <OutsourcePanel job={j} vendors={vendors} admin={admin} now={now} refresh={refresh} />
       {j.phase === 'done' && <Delivery job={j} admin={admin} busy={busy} now={now} act={act} />}
-      {j.phase === 'materials' && <Materials materials={d.materials} role={role} busy={busy} sample={j.needsSample !== false}
-        onCheck={(m, on) => act('check_material', { p_material_id: m.id, p_checked: on }, on ? `ติ๊ก "${m.name}" แล้ว` : `ยกเลิกติ๊ก "${m.name}" แล้ว`, false)} />}
+      {j.phase === 'materials' && <MaterialsCheck job={j} items={d.materials} photos={d.photos} admin={admin} busy={busy} now={now} act={act} />}
       {usesFilm(j.route) && !j.film?.received && j.phase !== 'done' && (
         <Film job={j} ordered={d.filmOrdered} admin={admin} busy={busy} now={now}
           onOrder={eta => act('order_film', { p_eta: eta }, `บันทึกสั่ง${filmLabel(j.route)} · คาดว่าได้รับ ${thaiFullDate(eta)}`)}
@@ -341,38 +342,6 @@ function Section({ title, icon, children, tone, id }: { title: string | Word; ic
       <h3 className="mb-3 flex items-center gap-2 font-semibold">{icon}<span><Tr inline th={head.th} vars={head.vars} /></span></h3>
       {children}
     </section>
-  )
-}
-
-function Materials({ materials, role, busy, sample, onCheck }: {
-  materials: Material[]; role: EmployeeRole; busy: boolean; sample: boolean; onCheck: (m: Material, on: boolean) => void
-}) {
-  return (
-    <Section title="เช็ควัตถุดิบ">
-      <ul className="grid gap-2">
-        {materials.map(m => {
-          const mine = role === m.dept || role === 'owner'
-          const auto = !!m.key?.endsWith('_film')
-          const checked = !!m.checked_at
-          return (
-            <li key={m.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-line p-2">
-              {checked ? <IconCheck className="size-5 text-ok" /> : <IconClock className="size-5 text-warn" />}
-              <span className="min-w-0 flex-1">
-                <span className="block break-words">{m.name}</span>
-                <span className="text-sm text-muted">{DEPT_NAME[m.dept]}{auto ? ' · ติ๊กให้เองเมื่อแอดมินบันทึกสั่งฟิล์ม' : ''}</span>
-              </span>
-              {!auto && mine && (
-                checked
-                  ? <button type="button" disabled={busy} className={secondaryBtn} onClick={() => onCheck(m, false)}>ยกเลิกติ๊ก</button>
-                  : <button type="button" disabled={busy} className={okBtn} onClick={() => onCheck(m, true)}><IconCheck className="size-5" />ครบแล้ว</button>
-              )}
-              {!auto && !mine && !checked && <Pill tone="warn">รอ {DEPT_NAME[m.dept]}</Pill>}
-            </li>
-          )
-        })}
-      </ul>
-      <p className="mt-2 text-sm text-muted">ทุกฝ่ายติ๊กครบ → {sample ? 'งานไปขึ้นตัวอย่างอัตโนมัติ' : 'งานเข้าผลิตจริงอัตโนมัติ (งานนี้ไม่ขึ้นตัวอย่าง)'}</p>
-    </Section>
   )
 }
 

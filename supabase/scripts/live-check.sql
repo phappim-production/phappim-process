@@ -47,6 +47,8 @@ begin
   update public.profiles set active = true where user_id in (adm, mgr, prd, qcu);
   -- งานอื่นในฐานจริงอาจใช้เครื่องเต็มอยู่ · ไม่นับเครื่องในธุรกรรมนี้ (กฎเครื่องเต็มมีทดสอบใน station-machines.mjs)
   update public.stations set machines = null where machines is not null;
+  -- เดินงานแบบเดิม (รับแล้วเข้าสถานีแรกทันที) · ขั้นรอผลิตทดสอบใน materials-check.mjs
+  if to_regclass('public.production_settings') is not null then update public.production_settings set materials_check = false; end if;
   -- งาน A: ปกติ ไม่ขึ้นตัวอย่าง · เดินครบ 5 สถานี + พัก/ทำต่อ + QC ส่งแก้
   j1 := pg_temp.ok('รับงานเข้า (admin)', adm, format($$select public.receive_job('TEST-LIVE-A','ลูกค้าทดสอบสด','งานทดสอบสด','tshirt',10,'ตัว',current_date + 7,'normal','',0,0,%L::jsonb,false)::text$$, spec))::uuid;
   perform pg_temp.err('QC รับงานเข้าไม่ได้', qcu, $$select public.receive_job('TEST-LIVE-X','x','x','tshirt',1,'ตัว',current_date+7,'normal','',0,0,'{}',false)$$, 'บทบาท|แอดมิน');

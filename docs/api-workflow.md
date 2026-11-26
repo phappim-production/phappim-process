@@ -9,10 +9,11 @@
 ## ลำดับของงาน
 ```
 [ฟอร์ม] save_confirmation_draft (ไม่บังคับ) ─┐
-receive_job ──────────────────────────────────┴→ needs_sample?
+receive_job → [materials] "รอผลิต" set_job_materials + check_material ครบ + add_material_photos ≥ 1 → release_job ─→ needs_sample?
    ├─ ขึ้นตัวอย่าง → [sample] สถานีตามเส้นทาง → [sample_review] record_sample_result
    │                    ไม่ผ่าน → [sample] รอบ +1        ผ่าน → [production] สถานีแรก
-   └─ ไม่ขึ้น      → [production] สถานีแรกทันที (ไม่มีขั้นวัตถุดิบตั้งแต่ 20261119190000)
+   └─ ไม่ขึ้น      → [production] สถานีแรก
+   (production_settings.materials_check = false → receive_job ปล่อยทันทีเหมือนก่อน 20261206000000)
 แต่ละสถานี: queued → start_in_queue (คิวแรก หรือมีเหตุผลข้ามคิว) → doing → finish_station → สถานีถัดไป queued … → [done]
 เย็บ:       queued → start_in_queue / start_sewing (จ่ายจักรประจำไลน์) → doing → finish_sewing → QC
 พักงาน:     open_issue → hold → close_issue (เย็บ: report_sewing_issue p_pause → resume_sewing)
@@ -33,6 +34,18 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 | `ack_confirmation_revision` | `p_job, p_station` → void | supervisor · production · staff (สถานีที่จับคู่) · qc (QC + Packing) · owner | สถานีที่งานอยู่รับทราบใบยืนยันฉบับแก้ล่าสุด · สถานีถัดไปต้องรับทราบใบเดิมอีกครั้ง (`20261130000000` · ยึด event `spec_revised` ล่าสุด รวมงานต้นทางของงานที่แบ่ง) · บันทึก `confirmation_acks` + event `confirmation_ack` · กดซ้ำไม่บันทึกซ้ำ · **กดเสร็จสถานีไม่ได้จนกว่าจะรับทราบ** (`private.revision_ack_missing` ใน `missing_substeps` · "กด "รับทราบใบแก้" ก่อน · แอดมินแก้ใบยืนยันครั้งที่ N เมื่อ วัน เวลา น.") · ปฏิเสธ: ยังไม่มีใบแก้, งานอยู่สถานีอื่น, QC ที่ไม่ใช่สถานี QC, แอดมิน, ผู้บริหาร |
 | `confirmation_revision_flags` | ไม่มี → `job_id, rev, revised_at, revised_by, fields, summary, event_id, acked_stations` | ทุกบทบาทที่ใช้งานอยู่ | ใบแก้ล่าสุดของงานที่ยังไม่เสร็จ/ยกเลิก ให้บอร์ดแสดงป้าย "ใบแก้ครั้งที่ N · วัน เวลา" และรายละเอียดงานแสดงผู้แก้ ช่องที่แก้ สถานีที่รับทราบแล้ว |
 | `ack_mockup_sheet` | `p_sheet, p_station` → void | production · supervisor (เฟสตัวเอง) · staff (สถานีที่จับคู่) · qc (QC + Packing) · owner | รับทราบม็อคอัพฉบับที่อนุมัติ (`mockup_acks` · กดซ้ำไม่บันทึกซ้ำ) · ปฏิเสธ: ไม่พบฉบับนี้, ฉบับไม่ใช่ที่อนุมัติ, เส้นทางไม่ผ่านสถานีนี้, staff สถานีที่ไม่ได้จับคู่, QC สถานีอื่น · `20261202000000`: **งานยกเลิกแล้ว** "งานนี้ถูกยกเลิกแล้ว ไม่ต้องรับทราบม็อคอัพ" · **supervisor สถานีนอกเฟสตัวเอง** "สถานี… อยู่เฟส N ให้ผู้ควบคุมงานเฟส N เป็นคนกดรับทราบ" |
+
+## รอผลิต: เช็ควัตถุดิบก่อนเข้าไลน์ (`20261206000000`)
+งานที่รับเข้าอยู่ `phase = 'materials'` (บอร์ดคอลัมน์ "รอผลิต") ยังไม่มีสถานี ยังไม่นับเวลาผลิต (`lead_state` = `{}`) · เปิด/ปิดขั้นนี้ที่ `production_settings.materials_check` (ค่าเริ่มต้น เปิด)
+| ฟังก์ชัน | อาร์กิวเมนต์ | ใครเรียก | ทำอะไร / ปฏิเสธเมื่อ |
+|---|---|---|---|
+| `set_job_materials` | `p_job, p_items text[], p_base text[] = null` | admin · owner | ตั้งรายการวัตถุดิบทั้งชุด · `p_base` = รายการที่หน้าจอเห็น ไม่ตรงของล่าสุด = ปฏิเสธ (อีกเครื่องแก้ก่อน) (ตัดช่องว่าง · ชื่อซ้ำไม่สนตัวพิมพ์เก็บอันแรก · ชื่อยาวตัดที่ 80) · รายการที่ไม่อยู่ในชุดถูกลบ รายการเดิมคงสถานะติ๊ก · event `materials_set` · ปฏิเสธ: เกิน 30 รายการ, งานยกเลิก, ปล่อยเข้าไลน์แล้ว |
+| `check_material` | `p_material_id, p_checked = true` | admin · owner | ติ๊ก/ยกเลิกติ๊ก 1 รายการ (ไม่ปล่อยงานเอง) · event `material_checked` / `material_unchecked` · ปฏิเสธ: งานไม่อยู่ขั้นรอผลิต |
+| `add_material_photos` | `p_job, p_paths text[]` | admin · owner | แนบรูปวัตถุดิบ (bucket `mockups` โฟลเดอร์ของใบ `private.mockup_folder` · ต้องอัปโหลดแล้ว) · event `material_photos` · ปฏิเสธ: เกิน 12 รูป, path ผิดโฟลเดอร์/ยังไม่อัปโหลด, เป็นรูปม็อคอัพของงาน, รูปที่แนบไว้แล้วทั้งชุด, ปล่อยแล้ว |
+| `remove_material_photo` | `p_id` | admin · owner | ลบรูปวัตถุดิบ 1 รูป · event `material_photo_removed` · ปฏิเสธ: ปล่อยแล้ว / ลบไปแล้ว |
+| `release_job` | `p_job` | admin · owner | ปล่อยเข้าไลน์การผลิต → ขึ้นตัวอย่าง หรือสถานีแรก · คิวต่อท้าย (`queue_seq` ใหม่) · event `released` (`manual`, `materials`, `photos`) · เวลาผลิตเริ่มนับวันนี้ · ปฏิเสธ: ไม่มีรายการ, ยังไม่ติ๊กครบ (บอกชื่อ), ไม่มีรูป (3 ข้อนี้ไม่ตรวจเมื่อปิดขั้นแล้ว), งานยกเลิก, ปล่อยไปแล้ว |
+
+`receive_job` ปล่อยเองเฉพาะในธุรกรรมที่รับงานตอนปิดขั้นนี้ · งานที่ค้างรออยู่ไม่หลุดเข้าไลน์ตอน `order_film` · `inbox_scan_all` เตือนแอดมิน `materials_late` เมื่อรอผลิตเกิน 2 วันทำงาน (แม้ยังไม่มีรายการ)
 
 ฟอร์ม `/confirmation` (ไฟล์ `production-confirmation.html` · build คัดลอกขึ้นเว็บ) ไม่มี key: กด "บันทึกเข้าระบบ" → `localStorage['pp142.confirmation.outbox']` → เปิด `#/board?confirmation=save` → `ConfirmationOutbox` เรียก `save_confirmation_draft` · หน้ารับงานกด "แก้ใบนี้ในฟอร์ม" → `localStorage['pp142.confirmation.inbox']` → ฟอร์มโหลดใบ (`app/src/data/confirmationDrafts.ts`)
 ค่าที่จุดกำกับม็อคอัพอ้างจากสเปก (`private.mockup_ref_value` · ใช้นับ `mockup_stale` ใน `revise_job_spec`): ตัวเลือก "อื่นๆ" แสดงเป็น "อื่นๆ: ข้อความที่พิมพ์" จากช่อง `…__other` ตรงกับ PDF (`20261129000001`)
@@ -153,7 +166,7 @@ PDF:        แนบตอน receive_job หรือ attach_confirmation_pdf 
 
 Index เพิ่มใน `20261128000000`: `jobs (mockup_path)` · `jobs (confirmation_pdf_path)` · GIN `jobs (spec -> 'mockups')` · `mockup_views (image_path)` (ให้ `file_read_allowed` ไม่ไล่อ่านทั้งตาราง) · `events (at desc)` · `events (payload->>'parent')` เฉพาะ `job_split_from`
 
-Realtime ที่หน้าเว็บฟัง: `jobs`, `events`, `job_materials`, `issues`, `sewing_machines`, `machine_assignments`, `machine_bookings` (`app/src/data/useFactoryData.ts` · รวมการโหลดใน 250 ms)
+Realtime ที่หน้าเว็บฟัง: `jobs`, `events`, `job_materials`, `job_material_photos`, `issues`, `sewing_machines`, `machine_assignments`, `machine_bookings` (`app/src/data/useFactoryData.ts` · รวมการโหลดใน 250 ms)
 
 ## ไม่ใช้แล้ว (ยังอยู่ในฐานข้อมูล)
-`check_material` / `job_materials` / `material_templates` (ไม่มีขั้นวัตถุดิบ) · `stations.substeps` (เหลือแค่ขั้น lock และ `inspect` ที่ระบบใช้) · บทบาท supervisor + `profiles.section` · เวลามาตรฐานรายสถานี/ช่วง `stations.sla_days` / `big_qty` / `big_sla_days` / `warn_pct`, `sla_segments`, `delay_reports.segment_code` (ใช้เวลาผลิตทั้งงานแทน · `20261201000000`)
+`material_templates` + `job_materials.key` (รายการวัตถุดิบตอนนี้แอดมินพิมพ์เองต่องาน) · `stations.substeps` (เหลือแค่ขั้น lock และ `inspect` ที่ระบบใช้) · บทบาท supervisor + `profiles.section` · เวลามาตรฐานรายสถานี/ช่วง `stations.sla_days` / `big_qty` / `big_sla_days` / `warn_pct`, `sla_segments`, `delay_reports.segment_code` (ใช้เวลาผลิตทั้งงานแทน · `20261201000000`)

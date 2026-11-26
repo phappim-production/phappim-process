@@ -69,6 +69,8 @@ async function initInstance() {
     -- ฐานจริงปรับ QC + Packing เป็นไลน์ผลิตไม่จำกัดเครื่อง
     update public.stations set machines = null where code = 'qc_pack';
   `)
+  // ชุดทดสอบเดิมรับงานแล้วเริ่มสถานีแรกทันที · ลองขั้นรอผลิตด้วย QA_MATERIALS_CHECK=1 หรือ /__qa/sql
+  if (process.env.QA_MATERIALS_CHECK !== '1') await pglite.exec('update public.production_settings set materials_check = false')
 
   for (const v of SEED_VENDORS) {
     const active = v[0] !== 'บริษัทที่ปิดใช้งานจำลอง'

@@ -57,6 +57,15 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
     const delivered = await receive('MATRIX-DELIVERED', 'cut_only')
     await walk(delivered, ['cut', 'qc_pack'], 'production')
     await rpc('admin', 'mark_delivered', [delivered, reason])
+    await rows('update public.production_settings set materials_check = true')
+    const waiting = await rpc('admin', 'receive_job', intake('MATRIX-MATERIALS', 'plain', false))
+    const ready = await rpc('admin', 'receive_job', intake('MATRIX-READY', 'plain', false))
+    await rows('update public.production_settings set materials_check = false')
+    const [item] = await rows("insert into public.job_materials (job_id,name,dept) values ($1,'ผ้า','admin') returning id", [waiting])
+    await rows("insert into public.job_materials (job_id,name,dept,checked_at) values ($1,'ผ้า','admin',now())", [ready])
+    const materialPhoto = 'TEST-R13-MATRIX-MATERIALS/abc123.jpg'
+    await rows("insert into private.file_objects (kind,path,size,content_type) values ('mockups',$1,40,'image/jpeg')", [materialPhoto])
+    const [readyPhoto] = await rows("insert into public.job_material_photos (job_id,path) values ($1,'TEST-R13-MATRIX-READY/abc123.jpg') returning id", [ready])
     const data = { app: 'phappim-confirm', v: 1, product: 'tshirt', h: { doc_no: 'TEST-R13-MATRIX-DRAFT' } }
     const draft = await rpc('admin', 'save_confirmation_draft', [data])
     const path = 'TEST-R13-MATRIX-QUEUED/cafe.pdf'
@@ -118,6 +127,11 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
       decide_first_piece: [['owner', 'admin', 'manager'], [0, true, null]],
       set_station_photos_enabled: [['owner'], [false, null]],
       station_photo_flags: [all, []],
+      set_job_materials: [admin, [waiting, ['ผ้า', 'ด้าย']]],
+      check_material: [admin, [item.id]],
+      add_material_photos: [admin, [waiting, [materialPhoto]]],
+      remove_material_photo: [admin, [readyPhoto.id]],
+      release_job: [admin, [ready]],
     }
     const probes = [...Object.keys(roster), 'anon']
     const discrepancies = []
@@ -145,7 +159,7 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
       result.push({ name, expected, cells })
     }
     console.log('R13_MATRIX ' + JSON.stringify({ probes, result, discrepancies }))
-    assert.equal(result.length, 48)
+    assert.equal(result.length, 53)
     assert.equal(discrepancies.filter(item => ['anon', 'disabled'].includes(item.actor)).length, 0)
     assert.deepEqual(documented.sort(), Object.keys(rowsToTest).sort())
     return result.length + ' RPC × ' + probes.length + ' บัญชี'

@@ -139,7 +139,7 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
       id: j.id, stations, isExtra: false,
       i: inLine ? Math.max(0, stations.indexOf(j.station ?? stations[0])) : 0,
       ready: inLine ? (j.status === 'hold' ? LEAD.hold : 0)
-        : j.phase === 'materials' ? LEAD.materials + (j.develop ? LEAD.sample + LEAD.sampleReview : 0)
+        : j.phase === 'materials' ? LEAD.materials + (j.needsSample !== false ? LEAD.sample + LEAD.sampleReview : 0)
         : j.phase === 'sample' ? LEAD.sample + (j.develop ? LEAD.sampleReview : 0) : LEAD.sampleReview,
       order,
       filmDay,

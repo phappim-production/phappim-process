@@ -279,6 +279,7 @@ function StationLoadCard({ forecast }: { forecast: Forecast }) {
 
 function Pipeline({ jobs, now }: { jobs: Job[]; now: Date }) {
   const stages: { name: string; n: number; color: string }[] = [
+    { name: 'รอผลิต', n: jobs.filter(j => j.phase === 'materials').length, color: 'bg-warn' },
     { name: 'ขึ้นตัวอย่าง', n: jobs.filter(j => j.phase === 'sample').length, color: 'bg-info' },
     { name: 'รอลูกค้ายืนยัน', n: jobs.filter(j => j.phase === 'sample_review').length, color: 'bg-dtf' },
     { name: 'กำลังผลิต', n: jobs.filter(j => j.phase === 'production').length, color: 'bg-brand' },
@@ -400,7 +401,7 @@ export function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Dat
     // ถึงสถานีรีดฟิล์มแล้วยังไม่ได้สั่ง = งานค้างเพราะแอดมิน (แดง) · ยังไม่ถึง = เตือนให้สั่งทันก่อนถึง (ส้ม)
     else if (isFilmNotOrdered(j)) items.push({ id: j.id + 'n', tone: j.station === 'dtf_press' ? 'danger' : 'warn', tag: 'ยังไม่ได้สั่งฟิล์ม',
       text: j.station === 'dtf_press' ? `${filmLabel(j.route)} · งานรอที่สถานีรีดฟิล์มแล้ว สั่งแล้วบันทึกวันคาดว่าได้รับ` : `${filmLabel(j.route)} · สั่งแล้วบันทึกวันคาดว่าได้รับในรายละเอียดงาน`, job: j })
-    else if (j.phase === 'materials' && !j.materials.admin) items.push({ id: j.id + 'm', tone: 'warn', tag: 'วัตถุดิบ', text: 'ฝ่ายแอดมินยังไม่ติ๊ก', job: j })
+    else if (j.phase === 'materials') items.push({ id: j.id + 'm', tone: 'warn', tag: 'รอผลิต', text: 'เช็ควัตถุดิบ + ถ่ายรูป แล้วปล่อยเข้าไลน์การผลิต', job: j })
     else if (j.phase === 'sample_review') items.push({ id: j.id + 's', tone: 'info', tag: 'ตามลูกค้า', text: `ยืนยันตัวอย่าง · รอมา ${duration(now.getTime() - j.since.getTime())}`, job: j })
     // ยังไม่เลยกำหนดแต่คาดว่าไม่ทัน → แจ้งลูกค้าล่วงหน้า หรือให้หัวหน้าพิจารณาแทรกคิว
     else if (lateBy.has(j.id)) {

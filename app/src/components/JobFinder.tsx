@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ROUTES, STATION_NAME, STATUS_NAME, isFilmLate, isWaitingFilm, missingDepts, DEPT_NAME, type Job } from '../proto/model'
+import { ROUTES, STATION_NAME, STATUS_NAME, isFilmLate, isWaitingFilm, type Job } from '../proto/model'
 import { lateDays, workdayToDate, type Forecast } from '../proto/capacity'
 import { duration, shortDate, stageSteps, stageText } from '../proto/format'
 import { DueLabel, MockupThumb, Pill, RouteBadge } from './ui'
@@ -95,10 +95,10 @@ function JobStatus({ job: j, now, forecast, onOpen }: { job: Job; now: Date; for
   const late = finish ? lateDays(finish, j.due) : 0
   const next = j.phase !== 'done' ? all[cur + 1] : null
   const where = (j.phase === 'production' || j.phase === 'sample') && j.station ? STATION_NAME[j.station]
-    : j.phase === 'materials' ? 'รอวัตถุดิบ' : j.phase === 'sample_review' ? 'รอลูกค้ายืนยันตัวอย่าง' : j.phase === 'done' ? (j.delivered ? 'จัดส่งแล้ว' : 'รอจัดส่ง') : all[cur]
+    : j.phase === 'materials' ? 'รอผลิต' : j.phase === 'sample_review' ? 'รอลูกค้ายืนยันตัวอย่าง' : j.phase === 'done' ? (j.delivered ? 'จัดส่งแล้ว' : 'รอจัดส่ง') : all[cur]
   const status = j.phase === 'done' ? 'เสร็จแล้ว'
     : j.status ? STATUS_NAME[j.status]
-    : j.phase === 'materials' ? `รอ ${missingDepts(j).map(d => DEPT_NAME[d]).join(', ')}`
+    : j.phase === 'materials' ? 'แอดมินเช็ควัตถุดิบ แล้วปล่อยเข้าไลน์'
     : j.phase === 'sample_review' ? `ตัวอย่างรอบ ${j.sampleRound}` : 'รอคิว'
   const stepsRef = useRef<HTMLOListElement>(null)
 
@@ -168,7 +168,7 @@ function JobStatus({ job: j, now, forecast, onOpen }: { job: Job; now: Date; for
 function Notes({ job: j, now }: { job: Job; now: Date }) {
   const notes: { tone: 'danger' | 'warn' | 'info'; icon: typeof IconAlert; text: string }[] = []
   if (j.holdReason) notes.push({ tone: 'danger', icon: IconAlert, text: `ติดปัญหา: ${j.holdReason}` })
-  if (j.phase === 'materials') notes.push({ tone: 'warn', icon: IconClock, text: `รอวัตถุดิบจาก ${missingDepts(j).map(d => DEPT_NAME[d]).join(', ')}` })
+  if (j.phase === 'materials') notes.push({ tone: 'warn', icon: IconClock, text: 'ยังไม่เข้าไลน์การผลิต · แอดมินเช็ควัตถุดิบ + ถ่ายรูป แล้วกดปล่อยเข้าไลน์' })
   if (isWaitingFilm(j)) notes.push({ tone: isFilmLate(j, now) ? 'danger' : 'warn', icon: IconFilm, text: `รอฟิล์ม DTF · ETA ${shortDate(j.film!.eta)}${isFilmLate(j, now) ? ' (เลยแล้ว ต้องตามร้าน)' : ''}` })
   if (j.phase === 'sample_review') notes.push({ tone: 'info', icon: IconClock, text: 'รอลูกค้ายืนยันตัวอย่าง · แอดมินควรตามลูกค้า' })
   const lastReport = j.sewingReports?.at(-1)

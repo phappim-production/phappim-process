@@ -227,7 +227,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
           <label className={label}>กำหนดส่ง
             <input type="date" value={draft.due} onChange={e => set('due', e.target.value)} className={fieldClass} aria-describedby={dueWarning ? 'due-warning' : undefined} />
             {dueWarning && <span id="due-warning" role="alert" className="text-sm font-medium text-warn">{dueWarning}</span>}
-            {lead && <span className="text-sm font-normal text-muted">เวลาผลิต {lead.days} วันทำงาน · ต้องผลิตเสร็จภายใน {shortDate(leadDueDate(lead.due))} (นับวันนี้เป็นวันที่ 1 ไม่นับวันอาทิตย์)</span>}
+            {lead && <span className="text-sm font-normal text-muted">เวลาผลิต {lead.days} วันทำงาน นับจากวันที่ปล่อยเข้าไลน์การผลิต · ถ้าปล่อยวันนี้ ต้องผลิตเสร็จภายใน {shortDate(leadDueDate(lead.due))} (นับวันที่ปล่อยเป็นวันที่ 1 ไม่นับวันอาทิตย์)</span>}
             {lead && dueBeforeLead && <span role="alert" className="text-sm font-medium text-warn">กำหนดส่งเร็วกว่าเวลาผลิตมาตรฐาน · ตกลงวันส่งกับลูกค้าหรือวางแผนเร่งงาน (ยังรับงานได้)</span>}
           </label>
           <label className={label}>เส้นทางผลิต
