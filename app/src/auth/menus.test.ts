@@ -27,9 +27,9 @@ it('แถบเมนูล่างบนมือถือไม่เกิ�
 })
 
 it('เมนูตามบทบาท', () => {
-  expect(names('manager')).toEqual(['ภาพรวมการผลิต', 'ใบงานทั้งหมด', 'ทุกสถานี', 'รายงาน', 'รายการรออนุมัติ', 'กล่องจดหมาย'])
-  expect(names('admin')).toEqual(['ภาพรวมใบงาน', 'จัดการใบงาน', 'คิวการผลิต', 'ติดตามสถานี', 'รายงาน', 'กล่องจดหมาย'])
-  expect(names('production')).toEqual(['ภาพรวมแผนก', 'คิวงาน', 'สถานีที่ดูแล', 'ปัญหา / งานแก้', 'รายงานแผนก', 'กล่องจดหมาย'])
+  expect(names('manager')).toEqual(['ภาพรวมการผลิต', 'กำหนดส่งลูกค้า', 'ใบงานทั้งหมด', 'ทุกสถานี', 'รายงาน', 'รายการรออนุมัติ', 'กล่องจดหมาย'])
+  expect(names('admin')).toEqual(['ภาพรวมใบงาน', 'กำหนดส่งลูกค้า', 'จัดการใบงาน', 'คิวการผลิต', 'ติดตามสถานี', 'รายงาน', 'กล่องจดหมาย'])
+  expect(names('production')).toEqual(['ภาพรวมแผนก', 'คิวงาน', 'กำหนดส่งลูกค้า', 'สถานีที่ดูแล', 'ปัญหา / งานแก้', 'รายงานแผนก', 'กล่องจดหมาย'])
   expect(names('supervisor')).toEqual(names('production'))
   expect(names('qc')).toEqual(['งานของฉัน', 'คิวงานสถานี', 'ประวัติการทำงาน', 'รายงานปัญหา', 'กล่องจดหมาย'])
   expect(names('staff')).toEqual(names('qc'))
@@ -61,4 +61,10 @@ it('คิวการผลิตทั้งโรงงานเปิดต�
 it('หน้าของผู้ดูแลระบบเปิดได้เฉพาะเจ้าของ · รายการรออนุมัติเฉพาะผู้บริหาร/เจ้าของ', () => {
   for (const page of ['sysOverview', 'roles', 'audit'] as const) expect(ROLES.filter(r => canOpenPage(r, page)), page).toEqual(['owner'])
   expect(ROLES.filter(r => canOpenPage(r, 'reviews')).sort()).toEqual(['manager', 'owner'])
+})
+
+it('กำหนดส่งลูกค้า: แอดมิน ผู้บริหาร ฝ่ายผลิต เจ้าของ เปิดได้ · พนักงานสถานีและ QC ไม่เห็น', () => {
+  expect(ROLES.filter(r => !canOpenPage(r, 'deliveries')).sort()).toEqual(['qc', 'staff'])
+  expect(routeOf('#/deliveries')).toEqual({ page: 'deliveries' })
+  for (const role of ['admin', 'manager', 'production', 'owner'] as EmployeeRole[]) expect(roleMenu(role).flatMap(g => g.items).some(i => i.hash === '#/deliveries'), role).toBe(true)
 })

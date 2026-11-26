@@ -21,7 +21,7 @@ import { useWakeLock } from './lib/wakeLock'
 import { useFormRelink } from './data/formRelink'
 import {
   IconChart, IconClipboard, IconClock, IconColumns, IconFactory, IconFlag, IconGauge, IconInbox, IconLayers, IconList, IconShield,
-  IconBook, IconSliders, IconUser, IconUsers,
+  IconBook, IconSliders, IconTruck, IconUser, IconUsers,
 } from './components/icons'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -36,7 +36,7 @@ const SystemOverviewPage = lazy(() => import('./pages/admin').then(m => ({ defau
 
 const MENU_ICON: Record<MenuIcon, ComponentType<{ className?: string }>> = {
   gauge: IconGauge, list: IconList, columns: IconColumns, chart: IconChart, queue: IconLayers, users: IconUsers,
-  sliders: IconSliders, inbox: IconInbox, flag: IconFlag, clock: IconClock, shield: IconShield, pin: IconFactory, log: IconClipboard,
+  sliders: IconSliders, inbox: IconInbox, flag: IconFlag, clock: IconClock, shield: IconShield, pin: IconFactory, log: IconClipboard, truck: IconTruck,
 }
 
 export default function App() {

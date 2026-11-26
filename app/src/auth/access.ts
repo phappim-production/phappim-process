@@ -10,10 +10,10 @@ export const ROLE_LABELS = {
 
 export type EmployeeRole = keyof typeof ROLE_LABELS
 export type PageKey = 'overview' | 'board' | 'reports' | 'settings' | 'system' | 'inbox' | 'label'
-  | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews' | 'sysOverview' | 'roles' | 'audit' | 'mockup' | 'artwork' | 'words'
+  | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews' | 'deliveries' | 'sysOverview' | 'roles' | 'audit' | 'mockup' | 'artwork' | 'words'
 
-export type FactoryView = 'overview' | 'board' | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews'
-export const FACTORY_VIEWS: readonly PageKey[] = ['overview', 'board', 'issues', 'report', 'history', 'queueAll', 'dept', 'reviews']
+export type FactoryView = 'overview' | 'board' | 'issues' | 'report' | 'history' | 'queueAll' | 'dept' | 'reviews' | 'deliveries'
+export const FACTORY_VIEWS: readonly PageKey[] = ['overview', 'board', 'issues', 'report', 'history', 'queueAll', 'dept', 'reviews', 'deliveries']
 
 // ฐานข้อมูลบังคับเอง หน้าเว็บใช้แสดงและกรองงาน
 export const SECTION_LABELS = {
@@ -74,6 +74,9 @@ export function canOpenPage(role: EmployeeRole, page: PageKey): boolean {
       return role !== 'staff'
     // คิวทั้งโรงงานเป็นของคนวางแผน · staff/QC เห็นแค่คิวสถานีของตัวเองที่บอร์ด
     case 'queueAll':
+      return role !== 'staff' && role !== 'qc'
+    // วางแผนส่งของให้ลูกค้า · คนหน้างานไม่ต้องเห็นกำหนดส่งทั้งโรงงาน
+    case 'deliveries':
       return role !== 'staff' && role !== 'qc'
     default:
       return true
