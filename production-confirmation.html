@@ -1098,13 +1098,26 @@ const PRODUCTS = {
 // งานบริการทำขั้นเดียว · หน้าระบบตั้งเส้นทางผลิตจากใบ (private.service_kind อ่านข้อความตัวเลือกเหล่านี้ ห้ามเปลี่ยนคำ)
 const PRINT_PAPER='ส่งกระดาษให้ลูกค้า (ลูกค้ารีดเอง)', PRINT_ON_FABRIC='พิมพ์แล้วรีดลงผ้าของลูกค้า';
 const FILM_FACTORY='โรงงานสั่งฟิล์ม', FILM_CUSTOMER='ลูกค้าส่งฟิล์มมาเอง';
+const SUPPLY_UNITS=['ชิ้น','ตัว','ชุด','หลา','แผ่น','ม้วน'];
+// ชิ้นส่วนที่ตัดแล้วต่างกันตามไซซ์ · คอลัมน์ไซซ์มาจากตาราง "ไซซ์และจำนวน" ของใบ เก็บเป็น sz:<ไซซ์> · จำนวนรวมคำนวณให้
+const SIZE_KEY='sz:';
+const suppliedSizes=r=>Object.keys(r||{}).filter(k=>k.startsWith(SIZE_KEY));
+function suppliedSum(r,sizes){ const filled=sizes.filter(s=>String(r[SIZE_KEY+s]??'').trim()!==''); return filled.length?filled.reduce((a,s)=>a+num(r[SIZE_KEY+s]),0):null; }
+function suppliedCols(bySize){
+  const sizes=bySize?sizeCols(scope('p')):[];
+  const unit={ c:'unit', label:'หน่วย', t:'select', options:SUPPLY_UNITS }, note={ c:'note', label:'สี / สภาพ / หมายเหตุ', t:'text', opt:true };
+  if(!sizes.length) return [ { c:'item', label:'ของที่ส่งมา', t:'text' }, { c:'qty', label:'จำนวน', t:'number' }, unit, note ];
+  // หน่วย / สี อยู่หน้าคอลัมน์ไซซ์ ไม่ให้ตกขอบขวาเมื่อไซซ์เยอะ
+  return [ { c:'item', label:'ของที่ส่งมา', t:'text' }, unit, note,
+    ...sizes.map(sz=>({ c:SIZE_KEY+sz, label:sz, t:'number', opt:true })), { c:'qty', label:'รวม', t:'number', auto:true } ];
+}
 const SUPPLY = (x={}) => {
   const any=v=>!x.none||rows(v,'supplied',true).length>0;
   return { title:'ของที่ลูกค้าส่งมา', fields:[
-    { id:'supplied', type:'itemTable', label:'รายการของที่ลูกค้าส่งมา', req:x.req!==false, none:x.none, addLabel:'+ เพิ่มรายการ',
-      hint:'1 แถวต่อ 1 รายการ · ระบบใส่รายการนี้ให้แอดมินนับของจริงอีกครั้งตอนรอผลิต (เช็ควัตถุดิบ)',
-      cols:[ { c:'item', label:'ของที่ส่งมา', t:'text' }, { c:'qty', label:'จำนวน', t:'number' },
-        { c:'unit', label:'หน่วย', t:'select', options:['ชิ้น','ตัว','ชุด','หลา','แผ่น','ม้วน'] }, { c:'note', label:'สี / สภาพ / หมายเหตุ', t:'text', opt:true } ] },
+    { id:'supplied', type:'itemTable', label:'รายการของที่ลูกค้าส่งมา', req:x.req!==false, none:x.none, addLabel:'+ เพิ่มรายการ', bySize:!!x.bySize,
+      hint:x.bySize?'1 แถวต่อ 1 ชิ้นส่วน · ใส่จำนวนแยกตามไซซ์ (ไซซ์มาจากตาราง "ไซซ์และจำนวน" ด้านบน) ระบบรวมให้ · ของที่ไม่แยกไซซ์ เช่น ด้าย ใส่ช่องรวมได้เลย · ระบบใส่รายการนี้ให้แอดมินนับของจริงอีกครั้งตอนรอผลิต'
+        :'1 แถวต่อ 1 รายการ · ระบบใส่รายการนี้ให้แอดมินนับของจริงอีกครั้งตอนรอผลิต (เช็ควัตถุดิบ)',
+      get cols(){ return suppliedCols(this.bySize); } },
     R('supply_by','ส่งของเข้าโรงงาน',['ลูกค้าส่งมาเอง','ให้โรงงานไปรับ'],{ when:any }),
     { id:'supply_date', type:'date', label:'วันที่ของจะถึงโรงงาน', req:true, hint:'ระบบใส่วันนี้เป็นวันคาดว่าได้รับในรายการเช็คของตอนรอผลิต', when:any },
     N('supply_spare','ของเผื่อเสียที่ลูกค้าส่งมา',x.spareUnit||'ชิ้น',{ hint:'แนะนำให้ลูกค้าส่งเผื่อ 3–5%', when:any }),
@@ -1119,8 +1132,8 @@ PRODUCTS.svc_sew = { cat:'service', name:'เย็บอย่างเดี�
   { title:'สินค้า', fields:[
     R('garment','สินค้าที่จะเย็บ',GARMENT_NAMES,{ hint:'ฝ่ายผลิตจ่ายจักรตามสินค้านี้ · ไม่มีในรายการ = ใช้ "งานบริการอื่นๆ"' }),
     T('garment_style','แบบ / ทรง',{ wide:true, ph:'เช่น คอกลม แขนสั้น ทรงตรง' }) ]},
-  SUPPLY({ spareUnit:'ชุด' }),
   SERVICE_SIZES('จำนวนชุดชิ้นส่วนแยกตามไซซ์'),
+  SUPPLY({ spareUnit:'ชุด', bySize:true }),
   { title:'การเย็บ', fields:[ R('thread_owner','ด้าย',['โรงงานใช้ด้ายของโรงงาน','ลูกค้าส่งด้ายมา'],{ keepStd:true }), THREAD,
     A('sew_detail','จุดที่ต้องเย็บ / วิธีเย็บที่ลูกค้ากำหนด',{ req:true, hint:'ตะเข็บ ริม ชาย การติดคอ ฯลฯ' }), PIPING ]},
   LABEL_SEC,
@@ -1263,8 +1276,8 @@ const sampleDateShown = h => h.sample===SAMPLE_YES||h.sample===SAMPLE_DEV;
 
 // ไซซ์ที่แอดมินพิมพ์เองในช่อง "อื่นๆ" (คั่นด้วย , ) ต่อท้ายชุดที่เลือก · ชื่อซ้ำกับชุดอื่นไม่สร้างคอลัมน์ซ้ำ
 const otherSizes = v => String(v.size_sets__other||'').split(/[,\n]/).map(s=>s.trim()).filter(Boolean).slice(0,20);
-const namesSizes = v => (v.size_sets||[]).includes(OTHER);
-// เลือก "อื่นๆ" = ลูกค้ากำหนดไซซ์เอง แก้ชื่อที่หัวตารางได้ (เช่น เด็ก SS → 1-2) · จำนวนเก็บตามชื่อที่แก้ ระบบจึงเห็นชื่อเดียวกับใบ
+// ลูกค้ามักใช้ไซซ์แปลกๆ แก้ชื่อที่หัวตารางได้ทุกชุด (เช่น เด็ก SS → 1-2) · จำนวนเก็บตามชื่อที่แก้ ระบบจึงเห็นชื่อเดียวกับใบ
+const namesSizes = v => (v.size_sets||[]).length>0;
 function sizePairs(v){
   const sets=v.size_sets||[], base=sets.flatMap(n=>SIZESETS[n]||[]);
   if(sets.includes(OTHER)) otherSizes(v).forEach(s=>{ if(!base.includes(s)) base.push(s); });
@@ -1279,6 +1292,13 @@ function keepSizeQty(v,change){
   (Array.isArray(v.sizes)?v.sizes:[]).forEach(r=>{ const old=r.q||{}, q={...old};
     moves.forEach(([from])=>delete q[from]); moves.forEach(([from,to])=>{ if(old[from]!==undefined) q[to]=old[from]; }); r.q=q; });
   (Array.isArray(v.measure_rows)?v.measure_rows:[]).forEach(r=>{ const m=moves.find(([from])=>String(r.size||'').trim()===from); if(m) r.size=m[1]; });
+  (Array.isArray(v.supplied)?v.supplied:[]).forEach(r=>{ const old={...r};
+    moves.forEach(([from])=>delete r[SIZE_KEY+from]); moves.forEach(([from,to])=>{ if(old[SIZE_KEY+from]!==undefined) r[SIZE_KEY+to]=old[SIZE_KEY+from]; }); });
+}
+function syncSuppliedTotal(id,i){
+  const r=scope('p')[id][i], sum=suppliedSum(r,sizeCols(scope('p'))), box=form.querySelector(`[data-t="${id}"][data-r="${i}"][data-c="qty"]`);
+  r.qty=sum===null?'':String(sum);
+  if(box){ box.value=r.qty; box.readOnly=sum!==null; }
 }
 function allFields(){ return allSecs().flatMap(sec=>sec.fields); }
 function rows(v,id,opt){ if(!Array.isArray(v[id])||(!opt&&!v[id].length)) v[id]=opt?[]:[{q:{}}]; return v[id]; }
@@ -1393,7 +1413,7 @@ function fieldHTML(f,s,v){
       const cols=sizeCols(v), rs=rows(v,f.id);
       if(!cols.length){ b=`<div class="hint">เลือกชุดไซซ์ก่อน</div>`; break; }
       const named=namesSizes(v);
-      b=(named?`<div class="hint">ลูกค้ากำหนดไซซ์เอง: แก้ชื่อไซซ์ที่หัวตารางได้เลย เช่น เด็ก SS → 1-2 · ลบชื่อออก = กลับเป็นชื่อเดิม</div>`:'')+
+      b=(named?`<div class="hint">ไซซ์ไม่ตรงกับที่ลูกค้าใช้ แก้ชื่อไซซ์ที่หัวตารางได้เลย เช่น SS → 1-2 · ลบชื่อออก = กลับเป็นชื่อเดิม · ไซซ์ที่ไม่มีในชุด เลือก "อื่นๆ" แล้วพิมพ์เพิ่ม</div>`:'')+
         `<div class="tbl-wrap"><table class="ft"><thead><tr><th>${esc(f.rowLabel||'แบบ / สี')}</th><th>รูป</th>${sizePairs(v).map(([base,c])=>named
           ?`<th><input type="text" class="sizename" data-rename="${esc(base)}" value="${esc(c)}" maxlength="30" aria-label="ชื่อไซซ์ (เดิม ${esc(base)})" title="แก้ชื่อไซซ์ · เดิม ${esc(base)}"></th>`
           :`<th>${esc(c)}</th>`).join('')}<th>รวม</th><th></th></tr></thead><tbody>`+
@@ -1406,13 +1426,15 @@ function fieldHTML(f,s,v){
       break; }
     case 'itemTable': {
       const rs=rows(v,f.id,!!f.none);
+      const auto=f.cols.find(c=>c.auto), szs=auto?sizeCols(v):[];
+      if(auto) rs.forEach(r=>{ const sum=suppliedSum(r,szs); if(sum!==null) r[auto.c]=String(sum); });
       const hasImg=f.cols.some(c=>c.t==='img');
       b=`<div class="tbl-wrap"><table class="ft"><thead><tr>${f.cols.map(c=>`<th>${esc(colLabel(c,f,v))}</th>`).join('')}<th></th></tr></thead><tbody>`+
         rs.map((r,i)=>`<tr>${f.cols.map(c=>`<td class="${c.t!=='number'?'l':''}">`+(c.t==='select'
             ? `<select data-t="${f.id}" data-r="${i}" data-c="${c.c}"><option value="">— เลือก —</option>${c.options.map(o=>`<option ${r[c.c]===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`
             : c.t==='img' ? imgCell(f.id,i,r[c.c])
             : c.std ? stdCell(f.id,i,c,r[c.c])
-            : `<input type="${c.t}" ${c.t==='number'?'min="0" step="any"':''} data-t="${f.id}" data-r="${i}" data-c="${c.c}" value="${esc(r[c.c])}">`)+`</td>`).join('')}<td>${rs.length>1||!f.req?`<button class="btn x" data-act="delrow" data-id="${f.id}" data-r="${i}" title="ลบแถว">✕</button>`:''}</td></tr>`).join('')+
+            : `<input type="${c.t}" ${c.t==='number'?'min="0" step="any"':''} data-t="${f.id}" data-r="${i}" data-c="${c.c}" value="${esc(r[c.c])}"${c.auto&&suppliedSum(r,szs)!==null?' readonly title="รวมจากช่องไซซ์"':''}>`)+`</td>`).join('')}<td>${rs.length>1||!f.req?`<button class="btn x" data-act="delrow" data-id="${f.id}" data-r="${i}" title="ลบแถว">✕</button>`:''}</td></tr>`).join('')+
         `</tbody>${f.cols.some(c=>c.sum)?`<tfoot><tr>${f.cols.map((c,j)=>`<td>${j===0?'รวม':c.sum?'<span data-gt>0</span>':''}</td>`).join('')}<td></td></tr></tfoot>`:''}</table></div>`+
         `<div class="tbl-actions"><button class="btn small ghost" data-act="addrow" data-id="${f.id}">${f.addLabel||'+ เพิ่มรายการ'}</button>`+
         (f.id==='measure_rows'?`<button type="button" class="btn small" data-act="fillsizes">+ ดึงไซซ์ที่มีจำนวนจากตารางด้านบน</button>`:'')+
@@ -1701,7 +1723,8 @@ form.addEventListener('input',e=>{
       c.querySelectorAll('[data-name]').forEach(l=>{ const ok=!q||l.dataset.name.toLowerCase().includes(q); l.style.display=ok?'':'none'; any=any||ok; });
       c.style.display=any?'':'none'; }); return; }
   if(d.k){ scope(d.s)[d.k]=t.value; if(d.k==='doc_no') syncSaveBtn(); }
-  else if(d.t){ const r=scope('p')[d.t][+d.r]; if(d.c.startsWith('q:')) r.q[d.c.slice(2)]=t.value; else r[d.c]=t.value; }
+  else if(d.t){ const r=scope('p')[d.t][+d.r]; if(d.c.startsWith('q:')) r.q[d.c.slice(2)]=t.value; else r[d.c]=t.value;
+    if(d.c.startsWith(SIZE_KEY)) syncSuppliedTotal(d.t,+d.r); }
   else if(d.pl){ const v=scope('p'); v[d.pl]=v[d.pl]||{}; (v[d.pl][d.pos]=v[d.pl][d.pos]||{})[d.pf]=t.value; }
   t.closest('.field')?.classList.remove('missing');
   updateTotals(); saveSoon();
@@ -1893,6 +1916,9 @@ function systemCopy(){
   allFields().forEach(f=>{ if(!keep.has(f.id)) drop(part,f); });
   if(!namesSizes(part)) delete part.size_names;
   else if(part.size_names) part.size_names=Object.fromEntries(sizePairs(part).filter(([b,f])=>b!==f));
+  if(Array.isArray(part.supplied)){ const cols=sizeCols(part);
+    part.supplied=part.supplied.map(r=>{ const out=Object.fromEntries(Object.entries(r).filter(([k])=>!k.startsWith(SIZE_KEY)||cols.includes(k.slice(SIZE_KEY.length))));
+      const sum=suppliedSum(out,cols); if(sum!==null) out.qty=String(sum); return out; }); }
   if(Array.isArray(part.sizes)){ const cols=new Set(sizeCols(part));
     part.sizes=part.sizes.map(r=>({ ...r, q:Object.fromEntries(Object.entries(r.q||{}).filter(([k])=>cols.has(k))) })); }
   const head={...state.h};

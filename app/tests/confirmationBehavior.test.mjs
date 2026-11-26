@@ -268,6 +268,52 @@ test('ฟอร์มใบยืนยัน: ผ้าเพิ่มต้อ
   assert.match(els.get('#doc').innerHTML, /12\.5<\/td><td class="l">หลา/)
 })
 
+test('ฟอร์มใบยืนยัน: ใบเย็บอย่างเดียว ของที่ลูกค้าส่งมาแยกจำนวนตามไซซ์ · รวมให้ · แก้ชื่อไซซ์ย้ายตาม · ส่งเข้าระบบเฉพาะไซซ์ที่มี', () => {
+  const { api, els, v } = filled('svc_sew')
+  v.size_sets = ['ไซซ์ผู้ใหญ่']
+  const table = () => api.PRODUCTS.svc_sew.sections.flatMap(s => s.fields).find(f => f.id === 'supplied')
+  const sizes = api.sizeCols(v)
+  assert.deepEqual(table().cols.map(c => c.label), ['ของที่ส่งมา', 'หน่วย', 'สี / สภาพ / หมายเหตุ', ...sizes, 'รวม'])
+  const order = api.PRODUCTS.svc_sew.sections.map(s => s.title)
+  assert.ok(order.indexOf('ไซซ์และจำนวน') < order.indexOf('ของที่ลูกค้าส่งมา'))
+  v.supplied = [{ item: 'ชกแขน', 'sz:S': '20', 'sz:M': '40', unit: 'ชิ้น', note: 'สีกรม' }, { item: 'ด้าย', qty: '3', unit: 'ม้วน' }]
+  api.rerender()
+  assert.equal(v.supplied[0].qty, '60')
+  assert.equal(v.supplied[1].qty, '3')
+  assert.equal(api.validate().some(m => m.id === 'fld_p_supplied'), false)
+  const sent = api.systemCopy().p.svc_sew.supplied
+  assert.equal(sent[0]['sz:S'], '20')
+  assert.equal(sent[0].qty, '60')
+  v.supplied[0]['sz:ไม่มีไซซ์นี้'] = '9'
+  assert.equal(Object.keys(api.systemCopy().p.svc_sew.supplied[0]).includes('sz:ไม่มีไซซ์นี้'), false)
+  v.size_sets = ['ไซซ์ผู้ใหญ่', 'อื่นๆ']
+  api.keepSizeQty(v, () => { v.size_names = { S: '1-2' } })
+  assert.equal(v.supplied[0]['sz:1-2'], '20')
+  assert.equal(v.supplied[0]['sz:S'], undefined)
+  api.keepSizeQty(v, () => { v.size_names = {} })
+  v.size_sets = ['ไซซ์ผู้ใหญ่']
+  api.setViewOnly(true)
+  api.renderDoc()
+  const doc = els.get('#doc').innerHTML
+  assert.match(doc, /<th>หน่วย<\/th><th>สี \/ สภาพ \/ หมายเหตุ<\/th><th>S<\/th><th>M<\/th><th>รวม<\/th>/)
+  assert.match(doc, /ชกแขน<\/td><td class="l">ชิ้น<\/td><td class="l">สีกรม<\/td><td class="">20<\/td><td class="">40<\/td><td class="">60<\/td>/)
+})
+
+test('ฟอร์มใบยืนยัน: แก้ชื่อไซซ์ที่หัวตารางได้ทุกชุดไซซ์ (ไม่ต้องเลือก "อื่นๆ") · จำนวนย้ายตาม · ส่งเข้าระบบด้วยชื่อใหม่', () => {
+  const { api, v } = filled('tshirt')
+  v.size_sets = ['ไซซ์ผู้ใหญ่']
+  v.sizes = [{ label: 'ขาว', q: { S: '10', M: '20' } }]
+  const table = api.allFields().find(f => f.id === 'sizes')
+  assert.match(api.fieldHTML(table, 'p', v), /data-rename="S"/)
+  api.keepSizeQty(v, () => { v.size_names = { S: 'F' } })
+  assert.deepEqual(api.sizeCols(v).slice(0, 3), ['SS', 'F', 'M'])
+  assert.deepEqual(v.sizes[0].q, { F: '10', M: '20' })
+  const sent = api.systemCopy().p.tshirt
+  assert.deepEqual(sent.size_names, { S: 'F' })
+  assert.deepEqual(sent.sizes[0].q, { F: '10', M: '20' })
+  assert.equal(api.totalQty(), 30)
+})
+
 function withFactoryDetails(v) {
   v.fabric = 'TC (คอตตอน/โพลี)'
   v.fabric_color = 'กรมท่าเข้ม'
