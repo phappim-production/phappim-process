@@ -299,6 +299,21 @@ test('ฟอร์มใบยืนยัน: ใบเย็บอย่าง
   assert.match(doc, /ชกแขน<\/td><td class="l">ชิ้น<\/td><td class="l">สีกรม<\/td><td class="">20<\/td><td class="">40<\/td><td class="">60<\/td>/)
 })
 
+test('ฟอร์มใบยืนยัน: แก้ชื่อไซซ์ที่หัวตารางได้ทุกชุดไซซ์ (ไม่ต้องเลือก "อื่นๆ") · จำนวนย้ายตาม · ส่งเข้าระบบด้วยชื่อใหม่', () => {
+  const { api, v } = filled('tshirt')
+  v.size_sets = ['ไซซ์ผู้ใหญ่']
+  v.sizes = [{ label: 'ขาว', q: { S: '10', M: '20' } }]
+  const table = api.allFields().find(f => f.id === 'sizes')
+  assert.match(api.fieldHTML(table, 'p', v), /data-rename="S"/)
+  api.keepSizeQty(v, () => { v.size_names = { S: 'F' } })
+  assert.deepEqual(api.sizeCols(v).slice(0, 3), ['SS', 'F', 'M'])
+  assert.deepEqual(v.sizes[0].q, { F: '10', M: '20' })
+  const sent = api.systemCopy().p.tshirt
+  assert.deepEqual(sent.size_names, { S: 'F' })
+  assert.deepEqual(sent.sizes[0].q, { F: '10', M: '20' })
+  assert.equal(api.totalQty(), 30)
+})
+
 function withFactoryDetails(v) {
   v.fabric = 'TC (คอตตอน/โพลี)'
   v.fabric_color = 'กรมท่าเข้ม'

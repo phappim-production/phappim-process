@@ -248,7 +248,7 @@ try {
     if (!/มีไซซ์ชื่อ "1-2" ในตารางแล้ว/.test(dup) || !r.heads.includes('เด็ก S')) throw new Error('ชื่อซ้ำ ' + dup + JSON.stringify(r))
     await otherBox()
     r = await read()
-    if (r.heads.length || r.qSS !== '5' || r.q12 !== null || !r.plain.length) throw new Error('เอา "อื่นๆ" ออก ' + JSON.stringify(r))
+    if (!r.heads.includes('1-2') || r.q12 !== '5' || r.qSS !== null || r.plain.length) throw new Error('เอา "อื่นๆ" ออก ชื่อที่แก้ยังอยู่ ' + JSON.stringify(r))
     await otherBox()
     r = await read()
     if (r.q12 !== '5' || !r.heads.includes('1-2')) throw new Error('เลือก "อื่นๆ" อีกครั้ง ' + JSON.stringify(r))
@@ -266,7 +266,7 @@ try {
     await change('input[data-rename="เด็ก SS"]', '1-2')
     await t.ev(() => document.querySelector('input.sizename').scrollIntoView({ block: 'center' }))
     await t.screenshot('service-size-rename-1440')
-    return 'เด็ก SS → 1-2 จำนวนตามไป · ชื่อซ้ำเตือน · เอา/ใส่ "อื่นๆ" จำนวนไม่หาย · ระบบได้ชื่อ 1-2'
+    return 'เด็ก SS → 1-2 จำนวนตามไป · ชื่อซ้ำเตือน · เอา/ใส่ "อื่นๆ" ชื่อและจำนวนไม่หาย · ระบบได้ชื่อ 1-2'
   })
 
   for (const w of [375, 768]) {

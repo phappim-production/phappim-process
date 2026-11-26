@@ -1276,8 +1276,8 @@ const sampleDateShown = h => h.sample===SAMPLE_YES||h.sample===SAMPLE_DEV;
 
 // ไซซ์ที่แอดมินพิมพ์เองในช่อง "อื่นๆ" (คั่นด้วย , ) ต่อท้ายชุดที่เลือก · ชื่อซ้ำกับชุดอื่นไม่สร้างคอลัมน์ซ้ำ
 const otherSizes = v => String(v.size_sets__other||'').split(/[,\n]/).map(s=>s.trim()).filter(Boolean).slice(0,20);
-const namesSizes = v => (v.size_sets||[]).includes(OTHER);
-// เลือก "อื่นๆ" = ลูกค้ากำหนดไซซ์เอง แก้ชื่อที่หัวตารางได้ (เช่น เด็ก SS → 1-2) · จำนวนเก็บตามชื่อที่แก้ ระบบจึงเห็นชื่อเดียวกับใบ
+// ลูกค้ามักใช้ไซซ์แปลกๆ แก้ชื่อที่หัวตารางได้ทุกชุด (เช่น เด็ก SS → 1-2) · จำนวนเก็บตามชื่อที่แก้ ระบบจึงเห็นชื่อเดียวกับใบ
+const namesSizes = v => (v.size_sets||[]).length>0;
 function sizePairs(v){
   const sets=v.size_sets||[], base=sets.flatMap(n=>SIZESETS[n]||[]);
   if(sets.includes(OTHER)) otherSizes(v).forEach(s=>{ if(!base.includes(s)) base.push(s); });
@@ -1413,7 +1413,7 @@ function fieldHTML(f,s,v){
       const cols=sizeCols(v), rs=rows(v,f.id);
       if(!cols.length){ b=`<div class="hint">เลือกชุดไซซ์ก่อน</div>`; break; }
       const named=namesSizes(v);
-      b=(named?`<div class="hint">ลูกค้ากำหนดไซซ์เอง: แก้ชื่อไซซ์ที่หัวตารางได้เลย เช่น เด็ก SS → 1-2 · ลบชื่อออก = กลับเป็นชื่อเดิม</div>`:'')+
+      b=(named?`<div class="hint">ไซซ์ไม่ตรงกับที่ลูกค้าใช้ แก้ชื่อไซซ์ที่หัวตารางได้เลย เช่น SS → 1-2 · ลบชื่อออก = กลับเป็นชื่อเดิม · ไซซ์ที่ไม่มีในชุด เลือก "อื่นๆ" แล้วพิมพ์เพิ่ม</div>`:'')+
         `<div class="tbl-wrap"><table class="ft"><thead><tr><th>${esc(f.rowLabel||'แบบ / สี')}</th><th>รูป</th>${sizePairs(v).map(([base,c])=>named
           ?`<th><input type="text" class="sizename" data-rename="${esc(base)}" value="${esc(c)}" maxlength="30" aria-label="ชื่อไซซ์ (เดิม ${esc(base)})" title="แก้ชื่อไซซ์ · เดิม ${esc(base)}"></th>`
           :`<th>${esc(c)}</th>`).join('')}<th>รวม</th><th></th></tr></thead><tbody>`+
