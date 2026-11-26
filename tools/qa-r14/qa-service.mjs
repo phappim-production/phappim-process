@@ -201,6 +201,7 @@ try {
     await t.goto('admin1', '#/', 1440)
     await t.clickButton('รับงานใหม่')
     await t.waitText('รับงานเข้าโรงงาน')
+    await waitFor(() => t.ev(() => [...document.querySelectorAll('[role="dialog"] select option')].some(o => o.value === 'tshirt')), 'รายการสินค้าโหลดแล้ว', 10000)
     const opts = await t.ev(() => {
       const dlg = document.querySelector('[role="dialog"]')
       const prod = [...dlg.querySelectorAll('select')].find(s => [...s.options].some(o => o.value === 'tshirt'))

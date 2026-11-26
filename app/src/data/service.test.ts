@@ -59,6 +59,10 @@ describe('รายการเช็คของตั้งต้นตอน�
     expect(suppliedChecklist(spec('svc_press', { supplied: [{ item: 'ผ้า' }] }))[0].eta).toBeNull()
     expect(suppliedChecklist(spec('svc_press', { supply_date: '2569-11-30', supplied: [{ item: 'ผ้า' }] }))[0].eta).toBeNull()
   })
+  it('ใบเย็บอย่างเดียวแยกไซซ์: รายการบอกจำนวนแต่ละไซซ์ (ไซซ์ที่ว่าง/0 ไม่แสดง)', () => {
+    const s = spec('svc_sew', { supplied: [{ item: 'ชกแขน', 'sz:S': '20', 'sz:M': '40', 'sz:L': '', 'sz:XL': '0', qty: '60', unit: 'ชิ้น', note: 'สีกรม' }] })
+    expect(suppliedChecklist(s)[0].name).toBe('ชกแขน 60 ชิ้น · S 20 M 40 (สีกรม)')
+  })
   it('สินค้าปกติไม่ใส่รายการให้', () => {
     expect(suppliedChecklist(spec('tshirt', { supplied: [{ item: 'ผ้า' }] }))).toEqual([])
   })

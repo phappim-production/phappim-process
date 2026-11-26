@@ -56,8 +56,12 @@ export function suppliedChecklist(spec: Spec): { name: string; eta: Date | null 
     if (!name) return []
     const qty = Number(r.qty)
     const amount = Number.isFinite(qty) && qty > 0 ? ` ${qty.toLocaleString('th-TH')} ${text(r.unit)}`.trimEnd() : ''
+    const bySize = Object.entries(r).flatMap(([k, v]) => {
+      const n = Number(v)
+      return k.startsWith('sz:') && Number.isFinite(n) && n > 0 ? [`${k.slice(3)} ${n.toLocaleString('th-TH')}`] : []
+    })
     const note = text(r.note)
-    return [`${name}${amount}${note ? ` (${note})` : ''}`.slice(0, 80)]
+    return [`${name}${amount}${bySize.length ? ` · ${bySize.join(' ')}` : ''}${note ? ` (${note})` : ''}`.slice(0, 80)]
   })
   if (customerFilm(spec)) names.push('ฟิล์ม DTF ของลูกค้า')
   return [...new Set(names)].slice(0, 30).map(name => ({ name, eta }))
