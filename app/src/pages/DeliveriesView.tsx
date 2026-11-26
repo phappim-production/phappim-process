@@ -38,33 +38,36 @@ function dayTitle(d: DeliveryDay): string {
 
 const dayTone = (d: DeliveryDay): Tone => (d.kind === 'overdue' ? 'danger' : d.kind === 'today' ? 'warn' : 'brand')
 
-function useShipping(ids: string[]): Map<string, Ship> {
-  const [ship, setShip] = useState<Map<string, Ship>>(new Map())
-  const key = ids.join(',')
+// แก้ใบ (เปลี่ยนที่อยู่) แล้วเลขครั้งที่แก้เปลี่ยน จึงโหลดใหม่ตามเลขนั้นด้วย
+function useShipping(keys: string[]): { ship: Map<string, Ship>; failed: boolean } {
+  const [state, setState] = useState<{ ship: Map<string, Ship>; failed: boolean }>({ ship: new Map(), failed: false })
+  const key = keys.join(',')
   useEffect(() => {
     const db = supabase
     if (!db || !key) return
     let alive = true
-    const list = key.split(',')
+    const list = key.split(',').map(k => k.split(':')[0])
     void (async () => {
       const out = new Map<string, Ship>()
       for (let i = 0; i < list.length; i += 100) {
         const { data, error } = await db.from('jobs').select('id, spec').in('id', list.slice(i, i + 100))
-        if (error) return
+        if (error) { if (alive) setState(s => ({ ship: s.ship, failed: true })); return }
         for (const row of (data ?? []) as { id: string; spec: unknown }[]) {
           const h = row.spec && typeof row.spec === 'object' ? (row.spec as { h?: Record<string, unknown> }).h : undefined
           const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
           out.set(row.id, { delivery: text(h?.delivery), address: text(h?.address) })
         }
       }
-      if (alive) setShip(out)
+      if (alive) setState({ ship: out, failed: false })
     })()
     return () => { alive = false }
   }, [key])
-  return ship
+  return state
 }
 
-function Row({ item, ship, now, onOpen }: { item: DeliveryItem; ship?: Ship; now: Date; onOpen: (id: string) => void }) {
+const wrapOnPrint = 'print:overflow-visible print:whitespace-normal'
+
+function Row({ item, ship, now, showDate, onOpen }: { item: DeliveryItem; ship?: Ship; now: Date; showDate?: boolean; onOpen: (id: string) => void }) {
   const j = item.job
   const label = stateLabel(item)
   const late = item.state !== 'delivered' && thaiDayDiff(j.due, now) < 0
@@ -74,15 +77,15 @@ function Row({ item, ship, now, onOpen }: { item: DeliveryItem; ship?: Ship; now
         className="grid min-h-12 w-full grid-cols-[minmax(0,1fr)] gap-1 rounded-xl px-3 py-2 text-left hover:bg-paper sm:grid-cols-[9rem_minmax(0,1fr)_auto] sm:items-center sm:gap-3 print:grid-cols-[8rem_minmax(0,1fr)_auto] print:py-1">
         <span className="flex flex-wrap items-baseline gap-x-2">
           <b className="text-base">{j.no}</b>
-          {late && <span className="text-sm font-semibold whitespace-nowrap text-danger">ส่ง {shortDate(j.due)}</span>}
+          {(late || showDate) && <span className={`text-sm font-semibold whitespace-nowrap ${late ? 'text-danger' : 'text-muted'}`}>ส่ง {shortDate(j.due)}</span>}
         </span>
         <span className="grid min-w-0 gap-0.5">
-          <span className="truncate font-medium">{j.customer}</span>
-          <span className="truncate text-sm text-muted">{j.product} · {j.qty.toLocaleString('th-TH')} {j.unit}</span>
+          <span className={`truncate font-medium ${wrapOnPrint}`}>{j.customer}</span>
+          <span className={`truncate text-sm text-muted ${wrapOnPrint}`}>{j.product} · {j.qty.toLocaleString('th-TH')} {j.unit}</span>
           {ship?.delivery && (
             <span className="flex min-w-0 items-center gap-1 text-sm text-muted">
               <IconTruck className="size-4 shrink-0" />
-              <span className="truncate">{ship.delivery}{ship.address ? ` · ${ship.address.replace(/\s+/g, ' ')}` : ''}</span>
+              <span className={`truncate ${wrapOnPrint}`}>{ship.delivery}{ship.address ? ` · ${ship.address.replace(/\s+/g, ' ')}` : ''}</span>
             </span>
           )}
         </span>
@@ -97,19 +100,21 @@ function Row({ item, ship, now, onOpen }: { item: DeliveryItem; ship?: Ship; now
   )
 }
 
-export function DeliveriesView({ jobs, now, finishOf, onOpen }: { jobs: Job[]; now: Date; finishOf: (j: Job) => Date | undefined; onOpen: (id: string) => void }) {
+export function DeliveriesView({ jobs, now, finishOf, canDeliver, onOpen }: {
+  jobs: Job[]; now: Date; finishOf: (j: Job) => Date | undefined; canDeliver: boolean; onOpen: (id: string) => void
+}) {
   const [filter, setFilter] = useState<Filter>('all')
   const plan = useMemo(() => deliverySchedule(jobs, now, finishOf), [jobs, now, finishOf])
-  const ids = useMemo(() => [...plan.days.flatMap(d => d.items), ...plan.deliveredToday].map(i => i.job.id).sort(), [plan])
-  const ship = useShipping(ids)
+  const keys = useMemo(() => [...plan.days.flatMap(d => d.items), ...plan.deliveredToday].map(i => `${i.job.id}:${i.job.revision?.rev ?? 0}`).sort(), [plan])
+  const { ship, failed } = useShipping(keys)
   const keep = (i: DeliveryItem) => filter === 'all' || (filter === 'ready' ? i.state === 'ready' : i.state !== 'ready')
   const days = plan.days.map(d => ({ ...d, items: d.items.filter(keep) })).filter(d => d.items.length > 0)
   const { summary: s } = plan
 
   return (
-    <div className="grid gap-4">
+    <div className="print-flow grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted print:hidden">เรียงตามกำหนดส่งลูกค้า · กดงานเพื่อดูรายละเอียดหรือบันทึกจัดส่ง</p>
+        <p className="text-muted print:hidden">เรียงตามกำหนดส่งลูกค้า · {canDeliver ? 'กดงานเพื่อดูรายละเอียดหรือบันทึกจัดส่ง' : 'กดงานเพื่อดูรายละเอียด'}</p>
         <p className="hidden font-semibold print:block">พิมพ์เมื่อ {now.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'full', timeStyle: 'short' })} น. · ภาพพิมพ์ 142</p>
         <button type="button" onClick={() => window.print()}
           className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-line bg-card px-4 font-semibold text-brand hover:border-brand print:hidden">
@@ -129,7 +134,9 @@ export function DeliveriesView({ jobs, now, finishOf, onOpen }: { jobs: Job[]; n
           options={[['all', 'ทั้งหมด'], ['notDone', 'ยังไม่เสร็จ'], ['ready', 'พร้อมส่ง']]} />
       </div>
 
-      {days.length === 0 && plan.deliveredToday.length === 0 && (
+      {failed && <p role="status" className="rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn print:hidden">โหลดวิธีรับสินค้า / ที่อยู่ไม่สำเร็จ · รายการส่งยังถูกต้อง ลองโหลดหน้าใหม่</p>}
+
+      {days.length === 0 && (
         <Card className="p-5"><p className="text-muted">{filter === 'all' ? 'ไม่มีงานรอส่งลูกค้า' : 'ไม่มีงานตามที่เลือก'}</p></Card>
       )}
 
@@ -138,7 +145,7 @@ export function DeliveriesView({ jobs, now, finishOf, onOpen }: { jobs: Job[]; n
           <CardHeader icon={d.kind === 'overdue' ? IconAlert : IconCalendar} tone={dayTone(d)} title={dayTitle(d)}
             sub={`${d.items.length} งาน${d.items.some(i => i.state === 'ready') ? ` · พร้อมส่ง ${d.items.filter(i => i.state === 'ready').length}` : ''}${d.items.some(i => i.state !== 'ready') ? ` · ยังไม่เสร็จ ${d.items.filter(i => i.state !== 'ready').length}` : ''}`} />
           <ul className="grid grid-cols-[minmax(0,1fr)] gap-1 px-2 pb-3 sm:px-3">
-            {d.items.map(i => <Row key={i.job.id} item={i} ship={ship.get(i.job.id)} now={now} onOpen={onOpen} />)}
+            {d.items.map(i => <Row key={i.job.id} item={i} ship={ship.get(i.job.id)} now={now} showDate={d.kind === 'overdue' || d.kind === 'later'} onOpen={onOpen} />)}
           </ul>
         </Card>
       ))}

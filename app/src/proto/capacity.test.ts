@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CAPACITY, LEAD, SEW_LINE_RATE, receiveForecast, hasSewMinutes, lineRate, SEW_MAX_LINES, canOpenLine, lateDays, linesFor, machineSets, piecesPerDay, sewFloorOf, simulate, verdict, workdaysUntil, workdayToDate } from './capacity'
-import type { Job } from './model'
+import { thaiDay, type Job } from './model'
 
 const day = (date: number) => new Date(2026, 10, date)
 const friday = day(20)
@@ -256,4 +256,13 @@ describe('ความเร็วการคาดการณ์', () => {
     expect(performance.now() - t0).toBeLessThan(500)
     expect(r.finishDay.size).toBe(300)
   })
+})
+
+it('วันคาดว่าเสร็จนับจากวันไทย แม้แท็บเล็ตตั้งเขตเวลาผิด (ตี 1 วันพฤหัสไทย = ค่ำวันพุธ UTC)', () => {
+  const now = new Date('2026-11-26T01:00:00+07:00')
+  expect(thaiDay(workdayToDate(1, now))).toBe('2026-11-26')
+  expect(thaiDay(workdayToDate(3, now))).toBe('2026-11-28')
+  expect(thaiDay(workdayToDate(4, now))).toBe('2026-11-30')
+  expect(workdaysUntil(new Date('2026-11-27T23:59:00+07:00'), now)).toBe(1)
+  expect(lateDays(new Date('2026-11-28T01:00:00+07:00'), new Date('2026-11-27T23:59:00+07:00'))).toBe(1)
 })

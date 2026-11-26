@@ -54,14 +54,18 @@ function changed() {
   listeners.forEach(fn => fn())
 }
 
+const iosHomeScreen = () => (navigator as Navigator & { standalone?: boolean }).standalone === true
+
 export function runsAsApp(): boolean {
-  const ios = (navigator as Navigator & { standalone?: boolean }).standalone === true
-  return ios || matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches
+  return iosHomeScreen() || matchMedia('(display-mode: standalone)').matches
 }
 
-// แอปที่ติดตั้งบน iPhone เก็บข้อมูลแยกจาก Safari · เปิดฟอร์มหน้าต่างใหม่ = ฟอร์มไม่เห็นใบที่ระบบส่งให้ จึงเปิดในหน้าเดิม
+// แอปบนหน้าจอโฮมของ iPhone/iPad เก็บข้อมูลแยกจาก Safari · เปิดฟอร์มหน้าต่างใหม่ = ฟอร์มไม่เห็นใบที่ระบบส่งให้ จึงเปิดในหน้าเดิม
+// Android / คอมใช้ที่เก็บร่วมกับเบราว์เซอร์ เปิดหน้าต่างใหม่ได้ตามเดิม (หน้าระบบไม่หาย)
+export const formInSameWindow = iosHomeScreen
+
 export function openFormWindow(): Window | null {
-  return runsAsApp() ? null : window.open('', '_blank')
+  return formInSameWindow() ? null : window.open('', '_blank')
 }
 
 // Chrome ส่ง beforeinstallprompt ครั้งเดียวตอนโหลดหน้า ก่อนผู้ใช้เปิดหน้าบัญชี · ต้องดักตั้งแต่เริ่มแอป

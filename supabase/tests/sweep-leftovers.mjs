@@ -2,9 +2,10 @@
 import { readFileSync } from 'node:fs'
 
 export async function sweepLeftoverTests({ db, ok }) {
-  const file = '20261204000000_sweep_leftovers.sql'
-  try { await db.exec(readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8')); ok(`รันซ้ำบนฐานที่ลงแล้วได้: ${file}`, true) }
-  catch (e) { ok(`รันซ้ำบนฐานที่ลงแล้วได้: ${file}`, false, e.message.split('\n')[0]) }
+  for (const file of ['20261204000000_sweep_leftovers.sql', '20261205000000_review_fixes.sql']) {
+    try { await db.exec(readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8')); ok(`รันซ้ำบนฐานที่ลงแล้วได้: ${file}`, true) }
+    catch (e) { ok(`รันซ้ำบนฐานที่ลงแล้วได้: ${file}`, false, e.message.split('\n')[0]) }
+  }
   const U = { admin: '00000000-0000-0000-0000-00000000cc01', qc: '00000000-0000-0000-0000-00000000cc02', prod: '00000000-0000-0000-0000-00000000cc03' }
   const val = async (sql, args = []) => Object.values((await db.query(sql, args)).rows[0] ?? {})[0]
   const q = s => s.replace(/'/g, "''")
@@ -56,7 +57,7 @@ export async function sweepLeftoverTests({ db, ok }) {
     const t2 = await token()
     ok('บันทึกซ้ำเลขครั้งเดิมแล้วรหัสเปลี่ยน', t2 !== t1, `${t1} → ${t2}`)
     await reject('แท็บ A ที่เปิดใบครั้งที่ 1 ไว้ก่อน บันทึกครั้งที่ 1 ทับของแท็บ B ไม่ได้', U.admin,
-      revise(spec(1, 'แท็บ A', { base_rev: 1, base_token: t1 }), 1), /มีคนบันทึกใบแก้ของงาน SC-SL-1 หลังจากเปิดใบนี้/)
+      revise(spec(1, 'แท็บ A', { base_rev: 1, base_token: t1 }), 1), /ใบแก้ของงาน SC-SL-1 ถูกบันทึกไปแล้วหลังจากเปิดใบนี้ \(จากแท็บอื่น หรือจากฟอร์มนี้เอง\)/)
     ok('สเปกยังเป็นของแท็บ B', await val(`select spec->'p'->'tshirt'->>'note' from public.jobs where id = $1`, [job]) === 'แท็บ B แก้ซ้ำ')
     await pass('ไฟล์ .json เก่าที่ไม่มีรหัส ยังบันทึกได้ตามกฎเลขครั้ง', U.admin, revise(spec(1, 'ไฟล์เก่า', { base_rev: 1 }), 1))
     await pass('ใบที่ไม่เปลี่ยนอะไรไม่ถือว่าแก้ (รหัสไม่นับเป็นช่องที่เปลี่ยน)', U.admin, revise(spec(1, 'แท็บ B แก้ซ้ำ', { base_rev: 1, base_token: t2 }), 1), true)

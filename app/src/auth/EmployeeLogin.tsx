@@ -85,6 +85,7 @@ export function SignOutButton({ className = secondaryButton, children }: { class
 
 // เจ้าของระบบตั้งรหัสแรกให้ พนักงานควรเปลี่ยนเองเพื่อไม่ให้คนอื่นกดแทนในชื่อตัวเอง (ทุกการกดบันทึกชื่อผู้กด)
 export function ChangePasswordForm() {
+  const t = useT()
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -118,13 +119,13 @@ export function ChangePasswordForm() {
 
   return (
     <form onSubmit={submit} className="grid gap-4" aria-busy={busy}>
-      <PasswordField label={`รหัสผ่านใหม่ (อย่างน้อย ${MIN_PASSWORD_LENGTH} ตัว)`} name="new-password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} />
-      <PasswordField label="พิมพ์รหัสผ่านใหม่อีกครั้ง" name="confirm-password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} />
+      <PasswordField label={t('รหัสผ่านใหม่ (อย่างน้อย {n} ตัว)', { n: MIN_PASSWORD_LENGTH })} name="new-password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} />
+      <PasswordField label={t('พิมพ์รหัสผ่านใหม่อีกครั้ง')} name="confirm-password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} />
       {message && (
-        <p role={message.ok ? 'status' : 'alert'} className={message.ok ? 'text-ok' : 'text-danger'}>{message.text}</p>
+        <p role={message.ok ? 'status' : 'alert'} className={message.ok ? 'text-ok' : 'text-danger'}><Tr th={message.text} /></p>
       )}
       <button type="submit" disabled={busy} className={primaryButton}>
-        {busy ? 'กำลังบันทึก…' : 'บันทึกรหัสผ่านใหม่'}
+        {busy ? <Tr th="กำลังบันทึก…" /> : <Tr th="บันทึกรหัสผ่านใหม่" />}
       </button>
     </form>
   )

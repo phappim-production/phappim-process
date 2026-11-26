@@ -27,9 +27,9 @@ it('แถบเมนูล่างบนมือถือไม่เกิ�
 })
 
 it('เมนูตามบทบาท', () => {
-  expect(names('manager')).toEqual(['ภาพรวมการผลิต', 'กำหนดส่งลูกค้า', 'ใบงานทั้งหมด', 'ทุกสถานี', 'รายงาน', 'รายการรออนุมัติ', 'กล่องจดหมาย'])
-  expect(names('admin')).toEqual(['ภาพรวมใบงาน', 'กำหนดส่งลูกค้า', 'จัดการใบงาน', 'คิวการผลิต', 'ติดตามสถานี', 'รายงาน', 'กล่องจดหมาย'])
-  expect(names('production')).toEqual(['ภาพรวมแผนก', 'คิวงาน', 'กำหนดส่งลูกค้า', 'สถานีที่ดูแล', 'ปัญหา / งานแก้', 'รายงานแผนก', 'กล่องจดหมาย'])
+  expect(names('manager')).toEqual(['ภาพรวมการผลิต', 'ใบงานทั้งหมด', 'ทุกสถานี', 'รายการรออนุมัติ', 'รายงาน', 'กำหนดส่งลูกค้า', 'กล่องจดหมาย'])
+  expect(names('admin')).toEqual(['ภาพรวมใบงาน', 'กำหนดส่งลูกค้า', 'จัดการใบงาน', 'ติดตามสถานี', 'คิวการผลิต', 'รายงาน', 'กล่องจดหมาย'])
+  expect(names('production')).toEqual(['ภาพรวมแผนก', 'คิวงาน', 'สถานีที่ดูแล', 'ปัญหา / งานแก้', 'รายงานแผนก', 'กำหนดส่งลูกค้า', 'กล่องจดหมาย'])
   expect(names('supervisor')).toEqual(names('production'))
   expect(names('qc')).toEqual(['งานของฉัน', 'คิวงานสถานี', 'ประวัติการทำงาน', 'รายงานปัญหา', 'กล่องจดหมาย'])
   expect(names('staff')).toEqual(names('qc'))
@@ -67,4 +67,11 @@ it('กำหนดส่งลูกค้า: แอดมิน ผู้บ�
   expect(ROLES.filter(r => !canOpenPage(r, 'deliveries')).sort()).toEqual(['qc', 'staff'])
   expect(routeOf('#/deliveries')).toEqual({ page: 'deliveries' })
   for (const role of ['admin', 'manager', 'production', 'owner'] as EmployeeRole[]) expect(roleMenu(role).flatMap(g => g.items).some(i => i.hash === '#/deliveries'), role).toBe(true)
+})
+
+it('แถบล่างมือถือยังเห็นหน้าหลักของแต่ละบทบาทหลังเพิ่มเมนูกำหนดส่ง', () => {
+  const shown = (role: EmployeeRole) => bottomBar(roleMenu(role), '#/').shown.map(i => i.hash)
+  expect(shown('manager')).toContain('#/reviews')
+  expect(shown('production')).toContain('#/issues')
+  expect(shown('admin')).toEqual(expect.arrayContaining(['#/deliveries', '#/board']))
 })

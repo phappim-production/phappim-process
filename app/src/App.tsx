@@ -234,7 +234,7 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
         </div>
 
         {moreOpen && bar.more.length > 0 && (
-          <div id="more-menu" className="grid gap-1 border-t border-line bg-card p-2 lg:hidden">
+          <div id="more-menu" className="grid gap-1 border-t border-line bg-card p-2 lg:hidden print:hidden">
             {bar.more.map(({ name, hash, icon }) => {
               const Icon = MENU_ICON[icon]
               return (

@@ -7,7 +7,7 @@ import { uploadFile } from '../data/files'
 import { contentKey, signedUrls } from '../data/mockups'
 import { confirmationPath, draftFromConfirmation, FORM_LOCK_REASON, isFormDraft, pdfProblem, sewRecipeProblem, specYearProblem, syncConfirmationSpec, type ReceiveDraft } from '../data/confirmation'
 import { draftLabel, formDataFromDraft, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
-import { openFormWindow, runsAsApp } from '../lib/install'
+import { formInSameWindow, openFormWindow } from '../lib/install'
 import { specMockups } from '../data/jobMockups'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
 import { receiveForecast, type SewFloor } from '../proto/capacity'
@@ -185,7 +185,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
             </select>
           </label>
           <div className="grid gap-2 sm:grid-cols-2">
-            <a href={NEW_CONFIRMATION_FORM} target={runsAsApp() ? undefined : "_blank"} rel="noopener" className={`${secondaryBtn} text-center`}>เปิดฟอร์มใบยืนยัน (ใบใหม่)</a>
+            <a href={NEW_CONFIRMATION_FORM} target={formInSameWindow() ? undefined : "_blank"} rel="noopener" className={`${secondaryBtn} text-center`}>เปิดฟอร์มใบยืนยัน (ใบใหม่)</a>
             <button type="button" className={secondaryBtn} disabled={!picked || openingForm} onClick={() => void openInForm()}
               title={picked ? undefined : 'เลือกใบยืนยันก่อน'}>{openingForm ? 'กำลังเปิดใบยืนยัน…' : picked ? 'แก้ใบนี้ในฟอร์ม' : 'แก้ใบในฟอร์ม (เลือกใบก่อน)'}</button>
           </div>

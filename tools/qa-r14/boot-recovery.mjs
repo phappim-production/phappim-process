@@ -68,8 +68,9 @@ try {
   await step('timeout-shows-way-out-without-clearing', async () => {
     await tab.ev(() => sessionStorage.removeItem('pp142-boot-recover'))
     const html = await (await fetch(stack.origin + '/')).text()
-    assert.match(html, /setTimeout\(function \(\) \{ if \(!mounted\(\)\) showFailure\(\) \}, 30000\)/)
-    return 'เน็ตช้าเกิน 30 วิ แสดงปุ่มโหลดใหม่ (ไม่ล้างแคชเอง)'
+    assert.match(html, /setTimeout\(function \(\) \{ if \(!mounted\(\) && !failed\) showFailure\(true\) \}, 30000\)/)
+    assert.match(html, /if \(slow\) location\.reload\(\); else recover\(true\)/)
+    return 'เน็ตช้าเกิน 30 วิ แสดงปุ่มโหลดใหม่ · กดแล้วโหลดใหม่เฉยๆ ไม่ล้างแคช (ทดสอบละเอียดใน app/tests/bootGuard.test.mjs)'
   })
 } finally {
   await chrome.close()

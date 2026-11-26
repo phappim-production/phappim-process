@@ -116,8 +116,8 @@ body {
 .tr-inline .tr-th { display: inline-block; max-width: 100%; margin-inline-start: 0.45em; font-size: 0.7em; }
 html.lang-my body { line-height: 1.65; }
 
-/* ตอนพิมพ์ กล่องเลื่อนของหน้าจอตัดรายการเหลือหน้าเดียว จึงปล่อยให้ยาวต่อหลายหน้า */
+/* หน้าที่พิมพ์เป็นรายการ (.print-flow): กล่องเลื่อนของหน้าจอตัดเหลือหน้าเดียว จึงปล่อยให้ยาวต่อหลายหน้า · หน้าอื่นคงการตัดขอบเดิม */
 @media print {
-  .h-dvh, .h-full { height: auto !important; }
-  .overflow-y-auto, .overflow-hidden { overflow: visible !important; }
+  :is(.h-dvh, .h-full):has(.print-flow) { height: auto !important; }
+  :is(.overflow-y-auto, .overflow-hidden):has(.print-flow) { overflow: visible !important; }
 }

@@ -53,7 +53,7 @@ export default function AccountPage({ name, role, roleLabel, email }: { name: st
       <InstallApp />
 
       <Card>
-        <CardHeader icon={IconLock} title="เปลี่ยนรหัสผ่าน" sub="รหัสที่ได้จากเจ้าของระบบ ควรเปลี่ยนเป็นรหัสของตัวเอง" />
+        <CardHeader icon={IconLock} title={<Tr inline th="เปลี่ยนรหัสผ่าน" />} sub={<Tr th="รหัสที่ได้จากเจ้าของระบบ ควรเปลี่ยนเป็นรหัสของตัวเอง" />} />
         <div className="grid gap-4 px-5 pb-5">
           <ul className="grid gap-1 rounded-xl bg-paper px-4 py-3 text-sm text-muted">
             <li>• อย่างน้อย 8 ตัว ยาวกว่านี้ยิ่งปลอดภัย</li>
