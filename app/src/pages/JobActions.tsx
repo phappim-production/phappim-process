@@ -5,6 +5,7 @@ import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { confirmationPath, pdfProblem } from '../data/confirmation'
 import { INBOX_KEY } from '../data/confirmationDrafts'
+import { openFormWindow } from '../lib/install'
 import { contentKey, mockupProblem, shrinkImage, uploadMockup } from '../data/mockups'
 import { signFiles, uploadFile } from '../data/files'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
@@ -279,7 +280,7 @@ function OpenInForm({ job }: { job: Job }) {
   async function open() {
     setError('')
     // เปิดหน้าต่างก่อนรอข้อมูล ไม่อย่างนั้นเบราว์เซอร์บนมือถือจะบล็อกป๊อปอัป
-    const win = window.open('', '_blank')
+    const win = openFormWindow()
     setBusy(true)
     const r = await loadFormData(job.id)
     setBusy(false)

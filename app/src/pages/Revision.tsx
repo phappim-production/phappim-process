@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { STATION_NAME, type Job } from '../proto/model'
 import { loadFormData } from '../data/jobForm'
 import { INBOX_KEY } from '../data/confirmationDrafts'
+import { openFormWindow } from '../lib/install'
 import { needsRevisionAck, revisionShort, revisionWhen } from '../data/revisions'
 import { Pill } from '../components/ui'
 import { primaryBtn, secondaryBtn } from '../components/Dialog'
@@ -18,7 +19,7 @@ export function ViewConfirmation({ job, wide }: { job: Job; wide?: boolean }) {
   async function open() {
     setError('')
     // เปิดหน้าต่างก่อนรอข้อมูล ไม่อย่างนั้นเบราว์เซอร์บนมือถือจะบล็อกป๊อปอัป
-    const win = window.open('', '_blank')
+    const win = openFormWindow()
     setBusy(true)
     const r = await loadFormData(job.id)
     setBusy(false)

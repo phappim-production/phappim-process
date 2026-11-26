@@ -109,6 +109,37 @@ try {
     assert.equal(await tab.ev(() => window.__wl.req), 0, 'ฝ่ายผลิตไม่ต้องกันจอดับ')
   })
 
+  await step('confirmation-form-stays-inside-installed-app', async () => {
+    await device(IPHONE, true)
+    await t.goto('admin1', '#/', 412)
+    await tab.ev(() => sessionStorage.setItem('qa-standalone', '1'))
+    await t.goto('admin1', '', 412, '/confirmation')
+    await t.waitText('กลับหน้าระบบ')
+    await t.ev(() => { state = fresh(); state.pickOpen = false; renderForm() })
+    await t.fillInput('[data-s="h"][data-k="doc_no"]', 'TEST-APP-1')
+    await t.fillInput('[data-s="h"][data-k="issue_date"]', '2099-01-01')
+    await t.fillInput('[data-s="h"][data-k="customer"]', 'ลูกค้าแอปจำลอง')
+    await t.fillInput('input[data-t="sizes"][data-r="0"][data-c="q:M"]', '20')
+    await t.clickButton('บันทึกเข้าระบบ', { exact: true })
+    await waitFor(() => tab.ev(() => location.pathname === '/'), 'บันทึกแล้วกลับหน้าระบบในหน้าเดิม')
+    await t.waitText('บันทึกใบยืนยัน TEST-APP-1 เข้าระบบแล้ว')
+
+    await t.goto('admin1', '#/', 412)
+    await t.clickButton('รับงานใหม่')
+    await waitFor(() => tab.ev(() => [...document.querySelectorAll('[role="dialog"] select option')].some(o => o.textContent.includes('TEST-APP-1'))), 'ใบร่างอยู่ในรายการ')
+    await tab.ev(() => {
+      const sel = [...document.querySelectorAll('[role="dialog"] select')].find(s => [...s.options].some(o => o.textContent.includes('TEST-APP-1')))
+      const opt = [...sel.options].find(o => o.textContent.includes('TEST-APP-1'))
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, opt.value)
+      sel.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await t.clickButton('แก้ใบนี้ในฟอร์ม', { exact: true })
+    await waitFor(() => tab.ev(() => location.pathname === '/confirmation' && document.querySelector('[data-s="h"][data-k="doc_no"]')?.value === 'TEST-APP-1'), 'ฟอร์มเปิดในหน้าเดิมพร้อมใบจากระบบ')
+    await t.clickButton('กลับหน้าระบบ', { exact: true })
+    await waitFor(() => tab.ev(() => location.pathname === '/'), 'ปุ่มกลับหน้าระบบ')
+    await tab.ev(() => sessionStorage.removeItem('qa-standalone'))
+  })
+
   await step('login-stays-after-reopen', async () => {
     const account = ACCOUNT_BY_KEY.staff_single
     await t.goto('none', '#/', 412)

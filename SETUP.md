@@ -76,7 +76,7 @@ npm run dev
    | Root directory | `app` |
    | Build command | `npm run build` |
    | Build output directory | `dist` |
-4. Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (ค่าจากข้อ 2.7) · `VITE_FILES_URL` = ที่อยู่ Worker ไฟล์ R2 (ว่าง = ใช้ Supabase Storage แบบเดิม · ดู [`docs/เปิดใช้-R2.md`](docs/เปิดใช้-R2.md)) (เวอร์ชัน Node กำหนดไว้แล้วในไฟล์ `app/.node-version` = 22 ไม่ต้องตั้ง `NODE_VERSION`)
+4. Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (ค่าจากข้อ 2.7) · `VITE_FILES_URL` = ที่อยู่ Worker ไฟล์ R2 (ว่าง + ลบแถว `private.file_settings` = ใช้ Supabase Storage แบบเดิม · ดู [`docs/เปิดใช้-R2.md`](docs/เปิดใช้-R2.md)) (เวอร์ชัน Node กำหนดไว้แล้วในไฟล์ `app/.node-version` = 22 ไม่ต้องตั้ง `NODE_VERSION`)
 5. Deploy → ได้ลิงก์ `https://<ชื่อ>.pages.dev` · ทุกครั้งที่ push โค้ดขึ้น GitHub จะ deploy ใหม่อัตโนมัติ
 6. กลับไป Supabase **Authentication → URL Configuration** ใส่ Site URL เป็นลิงก์ `.pages.dev`
 

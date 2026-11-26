@@ -33,6 +33,7 @@ export const IOS_STEPS = [
 ]
 
 export const ANDROID_STEPS = [
+  'เปิดหน้านี้ด้วย Chrome (ถ้าเปิดจาก LINE ให้กด ⋮ แล้วเลือกเปิดในเบราว์เซอร์)',
   'กดเมนู ⋮ มุมขวาบนของ Chrome',
   'กด ติดตั้งแอป (บางเครื่องเขียนว่า เพิ่มลงในหน้าจอหลัก)',
   'กด ติดตั้ง · แอปจะอยู่บนหน้าจอหลัก',
@@ -53,9 +54,14 @@ function changed() {
   listeners.forEach(fn => fn())
 }
 
-function isStandalone(): boolean {
+export function runsAsApp(): boolean {
   const ios = (navigator as Navigator & { standalone?: boolean }).standalone === true
   return ios || matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches
+}
+
+// แอปที่ติดตั้งบน iPhone เก็บข้อมูลแยกจาก Safari · เปิดฟอร์มหน้าต่างใหม่ = ฟอร์มไม่เห็นใบที่ระบบส่งให้ จึงเปิดในหน้าเดิม
+export function openFormWindow(): Window | null {
+  return runsAsApp() ? null : window.open('', '_blank')
 }
 
 // Chrome ส่ง beforeinstallprompt ครั้งเดียวตอนโหลดหน้า ก่อนผู้ใช้เปิดหน้าบัญชี · ต้องดักตั้งแต่เริ่มแอป
@@ -70,12 +76,15 @@ export function listenForInstall() {
     installedNow = true
     changed()
   })
-  matchMedia('(display-mode: standalone)').addEventListener('change', changed)
+  // Safari ก่อน iOS 14 ไม่มี addEventListener บน MediaQueryList · โยน error ตอนเริ่มแอป = จอขาว
+  const standalone = matchMedia('(display-mode: standalone)')
+  if (typeof standalone.addEventListener === 'function') standalone.addEventListener('change', changed)
+  else standalone.addListener?.(changed)
 }
 
 function currentMode(): InstallMode {
   return installMode({
-    standalone: isStandalone(),
+    standalone: runsAsApp(),
     installedNow,
     hasPrompt: deferred !== null,
     userAgent: navigator.userAgent,
