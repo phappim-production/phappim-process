@@ -1,0 +1,53 @@
+{
+  "findings": [
+    {
+      "file": "QC.md",
+      "hasSilkscreen": false,
+      "hasOldUrgent": false,
+      "hasMaterials": false,
+      "imgCount": 5
+    },
+    {
+      "file": "ติดตั้งแอป.md",
+      "hasSilkscreen": false,
+      "hasOldUrgent": false,
+      "hasMaterials": false,
+      "imgCount": 0
+    },
+    {
+      "file": "ผู้บริหาร.md",
+      "hasSilkscreen": false,
+      "hasOldUrgent": false,
+      "hasMaterials": false,
+      "imgCount": 10
+    },
+    {
+      "file": "ฝ่ายผลิต.md",
+      "hasSilkscreen": true,
+      "hasOldUrgent": false,
+      "hasMaterials": true,
+      "imgCount": 22
+    },
+    {
+      "file": "เจ้าของระบบ.md",
+      "hasSilkscreen": false,
+      "hasOldUrgent": false,
+      "hasMaterials": true,
+      "imgCount": 15
+    },
+    {
+      "file": "แผนอบรม.md",
+      "hasSilkscreen": true,
+      "hasOldUrgent": false,
+      "hasMaterials": false,
+      "imgCount": 0
+    },
+    {
+      "file": "แอดมิน.md",
+      "hasSilkscreen": true,
+      "hasOldUrgent": false,
+      "hasMaterials": true,
+      "imgCount": 17
+    }
+  ]
+}

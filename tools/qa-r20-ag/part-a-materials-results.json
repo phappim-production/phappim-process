@@ -1,0 +1,45 @@
+{
+  "externalAttempts": [],
+  "results": [
+    {
+      "id": "A1.receive-all-types",
+      "status": "PASS",
+      "detail": "รับงานครบ 7 แบบอยู่รอผลิต · รับงานใหม่"
+    },
+    {
+      "id": "A2.visibility-and-rpc-rbac",
+      "status": "PASS",
+      "detail": "ตรวจสิทธิ์ UI + RPC ตรง 12 บทบาทผ่านครบ"
+    },
+    {
+      "id": "A3.materials-checklist-edge-cases",
+      "status": "PASS",
+      "detail": "เพิ่มรัว 5 รายการไม่ชน · 30+1 บล็อก · 80 ตัวอักษร · 2 แท็บเตือนไม่ทับกัน"
+    },
+    {
+      "id": "A4.material-photos-security-and-ux",
+      "status": "PASS",
+      "detail": "3+11MB ผ่าน · fakeJpg/mockup/otherFolder บล็อก · ไม่ทับที่ 375px · sign(anon=403, disabled=403, staff_empty=200:{\"urls\":{\"SC-R20-A1-FORM/ac184f41b26c79fc.jpg\":\"http://127.0.0.1:5235/f/mockups/, staff_single=200)"
+    },
+    {
+      "id": "A5.release-and-queue-and-history",
+      "status": "PASS",
+      "detail": "ยกเลิกปล่อยได้ · ปล่อยแล้วไปสถานีพิมพ์ · กันปล่อยซ้ำและแก้หลังปล่อย"
+    },
+    {
+      "id": "A6.hard-edge-cases",
+      "status": "PASS",
+      "detail": "รับฟิล์มไม่หลุด · กันแบ่งงาน · ยกเลิกแจ้งชัด · ปิด/เปิดขั้นกลางทางถูกต้อง"
+    },
+    {
+      "id": "A7.inbox-materials-late",
+      "status": "PASS",
+      "detail": "แอดมินได้ข้อความรอผลิตนาน 1 ข้อความ ไม่ซ้ำ บทบาทอื่นไม่ได้"
+    },
+    {
+      "id": "A8-A9.consistency-and-responsive",
+      "status": "PASS",
+      "detail": "ภาพรวม/กำหนดส่ง/รายงานสอดคล้อง · 375/768/1440 ไม่ล้น"
+    }
+  ]
+}

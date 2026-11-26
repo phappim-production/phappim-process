@@ -1,0 +1,25 @@
+{
+  "externalAttempts": [],
+  "results": [
+    {
+      "id": "D1.security-rest-writes-and-urls",
+      "status": "PASS",
+      "detail": "เขียนตารางตรงถูกปฏิเสธทุกบทบาท · disabled ว่าง · XSS ไม่ทำงาน"
+    },
+    {
+      "id": "D2-D6.data-integrity-and-bad-inputs",
+      "status": "PASS",
+      "detail": "กันจำนวน 0/-5/100001 · ไม่มีงาน materials ที่มีสถานี"
+    },
+    {
+      "id": "D4.offline-no-raw-english-error",
+      "status": "PASS",
+      "detail": "ออฟไลน์ไม่มี Failed to fetch หลุดขึ้นจอ"
+    },
+    {
+      "id": "D8.scale-300-jobs-performance",
+      "status": "PASS",
+      "detail": "300+ งาน (50 รอผลิต) · เวลาโหลด ms = {\"board\":642,\"overview\":845,\"reports\":429,\"deliveries\":722}"
+    }
+  ]
+}

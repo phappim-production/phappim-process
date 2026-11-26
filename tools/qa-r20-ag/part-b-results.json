@@ -1,0 +1,35 @@
+{
+  "externalAttempts": [],
+  "results": [
+    {
+      "id": "B1.lead-time-rules",
+      "status": "PASS",
+      "detail": "10/15/20 วัน (ไม่รวมเผื่อเสีย) · ยกเลิกบางส่วนไม่หด · QC บล็อกจนส่งรายงาน"
+    },
+    {
+      "id": "B2.be-year-and-infinity-guard",
+      "status": "PASS",
+      "detail": "ปฏิเสธ 2569 · infinity · BC ด้วยข้อความไทย"
+    },
+    {
+      "id": "B3.confirmation-customer-copy-and-rev-token",
+      "status": "PASS",
+      "detail": "ฉบับลูกค้าซ่อนเผื่อเสีย/สีผ้า/เทคนิคภายในครบ"
+    },
+    {
+      "id": "B4.revision-acknowledgement",
+      "status": "PASS",
+      "detail": "กันทับ rev_token · สถานี 1 และ 2 ต้องรับทราบใบแก้ก่อนกดเสร็จ"
+    },
+    {
+      "id": "B6.mobile-install-card-ua",
+      "status": "FAIL",
+      "error": "หมดเวลารอ ข้อความ \"ออกจากระบบ\""
+    },
+    {
+      "id": "B7.customer-delivery-schedule",
+      "status": "PASS",
+      "detail": "หน้ากำหนดส่งลูกค้าทำงานครบ · 375px ไม่ล้น · staff/QC ถูกบล็อก"
+    }
+  ]
+}
