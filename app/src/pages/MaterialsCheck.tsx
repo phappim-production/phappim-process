@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { OUTSOURCEABLE, ROUTES, STATION_NAME, type Job } from '../proto/model'
 import { MAX_MATERIAL_NAME, MAX_MATERIAL_PHOTOS, addProblem, cleanName, arrival, fromBangkokInput, materialsOutlook, releaseBlocker, toBangkokInput, toLine, withoutItem, type Arrival, type MaterialItem, type MaterialPhoto } from '../data/materialsCheck'
 import { yearOutOfRange } from '../proto/format'
@@ -95,6 +95,8 @@ function Checklist({ items, admin, busy, now, act }: { items: MaterialItem[]; ad
   const inputId = useId()
   const etaId = useId()
   const [saved, setSaved] = useState<{ from: string; names: string[] } | null>(null)
+  // busy จากหน้าแม่ยังไม่ทันเปลี่ยนตอนกด Enter รัว จึงกันด้วย ref ในตัวเอง
+  const adding = useRef(false)
   const loaded = items.map(m => m.name)
   const loadedKey = loaded.join('\n')
   // บันทึกแล้วแต่รายการยังโหลดไม่ทัน → แก้ครั้งถัดไปต้องอิงรายการที่เพิ่งบันทึก ไม่งั้นฐานข้อมูลเข้าใจว่าเครื่องอื่นแก้
@@ -107,14 +109,20 @@ function Checklist({ items, admin, busy, now, act }: { items: MaterialItem[]; ad
 
   async function add(e: FormEvent) {
     e.preventDefault()
+    if (busy || adding.current) return
     const bad = addProblem(names, typed, have ? '' : eta, have)
     if (bad) { setProblem(bad); return }
     setProblem('')
     const name = cleanName(typed)
     const when = have ? null : fromBangkokInput(eta)
-    if (await act('add_job_material', { p_name: name, p_eta: when?.toISOString() ?? null, p_have: have }, have ? `เพิ่ม "${name}" (มีของแล้ว) แล้ว` : `เพิ่ม "${name}" แล้ว`)) {
-      setSaved({ from: loadedKey, names: [...names, name] })
-      setTyped(''); setEta(''); setHave(false)
+    adding.current = true
+    try {
+      if (await act('add_job_material', { p_name: name, p_eta: when?.toISOString() ?? null, p_have: have }, have ? `เพิ่ม "${name}" (มีของแล้ว) แล้ว` : `เพิ่ม "${name}" แล้ว`)) {
+        setSaved({ from: loadedKey, names: [...names, name] })
+        setTyped(''); setEta(''); setHave(false)
+      }
+    } finally {
+      adding.current = false
     }
   }
 

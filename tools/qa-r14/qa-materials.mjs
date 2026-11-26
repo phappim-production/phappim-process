@@ -119,6 +119,21 @@ try {
     return 'ต้องมีวันที่หรือมีของแล้ว · มีของแล้วติ๊กให้เลย · เลยกำหนดขึ้นแดง'
   })
 
+  await step('rapid-enter-adds-once', async () => {
+    await h.fillInput('[role="dialog"] input[placeholder^="เช่น ผ้า"]', 'ป้ายไซซ์')
+    await h.fillInput('[role="dialog"] form input[type="datetime-local"]', bkk(1, '10:00'))
+    await h.ev(() => { const f = document.querySelector('[role="dialog"] input[placeholder^="เช่น ผ้า"]').form; f.requestSubmit(); f.requestSubmit(); f.requestSubmit() })
+    await waitDialog(/เพิ่ม "ป้ายไซซ์" แล้ว/, 'เพิ่มป้ายไซซ์')
+    await new Promise(r => setTimeout(r, 1500))
+    if (/มี "ป้ายไซซ์" ในรายการแล้ว/.test(await dialogText())) throw new Error('กดรัวแล้วส่งซ้ำถึงฐานข้อมูล')
+    const n = await sql("select count(*)::int n from public.job_materials where job_id = $1 and name = 'ป้ายไซซ์'", [plain])
+    if (n[0].n !== 1) throw new Error('ป้ายไซซ์ ' + n[0].n + ' แถว')
+    await h.ev(() => document.querySelector('[role="dialog"] button[aria-label=\'ลบ "ป้ายไซซ์" ออกจากรายการ\']').click())
+    await waitDialog(/ลบ "ป้ายไซซ์" ออกจากรายการแล้ว/, 'ลบป้ายไซซ์')
+    await waitFor(() => h.ev(() => document.querySelectorAll('[role="dialog"] [role="checkbox"]').length === 3), 'รายการกลับเป็น 3', 10000)
+    return 'กด Enter 3 ครั้งติดกัน เพิ่ม 1 รายการ ไม่มีข้อความซ้ำ'
+  })
+
   await step('late-card-then-reschedule', async () => {
     await h.goto('admin1', '#/board', 1440)
     await h.waitText('วัตถุดิบเลยกำหนดรับ')
