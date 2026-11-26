@@ -44,7 +44,8 @@ export async function confirmationTests({ db, ok, as }) {
     `public.receive_job('SC-DR-1', 'ลูกค้าแก้ชื่อ', 'งาน', 'tshirt', 10, 'ตัว', '2026-12-31', 'plain', null, 0, 0, '{}', false)`)
   const d2 = await draft('SC-DR-1')
   ok('ใบร่างเปลี่ยนเป็นส่งงานเข้าแล้ว และผูกกับงาน', d2.status === 'received' && d2.job_id !== null)
-  await reject('ใบที่ส่งงานเข้าแล้ว บันทึกแก้ไม่ได้', U.admin, `public.save_confirmation_draft(${form('SC-DR-1')})`, /ส่งงานเข้าโรงงานแล้ว/)
+  await reject('ใบที่ส่งงานเข้าแล้ว บันทึกทับไม่ได้ · บอกให้เปลี่ยนเลขที่ใบถ้าเป็นใบใหม่', U.admin, `public.save_confirmation_draft(${form('SC-DR-1')})`,
+    /เลขที่ใบ SC-DR-1 เป็นของงานที่ส่งงานเข้าโรงงานแล้ว · ถ้าเป็นใบใหม่ ให้เปลี่ยน "เลขที่ใบยืนยัน" ในฟอร์มเป็นเลขของใบใหม่.*บันทึกการแก้เข้างาน/)
   await reject('ใบที่ส่งงานเข้าแล้ว ยกเลิกไม่ได้', U.admin, `public.cancel_confirmation_draft('${d2.id}')`, /ส่งงานเข้าแล้ว/)
 
   const id3 = await pass('บันทึกใบที่สอง', U.admin, `public.save_confirmation_draft(${form('SC-DR-2')})`)
