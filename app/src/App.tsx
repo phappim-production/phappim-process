@@ -18,6 +18,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { DocumentLang, LangScope, LangToggle, Tr } from './i18n/Tr'
 import { useT } from './i18n/lang'
 import { useWakeLock } from './lib/wakeLock'
+import { useFormRelink } from './data/formRelink'
 import {
   IconChart, IconClipboard, IconClock, IconColumns, IconFactory, IconFlag, IconGauge, IconInbox, IconLayers, IconList, IconShield,
   IconBook, IconSliders, IconUser, IconUsers,
@@ -118,6 +119,7 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
   const page = route.page
   // พนักงานวางเครื่องไว้ข้างงาน มือเปื้อนหมึก/ผ้า · จอดับระหว่างทำต้องปลดล็อกใหม่ทุกครั้ง
   useWakeLock(translated && page === 'board')
+  useFormRelink()
   // ผู้ควบคุมงานเปิดมาเจอแท็บงานที่ต้องทำ (เฟส 2 = จักรเย็บ) จึงไฮไลต์เมนู "คิวงาน" ไม่ใช่ "สถานี"
   const path = ownerHome ? '#/admin' : redirected ? (profile.role === 'supervisor' ? '#/queue' : '#/board') : requestedPath
   const scope = useMemo(() => boardScope(profile.role, profile.section, profile.stations), [profile.role, profile.section, profile.stations])

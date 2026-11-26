@@ -24,10 +24,12 @@ it('ยกเลิกงานได้เฉพาะผู้บริหา�
   }
 })
 
-it('รายงานล่าช้า: พนักงานส่งได้เฉพาะงานที่อยู่สถานีของตัวเอง · บทบาทอื่นตาม submit_delay_report · ผู้บริหารไม่ได้', () => {
+it('รายงานล่าช้า: พนักงานและ QC ส่งได้เฉพาะงานที่อยู่สถานีของตัวเอง · บทบาทอื่นตาม submit_delay_report · ผู้บริหารไม่ได้', () => {
   expect(canReportDelay('staff', true)).toBe(true)
   expect(canReportDelay('staff', false)).toBe(false)
-  for (const role of ['owner', 'admin', 'production', 'supervisor', 'qc'] as EmployeeRole[]) expect(canReportDelay(role, false), role).toBe(true)
+  expect(canReportDelay('qc', true)).toBe(true)
+  expect(canReportDelay('qc', false)).toBe(false)
+  for (const role of ['owner', 'admin', 'production', 'supervisor'] as EmployeeRole[]) expect(canReportDelay(role, false), role).toBe(true)
   expect(canReportDelay('manager', true)).toBe(false)
 })
 

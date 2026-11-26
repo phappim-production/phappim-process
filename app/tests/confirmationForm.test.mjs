@@ -237,7 +237,7 @@ test('ฟอร์มใบยืนยัน: เปลี่ยนเลขท
   assert.ok(save.indexOf('foreign.length') < save.indexOf('const payload='))
 })
 
-function autosave(state) {
+function autosave(state, tab = null) {
   const js = scripts.join('\n')
   const start = js.indexOf('let warnedQuota=false')
   const end = js.indexOf('function toast(')
@@ -245,8 +245,8 @@ function autosave(state) {
   const writes = []
   const timers = new Map()
   let nextTimer = 0
-  const api = new Function('state', 'localStorage', 'LS', 'setTimeout', 'clearTimeout', 'toast', js.slice(start, end) + '\nreturn { save, saveSoon, flushSave }')(
-    state, { setItem: (key, text) => writes.push([key, JSON.parse(text)]) }, 'pc142',
+  const api = new Function('state', 'localStorage', 'LS', 'tabStore', 'TAB_LS', 'setTimeout', 'clearTimeout', 'toast', js.slice(start, end) + '\nreturn { save, saveSoon, flushSave }')(
+    state, { setItem: (key, text) => writes.push([key, JSON.parse(text)]) }, 'pc142', () => tab, 'pc142.tab',
     (fn, ms) => { timers.set(++nextTimer, { fn, ms }); return nextTimer }, id => { timers.delete(id) }, () => {},
   )
   const tick = () => { for (const [id, t] of [...timers]) { timers.delete(id); t.fn() } }
