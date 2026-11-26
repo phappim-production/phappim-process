@@ -1,3 +1,4 @@
+import { materialsOutlook } from '../data/materialsCheck'
 import { useMemo, useState } from 'react'
 import type { OverviewView } from '../auth/menus'
 import { DEFAULT_SEW_PRODUCT, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, hasSewMinutes, lateDays, lineRate, linesFor, machineSets, simulate, verdict, workdayToDate, type Forecast, type SewFloor } from '../proto/capacity'
@@ -401,7 +402,12 @@ export function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Dat
     // ถึงสถานีรีดฟิล์มแล้วยังไม่ได้สั่ง = งานค้างเพราะแอดมิน (แดง) · ยังไม่ถึง = เตือนให้สั่งทันก่อนถึง (ส้ม)
     else if (isFilmNotOrdered(j)) items.push({ id: j.id + 'n', tone: j.station === 'dtf_press' ? 'danger' : 'warn', tag: 'ยังไม่ได้สั่งฟิล์ม',
       text: j.station === 'dtf_press' ? `${filmLabel(j.route)} · งานรอที่สถานีรีดฟิล์มแล้ว สั่งแล้วบันทึกวันคาดว่าได้รับ` : `${filmLabel(j.route)} · สั่งแล้วบันทึกวันคาดว่าได้รับในรายละเอียดงาน`, job: j })
-    else if (j.phase === 'materials') items.push({ id: j.id + 'm', tone: 'warn', tag: 'รอผลิต', text: 'เช็ควัตถุดิบ + ถ่ายรูป แล้วปล่อยเข้าไลน์การผลิต', job: j })
+    else if (j.phase === 'materials') {
+      const o = materialsOutlook(j.materialLines ?? [], now)
+      items.push(o.late.length
+        ? { id: j.id + 'm', tone: 'danger', tag: 'วัตถุดิบเลยกำหนด', text: `ยังไม่ได้รับ: ${o.late.map(l => l.name).join(', ')} · ตามของ หรือเลื่อนวันที่`, job: j }
+        : { id: j.id + 'm', tone: 'warn', tag: 'รอผลิต', text: o.next ? `ของถึง ${shortDate(o.next)} · เช็ควัตถุดิบ + ถ่ายรูป แล้วปล่อยเข้าไลน์` : 'เช็ควัตถุดิบ + ถ่ายรูป แล้วปล่อยเข้าไลน์การผลิต', job: j })
+    }
     else if (j.phase === 'sample_review') items.push({ id: j.id + 's', tone: 'info', tag: 'ตามลูกค้า', text: `ยืนยันตัวอย่าง · รอมา ${duration(now.getTime() - j.since.getTime())}`, job: j })
     // ยังไม่เลยกำหนดแต่คาดว่าไม่ทัน → แจ้งลูกค้าล่วงหน้า หรือให้หัวหน้าพิจารณาแทรกคิว
     else if (lateBy.has(j.id)) {

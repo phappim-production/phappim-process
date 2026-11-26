@@ -1,5 +1,6 @@
 import { ROUTES, byQueue, thaiStart, type Job, type RouteCode, type StationCode } from './model'
 import type { Machine, MachineType, Need } from './sewing'
+import { materialsOutlook } from '../data/materialsCheck'
 
 // ปัดลงเพราะชิ้นที่ทำไม่จบไม่นับ
 export function piecesPerDay(workers: number, minutesPerPiece: number, workMinutes: number): number {
@@ -100,7 +101,15 @@ export type Forecast = {
 }
 export type NewJob = { route: RouteCode; qty: number; productCode?: string; lead?: number }
 
+
+// ของชิ้นสุดท้ายยังไม่มา = ปล่อยเข้าไลน์ได้หลังของถึง
+function materialsReady(j: Job, now: Date): number {
+  const last = materialsOutlook(j.materialLines ?? [], now).last
+  return Math.max(LEAD.materials, last ? workdaysUntil(last, now) : 0)
+}
+
 // แต่ละสถานีทำทีละงาน ยกเว้นเย็บ (1 งาน = 1 ไลน์) · พร้อมเท่ากันใช้คิว ไม่ใช่กำหนดส่ง
+
 export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor = { ready: {}, needsOf: () => [] }): Forecast & { extraFinishDay?: number; extraWaitAt?: StationCode } {
   const free = blank(() => 0)
   const load = blank<StationLoad>(() => ({ days: 0, qty: 0, jobs: 0, rate: 0 }))
@@ -139,7 +148,7 @@ export function simulate(jobs: Job[], now: Date, extra?: NewJob, floor: SewFloor
       id: j.id, stations, isExtra: false,
       i: inLine ? Math.max(0, stations.indexOf(j.station ?? stations[0])) : 0,
       ready: inLine ? (j.status === 'hold' ? LEAD.hold : 0)
-        : j.phase === 'materials' ? LEAD.materials + (j.needsSample !== false ? LEAD.sample + LEAD.sampleReview : 0)
+        : j.phase === 'materials' ? materialsReady(j, now) + (j.needsSample !== false ? LEAD.sample + LEAD.sampleReview : 0)
         : j.phase === 'sample' ? LEAD.sample + (j.develop ? LEAD.sampleReview : 0) : LEAD.sampleReview,
       order,
       filmDay,

@@ -160,9 +160,10 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
       p_needs_sample: draft.needsSample, p_develop: draft.develop,
     })
     if (!r.ok) { setSaving(null); setError(r.reason); return }
-    // ใส่ไม่สำเร็จ (เช่น ปิดขั้นรอผลิตอยู่ งานเข้าไลน์แล้ว) ไม่ใช่เหตุให้รับงานซ้ำ · แอดมินพิมพ์เองได้
-    const checklist = suppliedChecklist(spec)
-    if (checklist.length) await rpc('set_job_materials', { p_job: r.data, p_items: checklist })
+    // ใส่ไม่สำเร็จ (เช่น ปิดขั้นรอผลิตอยู่ งานเข้าไลน์แล้ว · ใบเก่าไม่มีวันที่ของถึง) ไม่ใช่เหตุให้รับงานซ้ำ · แอดมินเพิ่มเองได้
+    for (const item of suppliedChecklist(spec).filter(i => i.eta)) {
+      if (!(await rpc('add_job_material', { p_job: r.data, p_name: item.name, p_eta: item.eta?.toISOString() })).ok) break
+    }
     setSaving('กำลังสร้างร่างม็อคอัพจากจุดในใบยืนยัน…')
     const seeded = await seedFromConfirmation(r.data)
     setSaving(null)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_MATERIAL_ITEMS, releaseBlocker, withItem, withoutItem, type MaterialItem } from './materialsCheck'
+import { MAX_MATERIAL_ITEMS, addProblem, arrival, fromBangkokInput, materialsOutlook, releaseBlocker, toBangkokInput, withItem, withoutItem, type MaterialItem } from './materialsCheck'
 
-const item = (id: number, name: string, checked = false): MaterialItem => ({ id, name, checked_at: checked ? '2026-11-26T03:00:00Z' : null })
+const item = (id: number, name: string, checked = false): MaterialItem => ({ id, name, checked_at: checked ? '2026-11-26T03:00:00Z' : null, eta: null })
 
 describe('รายการวัตถุดิบที่แอดมินพิมพ์', () => {
   it('เพิ่มต่อท้ายตามลำดับที่พิมพ์ ตัดช่องว่างหัวท้าย', () => {
@@ -35,5 +35,45 @@ describe('ปล่อยเข้าไลน์การผลิตได้�
   })
   it('ติ๊กครบ + มีรูปอย่างน้อย 1 รูป = ปล่อยได้', () => {
     expect(releaseBlocker([item(1, 'ผ้า', true), item(2, 'ด้าย', true)], 1)).toBeNull()
+  })
+})
+
+describe('วันเวลาที่คาดว่าได้รับ', () => {
+  const now = new Date('2026-11-26T10:00:00+07:00')
+  const line = (eta: string | null, checked = false) => ({ name: 'ผ้า', eta: eta ? new Date(eta) : null, checked })
+
+  it('ช่องวันเวลาเป็นเวลาไทยเสมอ แม้เครื่องตั้งเขตเวลาอื่น', () => {
+    expect(fromBangkokInput('2026-11-28T14:30')?.toISOString()).toBe('2026-11-28T07:30:00.000Z')
+    expect(toBangkokInput(new Date('2026-11-28T07:30:00Z'))).toBe('2026-11-28T14:30')
+    expect(toBangkokInput(new Date('2026-11-27T18:00:00Z'))).toBe('2026-11-28T01:00')
+    expect(fromBangkokInput('')).toBeNull()
+  })
+  it('สถานะของแต่ละรายการ: ได้รับแล้ว / เลยกำหนด / วันนี้ / วันอื่น / ยังไม่ใส่วัน', () => {
+    expect(arrival(line('2026-11-25T09:00:00+07:00', true), now)).toBe('received')
+    expect(arrival(line('2026-11-26T09:59:00+07:00'), now)).toBe('late')
+    expect(arrival(line('2026-11-26T23:30:00+07:00'), now)).toBe('today')
+    expect(arrival(line('2026-11-27T00:10:00+07:00'), now)).toBe('later')
+    expect(arrival(line(null), now)).toBe('unset')
+  })
+  it('สรุปบนการ์ด: เลยกำหนดเรียงเก่าก่อน · ของถึงครั้งถัดไป · ชิ้นสุดท้าย · ไม่นับของที่ได้รับแล้ว', () => {
+    const o = materialsOutlook([
+      { name: 'ด้าย', eta: new Date('2026-11-26T08:00:00+07:00'), checked: false },
+      { name: 'ผ้า', eta: new Date('2026-11-25T08:00:00+07:00'), checked: false },
+      { name: 'ป้าย', eta: new Date('2026-11-30T08:00:00+07:00'), checked: false },
+      { name: 'หมึก', eta: new Date('2026-12-20T08:00:00+07:00'), checked: true },
+      { name: 'ถุง', eta: null, checked: false },
+      { name: 'กล่อง', eta: new Date('2026-11-28T08:00:00+07:00'), checked: false },
+    ], now)
+    expect(o.late.map(l => l.name)).toEqual(['ผ้า', 'ด้าย'])
+    expect(o.next?.toISOString()).toBe(new Date('2026-11-28T08:00:00+07:00').toISOString())
+    expect(o.last?.toISOString()).toBe(new Date('2026-11-30T08:00:00+07:00').toISOString())
+    expect(o.unset).toBe(1)
+  })
+  it('เพิ่มรายการต้องมีวันคาดว่าได้รับหรือมีของแล้ว · ปี พ.ศ. ไม่รับ (ตรงกับฐานข้อมูล)', () => {
+    expect(addProblem([], 'ผ้า', '', false)).toBe('ใส่วันเวลาที่คาดว่าจะได้รับ "ผ้า" หรือติ๊ก "มีของแล้ว"')
+    expect(addProblem([], 'ผ้า', '', true)).toBeNull()
+    expect(addProblem([], 'ผ้า', '2026-11-28T10:00', false)).toBeNull()
+    expect(addProblem([], 'ผ้า', '2569-11-28T10:00', false)).toMatch(/ปี ค\.ศ\./)
+    expect(addProblem(['ผ้า'], ' ผ้า ', '2026-11-28T10:00', false)).toBe('มี "ผ้า" ในรายการแล้ว')
   })
 })

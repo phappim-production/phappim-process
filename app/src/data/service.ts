@@ -1,5 +1,6 @@
 // ใบงานบริการ (ลูกค้าส่งของมา) · ต้องตรงกับ private.service_kind / service_route / spec_product ในฐานข้อมูล
 import { ROUTES, type Job, type RouteCode } from '../proto/model.ts'
+import { yearOutOfRange } from '../proto/format.ts'
 
 type Spec = Record<string, unknown>
 const isRecord = (v: unknown): v is Spec => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -34,22 +35,24 @@ export function specProduct(spec: Spec): string | null {
 
 export const customerFilm = (spec: Spec) => spec.product === 'svc_dtf' && part(spec, 'svc_dtf').film_source === FILM_CUSTOMER
 
-// รายการตั้งต้นของขั้นรอผลิต = ของที่ลูกค้าส่งมาตามใบ · แอดมินนับของจริงแล้วติ๊ก
-export function suppliedChecklist(spec: Spec): string[] {
+// รายการตั้งต้นของขั้นรอผลิต = ของที่ลูกค้าส่งมาตามใบ · วันคาดว่าได้รับ = วันที่ของจะถึงโรงงาน (นับถึงสิ้นวันทำงาน 17:00)
+export function suppliedChecklist(spec: Spec): { name: string; eta: Date | null }[] {
   if (!serviceRoute(spec) || typeof spec.product !== 'string') return []
   const own = part(spec, spec.product)
+  const day = text(own.supply_date)
+  const eta = /^\d{4}-\d{2}-\d{2}$/.test(day) && !yearOutOfRange(day) ? new Date(`${day}T17:00:00+07:00`) : null
   const rows = Array.isArray(own.supplied) ? own.supplied : []
-  const items = rows.flatMap(r => {
+  const names = rows.flatMap(r => {
     if (!isRecord(r)) return []
-    const name = text(r.item)
+    const name = text(r.item).replace(/\s+/gu, ' ')
     if (!name) return []
     const qty = Number(r.qty)
     const amount = Number.isFinite(qty) && qty > 0 ? ` ${qty.toLocaleString('th-TH')} ${text(r.unit)}`.trimEnd() : ''
     const note = text(r.note)
     return [`${name}${amount}${note ? ` (${note})` : ''}`.slice(0, 80)]
   })
-  if (customerFilm(spec)) items.push('ฟิล์ม DTF ของลูกค้า')
-  return [...new Set(items)].slice(0, 30)
+  if (customerFilm(spec)) names.push('ฟิล์ม DTF ของลูกค้า')
+  return [...new Set(names)].slice(0, 30).map(name => ({ name, eta }))
 }
 
 // การ์ดงานบริการบอกขั้นที่ทำก่อนชื่อสินค้า · ชื่อสินค้า svc_* บอกบริการอยู่แล้ว (แต่พิมพ์มี 2 แบบ) จึงใช้ชื่อเส้นทางแทน

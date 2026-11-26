@@ -13,7 +13,7 @@ import type { Job, Vendor } from '../proto/model'
 import type { Booking, Machine, MachineType, Need } from '../proto/sewing'
 import {
   RPC_TIMEOUT_MS, SLOW_REPLY, withTimeout,
-  attachHolds, attachOutRuns, attachSla, attachSpecSheets, sharedTypes, thaiError, toBookings, toJobs, toMachines, toNeeds, toVendors, type SpecAckRow, type SpecSheetRow, type OutRunRow,
+  attachHolds, attachMaterials, attachOutRuns, attachSla, attachSpecSheets, sharedTypes, thaiError, toBookings, toJobs, toMachines, toNeeds, toVendors, type MaterialRow, type SpecAckRow, type SpecSheetRow, type OutRunRow,
   type AssignmentRow, type BookingRow, type HoldRow, type JobRow, type MachineRow, type ProductRow, type ReworkRow, type SewEventRow, type SlaFlagRow,
 } from './live'
 
@@ -107,11 +107,13 @@ async function load(): Promise<FactoryData> {
   const failed = [jobs, machines, assignments, bookings, outRuns].find(r => r.error)
   if (failed?.error) throw new Error(failed.error.message)
   const ids = (jobs.data as JobRow[]).map(r => r.id)
-  const [reworks, sewEvents, specSheets, specAcks] = await Promise.all([
+  const waitingIds = (jobs.data as JobRow[]).filter(r => r.phase === 'materials').map(r => r.id)
+  const [reworks, sewEvents, specSheets, specAcks, materialRows] = await Promise.all([
     forJobs(ids, part => client.from('qc_results').select('job_id, failed, reasons, at').in('job_id', part).gt('failed', 0)),
     forJobs(ids, part => client.from('events').select('job_id, type, payload, at').in('job_id', part).eq('station_code', 'sew').in('type', ['sewing_issue_reported', 'hold'])),
     forJobs(ids, part => client.from('mockup_sheets').select('id, job_id, rev').in('job_id', part).eq('status', 'approved')),
     forJobs(ids, part => client.from('mockup_acks').select('sheet_id, station_code').in('job_id', part)),
+    forJobs(waitingIds, part => client.from('job_materials').select('job_id, name, eta, checked_at').in('job_id', part).order('id')),
   ])
   const late = [reworks, sewEvents].find(r => r.error)
   if (late?.error) throw new Error(late.error.message)
@@ -126,7 +128,9 @@ async function load(): Promise<FactoryData> {
   const specs = specSheets.error || specAcks.error ? { sheets: [], acks: [] } : { sheets: specSheets.data as SpecSheetRow[], acks: specAcks.data as SpecAckRow[] }
   const vendors = toVendors(statics.vendors)
   const shared = sharedTypes(statics.types)
-  const held = attachHolds(toJobs(jobs.data as JobRow[], statics.products, reworks.data as ReworkRow[], sewEvents.data as SewEventRow[]), holds.error ? [] : (holds.data ?? []) as HoldRow[])
+  // อ่านรายการวัตถุดิบไม่ได้ = การ์ดขึ้นแค่ "รอเช็ควัตถุดิบ" ไม่ทำให้บอร์ดโหลดไม่ขึ้น
+  const materials = materialRows.error ? [] : (materialRows.data ?? []) as MaterialRow[]
+  const held = attachMaterials(attachHolds(toJobs(jobs.data as JobRow[], statics.products, reworks.data as ReworkRow[], sewEvents.data as SewEventRow[]), holds.error ? [] : (holds.data ?? []) as HoldRow[]), materials)
   return {
     stationMachines: toStationMachines(stationRows),
     vendors,

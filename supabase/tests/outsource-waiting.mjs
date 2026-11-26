@@ -73,7 +73,7 @@ export async function outsourceWaitingTests({ db, ok }) {
     ok('ส่งออกไม่ได้ = ยังรอผลิต', (await job(svc)).phase === 'materials')
 
     const mid = await receive('SC-OW-MID', 'plain')
-    await keep(U.admin, `public.set_job_materials('${mid}', array['ผ้า'])`)
+    await keep(U.admin, `public.add_job_material('${mid}', 'ผ้า', now() + interval '2 days')`)
     await pass('มีรายการที่ยังไม่ติ๊กก็ส่งออกได้ (บริษัทจัดหาเอง)', U.admin, send(mid, vendor))
   } finally {
     await db.exec('rollback')

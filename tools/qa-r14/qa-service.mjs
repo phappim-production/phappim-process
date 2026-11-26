@@ -44,6 +44,7 @@ async function fillForm(product, no, set) {
           const val = v[f.id]
           switch (f.type) {
             case 'text': case 'textarea': if (!String(val ?? '').trim()) v[f.id] = 'ตัวอย่าง'; break
+            case 'date': if (!val) v[f.id] = '2026-12-01'; break
             case 'number': if (!(num(val) > 0)) v[f.id] = f.id === 'rev' ? '' : 5; break
             case 'radio': if (!val) v[f.id] = f.options[0]; break
             case 'check': if (!(val || []).length) v[f.id] = [f.options[0]]; break
@@ -118,11 +119,13 @@ try {
       const [j] = await sql(`select id, phase, product_type_code, route_code, dtf_film_received_at from public.jobs where confirmation_no = $1`, [c.no])
       if (j.phase !== 'materials' || j.product_type_code !== c.job) throw new Error(JSON.stringify(j))
       if (c.film !== undefined && !!j.dtf_film_received_at !== c.film) throw new Error('ฟิล์ม ' + j.dtf_film_received_at)
-      const items = (await sql('select name from public.job_materials where job_id = $1 order by id', [j.id])).map(r => r.name)
+      const rows = await sql("select name, to_char(eta at time zone 'Asia/Bangkok', 'YYYY-MM-DD HH24:MI') eta from public.job_materials where job_id = $1 order by id", [j.id])
+      if (rows.some(r => r.eta !== '2026-12-01 17:00')) throw new Error('วันคาดว่าได้รับ ' + JSON.stringify(rows))
+      const items = rows.map(r => r.name)
       const want = ['ของลูกค้าตัวอย่าง 60 ชิ้น (สภาพดี)', ...(c.film ? ['ฟิล์ม DTF ของลูกค้า'] : [])]
       if (JSON.stringify(items) !== JSON.stringify(want)) throw new Error(JSON.stringify(items))
       c.id = j.id
-      return items.join(' · ')
+      return items.join(' · ') + ' · ของถึง 1 ธ.ค. 17:00'
     })
   }
 
