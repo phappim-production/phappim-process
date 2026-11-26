@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { customerFilm, serviceLabel, serviceRoute, specProduct, suppliedChecklist } from './service'
+import { customerFabric, customerFilm, serviceLabel, serviceRoute, specProduct, suppliedChecklist } from './service'
 import { draftFromConfirmation, syncConfirmationSpec } from './confirmation'
 import { ROUTES } from '../proto/model'
 
@@ -70,5 +70,20 @@ describe('ป้ายบนการ์ดงานบริการ', () => {
     expect(serviceLabel({ route: 'sew_only', product: 'เสื้อโปโล', productCode: 'polo' })).toEqual({ service: 'เย็บอย่างเดียว', product: 'เสื้อโปโล' })
     expect(serviceLabel({ route: 'print_press_only', product: 'งานบริการ: พิมพ์อย่างเดียว', productCode: 'svc_print' })).toEqual({ service: 'พิมพ์+รีด', product: '' })
     expect(serviceLabel({ route: 'normal', product: 'เสื้อยืด', productCode: 'tshirt' })).toEqual({ service: null, product: 'เสื้อยืด' })
+  })
+})
+
+describe('ใบสินค้าปกติที่ลูกค้าส่งผ้ามาเอง แนะนำเส้นทาง', () => {
+  const fabric = 'ลูกค้าส่งผ้ามาเอง (ไม่มีลายที่ต้องพิมพ์ · ตัด/เย็บอย่างเดียว)'
+  it('เลือกลูกค้าส่งผ้ามาเอง = แนะนำ', () => {
+    expect(customerFabric(spec('tshirt', { print_method: [fabric] }))).toBe(true)
+  })
+  it('เทคนิคพิมพ์อื่น / ยังไม่เลือก = ไม่แนะนำ', () => {
+    expect(customerFabric(spec('tshirt', { print_method: ['DTF'] }))).toBe(false)
+    expect(customerFabric(spec('tshirt'))).toBe(false)
+    expect(customerFabric({})).toBe(false)
+  })
+  it('ใบงานบริการ = ไม่แนะนำ (เส้นทางล็อกตามใบอยู่แล้ว)', () => {
+    expect(customerFabric(spec('svc_sew', { print_method: [fabric] }))).toBe(false)
   })
 })

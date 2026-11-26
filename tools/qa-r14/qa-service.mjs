@@ -129,6 +129,31 @@ try {
     })
   }
 
+  await step('customer-fabric-hint-on-receive', async () => {
+    const fabric = 'ลูกค้าส่งผ้ามาเอง (ไม่มีลายที่ต้องพิมพ์ · ตัด/เย็บอย่างเดียว)'
+    for (const [no, method] of [['SC889101', fabric], ['SC889102', 'DTF']]) {
+      const data = await fillForm('tshirt', no, { print_method: [method] })
+      await as(id('admin1'), 'public.save_confirmation_draft($2::jsonb)', [JSON.stringify(data)])
+    }
+    const hintFor = async no => {
+      await t.goto('admin1', '#/', 1440)
+      await t.clickButton('รับงานใหม่')
+      await t.waitText('รับงานเข้าโรงงาน')
+      await waitFor(() => t.ev(n => [...document.querySelectorAll('[role="dialog"] select option')].some(o => o.textContent.includes(n)), no), 'ใบร่างในรายการ', 10000)
+      await t.ev(n => {
+        const sel = [...document.querySelectorAll('[role="dialog"] select')].find(s => [...s.options].some(o => o.textContent.includes(n)))
+        sel.value = [...sel.options].find(o => o.textContent.includes(n)).value
+        sel.dispatchEvent(new Event('change', { bubbles: true }))
+      }, no)
+      await waitFor(() => t.ev(n => [...document.querySelectorAll('[role="dialog"] input')].some(i => i.value === n), no), 'เปิดใบ ' + no, 10000)
+      return (await dialogText()).includes('ผ้าที่ตัดมาแล้วเย็บอย่างเดียว ให้ทำใบ "เย็บอย่างเดียว"')
+    }
+    if (!(await hintFor('SC889101'))) throw new Error('ใบลูกค้าส่งผ้ามาเอง ไม่มีคำแนะนำ')
+    await t.screenshot('receive-customer-fabric-hint-1440')
+    if (await hintFor('SC889102')) throw new Error('ใบ DTF มีคำแนะนำผ้าลูกค้า')
+    return 'ลูกค้าส่งผ้ามาเอง = แนะนำใบเย็บอย่างเดียว · DTF = ไม่แนะนำ'
+  })
+
   await step('board-badges-and-drawer', async () => {
     await t.goto('admin1', '#/board', 1440)
     await t.waitText('SC889006')

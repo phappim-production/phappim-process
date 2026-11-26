@@ -9,7 +9,7 @@ import { confirmationPath, draftFromConfirmation, FORM_LOCK_REASON, isFormDraft,
 import { draftLabel, formDataFromDraft, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
 import { formInSameWindow, openFormWindow } from '../lib/install'
 import { specMockups } from '../data/jobMockups'
-import { SERVICE_ROUTES, serviceRoute, specProduct, suppliedChecklist } from '../data/service'
+import { CUSTOMER_FABRIC_HINT, SERVICE_ROUTES, customerFabric, serviceRoute, specProduct, suppliedChecklist } from '../data/service'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
 import { receiveForecast, type SewFloor } from '../proto/capacity'
 import { dueDateWarning, shortDate, thaiFullDate, yearOutOfRange } from '../proto/format'
@@ -252,6 +252,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
         <p className="text-sm text-muted">{draft.route
           ? `ลำดับสถานี: ${ROUTES[draft.route].stations.map(s => STATION_NAME[s]).join(' → ')}`
           : 'แอดมินเลือกเส้นทางเองทุกงาน (ระบบไม่เลือกให้ตามเทคนิคพิมพ์) · เลือกแล้วจะเห็นลำดับสถานี'}</p>
+        {customerFabric(draft.spec) && <p className="rounded-xl bg-info-soft px-3 py-2 font-medium text-info">{CUSTOMER_FABRIC_HINT}</p>}
         {recipeIssue && <p role="alert" className="rounded-xl bg-warn-soft px-3 py-2 font-medium text-warn">{recipeIssue}</p>}
 
         {/* ขึ้นตัวอย่างเฉพาะงานที่ลูกค้าจ่ายค่าตัวอย่าง · ไม่มีค่าตั้งต้น ต้องเลือกเอง */}

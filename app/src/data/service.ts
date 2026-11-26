@@ -33,6 +33,14 @@ export function specProduct(spec: Spec): string | null {
   return text(part(spec, 'svc_sew').garment_code) || null
 }
 
+export const CUSTOMER_FABRIC_HINT = 'ลูกค้าส่งผ้ามาเอง: ผ้าผืนที่ต้องตัดใช้เส้นทาง "ไม่มีงานพิมพ์" (ตัด → เย็บ) · ผ้าที่ตัดมาแล้วเย็บอย่างเดียว ให้ทำใบ "เย็บอย่างเดียว" ในหมวดงานบริการของฟอร์มใบยืนยันแทนใบนี้'
+
+export function customerFabric(spec: Spec): boolean {
+  if (serviceRoute(spec) || typeof spec.product !== 'string') return false
+  const methods = part(spec, spec.product).print_method
+  return Array.isArray(methods) && methods.some(m => text(m).startsWith('ลูกค้าส่งผ้ามาเอง'))
+}
+
 export const customerFilm = (spec: Spec) => spec.product === 'svc_dtf' && part(spec, 'svc_dtf').film_source === FILM_CUSTOMER
 
 // รายการตั้งต้นของขั้นรอผลิต = ของที่ลูกค้าส่งมาตามใบ · วันคาดว่าได้รับ = วันที่ของจะถึงโรงงาน (นับถึงสิ้นวันทำงาน 17:00)
