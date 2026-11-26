@@ -194,12 +194,53 @@ try {
     await t.ev(() => [...document.querySelectorAll('input[type=checkbox][data-k="size_sets"]')].find(c => c.value === 'อื่นๆ').click())
     await t.fillInput('input[data-k="size_sets__other"]', 'เด็ก 2XL, 10 ปี')
     await t.ev(() => document.querySelector('input[data-k="size_sets__other"]').dispatchEvent(new Event('change', { bubbles: true })))
-    await waitFor(() => t.ev(() => [...document.querySelectorAll('th')].some(h => h.textContent.trim() === '10 ปี')), 'คอลัมน์ไซซ์ที่พิมพ์เอง', 8000)
-    const heads = await t.ev(() => [...new Set([...document.querySelectorAll('th')].map(h => h.textContent.trim()))].filter(x => /เด็ก|ปี/.test(x)))
+    await waitFor(() => t.ev(() => [...document.querySelectorAll('th input.sizename')].some(h => h.value === '10 ปี')), 'คอลัมน์ไซซ์ที่พิมพ์เอง', 8000)
+    const heads = await t.ev(() => [...new Set([...document.querySelectorAll('th input.sizename')].map(h => h.value))].filter(x => /เด็ก|ปี/.test(x)))
     if (!heads.includes('เด็ก 2XL') || !heads.includes('เด็ก XL')) throw new Error(heads.join(','))
     await t.ev(() => document.querySelector('input[data-k="size_sets__other"]').scrollIntoView({ block: 'center' }))
     await t.screenshot('service-size-other-1440')
     return heads.join(' · ')
+  })
+
+  await step('form-size-rename', async () => {
+    const change = (sel, value) => t.ev((s, v) => { const el = document.querySelector(s); el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })) }, sel, value)
+    const read = () => t.ev(() => ({
+      heads: [...document.querySelectorAll('th input.sizename')].map(i => i.value),
+      plain: [...document.querySelectorAll('table.ft th')].map(h => h.textContent.trim()).filter(x => x.startsWith('เด็ก SS')),
+      q12: document.querySelector('input[data-c="q:1-2"]')?.value ?? null,
+      qSS: document.querySelector('input[data-c="q:เด็ก SS"]')?.value ?? null,
+    }))
+    const otherBox = () => t.ev(() => [...document.querySelectorAll('input[type=checkbox][data-k="size_sets"]')].find(c => c.value === 'อื่นๆ').click())
+    await t.ev(() => { window.__alerts = []; window.alert = m => window.__alerts.push(m) })
+    await change('input[data-c="q:เด็ก SS"]', '5')
+    await change('input[data-rename="เด็ก SS"]', '1-2')
+    let r = await read()
+    if (!r.heads.includes('1-2') || r.heads.includes('เด็ก SS') || r.q12 !== '5' || r.qSS !== null) throw new Error('เปลี่ยนชื่อ ' + JSON.stringify(r))
+    await change('input[data-rename="เด็ก S"]', '1-2')
+    const dup = await t.ev(() => window.__alerts.join(' | '))
+    r = await read()
+    if (!/มีไซซ์ชื่อ "1-2" ในตารางแล้ว/.test(dup) || !r.heads.includes('เด็ก S')) throw new Error('ชื่อซ้ำ ' + dup + JSON.stringify(r))
+    await otherBox()
+    r = await read()
+    if (r.heads.length || r.qSS !== '5' || r.q12 !== null || !r.plain.length) throw new Error('เอา "อื่นๆ" ออก ' + JSON.stringify(r))
+    await otherBox()
+    r = await read()
+    if (r.q12 !== '5' || !r.heads.includes('1-2')) throw new Error('เลือก "อื่นๆ" อีกครั้ง ' + JSON.stringify(r))
+    await change('input[data-k="size_sets__other"]', '')
+    const sent = await t.ev(() => {
+      const p = systemCopy().p.svc_sew
+      return { names: p.size_names, q: p.sizes[0].q, sizeIssue: validate().filter(m => m.id === 'fld_p_size_sets').map(m => m.why) }
+    })
+    if (JSON.stringify(sent.names) !== '{"เด็ก SS":"1-2"}' || sent.q['1-2'] !== '5' || 'เด็ก SS' in sent.q || sent.sizeIssue.length) throw new Error('ส่งเข้าระบบ ' + JSON.stringify(sent))
+    await change('input[data-rename="เด็ก SS"]', '')
+    r = await read()
+    if (r.qSS !== '5' || !r.heads.includes('เด็ก SS')) throw new Error('ลบชื่อ = กลับชื่อเดิม ' + JSON.stringify(r))
+    const empty = await t.ev(() => validate().filter(m => m.id === 'fld_p_size_sets').map(m => m.why).join())
+    if (!/แก้ชื่อไซซ์ที่หัวตาราง/.test(empty)) throw new Error('เลือกอื่นๆ แต่ไม่ได้เพิ่ม/แก้ชื่อ ควรเตือน: ' + empty)
+    await change('input[data-rename="เด็ก SS"]', '1-2')
+    await t.ev(() => document.querySelector('input.sizename').scrollIntoView({ block: 'center' }))
+    await t.screenshot('service-size-rename-1440')
+    return 'เด็ก SS → 1-2 จำนวนตามไป · ชื่อซ้ำเตือน · เอา/ใส่ "อื่นๆ" จำนวนไม่หาย · ระบบได้ชื่อ 1-2'
   })
 
   for (const w of [375, 768]) {

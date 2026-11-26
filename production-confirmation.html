@@ -92,6 +92,7 @@ table.ft th,table.ft td{border-bottom:1px solid var(--line);padding:4px;text-ali
 table.ft th{background:#f7f8f6;font-weight:600;padding:6px 4px;white-space:nowrap}
 table.ft td input{padding:5px 6px;text-align:center;min-width:52px}
 table.ft td.l input{text-align:left;min-width:150px}
+table.ft th input.sizename{width:6.5em;min-width:52px;padding:5px 6px;text-align:center;font-weight:600;background:#fff}
 table.ft td .std-cell{display:flex;align-items:center;gap:6px}
 table.ft td .std-cell>span{flex:1;text-align:left;padding:5px 6px;min-width:150px}
 table.ft td .std{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font-size:14px;white-space:nowrap;cursor:pointer}
@@ -563,7 +564,7 @@ function printSec(methods, positions, x={}){
   ]};
 }
 const SIZE_OWN='กำหนดขนาดเอง (ตามตารางด้านล่าง)';
-const SIZE_OTHER_PH='พิมพ์ไซซ์ที่ไม่มีในชุด คั่นด้วย , เช่น เด็ก 2XL, 10 ปี, 12 ปี';
+const SIZE_OTHER_PH='ไซซ์ที่ไม่มีในชุด คั่นด้วย , เช่น 10 ปี, 12 ปี · ถ้าแค่เปลี่ยนชื่อไซซ์ แก้ที่หัวตารางจำนวน';
 const SIZE_STD='ตารางไซซ์มาตรฐานโรงงาน';
 const MEASURE_TOP=[ { c:'chest', label:'รอบอก', t:'text', opt:true }, { c:'length', label:'ความยาวตัว', t:'text', opt:true }, { c:'sleeve', label:'ความยาวแขน', t:'text', opt:true } ];
 const MEASURE_PANTS=[ { c:'waist', label:'รอบเอว', t:'text', opt:true }, { c:'hip', label:'รอบสะโพก', t:'text', opt:true }, { c:'leg', label:'ความยาวขา', t:'text', opt:true } ];
@@ -1259,10 +1260,22 @@ const sampleDateShown = h => h.sample===SAMPLE_YES||h.sample===SAMPLE_DEV;
 
 // ไซซ์ที่แอดมินพิมพ์เองในช่อง "อื่นๆ" (คั่นด้วย , ) ต่อท้ายชุดที่เลือก · ชื่อซ้ำกับชุดอื่นไม่สร้างคอลัมน์ซ้ำ
 const otherSizes = v => String(v.size_sets__other||'').split(/[,\n]/).map(s=>s.trim()).filter(Boolean).slice(0,20);
-function sizeCols(v){
-  const sets=v.size_sets||[], cols=sets.flatMap(n=>SIZESETS[n]||[]);
-  if(sets.includes(OTHER)) otherSizes(v).forEach(s=>{ if(!cols.includes(s)) cols.push(s); });
-  return cols;
+const namesSizes = v => (v.size_sets||[]).includes(OTHER);
+// เลือก "อื่นๆ" = ลูกค้ากำหนดไซซ์เอง แก้ชื่อที่หัวตารางได้ (เช่น เด็ก SS → 1-2) · จำนวนเก็บตามชื่อที่แก้ ระบบจึงเห็นชื่อเดียวกับใบ
+function sizePairs(v){
+  const sets=v.size_sets||[], base=sets.flatMap(n=>SIZESETS[n]||[]);
+  if(sets.includes(OTHER)) otherSizes(v).forEach(s=>{ if(!base.includes(s)) base.push(s); });
+  const names=namesSizes(v)&&v.size_names&&typeof v.size_names==='object'?v.size_names:{}, seen=new Set();
+  return base.map(b=>[b,String(names[b]||'').trim()||b]).filter(([,f])=>!seen.has(f)&&seen.add(f));
+}
+const sizeCols = v => sizePairs(v).map(([,f])=>f);
+function keepSizeQty(v,change){
+  const before=new Map(sizePairs(v)); change(); const after=new Map(sizePairs(v));
+  const moves=[...before].filter(([b,f])=>after.has(b)&&after.get(b)!==f).map(([b,f])=>[f,after.get(b)]);
+  if(!moves.length) return;
+  (Array.isArray(v.sizes)?v.sizes:[]).forEach(r=>{ const old=r.q||{}, q={...old};
+    moves.forEach(([from])=>delete q[from]); moves.forEach(([from,to])=>{ if(old[from]!==undefined) q[to]=old[from]; }); r.q=q; });
+  (Array.isArray(v.measure_rows)?v.measure_rows:[]).forEach(r=>{ const m=moves.find(([from])=>String(r.size||'').trim()===from); if(m) r.size=m[1]; });
 }
 function allFields(){ return allSecs().flatMap(sec=>sec.fields); }
 function rows(v,id,opt){ if(!Array.isArray(v[id])||(!opt&&!v[id].length)) v[id]=opt?[]:[{q:{}}]; return v[id]; }
@@ -1376,7 +1389,11 @@ function fieldHTML(f,s,v){
     case 'sizeTable': {
       const cols=sizeCols(v), rs=rows(v,f.id);
       if(!cols.length){ b=`<div class="hint">เลือกชุดไซซ์ก่อน</div>`; break; }
-      b=`<div class="tbl-wrap"><table class="ft"><thead><tr><th>${esc(f.rowLabel||'แบบ / สี')}</th><th>รูป</th>${cols.map(c=>`<th>${c}</th>`).join('')}<th>รวม</th><th></th></tr></thead><tbody>`+
+      const named=namesSizes(v);
+      b=(named?`<div class="hint">ลูกค้ากำหนดไซซ์เอง: แก้ชื่อไซซ์ที่หัวตารางได้เลย เช่น เด็ก SS → 1-2 · ลบชื่อออก = กลับเป็นชื่อเดิม</div>`:'')+
+        `<div class="tbl-wrap"><table class="ft"><thead><tr><th>${esc(f.rowLabel||'แบบ / สี')}</th><th>รูป</th>${sizePairs(v).map(([base,c])=>named
+          ?`<th><input type="text" class="sizename" data-rename="${esc(base)}" value="${esc(c)}" maxlength="30" aria-label="ชื่อไซซ์ (เดิม ${esc(base)})" title="แก้ชื่อไซซ์ · เดิม ${esc(base)}"></th>`
+          :`<th>${esc(c)}</th>`).join('')}<th>รวม</th><th></th></tr></thead><tbody>`+
         rs.map((r,i)=>`<tr><td class="l"><input type="text" data-t="${f.id}" data-r="${i}" data-c="label" value="${esc(r.label)}" placeholder="เช่น สีขาว ลาย A"></td><td class="l">${imgCell(f.id,i,r.img)}</td>`+
           cols.map(c=>`<td><input type="number" min="0" data-t="${f.id}" data-r="${i}" data-c="q:${esc(c)}" value="${esc(r.q[c])}"></td>`).join('')+
           `<td data-rt="${i}">0</td><td>${rs.length>1?`<button class="btn x" data-act="delrow" data-id="${f.id}" data-r="${i}" title="ลบแถว">✕</button>`:''}</td></tr>`).join('')+
@@ -1697,8 +1714,13 @@ form.addEventListener('change',e=>{
     const box=form.querySelector(`.co-box[data-co-i="${d.co}"]`); if(box) box.innerHTML=coBoxInner(c,+d.co,coRefs()); save(); return; }
   if(t.type==='radio'&&d.k){ scope(d.s)[d.k]=t.value; return rerender(); }
   // ไซซ์อื่นๆ เปลี่ยนคอลัมน์ตารางจำนวน · วาดใหม่ตอนออกจากช่อง (วาดทุกตัวอักษรจะเสียตำแหน่งพิมพ์)
-  if(d.k==='size_sets__other'){ scope(d.s)[d.k]=t.value; return rerender(); }
-  if(t.type==='checkbox'&&d.k){ const v=scope(d.s); const arr=new Set(v[d.k]||[]); t.checked?arr.add(t.value):arr.delete(t.value); v[d.k]=[...arr]; return rerender(); }
+  if(d.k==='size_sets__other'){ const v=scope(d.s); keepSizeQty(v,()=>{ v[d.k]=t.value; }); return rerender(); }
+  if(d.rename!==undefined){ const v=scope('p'), base=d.rename, want=t.value.trim().slice(0,30);
+    if(want&&sizePairs(v).some(([b,f])=>b!==base&&f===want)){ alert('มีไซซ์ชื่อ "'+want+'" ในตารางแล้ว ใช้ชื่ออื่น'); return rerender(); }
+    keepSizeQty(v,()=>{ const n={...(v.size_names||{})}; if(!want||want===base) delete n[base]; else n[base]=want; v.size_names=n; });
+    return rerender(); }
+  if(t.type==='checkbox'&&d.k){ const v=scope(d.s); const toggle=()=>{ const arr=new Set(v[d.k]||[]); t.checked?arr.add(t.value):arr.delete(t.value); v[d.k]=[...arr]; };
+    if(d.k==='size_sets') keepSizeQty(v,toggle); else toggle(); return rerender(); }
   if(t.type==='checkbox'&&d.std!==undefined){ scope('p')[d.t][+d.r][d.c]=t.checked?d.std:''; return rerender(); }
   if(t.type==='checkbox'&&d.pl){ const v=scope('p'); v[d.pl]=v[d.pl]||{}; (v[d.pl][d.pos]=v[d.pl][d.pos]||{}).on=t.checked; rerender();
     if(t.checked){ const ms=[].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m));
@@ -1862,10 +1884,12 @@ function changedLabels(){
 // ช่องที่ถูกซ่อนเพราะเปลี่ยนตัวเลือก (เช่น ผ้าเช็ดหน้า ↔ ผ้าพันคอ) ไม่ส่งเข้าระบบ ไม่อย่างนั้นหน้างานเห็นสเปกที่ลูกค้าไม่ได้เลือก
 function systemCopy(){
   const shown=scope('p'), part={...shown};
-  const drop=(obj,f)=>{ delete obj[f.id]; delete obj[f.id+'__other']; delete obj[f.id+'__unit']; delete obj[f.id+'__na']; (f.parts||[]).forEach((_,i)=>delete obj[f.id+'_'+i]); };
+  const drop=(obj,f)=>{ delete obj[f.id]; delete obj[f.id+'__other']; delete obj[f.id+'__unit']; delete obj[f.id+'__na']; (f.parts||[]).forEach((_,i)=>delete obj[f.id+'_'+i]); if(f.id==='size_sets') delete obj.size_names; };
   // ช่อง id เดียวกันมีหลายแบบ (ขนาดสำเร็จ เสื้อ / กางเกง / ชุด) · ลบเฉพาะ id ที่ไม่มีแบบไหนแสดงอยู่เลย
   const keep=new Set(allFields().filter(f=>visible(f,shown)&&!(naAllowed(f)&&isNA(f,shown))).map(f=>f.id));
   allFields().forEach(f=>{ if(!keep.has(f.id)) drop(part,f); });
+  if(!namesSizes(part)) delete part.size_names;
+  else if(part.size_names) part.size_names=Object.fromEntries(sizePairs(part).filter(([b,f])=>b!==f));
   if(Array.isArray(part.sizes)){ const cols=new Set(sizeCols(part));
     part.sizes=part.sizes.map(r=>({ ...r, q:Object.fromEntries(Object.entries(r.q||{}).filter(([k])=>cols.has(k))) })); }
   const head={...state.h};
@@ -2020,7 +2044,8 @@ function fieldIssue(f,v){
       case 'text': case 'date': case 'textarea': bad=f.req&&!String(val??'').trim(); break;
       case 'number': bad=f.req&&!(num(val)>0); break;
       case 'radio': bad=(f.req&&!val)||(val===OTHER&&!String(v[f.id+'__other']??'').trim()); if(bad&&val===OTHER) why='ระบุรายละเอียด "อื่นๆ"'; break;
-      case 'check': bad=(f.req&&!(val||[]).length)||((val||[]).includes(OTHER)&&!String(v[f.id+'__other']??'').trim()); break;
+      case 'check': bad=(f.req&&!(val||[]).length)||((val||[]).includes(OTHER)&&!String(v[f.id+'__other']??'').trim()&&!(f.id==='size_sets'&&sizePairs(v).some(([b,n])=>b!==n)));
+        if(bad&&f.id==='size_sets'&&(val||[]).includes(OTHER)) why='พิมพ์ไซซ์เพิ่มในช่อง "อื่นๆ" หรือแก้ชื่อไซซ์ที่หัวตารางจำนวน'; break;
       case 'dims': bad=f.req&&f.parts.some((p,i)=>i<2&&!(num(v[f.id+'_'+i])>0)); break;
       case 'sizeTable': { const cols=sizeCols(v), rs=rows(v,f.id);
         const tot=r=>cols.reduce((a,c)=>a+num(r.q[c]),0);
