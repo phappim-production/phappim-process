@@ -134,6 +134,7 @@ export const isOutLate = (j: Job, now: Date) => !!j.out && j.out.backAt.getTime(
 
 export type ColumnKey = 'materials' | 'sample' | 'sample_review' | StationCode | 'done'
 export const COLUMNS: { key: ColumnKey; name: string }[] = [
+  { key: 'materials', name: 'รอผลิต' },
   { key: 'sample', name: 'ขึ้นตัวอย่าง' },
   { key: 'sample_review', name: 'รอผลตัวอย่าง' },
   { key: 'print', name: 'พิมพ์' },
@@ -148,7 +149,7 @@ export const COLUMNS: { key: ColumnKey; name: string }[] = [
 ]
 
 export const STATION_GROUPS: { name: string; keys: ColumnKey[] }[] = [
-  { name: 'ก่อนผลิต', keys: ['sample', 'sample_review'] },
+  { name: 'ก่อนผลิต', keys: ['materials', 'sample', 'sample_review'] },
   { name: 'เฟส 1', keys: ['print', 'press', 'cut', 'dtf_press', 'emb', 'outside'] },
   { name: 'เฟส 2', keys: ['sew', 'qc_pack', 'done'] },
 ]
@@ -178,8 +179,6 @@ export function startStation(raw: string | null, columns: readonly { key: Column
 export function columnOf(j: Job): ColumnKey {
   // กันข้อมูลเพี้ยน: งานผลิตที่ไม่มีสถานี ให้ไปอยู่สถานีแรกของเส้นทาง
   if (j.phase === 'production') return j.station ?? ROUTES[j.route].stations[0]
-  // งานเก่าที่ค้างขั้นรอวัตถุดิบ (ยกเลิกขั้นนี้แล้ว) แสดงที่จุดถัดไป ไม่ให้หายจากบอร์ด
-  if (j.phase === 'materials') return j.needsSample === false ? ROUTES[j.route].stations[0] : 'sample'
   return j.phase
 }
 

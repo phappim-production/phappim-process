@@ -266,3 +266,10 @@ it('วันคาดว่าเสร็จนับจากวันไท�
   expect(workdaysUntil(new Date('2026-11-27T23:59:00+07:00'), now)).toBe(1)
   expect(lateDays(new Date('2026-11-28T01:00:00+07:00'), new Date('2026-11-27T23:59:00+07:00'))).toBe(1)
 })
+
+it('งานรอผลิตที่ต้องขึ้นตัวอย่าง คาดเสร็จช้ากว่างานรอผลิตที่ไม่ขึ้นตัวอย่าง (นับวันตัวอย่าง + ลูกค้ายืนยัน)', () => {
+  const waiting = { ...job, phase: 'materials' as const, station: undefined, status: undefined }
+  const plain = simulate([{ ...waiting, needsSample: false }], friday).finishDay.get('j1')!
+  const sample = simulate([{ ...waiting, needsSample: true }], friday).finishDay.get('j1')!
+  expect(sample - plain).toBeCloseTo(LEAD.sample + LEAD.sampleReview, 5)
+})

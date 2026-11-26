@@ -25,7 +25,7 @@ export type LoadState =
 
 const DAY = 86_400_000
 // ตารางที่เปลี่ยนแล้วต้องโหลดใหม่ · ทุกการกดงานบันทึก events จึงครอบทุกขั้นของงาน
-const WATCH = ['jobs', 'outsource_runs', 'events', 'job_materials', 'issues', 'sewing_machines', 'machine_assignments', 'machine_bookings'] as const
+const WATCH = ['jobs', 'outsource_runs', 'events', 'job_materials', 'job_material_photos', 'issues', 'sewing_machines', 'machine_assignments', 'machine_bookings'] as const
 // เฉพาะคอลัมน์ที่หน้าจอใช้ · ไม่ดึง spec (คำตอบทั้งใบยืนยัน) เพราะโหลดใหม่ทุกครั้งที่มีคนกด
 const JOB_COLUMNS = 'id, confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, phase, current_station, station_status, stage_entered_at, sample_round, needs_sample, develop, materials_waiting_depts, dtf_film_eta, dtf_film_received_at, sew_count, is_rework, rework_qty, hold_reason, finished_at, queue_seq, mockup_path, delivered_at, delivery_note'
 

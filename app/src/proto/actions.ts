@@ -1,5 +1,5 @@
 // 1 การ์ด = 1 สิ่งที่ต้องทำต่อ
-import { DEPT_NAME, byQueue, filmLabel, isFilmNotOrdered, isOutLate, isOverdue, isWaitingFilm, leadReportBlocksFinish, missingDepts, STATION_NAME, type Job } from './model.ts'
+import { byQueue, filmLabel, isFilmNotOrdered, isOutLate, isOverdue, isWaitingFilm, leadReportBlocksFinish, STATION_NAME, type Job } from './model.ts'
 import { spaced } from './format.ts'
 import { thai, word, type Word } from '../i18n/word.ts'
 
@@ -15,11 +15,8 @@ export function nextAction(j: Job, now: Date): NextAction | null {
   switch (j.phase) {
     case 'done':
       return null
-    case 'materials': {
-      const depts = missingDepts(j)
-      const list = word(depts.map((_, i) => `{d${i}}`).join(', '), Object.fromEntries(depts.map((d, i) => [`d${i}`, { th: DEPT_NAME[d] }])))
-      return make(word('ติ๊กวัตถุดิบ: รอ {depts}', { depts: list }), 'warn', 3)
-    }
+    case 'materials':
+      return make(word('เช็ควัตถุดิบ + ถ่ายรูป แล้วปล่อยเข้าไลน์การผลิต'), 'warn', 3)
     case 'sample_review':
       return make(word('แอดมินบันทึกผลตัวอย่างรอบ {n}', { n: j.sampleRound }), 'info', 4)
   }

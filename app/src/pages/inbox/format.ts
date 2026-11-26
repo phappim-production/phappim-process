@@ -52,7 +52,7 @@ export const KIND_LABELS: Record<InboxKind, string> = {
   machine_broken: 'จักรเสีย',
   sample_failed: 'ตัวอย่างไม่ผ่าน',
   due_soon: 'ใกล้กำหนดส่ง',
-  materials_late: 'รอวัตถุดิบ',
+  materials_late: 'รอผลิตนาน',
   delay_report: 'รายงานล่าช้า',
   sewing_issue: 'ปัญหาเย็บ',
   mockup_pending: 'ม็อคอัพรออนุมัติ',

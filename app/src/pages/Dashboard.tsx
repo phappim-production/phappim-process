@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
-  COLUMNS, DEPT_NAME, ROUTES, SLA_LABEL, byQueue, isOutLate, STATION_NAME, STATUS_NAME, stationNo,
-  filmLabel, savedStation, startStation, isDoneToday, isFilmLate, isFilmNotOrdered, isOverdue, isWaitingFilm, missingDepts, queueHead,
+  COLUMNS, ROUTES, SLA_LABEL, byQueue, isOutLate, STATION_NAME, STATUS_NAME, stationNo,
+  filmLabel, savedStation, startStation, isDoneToday, isFilmLate, isFilmNotOrdered, isOverdue, isWaitingFilm, queueHead,
   type ColumnKey, type Job, type RouteCode, type StationCode,
 } from '../proto/model'
 import { lateDays, sewFloorOf, simulate, workdayToDate } from '../proto/capacity'
@@ -300,7 +300,7 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
         className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white hover:bg-brand-700">
         <IconInbox className="size-5" />รับงานใหม่
       </button>
-      {received && <p role="status" className="rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">ส่งงาน {received} เข้าโรงงานแล้ว · ขึ้นบอร์ดสถานีแรกทันที</p>}
+      {received && <p role="status" className="rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">ส่งงาน {received} เข้าโรงงานแล้ว{receivedWhere(allJobs, received)}</p>}
       <ConfirmationOutbox onReceive={id => { setReceived(null); setDraftId(id); setReceiving(true) }} onRevised={refresh} />
     </div>
   )
@@ -552,6 +552,12 @@ function stripe(j: Job, now: Date): Tone {
   return 'neutral'
 }
 
+function receivedWhere(jobs: Job[], no: string): string {
+  const phase = jobs.find(j => j.no === no)?.phase
+  if (phase === 'materials') return ' · อยู่คอลัมน์ "รอผลิต" เช็ควัตถุดิบ + ถ่ายรูป แล้วกดปล่อยเข้าไลน์การผลิต'
+  return phase ? ' · ขึ้นบอร์ดสถานีแรกทันที' : ''
+}
+
 const blockedByFilmOrder = (j: Job) => j.station === 'dtf_press' && j.status === 'queued' && isFilmNotOrdered(j)
 
 function JobCard({ job: j, now, sampleTag, onOpen }: { job: Job; now: Date; sampleTag?: boolean; onOpen: () => void }) {
@@ -562,6 +568,7 @@ function JobCard({ job: j, now, sampleTag, onOpen }: { job: Job; now: Date; samp
     : isWaitingFilm(j) ? tx('รอฟิล์ม')
     : blockedByFilmOrder(j) ? tx('ยังไม่ได้สั่งฟิล์ม')
     : j.phase === 'done' ? tx(j.delivered ? 'จัดส่งแล้ว' : 'เสร็จ · รอส่ง')
+    : j.phase === 'materials' ? tx('รอเช็ควัตถุดิบ')
     : j.phase === 'sample' && j.station ? tx(STATION_NAME[j.station])
     : j.status ? tx(STATUS_NAME[j.status]) : null
   const tone = stripe(j, now)
@@ -604,7 +611,7 @@ function CardStatus({ job: j, now }: { job: Job; now: Date }) {
   const rows: ReactNode[] = []
   const day = (at: Date) => ({ at })
 
-  if (j.phase === 'materials') rows.push(<Pill key="m" tone="warn" dot>รอ {missingDepts(j).map(d => DEPT_NAME[d]).join(', ')}</Pill>)
+  if (j.phase === 'materials') rows.push(<Pill key="m" tone="warn" dot>{t('รอเช็ควัตถุดิบ')}</Pill>)
   if ((j.phase === 'sample' || j.phase === 'production') && j.station && j.status) {
     const tone: Tone = j.status === 'doing' ? 'info' : j.status === 'hold' ? 'danger' : 'neutral'
     rows.push(<Pill key="s" tone={tone} dot>{j.phase === 'sample' ? `${t(STATION_NAME[j.station])} · ` : ''}{t(STATUS_NAME[j.status])}</Pill>)
@@ -654,6 +661,7 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
   const since = durationWord(now.getTime() - j.since.getTime())
   const steps: { label: Word; state: StepState }[] = [
     { label: { th: 'รับงานเข้า' }, state: 'done' },
+    { label: { th: 'เช็ควัตถุดิบ · ปล่อยเข้าไลน์' }, state: (j.phase === 'materials' ? 'current' : 'done') as StepState },
     ...(j.needsSample === false ? [] : [
       { label: j.sampleRound > 1 ? { th: 'ขึ้นตัวอย่าง (รอบ {n})', vars: { n: j.sampleRound } } : { th: 'ขึ้นตัวอย่าง' }, state: (j.phase === 'materials' ? 'todo' : j.phase === 'sample' ? 'current' : 'done') as StepState },
       { label: { th: 'ลูกค้ายืนยันตัวอย่าง' }, state: (['materials', 'sample'].includes(j.phase) ? 'todo' : j.phase === 'sample_review' ? 'current' : 'done') as StepState },
@@ -756,26 +764,14 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
             <ol>{steps.map((s, i) => <Step key={i} label={s.label} state={s.state} last={i === steps.length - 1} />)}</ol>
           </div>
 
-          {/* แสดงเฉพาะงานเก่าที่ยังค้างขั้นวัตถุดิบ (ยกเลิกขั้นนี้แล้ว) และสถานะฟิล์ม */}
-          {(j.phase === 'materials' || j.film) && (
+          {j.film && (
           <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
-            <h3 className="mb-2 font-semibold">{j.phase === 'materials' ? 'วัตถุดิบ' : <Tr inline th={filmLabel(j.route)} />}</h3>
-            <ul className="grid gap-2">
-              {j.phase === 'materials' && (['admin', 'qc', 'production'] as const).map(d => (
-                <li key={d} className="flex items-center gap-2">
-                  {j.materials[d] ? <IconCheck className="size-4 text-ok" /> : <IconClock className="size-4 text-warn" />}
-                  <span className="flex-1">{DEPT_NAME[d]}</span>
-                  <Pill tone={j.materials[d] ? 'ok' : 'warn'}>{j.materials[d] ? 'ติ๊กครบ' : 'ยังไม่ติ๊ก'}</Pill>
-                </li>
-              ))}
-              {j.film && (
-                <li className="flex items-center gap-2">
-                  <IconFilm className={`size-4 ${j.film.received ? 'text-ok' : isFilmLate(j, now) ? 'text-danger' : 'text-warn'}`} />
-                  <span className="flex-1">{t(filmLabel(j.route))}</span>
-                  <Pill tone={j.film.received ? 'ok' : isFilmLate(j, now) ? 'danger' : 'warn'}>{j.film.received ? t('ได้รับแล้ว') : t('ETA {at}', { at: { at: j.film.eta } })}</Pill>
-                </li>
-              )}
-            </ul>
+            <h3 className="mb-2 font-semibold"><Tr inline th={filmLabel(j.route)} /></h3>
+            <p className="flex items-center gap-2">
+              <IconFilm className={`size-4 ${j.film.received ? 'text-ok' : isFilmLate(j, now) ? 'text-danger' : 'text-warn'}`} />
+              <span className="flex-1">{t(filmLabel(j.route))}</span>
+              <Pill tone={j.film.received ? 'ok' : isFilmLate(j, now) ? 'danger' : 'warn'}>{j.film.received ? t('ได้รับแล้ว') : t('ETA {at}', { at: { at: j.film.eta } })}</Pill>
+            </p>
           </div>
           )}
 

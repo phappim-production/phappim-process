@@ -29,11 +29,14 @@ it('งานรอยืนยันตัวอย่างยังไม่�
   expect(jobInScope(review, boardScope('qc', null))).toBe(false)
 })
 
-it('แยกของที่ QC ตรวจแล้วออก แม้จะยังรอวัตถุดิบของฝ่ายผลิต', () => {
-  const materials: Job = { ...job, phase: 'materials', materials: { ...job.materials, production: false } }
+it('งานรอผลิต (เช็ควัตถุดิบ) เห็นเฉพาะฝ่ายที่ดูทั้งโรงงาน ไม่ขึ้นบอร์ดพนักงานสถานี QC หรือผู้ควบคุมงาน', () => {
+  const materials: Job = { ...job, phase: 'materials', station: undefined, status: undefined }
 
   expect(jobInScope(materials, boardScope('qc', null))).toBe(false)
+  expect(jobInScope(materials, boardScope('staff', null, ['print', 'cut']))).toBe(false)
+  expect(jobInScope(materials, boardScope('supervisor', 1))).toBe(false)
   expect(jobInScope(materials, boardScope('production', null))).toBe(true)
+  expect(jobInScope(materials, boardScope('admin', null))).toBe(true)
 })
 
 it('การเปิดมุมมองเจ้าของไม่เพิ่มสิทธิ์ให้มุมมองผู้บริหาร', () => {

@@ -77,8 +77,8 @@ export async function leadTimeTests({ db, ok }) {
     await db.query(`update public.jobs set created_at = now() where id = $1`, [fresh])
     await db.query('select private.inbox_scan_all()')
     const msg = (await db.query(`select title, body, audience::text from public.inbox_messages where kind = 'sla_over' and dedupe_key = $1`, ['lead:' + overdue])).rows[0]
-    ok('เกินเวลาผลิต แจ้งฝ่ายผลิต/แอดมิน/ผู้บริหาร พร้อมวันรับงานและวันครบ', msg?.title === 'เกินเวลาผลิต SC-LEAD-INBOX'
-      && /รับงาน \d+\/\d+\/\d{4} · เวลาผลิต 10 วันทำงาน ครบ \d+\/\d+\/\d{4}/.test(msg.body) && msg.audience === '{production,admin,manager}', JSON.stringify(msg))
+    ok('เกินเวลาผลิต แจ้งฝ่ายผลิต/แอดมิน/ผู้บริหาร พร้อมวันเริ่มนับและวันครบ', msg?.title === 'เกินเวลาผลิต SC-LEAD-INBOX'
+      && /เริ่มนับ \d+\/\d+\/\d{4} · เวลาผลิต 10 วันทำงาน ครบ \d+\/\d+\/\d{4}/.test(msg.body) && msg.audience === '{production,admin,manager}', JSON.stringify(msg))
     await db.query('select private.inbox_scan_all()')
     ok('แจ้งเตือนเกินเวลาผลิตครั้งเดียวต่องาน', Number(await val(`select count(*) from public.inbox_messages where dedupe_key = $1`, ['lead:' + overdue])) === 1)
     ok('งานที่ยังไม่เกิน ไม่แจ้งเตือน', Number(await val(`select count(*) from public.inbox_messages where dedupe_key = $1`, ['lead:' + fresh])) === 0)

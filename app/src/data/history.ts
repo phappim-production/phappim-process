@@ -74,7 +74,18 @@ export function eventWords(e: EventRow, n: Names, unit = 'ชิ้น'): EventW
       }
     case 'material_checked': return { title: word('ติ๊กวัตถุดิบ: {name}', { name: str(p.name) }), tone: 'ok' }
     case 'material_unchecked': return { title: word('ยกเลิกติ๊กวัตถุดิบ: {name}', { name: str(p.name) }), tone: 'warn' }
+    case 'materials_set': {
+      const items = Array.isArray(p.items) ? p.items.map(str).filter(Boolean) : []
+      return { title: word('ตั้งรายการวัตถุดิบ {n} รายการ', { n: items.length }), detail: free(items.join(', ')), tone: 'neutral' }
+    }
+    case 'material_photos': return { title: word('ถ่ายรูปวัตถุดิบ {n} รูป', { n: num(p.added) }), tone: 'info' }
+    case 'material_photo_removed': return { title: word('ลบรูปวัตถุดิบ 1 รูป'), tone: 'warn' }
     case 'released':
+      if (p.manual === true) return {
+        title: word('ปล่อยเข้าไลน์การผลิต'), tone: 'ok',
+        detail: joined(word('เช็ควัตถุดิบครบ {n} รายการ · รูป {m} รูป', { n: num(p.materials), m: num(p.photos) }),
+          e.phase === 'production' ? word('เข้าผลิตจริงที่สถานีแรก') : word('ไปขึ้นตัวอย่าง{round}', { round })),
+      }
       return e.phase === 'production'
         ? { title: word('เข้าผลิตจริงที่สถานีแรก'), detail: word('งานนี้ไม่ขึ้นตัวอย่าง'), tone: 'ok' }
         : { title: word('ไปขึ้นตัวอย่าง{round}', { round }), tone: 'ok' }

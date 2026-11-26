@@ -108,9 +108,10 @@ test('ไม่มีงานในคิว = ไม่พัง', () => {
 
 test('สิ่งที่ต้องทำต่อของแต่ละสถานะ', () => {
   assert.equal(nextAction(job({ phase: 'done' }), now), null)
-  const mat = nextAction(job({ phase: 'materials', materials: { admin: true, qc: false, production: false } }), now)
-  assert.match(mat.text, /รอ QC, ฝ่ายผลิต/)
-  assert.equal(/[ก-๛]/.test(translate('my', mat.word.th, mat.word.vars)), false, 'QC ภาษาพม่าเห็นชื่อฝ่ายเป็นพม่า')
+  const mat = nextAction(job({ phase: 'materials', station: undefined, status: undefined }), now)
+  assert.equal(mat.text, 'เช็ควัตถุดิบ + ถ่ายรูป แล้วปล่อยเข้าไลน์การผลิต')
+  assert.equal(mat.tone, 'warn')
+  assert.equal(/[ก-๛]/.test(translate('my', mat.word.th, mat.word.vars)), false, 'ภาษาพม่าไม่มีคำไทยหลง')
   const hold = nextAction(job({ station: 'sew', status: 'hold', holdReason: 'จักรเสีย' }), now)
   assert.equal(hold.tone, 'danger')
   assert.match(hold.text, /แก้ปัญหา เย็บงาน: จักรเสีย/)

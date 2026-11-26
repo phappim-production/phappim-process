@@ -34,6 +34,8 @@ await db.exec(`
   grant execute on all functions in schema auth to authenticated, anon;
   -- ฟังก์ชันใน public/private ใช้สิทธิ์ตามที่ migration กำหนดเอง (ทดสอบกฎข้อ 12)
 `)
+// ชุดทดสอบเดิมรับงานแล้วเริ่มสถานีแรกทันที · ขั้นรอผลิต (เช็ควัตถุดิบ) ทดสอบแยกใน materials-check.mjs
+await db.exec('update public.production_settings set materials_check = false')
 
 const count = async t => (await db.query(`select count(*)::int n from public.${t}`)).rows[0].n
 ok('สถานี 9 สถานี', await count('stations') === 9)
@@ -205,6 +207,8 @@ const { bugSweepTests } = await import('./bug-sweep.mjs')
 await bugSweepTests({ db, ok })
 const { sweepLeftoverTests } = await import('./sweep-leftovers.mjs')
 await sweepLeftoverTests({ db, ok })
+const { materialsCheckTests } = await import('./materials-check.mjs')
+await materialsCheckTests({ db, ok })
 const { confirmationAckTests } = await import('./confirmation-ack.mjs')
 await confirmationAckTests({ db, ok, as })
 const { flowR5Tests } = await import('./flow-r5.mjs')

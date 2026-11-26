@@ -88,3 +88,20 @@ describe('เวลาที่ใช้ต่อสถานี: รออน�
     expect(doing.workedMs).toBe(2 * 3_600_000)
   })
 })
+
+describe('ไทม์ไลน์: เช็ควัตถุดิบก่อนเข้าไลน์', () => {
+  const row = (type: string, payload: Record<string, unknown>, phase = 'materials'): EventRow => ({ id: 4, type, phase, station_code: null, payload, by: null, at: '2026-11-26T03:00:00Z' })
+  it('ตั้งรายการ = บอกจำนวนและชื่อรายการ', () => {
+    expect(eventLine(row('materials_set', { items: ['ผ้า', 'ด้าย'] }), names)).toEqual({ title: 'ตั้งรายการวัตถุดิบ 2 รายการ', detail: 'ผ้า, ด้าย', tone: 'neutral' })
+  })
+  it('ถ่ายรูป / ลบรูปวัตถุดิบ', () => {
+    expect(eventLine(row('material_photos', { added: 3 }), names).title).toBe('ถ่ายรูปวัตถุดิบ 3 รูป')
+    expect(eventLine(row('material_photo_removed', { path: 'a/b.jpg' }), names).title).toBe('ลบรูปวัตถุดิบ 1 รูป')
+  })
+  it('แอดมินปล่อยเข้าไลน์ = บอกยอดที่เช็คและที่ไปต่อ · ปล่อยเองตอนรับงาน = ข้อความเดิม', () => {
+    expect(eventLine(row('released', { manual: true, materials: 4, photos: 2 }, 'production'), names))
+      .toEqual({ title: 'ปล่อยเข้าไลน์การผลิต', detail: 'เช็ควัตถุดิบครบ 4 รายการ · รูป 2 รูป · เข้าผลิตจริงที่สถานีแรก', tone: 'ok' })
+    expect(eventLine(row('released', { manual: true, materials: 1, photos: 1 }, 'sample'), names).detail).toMatch(/ไปขึ้นตัวอย่าง$/)
+    expect(eventLine(row('released', {}, 'production'), names).title).toBe('เข้าผลิตจริงที่สถานีแรก')
+  })
+})

@@ -1,6 +1,6 @@
 // ไม่ได้ปิดบังข้อมูล แค่ไม่ให้คนหน้างานงง · ทุกบทบาทกดดูทั้งโรงงานได้ และสิทธิ์จริงบังคับที่ฐานข้อมูล
 import type { Word } from '../i18n/lang.ts'
-import { columnOf, STATION_NAME, type ColumnKey, type Dept, type Job, type StationCode } from '../proto/model.ts'
+import { columnOf, STATION_NAME, type ColumnKey, type Job, type StationCode } from '../proto/model.ts'
 import type { SummaryKind } from '../proto/summary.ts'
 import { SECTION_LABELS, type EmployeeRole, type PageKey, type Section } from './access.ts'
 
@@ -17,7 +17,6 @@ export type BoardScope = {
   sub: string
   columns: ColumnKey[] | null   // null = ทุกคอลัมน์ (ทั้งโรงงาน)
   sampleStations?: StationCode[] // งานขึ้นตัวอย่างเข้าขอบเขตเฉพาะเมื่ออยู่สถานีเหล่านี้
-  materialsDept?: Dept           // คอลัมน์ "รอวัตถุดิบ" แสดงเฉพาะงานที่ยังรอฝ่ายนี้
   showFilm: boolean              // ฟิล์ม DTF เกี่ยวกับแอดมินและคนที่ดูแลรีด DTF เท่านั้น
   tabs: DashTab[]                // แท็บแรก = เปิดมาเจอ
   allowFactory: boolean
@@ -88,7 +87,6 @@ export function boardScope(role: EmployeeRole, section: Section | null, stations
         sub: 'งานรอตรวจ · งานเสร็จล่าสุด',
         columns: ['qc_pack', 'done'],
         sampleStations: ['qc_pack'],
-        materialsDept: 'qc',
         summary: 'qc',
         showFilm: false,
         // คนหน้างานเปิดมาเจอคิวสถานีที่เครื่องจำไว้
@@ -125,7 +123,6 @@ export function jobInScope(job: Job, scope: BoardScope): boolean {
   // ตัวอย่างที่อยู่สถานีของตัวเองคืองานที่ต้องทำ แม้บทบาทนั้นไม่มีคอลัมน์ "ขึ้นตัวอย่าง"
   if (column === 'sample' && scope.sampleStations) return !!job.station && scope.sampleStations.includes(job.station)
   if (!scope.columns.includes(column)) return false
-  if (column === 'materials' && scope.materialsDept) return !job.materials[scope.materialsDept]
   return true
 }
 

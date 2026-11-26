@@ -1,4 +1,4 @@
-import { DEPT_NAME, ROUTES, STATION_NAME, STATUS_NAME, missingDepts, thaiDay, thaiDayDiff, type Job } from './model.ts'
+import { ROUTES, STATION_NAME, STATUS_NAME, thaiDay, thaiDayDiff, type Job } from './model.ts'
 import { thai, word, type Word } from '../i18n/word.ts'
 
 // ใส่ช่องว่างรอบชื่อที่ขึ้นต้น/ลงท้ายด้วยอังกฤษหรือตัวเลข เมื่อวางในประโยคไทย
@@ -38,7 +38,7 @@ export function durationWord(ms: number): Word {
 
 export function stageText(j: Job) {
   switch (j.phase) {
-    case 'materials': return `รอวัตถุดิบ (รอ ${missingDepts(j).map(d => DEPT_NAME[d]).join(', ')})`
+    case 'materials': return 'รอผลิต · เช็ควัตถุดิบ'
     case 'sample': return `ขึ้นตัวอย่าง${j.sampleRound > 1 ? ` รอบ ${j.sampleRound}` : ''}${j.station ? ` · ${STATION_NAME[j.station]}` : ''}`
     case 'sample_review': return 'รอลูกค้ายืนยันตัวอย่าง'
     case 'production': return j.station ? `${STATION_NAME[j.station]} · ${STATUS_NAME[j.status ?? 'queued']}` : 'กำลังผลิต'
