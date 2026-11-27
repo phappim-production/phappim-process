@@ -406,6 +406,24 @@ test('ฟอร์มใบยืนยัน: ฝ่ายผลิตเปิ
   assert.match(doc, /เผื่อเสีย 7 ตัว/)
 })
 
+test('ฟอร์มใบยืนยัน: ผ้าเช็ดหน้าเลือกพับริมเย็บได้ (มีรูป) และต้องใส่ขนาดพับ · ม้วนริมที่มีขนาดในชื่อไม่ถาม', () => {
+  const { api, els, v } = filled('scarf')
+  Object.assign(v, { item: 'ผ้าเช็ดหน้า', sew_mode: 'ลูกค้ากำหนดวิธีเย็บเอง', sew_style: 'พับริมเย็บ' })
+  const opts = api.PRODUCTS.scarf.sections.flatMap(s => s.fields).find(f => f.id === 'sew_style').options
+  assert.ok(opts.includes('พับริมเย็บ') && opts.includes('ม้วนริม 0.6 ซม.'))
+  const ids = () => api.validate().map(m => m.id)
+  assert.ok(ids().includes('fld_p_edge_size'))
+  v.edge_size = '0.6 ซม.'
+  assert.equal(ids().includes('fld_p_edge_size'), false)
+  api.renderDoc()
+  const doc = els.get('#doc').innerHTML
+  assert.match(doc, /รูปแบบการเย็บ<\/span><b>พับริมเย็บ<img class="optimg"/)
+  assert.match(doc, /ขนาดพับ \/ ม้วนริม<\/span><b>0\.6 ซม\./)
+  Object.assign(v, { sew_style: 'ม้วนริม 0.3 ซม.' })
+  delete v.edge_size
+  assert.equal(ids().includes('fld_p_edge_size'), false)
+})
+
 test('ฟอร์มใบยืนยัน: ใบลูกค้าเห็นรูปแบบการเย็บขอบ (ตัวเลือก รูป ขนาด) ของผ้าผืน · ไม่เห็นสีด้าย / วิธีเย็บ', () => {
   const { api, els, v } = filled('scarf')
   Object.assign(v, { item: 'ผ้าเช็ดหน้า', sew_mode: 'ลูกค้ากำหนดวิธีเย็บเอง', sew_style: 'ม้วนริม 0.6 ซม.', thread: 'ขาว' })
