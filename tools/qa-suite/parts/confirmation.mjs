@@ -148,6 +148,76 @@ export async function runConfirmationTests(client, browser, fixtures, { seed = 1
     if (bad.length) fail(`ขนาดพับ/ม้วนริม: ${bad.join(', ')}`)
   })
 
+  await check('mockup-fit-page', async () => {
+    const res = await browser.ev(() => {
+      const keep = state, out = {}
+      const dot = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+      const g4 = mockupGrid([1, 1, 1, 1], 120)
+      out.fourSquaresTwoByTwo = g4.cols === 2 && g4.h >= MOCK_MIN_H
+      out.oneImageCapped = mockupGrid([1], 400).h <= 110
+      out.wideImageFitsWidth = mockupGrid([3], 400).h <= 190 / 3
+      out.tooManyForRoomIsSmall = mockupGrid([1, 1, 1, 1, 1, 1, 1, 1, 1], 60).h < MOCK_MIN_H
+      state = fresh()
+      state.product = 'scarf'
+      state.pickOpen = false
+      Object.assign(state.h, { doc_no: 'FIT-1', customer: 'ลูกค้า', job_name: 'ผ้าเช็ดหน้า' })
+      Object.assign(scope('p'), { item: 'ผ้าเช็ดหน้า' })
+      state.imgs = [1, 2, 3, 4].map(i => ({ name: `ลาย${i}.png`, src: dot, w: 3000, h: 3000 }))
+      renderDoc()
+      const figs = [...document.querySelectorAll('#doc .d-mockpage .d-imgs figure')]
+      const widths = new Set(figs.map(f => f.style.width))
+      const mh = document.querySelector('#doc .d-mockpage .d-imgs')?.style.getPropertyValue('--mh')
+      out.allSameSize = figs.length === 4 && widths.size === 1 && !!mh
+      out.notOldFixedHeight = mh !== '95mm' && parseFloat(mh) >= MOCK_MIN_H
+      state = keep
+      renderForm()
+      return out
+    })
+    const bad = Object.entries(res).filter(([, ok]) => !ok).map(([k]) => k)
+    if (bad.length) fail(`จัดภาพม็อคอัพให้พอดีหน้า: ${bad.join(', ')}`)
+  })
+
+  await check('service-lock-terms-banner', async () => {
+    const res = await browser.ev(() => {
+      const keep = state, wasView = viewOnly
+      const out = {}
+      state = fresh()
+      state.product = 'svc_uvdtf'
+      state.pickOpen = false
+      Object.assign(scope('p'), { uv_unit: 'ชิ้น' })
+      state.h.doc_no = 'UV-LOCK-1'
+      renderForm()
+      out.uvEditableWhenNew = [...document.querySelectorAll('input[name="p_uv_unit"]')].every(i => !i.disabled)
+      state.job_no = 'UV-LOCK-1'
+      state.job_base = jobSnapshot()
+      renderForm()
+      const radios = [...document.querySelectorAll('input[name="p_uv_unit"]')]
+      out.uvLockedInRevision = radios.length === 2 && radios.every(i => i.disabled)
+      out.lockSaysWhy = /เปลี่ยนในใบแก้ไม่ได้/.test(radios[0]?.closest('.opts')?.parentElement?.innerText ?? '')
+      viewOnly = true
+      renderDoc()
+      out.uvHasNoCustomerGoodsTerms = !document.querySelector('#doc').innerText.includes(TERMS_SERVICE[0].slice(0, 20))
+      state = fresh()
+      state.product = 'svc_press'
+      state.pickOpen = false
+      renderDoc()
+      out.pressKeepsServiceTerms = document.querySelector('#doc').innerText.includes(TERMS_SERVICE[0].slice(0, 20))
+      state = fresh()
+      state.product = 'banner'
+      state.pickOpen = false
+      Object.assign(scope('p'), { edge: 'พับริมเย็บ 4 ด้าน' })
+      const ids = validate().map(m => m.id)
+      out.bannerAsksWidthOnce = ids.includes('fld_p_edge_w') && !ids.includes('fld_p_edge_size')
+      out.optImgIgnoresProto = optImg('constructor') === '' && optImg('toString') === '' && !!optImg('พับริมเย็บ')
+      viewOnly = wasView
+      state = keep
+      renderForm()
+      return out
+    })
+    const bad = Object.entries(res).filter(([, ok]) => !ok).map(([k]) => k)
+    if (bad.length) fail(`ใบงานบริการ / ป้ายผ้า: ${bad.join(', ')}`)
+  })
+
   await check('PR241-taken-doc-no', async () => {
     const dupNo = `F-TAKEN-${seed}`
     const taken = await client.rpc('admin1', 'receive_job', {

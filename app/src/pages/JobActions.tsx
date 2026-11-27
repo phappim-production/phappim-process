@@ -123,7 +123,7 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
     <div className="grid gap-4 text-base">
       {j.revision ? <RevisionBanner job={j} canAck={canStation && inStation} busy={busy} act={act} /> : <ViewConfirmation job={j} />}
       {d.pdfPath ? <OpenPdf path={d.pdfPath} /> : admin && <AttachPdf job={j} refresh={refresh} />}
-      {admin && <CustomerSignaturePanel job={j} />}
+      {admin && <CustomerSignaturePanel key={j.id} job={j} />}
       {admin && <SetMockup job={j} refresh={refresh} />}
       {admin && <ReviseConfirmation job={j} hasPdf={!!d.pdfPath} refresh={refresh} />}
       {notice && <NoticeBox notice={notice} />}

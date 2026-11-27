@@ -281,6 +281,7 @@ async function runA1(ctx) {
     await t.fillInput('input[data-t="items"][data-r="0"][data-c="name"]', 'ป้ายงานวิ่ง')
     await t.fillInput('input[data-t="items"][data-r="0"][data-c="w"]', '150')
     await t.fillInput('input[data-t="items"][data-r="0"][data-c="h"]', '80')
+    await t.fillInput('[data-s="p"][data-k="edge_w"]', '2')
     await t.fillInput('input[data-t="items"][data-r="0"][data-c="qty"]', '5')
     await t.uploadFiles('input[type="file"][data-img]', [fixtures.paths.frontPng])
     await waitFor(() => t.ev(() => !readingImgs && state.imgs.length > 0), 'โหลดรูป banner')
