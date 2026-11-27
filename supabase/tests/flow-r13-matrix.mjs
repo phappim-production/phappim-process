@@ -70,6 +70,8 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
     const draft = await rpc('admin', 'save_confirmation_draft', [data])
     const path = 'TEST-R13-MATRIX-QUEUED/cafe.pdf'
     await rows("insert into private.file_objects (kind,path,size,content_type) values ('confirmations',$1,40,'application/pdf')", [path])
+    const signature = 'TEST-R13-MATRIX-QUEUED/sigab12.png'
+    await rows("insert into private.file_objects (kind,path,size,content_type) values ('mockups',$1,40,'image/png')", [signature])
     await rows("insert into private.file_settings(record_secret) values(repeat('r',32)) on conflict do nothing")
     const [event] = await rows('select id from public.events where job_id=$1 order by id limit 1', [queued])
     const [code] = await rows('select code from public.reason_codes where active order by code limit 1')
@@ -134,6 +136,8 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
       release_job: [admin, [ready]],
       add_job_material: [admin, [waiting, 'ด้าย', null, true]],
       set_material_eta: [admin, [item.id, '2099-01-05T03:00:00Z']],
+      set_customer_signature: [admin, [queued, signature, '2026-11-01']],
+      job_customer_signature: [all, [queued]],
     }
     const probes = [...Object.keys(roster), 'anon']
     const discrepancies = []
@@ -161,7 +165,7 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
       result.push({ name, expected, cells })
     }
     console.log('R13_MATRIX ' + JSON.stringify({ probes, result, discrepancies }))
-    assert.equal(result.length, 55)
+    assert.equal(result.length, 57)
     assert.equal(discrepancies.filter(item => ['anon', 'disabled'].includes(item.actor)).length, 0)
     assert.deepEqual(documented.sort(), Object.keys(rowsToTest).sort())
     return result.length + ' RPC × ' + probes.length + ' บัญชี'
