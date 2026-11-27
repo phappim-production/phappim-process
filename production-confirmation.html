@@ -1195,6 +1195,18 @@ PRODUCTS.svc_dtf = { cat:'service', name:'DTF อย่างเดียว (�
   printSec(['สกรีน DTF'],POS_SHIRT,{ customerFabric:false, def:['สกรีน DTF'], title:'ตำแหน่งลาย' }),
   packSec(['ส่งคืนตามที่รับมา','พับใส่ถุง']),
 ]};
+// ผลิตชิ้น UV DTF ส่งลูกค้า (ไม่รีดลงสินค้า) · สั่งผลิตข้างนอก · นับเป็นแผ่นหรือชิ้นตามที่เลือก
+const UV_UNITS=['แผ่น','ชิ้น'];
+PRODUCTS.svc_uvdtf = { cat:'service', name:'UV DTF อย่างเดียว (ผลิตชิ้น UV DTF ส่งลูกค้า · ไม่รีดลงสินค้า)',
+  get unit(){ let u=''; try{ u=state.product==='svc_uvdtf'?scope('p').uv_unit:''; }catch(e){} return UV_UNITS.includes(u)?u:'แผ่น'; },
+  route:'สั่งผลิตข้างนอก → QC + Packing', sections:[
+  { title:'งาน UV DTF', fields:[
+    R('uv_unit','นับจำนวนเป็น',UV_UNITS,{ def:'แผ่น', hint:'แผ่น = แผ่นรวมหลายลาย · ชิ้น = ตัดแยกเป็นชิ้น' }),
+    T('uv_use','ลูกค้านำไปติดบน',{ wide:true, ph:'เช่น แก้ว ขวด กล่อง หมวกกันน็อก (ไม่บังคับ)' }),
+  ]},
+  itemsSec('แผ่น / ชิ้น',{ nameLabel:'ลาย / ไฟล์', hint:'ขนาดชิ้นงาน UV DTF (กว้าง × สูง)' }),
+  packSec(['แยกตามลาย ใส่ซอง','รวมใส่ซอง']),
+]};
 // แอดมินกับลูกค้ามักไม่รู้วิธีเย็บ จึงตั้งต้นเป็นมาตรฐานโรงงาน · ใบเก่าที่ไม่มีค่านี้ยังเห็นช่องเย็บเดิม
 const SEW_STD='เย็บตามมาตรฐานโรงงาน', SEW_CUSTOM='ลูกค้ากำหนดวิธีเย็บเอง';
 Object.values(PRODUCTS).forEach(P=>P.sections.filter(sec=>sec.title==='การเย็บ').forEach(sec=>{
@@ -1257,7 +1269,7 @@ function customerSig(x){
 }
 // ใบที่ส่งลูกค้าเซ็นแสดงเฉพาะรายการที่เจ้าของกำหนด (วัสดุ ไซซ์ จำนวน แพ็คกิ้ง) · ฝ่ายผลิตเปิดดูจากระบบเห็นครบ ข้อมูลที่บันทึกเข้าระบบไม่ถูกตัด
 const CUSTOMER_FIELDS=new Set(['fabric','fabric_rows','material','filling','handle_mat','sizes','size_chart','measure_rows','items','qty','dims','head_size',
-  'supplied','supply_by','supply_date','supply_spare','garment','print_output','fabric_kind','press_target','press_material','press_yards','dtf_item','film_source','sew_style','edge','edge_size']);
+  'supplied','supply_by','supply_date','supply_spare','garment','print_output','fabric_kind','press_target','press_material','press_yards','dtf_item','film_source','sew_style','edge','edge_size','uv_unit','uv_use']);
 const PACK_SEC='แพ็คกิ้ง';
 const customerCopy=()=>!viewOnly;
 const customerSees=(f,sec)=>f.type==='images'||sec.title===PACK_SEC||CUSTOMER_FIELDS.has(f.id);

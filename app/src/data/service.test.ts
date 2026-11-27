@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { customerFabric, customerFilm, serviceLabel, serviceRoute, specProduct, suppliedChecklist } from './service'
+import { customerFabric, customerFilm, serviceLabel, serviceRoute, serviceUnit, specProduct, suppliedChecklist } from './service'
 import { draftFromConfirmation, syncConfirmationSpec } from './confirmation'
 import { ROUTES } from '../proto/model'
 
@@ -12,6 +12,7 @@ describe('ใบงานบริการกำหนดเส้นทาง�
     ['svc_print', { print_output: 'พิมพ์แล้วรีดลงผ้าของลูกค้า' }, 'print_press_only'],
     ['svc_press', {}, 'press_only'],
     ['svc_dtf', { film_source: 'โรงงานสั่งฟิล์ม' }, 'dtf_only'],
+    ['svc_uvdtf', { uv_unit: 'แผ่น' }, 'outside'],
   ])('%s %j → %s', (product, part, route) => {
     expect(serviceRoute(spec(product, part))).toBe(route)
   })
@@ -89,5 +90,18 @@ describe('ใบสินค้าปกติที่ลูกค้าส่�
   })
   it('ใบงานบริการ = ไม่แนะนำ (เส้นทางล็อกตามใบอยู่แล้ว)', () => {
     expect(customerFabric(spec('svc_sew', { print_method: [fabric] }))).toBe(false)
+  })
+})
+
+describe('UV DTF อย่างเดียว', () => {
+  it('หน่วยตามที่เลือกในใบ (แผ่น / ชิ้น) · ค่าอื่นใช้หน่วยของสินค้า · ใบอื่นไม่เปลี่ยน', () => {
+    expect(serviceUnit(spec('svc_uvdtf', { uv_unit: 'ชิ้น' }), 'แผ่น')).toBe('ชิ้น')
+    expect(serviceUnit(spec('svc_uvdtf', { uv_unit: 'แผ่น' }), 'แผ่น')).toBe('แผ่น')
+    expect(serviceUnit(spec('svc_uvdtf', { uv_unit: 'ม้วน' }), 'แผ่น')).toBe('แผ่น')
+    expect(serviceUnit(spec('svc_dtf', { uv_unit: 'แผ่น' }), 'ชิ้น')).toBe('ชิ้น')
+  })
+  it('เส้นทางผลิตข้างนอก → QC + Packing · ไม่มีรายการของที่ลูกค้าส่งมา', () => {
+    expect(ROUTES.outside.stations).toEqual(['outside', 'qc_pack'])
+    expect(suppliedChecklist(spec('svc_uvdtf', { uv_unit: 'แผ่น' }))).toEqual([])
   })
 })

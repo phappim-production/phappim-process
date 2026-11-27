@@ -9,7 +9,7 @@ import { confirmationPath, draftFromConfirmation, FORM_LOCK_REASON, isFormDraft,
 import { draftLabel, formDataFromDraft, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
 import { formInSameWindow, openFormWindow } from '../lib/install'
 import { specMockups } from '../data/jobMockups'
-import { CUSTOMER_FABRIC_HINT, SERVICE_ROUTES, customerFabric, serviceRoute, specProduct, suppliedChecklist } from '../data/service'
+import { CUSTOMER_FABRIC_HINT, SERVICE_ROUTES, customerFabric, serviceRoute, serviceUnit, specProduct, suppliedChecklist } from '../data/service'
 import { ROUTES, STATION_NAME, type Job, type RouteCode } from '../proto/model'
 import { receiveForecast, type SewFloor } from '../proto/capacity'
 import { dueDateWarning, shortDate, thaiFullDate, yearOutOfRange } from '../proto/format'
@@ -95,6 +95,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
 
   const set = <K extends keyof ReceiveDraft>(k: K, v: ReceiveDraft[K]) => { setDraft(d => ({ ...d, [k]: v })); setError('') }
   const product = products?.find(p => p.code === draft.product)
+  const unit = product ? serviceUnit(draft.spec, product.unit) : ''
   const fromForm = isFormDraft(draft)
   // สินค้าในใบที่ไม่อยู่ในรายการ (ปิดใช้แล้ว) ต้องเลือกเองได้ ไม่อย่างนั้นรับงานไม่ได้เลย
   const productLocked = fromForm && (!products || !!product)
@@ -155,7 +156,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
     const spec = syncConfirmationSpec(draft, product.name)
     const r = await rpc<string>('receive_job', {
       p_confirmation_no: draft.no.trim(), p_customer_name: draft.customer.trim(), p_job_name: draft.jobName.trim() || product.name,
-      p_product_type_code: product.code, p_qty: draft.qty, p_unit: product.unit, p_due_date: draft.due, p_route_code: draft.route,
+      p_product_type_code: product.code, p_qty: draft.qty, p_unit: unit, p_due_date: draft.due, p_route_code: draft.route,
       p_confirmation_pdf_path: path, p_spare_qty: draft.spare, p_confirmation_rev: draft.rev, p_spec: spec,
       p_needs_sample: draft.needsSample, p_develop: draft.develop,
     })
@@ -227,7 +228,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
             </select>
             {productLocked && <span id="product-locked" className="text-sm font-normal text-muted">สินค้ามาจากใบยืนยัน · {FORM_LOCK_REASON}</span>}
           </label>
-          <label className={label}>จำนวน{product ? ` (${product.unit})` : ''}
+          <label className={label}>จำนวน{unit ? ` (${unit})` : ''}
             <input type="number" min={1} inputMode="numeric" value={draft.qty || ''} onChange={e => set('qty', Math.max(0, Math.floor(Number(e.target.value) || 0)))} className={fieldClass} disabled={fromForm} aria-describedby={fromForm ? 'qty-locked' : undefined} />
             {fromForm && <span id="qty-locked" className="text-sm font-normal text-muted">จำนวนมาจากตารางในใบยืนยัน · {FORM_LOCK_REASON}</span>}
           </label>

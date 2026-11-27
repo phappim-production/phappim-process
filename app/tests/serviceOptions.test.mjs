@@ -13,5 +13,8 @@ test('ข้อความตัวเลือกที่กำหนดเ�
     assert.ok(sql.includes(`'${words}'`), `SQL ไม่มี ${words}`)
     assert.ok(web.includes(`'${words}'`), `หน้าเว็บไม่มี ${words}`)
   }
-  for (const id of ['svc_sew', 'svc_print', 'svc_press', 'svc_dtf']) assert.ok(form.includes(`PRODUCTS.${id} =`), id)
+  for (const id of ['svc_sew', 'svc_print', 'svc_press', 'svc_dtf', 'svc_uvdtf']) assert.ok(form.includes(`PRODUCTS.${id} =`), id)
+  const uv = read('../../supabase/migrations/20261213000000_service_uvdtf.sql')
+  assert.ok(uv.includes("when 'svc_uvdtf' then 'uvdtf'") && uv.includes("when 'uvdtf' then 'outside'"))
+  assert.ok(web.includes("case 'svc_uvdtf': return 'outside'"))
 })

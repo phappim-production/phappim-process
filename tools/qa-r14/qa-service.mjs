@@ -129,6 +129,37 @@ try {
     })
   }
 
+  await step('uvdtf-form-receive-outside-unit', async () => {
+    const no = 'SC889201'
+    const data = await fillForm('svc_uvdtf', no, { uv_unit: 'ชิ้น' })
+    const missing = (await t.ev(() => validate())).filter(m => m.id !== 'fld_p_images')
+    if (missing.length) throw new Error('ฟอร์มยังขาด ' + JSON.stringify(missing).slice(0, 200))
+    await t.ev(() => togglePreview(true))
+    const total = await t.ev(() => document.querySelector('#doc').innerText.match(/จำนวนรวม\s*([\d,]+ \S+)/)?.[1])
+    if (!/ชิ้น$/.test(total ?? '')) throw new Error('ยอดรวมใน PDF ' + total)
+    await as(id('admin1'), 'public.save_confirmation_draft($2::jsonb)', [JSON.stringify(data)])
+    await t.goto('admin1', '#/', 1440)
+    await t.clickButton('รับงานใหม่')
+    await t.waitText('รับงานเข้าโรงงาน')
+    await waitFor(() => t.ev(n => [...document.querySelectorAll('[role="dialog"] select option')].some(o => o.textContent.includes(n)), no), 'ใบร่าง UV DTF', 10000)
+    await t.ev(n => {
+      const sel = [...document.querySelectorAll('[role="dialog"] select')].find(s => [...s.options].some(o => o.textContent.includes(n)))
+      sel.value = [...sel.options].find(o => o.textContent.includes(n)).value
+      sel.dispatchEvent(new Event('change', { bubbles: true }))
+    }, no)
+    await t.waitText('ใบงานบริการกำหนดเส้นทางเอง')
+    const route = await t.ev(() => {
+      const sel = [...document.querySelectorAll('[role="dialog"] select')].find(s => [...s.options].some(o => o.value === 'sew_only'))
+      return { disabled: sel?.disabled, value: sel?.value, qtyLabel: [...document.querySelectorAll('[role="dialog"] label')].map(l => l.textContent).find(x => x.startsWith('จำนวน')) }
+    })
+    if (!route.disabled || route.value !== 'outside' || !route.qtyLabel?.includes('(ชิ้น)')) throw new Error(JSON.stringify(route))
+    await t.clickButton(/^รับงาน$/, { exact: true, inside: '[role="dialog"]' })
+    await t.waitText(`ส่งงาน ${no} เข้าโรงงานแล้ว`, 12000)
+    const [j] = await sql(`select phase, route_code, unit, product_type_code, (select count(*)::int from public.job_materials m where m.job_id = jobs.id) items from public.jobs where confirmation_no = $1`, [no])
+    if (j.phase !== 'materials' || j.route_code !== 'outside' || j.unit !== 'ชิ้น' || j.product_type_code !== 'svc_uvdtf' || j.items !== 0) throw new Error(JSON.stringify(j))
+    return `${total} · ผลิตข้างนอก · รอผลิต`
+  })
+
   await step('customer-fabric-hint-on-receive', async () => {
     const fabric = 'ลูกค้าส่งผ้ามาเอง (ไม่มีลายที่ต้องพิมพ์ · ตัด/เย็บอย่างเดียว)'
     for (const [no, method] of [['SC889101', fabric], ['SC889102', 'DTF']]) {
