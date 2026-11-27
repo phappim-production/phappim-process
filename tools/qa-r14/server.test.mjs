@@ -26,7 +26,7 @@ test('Part 0 local PGlite Supabase + R2 Worker full integration', async () => {
     const machines = await stack.db.execSuper('select count(*)::int n from public.sewing_machines')
     assert.equal(machines.rows[0].n, 22)
     const routes = await stack.db.execSuper('select count(*)::int n from public.routes')
-    assert.equal(routes.rows[0].n, 9)
+    assert.equal(routes.rows[0].n, 14)
     const jobs0 = await stack.db.execSuper('select count(*)::int n from public.jobs')
     assert.equal(jobs0.rows[0].n, 0)
     const stationCaps = await stack.db.execSuper(`select code, machines, machine_pool from public.stations where code in ('print','press','cut','dtf_press','qc_pack') order by code`)

@@ -1,107 +1,103 @@
-// ส่วน E: ตารางสิทธิ์คำตอบของ RPC ทั้งหมดใน schema public (อ้างอิง flow-r13-matrix.mjs + api-workflow.md + PR 235-245)
-// หมายเหตุ: admin = ['owner', 'admin1'], production = ['owner', 'prod1', 'prod2']
-export const ROLE_GROUPS = {
-  admin: ['owner', 'admin1'],
-  production: ['owner', 'prod1', 'prod2'],
-  plant: ['owner', 'prod1', 'prod2', 'sup1', 'staff_multi'],
-  qc: ['owner', 'prod1', 'prod2', 'sup2', 'qc', 'staff_qc'],
-  plan: ['owner', 'prod1', 'prod2', 'manager', 'sup1'],
-  floor: ['owner', 'prod1', 'prod2', 'sup2'],
-  stationHands: ['owner', 'prod1', 'prod2', 'sup1', 'sup2', 'qc', 'staff_multi', 'staff_single', 'staff_qc'],
-  activeAll: ['owner', 'admin1', 'manager', 'prod1', 'prod2', 'sup1', 'sup2', 'qc', 'staff_single', 'staff_multi', 'staff_qc', 'staff_empty'],
+// ตารางสิทธิ์ RPC ใน schema public · gate = อาร์กิวเมนต์ของ private.require_role ตัวแรกในฟังก์ชัน (ต้องตรงกับ SQL)
+// ไม่มี require_role: active = ทุกบัญชีที่เปิดอยู่ · job = ตรวจบทบาท/สถานีหลังหางาน · upload = ตรวจด้วยใบรับรองไฟล์
+export const RPC_POLICY = {
+  save_confirmation_draft: { gate: ['admin'] },
+  cancel_confirmation_draft: { gate: ['admin'] },
+  receive_job: { gate: ['admin'] },
+  attach_confirmation_pdf: { gate: ['admin'] },
+  revise_job_spec: { gate: ['admin'] },
+  ack_confirmation_revision: { gate: ['supervisor', 'qc'], station: true },
+  confirmation_revision_flags: { scope: 'active' },
+  ack_mockup_sheet: { gate: ['production', 'supervisor', 'qc'] },
+
+  set_job_materials: { gate: ['admin'] },
+  add_job_material: { gate: ['admin'] },
+  set_material_eta: { gate: ['admin'] },
+  check_material: { gate: ['admin'] },
+  add_material_photos: { gate: ['admin'] },
+  remove_material_photo: { gate: ['admin'] },
+  release_job: { gate: ['admin'] },
+
+  move_job_ahead: { gate: ['supervisor', 'manager'] },
+  start_in_queue: { gate: ['supervisor', 'qc'], station: true },
+  note_queue_skip: { gate: ['supervisor', 'qc'], station: true },
+  add_vendor: { gate: ['admin'] },
+  send_out: { gate: ['admin'] },
+  forward_out: { gate: ['admin'] },
+  receive_back: { gate: ['admin'] },
+  update_out_plan: { gate: ['admin'] },
+  split_job: { gate: ['admin'] },
+  cancel_job: { gate: ['manager'] },
+  mark_delivered: { gate: ['admin'] },
+  undo_delivery: { gate: ['admin'] },
+
+  start_station: { gate: ['supervisor', 'qc'], station: true },
+  finish_station: { gate: ['supervisor', 'qc'], station: true },
+  open_issue: { gate: ['supervisor', 'qc', 'admin', 'production'], station: true },
+  close_issue: { gate: ['supervisor', 'production', 'manager'] },
+  job_sla_flags: { scope: 'active' },
+  submit_delay_report: { gate: ['supervisor', 'qc', 'admin', 'production'], station: true },
+  correct_event: { gate: ['supervisor'] },
+  complete_substep: { gate: ['supervisor', 'qc'], station: true },
+  record_sample_result: { gate: ['admin'] },
+  order_film: { gate: ['admin'] },
+  receive_film: { gate: ['admin'] },
+
+  start_sewing: { scope: 'job' },
+  finish_sewing: { scope: 'job' },
+  report_sewing_issue: { scope: 'job' },
+  resume_sewing: { scope: 'job' },
+  book_machines: { gate: ['production'] },
+  cancel_booking: { gate: ['production'] },
+  assign_machines: { scope: 'job' },
+  release_machines: { scope: 'job' },
+  set_machine_status: { scope: 'job' },
+  set_repair_eta: { gate: ['production'] },
+  set_job_machines: { scope: 'job' },
+  update_sew_count: { gate: ['supervisor'] },
+
+  record_qc: { gate: ['supervisor', 'qc'], station: true },
+  send_rework: { gate: ['supervisor', 'qc'], station: true },
+
+  submit_first_piece: { scope: 'job' },
+  add_finish_photos: { scope: 'job' },
+  decide_first_piece: { gate: ['admin', 'manager'] },
+  set_station_photos_enabled: { gate: ['owner'] },
+  station_photo_flags: { scope: 'active' },
+
+  start_mockup_sheet: { gate: ['admin'] },
+  submit_mockup_sheet: { gate: ['admin'] },
+  save_mockup_draft: { gate: ['admin'] },
+  discard_mockup_draft: { gate: ['admin'] },
+  return_mockup_sheet: { gate: ['manager', 'production'] },
+  approve_mockup_sheet: { gate: ['admin', 'manager', 'production'] },
+  set_job_mockup: { gate: ['admin'] },
+  file_read_allowed: { scope: 'active' },
+  file_upload_allowed: { scope: 'upload' },
+  record_file_upload: { scope: 'upload' },
+  inbox_scan: { scope: 'active' },
+  inbox_mark_read: { scope: 'active' },
+  inbox_mark_all_read: { scope: 'active' },
+  inbox_unread_count: { scope: 'active' },
+  ack_review: { gate: ['manager'] },
+  staff_names: { scope: 'active' },
+  owner_list_users: { gate: ['owner'] },
 }
 
-// ค่า null ใน args หมายถึงระบบตรวจสิทธิ์จะสร้าง argument พื้นฐานให้หรือตรวจแค่ 42501 vs ผ่านด่านสิทธิ์
-export const RPC_POLICY = {
-  // รับงาน + ใบยืนยัน
-  save_confirmation_draft: { allowed: ROLE_GROUPS.admin },
-  cancel_confirmation_draft: { allowed: ROLE_GROUPS.admin },
-  receive_job: { allowed: ROLE_GROUPS.admin },
-  attach_confirmation_pdf: { allowed: ROLE_GROUPS.admin },
-  revise_job_spec: { allowed: ROLE_GROUPS.admin },
-  ack_confirmation_revision: { allowed: ROLE_GROUPS.plant },
-  confirmation_revision_flags: { allowed: ROLE_GROUPS.activeAll },
-  ack_mockup_sheet: { allowed: ROLE_GROUPS.stationHands },
-  // รอผลิต (PR 231, 238)
-  set_job_materials: { allowed: ROLE_GROUPS.admin },
-  add_job_material: { allowed: ROLE_GROUPS.admin },
-  set_material_eta: { allowed: ROLE_GROUPS.admin },
-  check_material: { allowed: ROLE_GROUPS.admin },
-  add_material_photos: { allowed: ROLE_GROUPS.admin },
-  remove_material_photo: { allowed: ROLE_GROUPS.admin },
-  release_job: { allowed: ROLE_GROUPS.admin },
-  // คิว + ส่งออก + แบ่งงาน + ยกเลิก + จัดส่ง
-  move_job_ahead: { allowed: ROLE_GROUPS.plan },
-  start_in_queue: { allowed: ROLE_GROUPS.plant },
-  note_queue_skip: { allowed: ROLE_GROUPS.plant },
-  add_vendor: { allowed: ROLE_GROUPS.admin },
-  send_out: { allowed: ROLE_GROUPS.admin },
-  forward_out: { allowed: ROLE_GROUPS.admin },
-  receive_back: { allowed: ROLE_GROUPS.admin },
-  update_out_plan: { allowed: ROLE_GROUPS.admin },
-  split_job: { allowed: ROLE_GROUPS.admin },
-  cancel_job: { allowed: ['owner', 'manager'] },
-  mark_delivered: { allowed: ROLE_GROUPS.admin },
-  undo_delivery: { allowed: ROLE_GROUPS.admin },
-  // สถานี + ปัญหา + ตัวอย่าง + ฟิล์ม
-  start_station: { allowed: ROLE_GROUPS.plant },
-  finish_station: { allowed: ROLE_GROUPS.plant },
-  open_issue: { allowed: [...ROLE_GROUPS.plant, 'admin1', 'qc'] },
-  close_issue: { allowed: [...ROLE_GROUPS.production, 'sup1', 'manager'] },
-  job_sla_flags: { allowed: ROLE_GROUPS.activeAll },
-  submit_delay_report: { allowed: [...ROLE_GROUPS.plant, 'admin1', 'qc'] },
-  correct_event: { allowed: [...ROLE_GROUPS.production, 'sup1', 'sup2'] },
-  complete_substep: { allowed: ROLE_GROUPS.plant },
-  record_sample_result: { allowed: ROLE_GROUPS.admin },
-  order_film: { allowed: ROLE_GROUPS.admin },
-  receive_film: { allowed: ROLE_GROUPS.admin },
-  // เย็บ + จักร
-  start_sewing: { allowed: [...ROLE_GROUPS.production, 'sup2'] },
-  finish_sewing: { allowed: [...ROLE_GROUPS.production, 'sup2'] },
-  report_sewing_issue: { allowed: [...ROLE_GROUPS.production, 'sup2'] },
-  resume_sewing: { allowed: ROLE_GROUPS.floor },
-  book_machines: { allowed: ROLE_GROUPS.production },
-  cancel_booking: { allowed: ROLE_GROUPS.production },
-  assign_machines: { allowed: ROLE_GROUPS.floor },
-  release_machines: { allowed: ROLE_GROUPS.floor },
-  set_machine_status: { allowed: [...ROLE_GROUPS.production, 'sup2'] },
-  set_repair_eta: { allowed: ROLE_GROUPS.production },
-  set_job_machines: { allowed: ROLE_GROUPS.floor },
-  update_sew_count: { allowed: [...ROLE_GROUPS.production, 'sup2'] },
-  // QC
-  record_qc: { allowed: ROLE_GROUPS.qc },
-  send_rework: { allowed: ROLE_GROUPS.qc },
-  // รูปยืนยันงานสถานี
-  submit_first_piece: { allowed: ROLE_GROUPS.stationHands },
-  add_finish_photos: { allowed: ROLE_GROUPS.stationHands },
-  decide_first_piece: { allowed: ['owner', 'admin1', 'manager'] },
-  set_station_photos_enabled: { allowed: ['owner'] },
-  station_photo_flags: { allowed: ROLE_GROUPS.activeAll },
-  // ม็อคอัพกำกับสเปก + ไฟล์ + กล่องจดหมาย + ตั้งค่า + บัญชี + อื่นๆ
-  start_mockup_sheet: { allowed: ROLE_GROUPS.admin },
-  submit_mockup_sheet: { allowed: ROLE_GROUPS.admin },
-  save_mockup_draft: { allowed: ROLE_GROUPS.admin },
-  discard_mockup_draft: { allowed: ROLE_GROUPS.admin },
-  return_mockup_sheet: { allowed: ['owner', 'admin1', 'manager', 'prod1', 'prod2'] },
-  approve_mockup_sheet: { allowed: ['owner', 'admin1', 'manager', 'prod1', 'prod2'] },
-  set_job_mockup: { allowed: ROLE_GROUPS.admin },
-  file_read_allowed: { allowed: ROLE_GROUPS.activeAll },
-  file_upload_allowed: { allowed: ROLE_GROUPS.activeAll },
-  record_file_upload: { allowed: ROLE_GROUPS.activeAll },
-  inbox_scan: { allowed: ROLE_GROUPS.activeAll },
-  inbox_mark_read: { allowed: ROLE_GROUPS.activeAll },
-  inbox_mark_all_read: { allowed: ROLE_GROUPS.activeAll },
-  inbox_unread_count: { allowed: ROLE_GROUPS.activeAll },
-  ack_review: { allowed: ROLE_GROUPS.activeAll },
-  staff_names: { allowed: ROLE_GROUPS.activeAll },
-  owner_list_users: { allowed: ['owner'] },
-  set_user_role: { allowed: ['owner'] },
-  set_user_active: { allowed: ['owner'] },
-  set_staff_stations: { allowed: ['owner'] },
-  set_station_settings: { allowed: ['owner'] },
-  set_machine_type_shared: { allowed: ['owner'] },
-  upsert_sewing_machine: { allowed: ['owner'] },
-  set_product_machines: { allowed: ['owner'] },
-  upsert_reason_code: { allowed: ['owner'] },
-  set_notification_setting: { allowed: ['owner'] },
+export const PROBE_ACCOUNTS = ['owner', 'manager', 'admin1', 'prod1', 'sup1', 'sup2', 'qc', 'staff_multi', 'staff_single', 'staff_qc', 'staff_empty', 'disabled', 'norole', 'anon']
+
+// เลียนแบบ private.require_role: production ผ่านด่าน supervisor · staff ผ่านด่าน qc · owner ผ่านทุกด่าน
+export function passesGate(account, gate) {
+  if (!account.active || !account.role) return false
+  const r = account.role
+  if (r === 'owner') return true
+  if (r === 'production' && gate.includes('supervisor') && !gate.includes('production')) return true
+  if (r === 'staff' && gate.includes('qc')) return true
+  return gate.includes(r)
+}
+
+export function firstGate(prosrc) {
+  const m = /private\.require_role\(([^)]*)\)/.exec(prosrc)
+  if (!m) return null
+  return [...m[1].matchAll(/'([a-z_]+)'/g)].map(x => x[1])
 }

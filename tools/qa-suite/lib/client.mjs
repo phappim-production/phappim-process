@@ -18,7 +18,11 @@ export function createClient(stack) {
 
   async function reset(materialsCheck = true) {
     await fetch(stack.origin + '/__qa/reset', { method: 'POST' })
-    await sql('update public.production_settings set materials_check = $1', [Boolean(materialsCheck)])
+    await sql(`do $$ begin
+      if to_regclass('public.production_settings') is not null then
+        update public.production_settings set materials_check = ${materialsCheck ? 'true' : 'false'};
+      end if;
+    end $$`)
     tokens.clear()
   }
 

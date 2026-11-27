@@ -31,7 +31,7 @@ export async function writeReport({ outDir, meta, parts, comparePath = null }) {
   const lines = [
     `# รายงานผลระบบทดสอบอัตโนมัติ (qa-suite)`,
     ``,
-    `- **โหมด:** ${meta.mode} · **Seed:** ${meta.seed} · **Days:** ${meta.days}`,
+    `- **โหมด:** ${meta.mode} · **Seed:** ${meta.seed} · **วัน:** ${meta.days}${meta.mutate ? ` · **ใส่บั๊กทดสอบ:** ${meta.mutate}` : ''}`,
     `- **เวลาเริ่ม:** ${meta.startedAt} · **ใช้เวลา:** ${meta.durationMs} ms`,
     `- **สรุป:** ผ่าน **${passed}/${parts.length}** · ไม่ผ่าน **${failed}** · คำขอออกนอกเครื่อง: **${meta.externalAttempts}**`,
     `- **คำสั่งรันซ้ำ:** \`${meta.replay}\``,
@@ -53,7 +53,8 @@ export async function writeReport({ outDir, meta, parts, comparePath = null }) {
     for (const p of failedParts) {
       lines.push(`### ${p.id}`, `- **สาเหตุ:** ${p.error}`)
       if (p.replay) lines.push(`- **คำสั่งรันซ้ำ:** \`${p.replay}\``)
-      if (p.shrunkTrace?.length) lines.push(`- **ขั้นตอนย่อ (${p.shrunkTrace.length} ขั้น):**`, '```json', JSON.stringify(p.shrunkTrace, null, 2), '```')
+      if (p.details?.length) lines.push('- **ทุกข้อที่เจอ:**', ...p.details.map(d => `  - ${d}`))
+      if (p.trace?.length) lines.push(`- **${p.trace.length} ขั้นสุดท้ายก่อนล้ม:**`, '```json', JSON.stringify(p.trace, null, 2), '```')
     }
   }
   await writeFile(join(outDir, 'report.md'), lines.join('\n'))

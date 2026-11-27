@@ -179,7 +179,11 @@ async function runA1(ctx) {
         if (el.dataset.c === 'part') { el.value = 'แขน'; el.dispatchEvent(new Event('input', { bubbles: true })) }
         if (el.dataset.c === 'fabric') { el.value = 'ผ้าตาข่าย'; el.dispatchEvent(new Event('input', { bubbles: true })) }
         if (el.dataset.c === 'color') { el.value = 'เขียวเข้ม'; el.dispatchEvent(new Event('input', { bubbles: true })) }
+        if (el.dataset.c === 'qty') { el.value = '12'; el.dispatchEvent(new Event('input', { bubbles: true })) }
       }
+      const unit = document.querySelector('select[data-t="fabric_rows"][data-c="unit"]')
+      unit.value = 'หลา'
+      unit.dispatchEvent(new Event('change', { bubbles: true }))
     })
     await t.uploadFiles('input[type="file"][data-img]', [fixtures.paths.frontPng])
     await t.waitText('ชี้จุดบนภาพแรก')

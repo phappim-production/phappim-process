@@ -1,95 +1,80 @@
-// ส่วน D: ตัวไล่หน้าจออัตโนมัติ (บทบาท × หน้า × 375/768/1440 × ไทย/พม่า × สถานะว่าง/ปกติ/ผิดพลาด)
-import { mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
-import { createHash } from 'node:crypto'
+// ส่วน D: ไล่ทุกเมนูของทุกบทบาท (จาก auth/menus.ts) × ขนาดจอ · หน้าที่บทบาทเปิดไม่ได้ · ลิ้นชักงาน · ออฟไลน์ · console
+import { roleMenu, ROUTES, canOpenPage } from '../lib/lead.mjs'
+import { ACCOUNTS } from '../../qa-r14/db.mjs'
 
-const ROUTES_BY_ROLE = {
-  owner: ['#/overview', '#/board', '#/production-queue', '#/deliveries', '#/reports', '#/settings', '#/users', '#/audit', '#/inbox'],
-  admin1: ['#/overview', '#/board', '#/deliveries', '#/jobs', '#/production-queue', '#/reports', '#/inbox'],
-  prod1: ['#/overview', '#/board', '#/now', '#/deliveries', '#/issues', '#/reports'],
-  manager: ['#/overview', '#/board', '#/deliveries', '#/approvals', '#/reports'],
-  staff_single: ['#/board', '#/now', '#/report', '#/words'],
-  qc: ['#/board', '#/now', '#/report'],
-}
+const FLOOR_ROLES = new Set(['staff', 'qc', 'supervisor'])
+const SETTLE_MS = 700
 
-const FORBIDDEN_CHECK = [
-  { role: 'staff_single', route: '#/settings', forbiddenText: 'ตั้งค่าระบบ' },
-  { role: 'staff_single', route: '#/deliveries', forbiddenText: 'กำหนดส่งลูกค้า' },
-  { role: 'qc', route: '#/users', forbiddenText: 'ผู้ใช้งาน' },
-]
-
-export async function runUiCrawler(browser, client, { outDir, quick = false } = {}) {
+export async function runUiCrawler(browser, client, { quick = false } = {}) {
+  await client.reset(false)
+  const job = await seedJob(client)
   const widths = quick ? [375, 1440] : [375, 768, 1440]
-  const roles = quick ? ['admin1', 'staff_single', 'qc'] : Object.keys(ROUTES_BY_ROLE)
+  const keys = quick ? ['admin1', 'staff_single', 'qc'] : ['owner', 'manager', 'admin1', 'prod1', 'sup1', 'sup2', 'qc', 'staff_single', 'staff_qc', 'staff_empty']
+  const logs = browser.tab?.logs
+  if (!Array.isArray(logs)) throw new Error('อ่าน console ของเบราว์เซอร์ไม่ได้ (browser.tab.logs)')
+  await browser.goto('admin1', '#/board', 1440)
+  const probeAt = logs.length
+  await browser.ev(() => console.error('qa-suite-console-probe'))
+  await new Promise(r => setTimeout(r, 200))
+  if (!logs.slice(probeAt).some(l => /qa-suite-console-probe/.test(l.text))) throw new Error('ตัวจับ console error ไม่ทำงาน')
   const issues = []
-  const screenHashes = {}
-  let screensChecked = 0
-  const shotDir = join(outDir, 'screenshots')
-  await mkdir(shotDir, { recursive: true })
+  let screens = 0
 
-  for (const role of roles) {
-    const routes = ROUTES_BY_ROLE[role]
-    for (const route of routes) {
-      for (const w of widths) {
-        const logBefore = browser.raw ? 0 : 0
-        await browser.goto(role, route, w)
-        await new Promise(r => setTimeout(r, 450))
-        screensChecked++
+  const check = async (key, role, hash, width) => {
+    const logStart = logs.length
+    await browser.goto(key, hash, width)
+    await new Promise(r => setTimeout(r, SETTLE_MS))
+    screens++
+    const m = await browser.measureFloorUx(width)
+    const text = await browser.ev(() => document.body.innerText.trim())
+    const where = `${key} ${hash} @${width}`
+    if (m.docScrollWidth > m.viewport + 1) issues.push(`${where}: หน้ากว้างเกินจอ ${m.docScrollWidth - m.viewport}px`)
+    if (m.overflows.length) issues.push(`${where}: ของล้นขวา ${JSON.stringify(m.overflows.slice(0, 2))}`)
+    if (m.pageScroll > 1) issues.push(`${where}: หน้าเลื่อนทั้งหน้า ${m.pageScroll}px`)
+    if (m.badTokens.length) issues.push(`${where}: ข้อความผิดปกติ ${m.badTokens.join(',')}`)
+    if (FLOOR_ROLES.has(role) && m.smallButtons.length) issues.push(`${where}: ปุ่มหลักต่ำกว่า 48px ${JSON.stringify(m.smallButtons.slice(0, 2))}`)
+    if (!text) issues.push(`${where}: จอขาว`)
+    if (/Failed to fetch|NetworkError|TypeError|Unexpected token/i.test(text)) issues.push(`${where}: ข้อความ error อังกฤษบนจอ`)
+    const newLogs = logs.slice(logStart).filter(l => !/favicon|fonts\.g/.test(`${l.text} ${l.url ?? ''}`))
+    if (newLogs.length) issues.push(`${where}: console ${JSON.stringify(newLogs.slice(0, 2))}`)
+    return text
+  }
 
-        const metrics = await browser.ev(() => {
-          const text = document.body.innerText ?? ''
-          const scrollW = document.documentElement.scrollWidth
-          const innerW = window.innerWidth
-          // ตรวจพื้นที่ว่างใต้แอป (PR 240: body ต้องไม่เลื่อนเกิน 100dvh)
-          const scrollH = document.documentElement.scrollHeight
-          const innerH = window.innerHeight
-          const badTokens = text.match(/NaN|undefined|Invalid Date|\[object Object\]|Failed to fetch/g) ?? []
-          // ตรวจปุ่มหลักต่ำกว่า 48px
-          const smallBtns = [...document.querySelectorAll('button[data-primary="1"], main button.min-h-12')].filter(b => b.getClientRects().length && b.getBoundingClientRect().height < 47.5).map(b => b.textContent.trim().slice(0, 25))
-          return { scrollW, innerW, scrollH, innerH, badTokens, smallBtns, textLen: text.trim().length }
-        })
+  for (const key of keys) {
+    const acc = ACCOUNTS.find(a => a.key === key)
+    const hashes = [...new Set(roleMenu(acc.role).flatMap(g => g.items.map(i => i.hash)))]
+    for (const hash of hashes) for (const w of widths) await check(key, acc.role, hash, w)
+    if (!quick || key === 'admin1') for (const w of widths) await check(key, acc.role, `#/board?job=${job}`, w)
 
-        // อนุญาตบอร์ด 375px ชนขอบแบบตั้งใจเฉพาะที่ไม่เลื่อนหลุดจริง (PR 240 / ใบสั่งงานระบุข้อยกเว้นไว้)
-        if (metrics.scrollW > metrics.innerW + 2 && !(route === '#/board' && w === 375)) {
-          issues.push(`${role} ${route} @${w}px ล้นด้านข้าง (${metrics.scrollW} > ${metrics.innerW})`)
-        }
-        if (metrics.badTokens.length) {
-          issues.push(`${role} ${route} @${w}px พบข้อความผิดปกติ: ${metrics.badTokens.join(', ')}`)
-        }
-        if (metrics.smallBtns.length) {
-          issues.push(`${role} ${route} @${w}px ปุ่มหลักเล็กกว่า 48px: ${metrics.smallBtns.join(', ')}`)
-        }
-        if (metrics.textLen === 0) {
-          issues.push(`${role} ${route} @${w}px จอขาวไม่มีข้อความ`)
-        }
-
-        const key = `${role}_${route.replace(/[#/?=]/g, '_')}_${w}`
-        screenHashes[key] = createHash('sha256').update(String(metrics.textLen)).digest('hex').slice(0, 12)
-      }
+    for (const [hash, route] of Object.entries(ROUTES)) {
+      if (canOpenPage(acc.role, route.page) || hash === '#/' || route.page === 'overview') continue
+      if (quick && !['#/settings', '#/users', '#/audit', '#/reports'].includes(hash)) continue
+      const text = await check(key, acc.role, hash, 1440)
+      if (!/เปิดหน้านี้ไม่ได้|หน้านี้สำหรับเจ้าของระบบ/.test(text)) issues.push(`${key} เปิด ${hash} ได้ (บทบาท ${acc.role} ไม่มีสิทธิ์)`)
     }
   }
 
-  // ตรวจหน้าที่บทบาทไม่มีสิทธิ์เปิดตรงๆ
-  for (const fc of FORBIDDEN_CHECK) {
-    await browser.goto(fc.role, fc.route, 1440)
-    await new Promise(r => setTimeout(r, 350))
-    const txt = await browser.ev(() => document.body.innerText)
-    if (txt.includes(fc.forbiddenText)) {
-      issues.push(`${fc.role} เปิดหน้าห้าม ${fc.route} แล้วเห็น "${fc.forbiddenText}"`)
-    }
-  }
-
-  // ตรวจสถานะออฟไลน์/ปิดหลังบ้าน (ต้องไม่หลุด Failed to fetch)
   await browser.goto('admin1', '#/board', 1440)
   await browser.setOffline(true)
-  await new Promise(r => setTimeout(r, 300))
-  const offTxt = await browser.ev(() => document.body.innerText)
+  await new Promise(r => setTimeout(r, 400))
+  const offline = await browser.ev(() => document.body.innerText)
   await browser.setOffline(false)
-  if (/Failed to fetch|NetworkError/i.test(offTxt)) {
-    issues.push('ขณะออฟไลน์หลุดข้อความอังกฤษ Failed to fetch')
-  }
+  if (/Failed to fetch|NetworkError/i.test(offline)) issues.push('ออฟไลน์แล้วขึ้น Failed to fetch')
 
-  await writeFile(join(outDir, 'ui-hashes.json'), JSON.stringify(screenHashes, null, 2))
-  if (issues.length) throw new Error(issues.slice(0, 5).join(' ; '))
-  return { screensChecked, forbiddenChecked: FORBIDDEN_CHECK.length }
+  if (issues.length) {
+    const err = new Error(`${issues.length} ข้อ: ${issues.slice(0, 8).join(' ; ')}`)
+    err.details = issues
+    throw err
+  }
+  return { screens }
+}
+
+async function seedJob(client) {
+  const r = await client.rpc('admin1', 'receive_job', {
+    p_confirmation_no: 'UI-JOB-1', p_customer_name: 'ลูกค้าทดสอบหน้าจอที่ชื่อยาวมากเพื่อดูว่าตัดบรรทัดถูก', p_job_name: 'งานทดสอบหน้าจอ',
+    p_product_type_code: 'tshirt', p_qty: 120, p_unit: 'ตัว', p_due_date: '2099-01-20', p_route_code: 'cut_only',
+    p_confirmation_pdf_path: null, p_confirmation_rev: 0, p_spec: {}, p_needs_sample: false,
+  })
+  if (!r.ok) throw new Error(`UI seed: ${JSON.stringify(r.body)}`)
+  return r.body
 }

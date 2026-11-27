@@ -1,4 +1,4 @@
-// ตัวสุ่มแบบกำหนด seed ซ้ำได้ · บันทึกทุกการกระทำ · และย่อขั้นตอนที่ล้มให้สั้นที่สุด
+// ตัวสุ่มแบบกำหนด seed (รันซ้ำได้ผลเดิม) · บันทึกทุกการกระทำลง actions.jsonl
 import { appendFile, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -47,38 +47,10 @@ export class ActionRecorder {
   }
 }
 
-// ย่อขั้นตอนที่ล้มแบบ delta-debugging (ตัดขั้นที่ไม่เกี่ยวออกทีละชุด จนเหลือชุดที่สั้นที่สุดที่ยังล้ม)
-export async function shrinkTrace(actions, stillFails) {
-  if (!actions.length) return []
-  let best = [...actions]
-  const last = best[best.length - 1]
-  // ลองเอาเฉพาะขั้นที่เกี่ยวกับงานที่ล้ม (ถ้ามี jobNo)
-  if (last?.jobNo) {
-    const byJob = best.filter(a => a.jobNo === last.jobNo || a.global)
-    if (byJob.length < best.length && await stillFails(byJob)) best = byJob
-  }
-  // ตัดทีละครึ่ง (ไม่รวมขั้นสุดท้ายที่ล้ม)
-  let n = 2
-  while (best.length > 2 && n <= best.length) {
-    const body = best.slice(0, -1)
-    const chunkSize = Math.max(1, Math.floor(body.length / n))
-    let reduced = false
-    for (let i = 0; i < body.length; i += chunkSize) {
-      const candidate = [...body.slice(0, i), ...body.slice(i + chunkSize), last]
-      if (candidate.length < best.length && await stillFails(candidate)) {
-        best = candidate
-        reduced = true
-        break
-      }
-    }
-    if (!reduced) n *= 2
-  }
-  return best
-}
-
-export function replayCmd({ seed, days, only, outDir }) {
-  const parts = ['node tools/qa-suite/run.mjs']
+export function replayCmd({ mode, seed, days, only, mutate, outDir }) {
+  const parts = ['node tools/qa-suite/run.mjs', `--${mode ?? 'quick'}`, '--skip-build']
   if (only) parts.push(`--only ${only}`)
+  if (mutate) parts.push(`--mutate ${mutate}`)
   if (seed != null) parts.push(`--seed ${seed}`)
   if (days != null) parts.push(`--days ${days}`)
   if (outDir) parts.push(`--out "${outDir}"`)

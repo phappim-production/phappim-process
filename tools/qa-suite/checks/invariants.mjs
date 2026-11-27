@@ -1,204 +1,253 @@
-// ส่วน B: ข้อตรวจความถูกต้องของข้อมูล 10 ข้อ (รันหลังทุกการกระทำในส่วน C + มี self-test พิสูจน์ว่าจับได้จริง)
+// ส่วน B: ข้อตรวจข้อมูลหลังทุกการกระทำในส่วนจำลอง + self-test ว่าแต่ละข้อจับข้อมูลผิดได้จริง
+// B1 ไม่รวมเวลา (at) เพราะการเลื่อนวันจำลองถอยเวลาทุกแถว
 import { createHash } from 'node:crypto'
-
-const leadDaysForQty = qty => (qty >= 1000 ? 20 : qty >= 500 ? 15 : 10)
+import { leadDaysFor, leadDayN, LEAD_WARN_RATIO } from '../lib/lead.mjs'
+import { thaiToday, workDays } from '../lib/clock.mjs'
 
 export function createInvariantState() {
-  return {
-    lastEventMaxId: 0,
-    eventHashes: new Map(), // id -> sha256(row)
-  }
+  return { eventHashes: new Map() }
 }
 
-function hashEvent(row) {
-  return createHash('sha256').update(JSON.stringify([row.id, row.job_id, row.type, row.phase, row.station_code, row.by, row.payload])).digest('hex')
-}
+const hashEvent = row => createHash('sha256')
+  .update(JSON.stringify([row.id, row.job_id, row.type, row.by, row.payload]))
+  .digest('hex')
 
-export async function checkInvariants(client, state = createInvariantState(), { page = null } = {}) {
+const thaiDayOf = ts => thaiToday(new Date(ts))
+
+export async function checkInvariants(client, state = createInvariantState(), { afterScan = false } = {}) {
   const errors = []
 
-  // B1: events ไม่ถูกแก้/ลบ และทุกการเปลี่ยนสถานะมี events
-  const events = await client.sql('select id, job_id, type, phase, station_code, by, payload from public.events order by id')
-  if (events.length < state.eventHashes.size) {
-    errors.push(`B1: จำนวน events ลดลง (${events.length} < ${state.eventHashes.size})`)
-  }
+  // B1 events ห้ามแก้/ลบ · ทุกงานมี event รับงาน · งานที่เปลี่ยนสถานะต้องมี event ใหม่
+  const events = await client.sql('select id, job_id, type, by, payload, at from public.events order by id')
+  const ids = new Set(events.map(e => e.id))
+  for (const id of state.eventHashes.keys()) if (!ids.has(id)) errors.push(`B1: event id=${id} หายไป`)
   for (const e of events) {
     const h = hashEvent(e)
     const prev = state.eventHashes.get(e.id)
-    if (prev && prev !== h) errors.push(`B1: event id=${e.id} ถูกแก้ไข`)
+    if (prev && prev !== h) errors.push(`B1: event id=${e.id} ถูกแก้`)
     state.eventHashes.set(e.id, h)
   }
+  const noReceive = await client.sql(`
+    select j.confirmation_no from public.jobs j
+    where not exists (select 1 from public.events e where e.job_id = j.id)`)
+  if (noReceive.length) errors.push(`B1: งานไม่มี event เลย: ${noReceive.map(r => r.confirmation_no).slice(0, 3).join(', ')}`)
 
-  // B2: ความสอดคล้องของ phase กับสถานี/สถานะสถานี + งาน materials ไม่มีสถานี + done/cancelled ไม่อยู่ในคิว
+  // B2 phase / สถานี / สถานะสถานีสอดคล้องกัน
   const badPhase = await client.sql(`
-    select id, confirmation_no, phase, station_seq, station_status
-    from public.jobs
-    where (phase = 'materials' and (station_seq <> 0 or station_status is not null))
-       or (phase in ('done', 'cancelled') and station_status in ('queued', 'doing', 'hold', 'out'))
-       or (phase in ('production', 'sample') and station_status not in ('queued', 'doing', 'hold', 'out'))
-  `)
-  if (badPhase.length) errors.push(`B2: สถานะงานขัดแย้ง: ${JSON.stringify(badPhase.slice(0, 3))}`)
+    select j.confirmation_no, j.phase, j.station_seq, j.station_status
+    from public.jobs j
+    where (j.phase = 'materials' and (j.station_seq <> 0 or j.station_status is not null))
+       or (j.phase in ('done', 'cancelled') and j.station_status in ('queued', 'doing', 'hold', 'out'))
+       or (j.phase in ('production', 'sample') and (j.station_status is null or j.station_status not in ('queued', 'doing', 'hold', 'out')))
+       or (j.phase in ('production', 'sample') and not exists (
+            select 1 from public.route_stations rs where rs.route_code = j.route_code and rs.seq = j.station_seq))
+       or (j.phase = 'done' and j.finished_at is null)
+       or (j.delivered_at is not null and j.phase <> 'done')`)
+  if (badPhase.length) errors.push(`B2: สถานะงานขัดกัน: ${JSON.stringify(badPhase.slice(0, 3))}`)
 
-  // B3: คิวไม่ซ้ำ ไม่ข้าม และงานรอผลิตที่ปล่อยทีหลังต้องมี queue_seq มากกว่างานที่ปล่อยก่อน
-  const dupQueue = await client.sql('select queue_seq, count(*)::int c from public.jobs group by queue_seq having count(*) > 1')
-  if (dupQueue.length) errors.push(`B3: queue_seq ซ้ำ: ${JSON.stringify(dupQueue)}`)
+  // B3 คิว: งานที่ยังไม่จบต้องมีลำดับคิวไม่ซ้ำ
+  const dupQueue = await client.sql(`
+    select queue_seq, count(*)::int c from public.jobs
+    where phase not in ('done', 'cancelled') group by queue_seq having count(*) > 1 or queue_seq is null`)
+  if (dupQueue.length) errors.push(`B3: queue_seq ซ้ำ/ว่าง: ${JSON.stringify(dupQueue)}`)
 
-  // B4: จำนวนงานแบ่ง ผลรวมส่วนลูกไม่เกิน/ตรงกับครอบครัว + ยอดบอร์ด vs job_live สอดคล้อง
-  const badQty = await client.sql('select id, confirmation_no, qty from public.jobs where qty <= 0 or qty > 100000')
-  if (badQty.length) errors.push(`B4: จำนวนงานผิดปกติ: ${JSON.stringify(badQty)}`)
+  // B4 จำนวน: 1–100,000 · QC ผ่านไม่เกินจำนวนงาน
+  const badQty = await client.sql(`
+    select j.confirmation_no, j.qty, (select sum(q.passed) from public.qc_results q where q.job_id = j.id) passed
+    from public.jobs j
+    where j.qty <= 0 or j.qty > 100000
+       or (select coalesce(sum(q.passed), 0) from public.qc_results q where q.job_id = j.id) > j.qty`)
+  if (badQty.length) errors.push(`B4: จำนวนงานผิด: ${JSON.stringify(badQty.slice(0, 3))}`)
 
-  // B5: เวลาผลิตในฐาน (job_sla_flags) ตรงกับ leadTimeFor ฝั่งเว็บ
+  // B5 เวลาผลิตในฐาน (job_sla_flags) ตรงกับกฎฝั่งเว็บ (proto/leadTime.ts)
   const slaRes = await client.rpc('admin1', 'job_sla_flags')
-  if (slaRes.ok && Array.isArray(slaRes.body)) {
-    const jobs = await client.sql("select id, qty, develop, phase, created_at from public.jobs where phase not in ('done', 'cancelled', 'materials') and not develop")
-    const flagMap = new Map(slaRes.body.map(f => [f.job_id, f]))
+  if (!slaRes.ok) errors.push(`B5: job_sla_flags เรียกไม่ได้: ${JSON.stringify(slaRes.body)}`)
+  else {
+    const today = thaiToday()
+    const flags = new Map(slaRes.body.map(f => [f.job_id, f]))
+    const jobs = await client.sql(`
+      select j.id, j.confirmation_no, j.qty, j.phase, j.develop, j.created_at,
+        (select min(e.at) from public.events e where e.job_id = j.id and e.type = 'released' and e.payload ->> 'manual' = 'true') released_at,
+        (select e.payload ->> 'parent' from public.events e where e.job_id = j.id and e.type = 'job_split_from' limit 1) parent_no
+      from public.jobs j`)
+    const byNo = new Map(jobs.map(j => [j.confirmation_no, j]))
+    const childrenOf = new Map()
+    for (const j of jobs) if (j.parent_no) {
+      if (!childrenOf.has(j.parent_no)) childrenOf.set(j.parent_no, [])
+      childrenOf.get(j.parent_no).push(j)
+    }
+    const rootOf = j => { let r = j; while (r.parent_no && byNo.has(r.parent_no)) r = byNo.get(r.parent_no); return r }
+    const familyQty = root => {
+      let sum = 0
+      const walk = j => { sum += Number(j.qty); for (const c of childrenOf.get(j.confirmation_no) ?? []) walk(c) }
+      walk(root)
+      return sum
+    }
     for (const j of jobs) {
-      const f = flagMap.get(j.id)
-      if (!f) continue
-      const expectedDays = leadDaysForQty(Number(j.qty))
-      if (Number(f.lead_days) < expectedDays) {
-        // กรณีแบ่งงาน f.lead_days อาจมากกว่า j.qty ได้ แต่ห้ามน้อยกว่า
-        errors.push(`B5: lead_days ในฐาน (${f.lead_days}) น้อยกว่าหน้าเว็บ (${expectedDays}) สำหรับ ${j.id}`)
+      if (['done', 'cancelled', 'materials'].includes(j.phase) || j.develop) {
+        if (flags.has(j.id) && j.phase !== 'materials') errors.push(`B5: งาน ${j.confirmation_no} (${j.phase}) ไม่ควรมีเวลาผลิต`)
+        continue
+      }
+      const f = flags.get(j.id)
+      if (!f) { errors.push(`B5: งาน ${j.confirmation_no} ไม่มีเวลาผลิตจากฐาน`); continue }
+      const root = rootOf(j)
+      const start = thaiDayOf(root.released_at ?? root.created_at)
+      const days = leadDaysFor(Math.max(familyQty(root), Number(j.qty)))
+      const due = leadDayN(start, days)
+      const warnOn = leadDayN(start, Math.ceil(days * LEAD_WARN_RATIO))
+      const want = { lead_days: days, lead_due: due, warn: today >= warnOn, over: today > due }
+      const got = { lead_days: Number(f.lead_days), lead_due: String(f.lead_due).slice(0, 10), warn: f.warn, over: f.over }
+      if (JSON.stringify(want) !== JSON.stringify(got)) {
+        errors.push(`B5: เวลาผลิต ${j.confirmation_no} ฐาน=${JSON.stringify(got)} เว็บ=${JSON.stringify(want)} (เริ่ม ${start})`)
       }
     }
   }
 
-  // B6: เครื่องต่อสถานีไม่เกินจำนวนเครื่อง และจักรประจำไลน์ 1 ตัวไม่ถูกใช้พร้อมกัน 2 งาน
+  // B6 งานกำลังทำไม่เกินจำนวนเครื่อง · จักร 1 ตัวไม่ถูกใช้ 2 งานพร้อมกัน
   const overCap = await client.sql(`
     select l.current_station, count(*)::int doing, s.machines
-    from public.job_live l
-    join public.stations s on s.code = l.current_station
+    from public.job_live l join public.stations s on s.code = l.current_station
     where l.station_status = 'doing' and s.machines is not null
-    group by l.current_station, s.machines
-    having count(*) > s.machines
-  `)
-  if (overCap.length) errors.push(`B6: งานกำลังทำเกินจำนวนเครื่อง: ${JSON.stringify(overCap)}`)
-
+    group by l.current_station, s.machines having count(*) > s.machines`)
+  if (overCap.length) errors.push(`B6: กำลังทำเกินจำนวนเครื่อง: ${JSON.stringify(overCap)}`)
   const dupMachine = await client.sql(`
-    select m.id, m.code, count(*)::int c
-    from public.machine_assignments ma
+    select m.code, count(*)::int c from public.machine_assignments ma
     join public.sewing_machines m on m.id = ma.machine_id
-    where ma.released_at is null
-    group by m.id, m.code
-    having count(*) > 1
-  `)
-  if (dupMachine.length) errors.push(`B6: จักร 1 ตัวถูกใช้หลายงานพร้อมกัน: ${JSON.stringify(dupMachine)}`)
+    where ma.released_at is null group by m.code having count(*) > 1`)
+  if (dupMachine.length) errors.push(`B6: จักรถูกใช้หลายงานพร้อมกัน: ${JSON.stringify(dupMachine)}`)
+  const leftMachines = await client.sql(`
+    select j.confirmation_no from public.machine_assignments ma join public.jobs j on j.id = ma.job_id
+    where ma.released_at is null and j.phase in ('done', 'cancelled')`)
+  if (leftMachines.length) errors.push(`B6: งานจบแล้วยังถือจักร: ${JSON.stringify(leftMachines)}`)
 
-  // B7: ใบที่อนุมัติแล้ว/ครั้งที่แก้เพิ่มทีละ 1 (confirmation_rev >= 0)
-  const badRev = await client.sql('select id, confirmation_no, confirmation_rev from public.jobs where confirmation_rev < 0')
-  if (badRev.length) errors.push(`B7: confirmation_rev ติดลบ: ${JSON.stringify(badRev)}`)
+  // B7 ใบแก้ครั้งที่ไม่ติดลบ และไม่น้อยกว่าครั้งที่สถานีรับทราบ
+  const badRev = await client.sql(`
+    select j.confirmation_no, j.confirmation_rev from public.jobs j
+    where j.confirmation_rev < 0
+       or exists (select 1 from public.confirmation_acks a where a.job_id = j.id and a.rev > j.confirmation_rev)`)
+  if (badRev.length) errors.push(`B7: ใบแก้ครั้งที่ผิด: ${JSON.stringify(badRev)}`)
 
-  // B8: วัตถุดิบ: ไม่มีชื่อซ้ำในงานเดียวกัน, รูปวัตถุดิบต้องไม่ซ้ำกับรูปม็อคอัพของงาน
+  // B8 วัตถุดิบ: ชื่อไม่ซ้ำในงาน · รูปไม่ใช่รูปม็อคอัพ · งานที่ปล่อยแล้วติ๊กครบ + มีรูป
   const dupMat = await client.sql(`
-    select job_id, lower(btrim(name)) n, count(*)::int c
-    from public.job_materials
-    group by job_id, lower(btrim(name))
-    having count(*) > 1
-  `)
-  if (dupMat.length) errors.push(`B8: ชื่อวัตถุดิบซ้ำในงานเดียว: ${JSON.stringify(dupMat)}`)
-
+    select job_id, lower(btrim(name)) n, count(*)::int c from public.job_materials
+    group by job_id, lower(btrim(name)) having count(*) > 1`)
+  if (dupMat.length) errors.push(`B8: ชื่อวัตถุดิบซ้ำ: ${JSON.stringify(dupMat)}`)
   const matUseMock = await client.sql(`
-    select p.job_id, p.path
-    from public.job_material_photos p
-    join public.jobs j on j.id = p.job_id
-    where p.path = j.mockup_path
-       or coalesce(j.spec -> 'mockups', '[]'::jsonb) @> jsonb_build_array(jsonb_build_object('path', p.path))
-  `)
-  if (matUseMock.length) errors.push(`B8: รูปวัตถุดิบซ้ำกับรูปม็อคอัพ: ${JSON.stringify(matUseMock)}`)
+    select p.job_id, p.path from public.job_material_photos p join public.jobs j on j.id = p.job_id
+    where p.path = j.mockup_path or coalesce(j.spec -> 'mockups', '[]'::jsonb) @> jsonb_build_array(jsonb_build_object('path', p.path))`)
+  if (matUseMock.length) errors.push(`B8: รูปวัตถุดิบเป็นรูปม็อคอัพ: ${JSON.stringify(matUseMock)}`)
+  const releasedUnchecked = await client.sql(`
+    select j.confirmation_no from public.jobs j
+    join public.events e on e.job_id = j.id and e.type = 'released' and e.payload ->> 'manual' = 'true'
+    where coalesce(e.payload ->> 'outsource', '') <> 'true'
+      and (exists (select 1 from public.job_materials m where m.job_id = j.id and m.checked_at is null)
+           or not exists (select 1 from public.job_material_photos p where p.job_id = j.id))`)
+  if (releasedUnchecked.length) errors.push(`B8: ปล่อยเข้าไลน์ทั้งที่วัตถุดิบไม่ครบ/ไม่มีรูป: ${JSON.stringify(releasedUnchecked.slice(0, 3))}`)
 
-  // B9: ไฟล์ที่ตารางอ้างต้องมีใน R2 จำลอง + ห้ามเก็บรูป base64 ในตาราง jobs/confirmation_drafts
-  const b64InDb = await client.sql(`
-    select id, confirmation_no from public.jobs
-    where spec::text like '%data:image/%'
-    limit 3
-  `)
-  if (b64InDb.length) errors.push(`B9: พบ base64 รูปใน spec: ${JSON.stringify(b64InDb)}`)
-
-  const missingR2 = []
-  const matPhotos = await client.sql('select path from public.job_material_photos')
-  for (const r of matPhotos) {
-    if (!client.stack.r2Store.has('mockups/' + r.path)) missingR2.push('mockups/' + r.path)
+  // B9 ไฟล์ที่ตารางอ้างมีใน R2 · ไม่มีรูป base64 ในฐาน
+  const b64 = await client.sql(`
+    select 'jobs' t, confirmation_no k from public.jobs where spec::text like '%data:image/%'
+    union all select 'drafts', confirmation_no from public.confirmation_drafts where data::text like '%data:image/%'`)
+  if (b64.length) errors.push(`B9: พบรูป base64 ในฐาน: ${JSON.stringify(b64.slice(0, 3))}`)
+  const missing = []
+  for (const r of await client.sql('select path from public.job_material_photos')) {
+    if (!client.stack.r2Store.has('mockups/' + r.path)) missing.push(r.path)
   }
-  if (missingR2.length) errors.push(`B9: ไฟล์ใน DB ไม่มีใน R2: ${JSON.stringify(missingR2.slice(0, 3))}`)
+  if (missing.length) errors.push(`B9: ไฟล์ในฐานไม่มีใน R2: ${JSON.stringify(missing.slice(0, 3))}`)
 
-  // B10: กล่องจดหมายไม่ส่ง dedupe_key ซ้ำ
+  // B10 กล่องจดหมายไม่ส่งซ้ำ
   const dupInbox = await client.sql('select dedupe_key, count(*)::int c from public.inbox_messages group by dedupe_key having count(*) > 1')
-  if (dupInbox.length) errors.push(`B10: inbox dedupe_key ซ้ำ: ${JSON.stringify(dupInbox)}`)
+  if (dupInbox.length) errors.push(`B10: กล่องจดหมายซ้ำ: ${JSON.stringify(dupInbox)}`)
 
-  if (page) {
-    const uiBad = await page.ev(() => /NaN|undefined|Invalid Date|\[object Object\]/.test(document.body.innerText))
-    if (uiBad) errors.push('B4-UI: พบ NaN/undefined/Invalid Date บนหน้าจอ')
+  // B11 หลังสแกนกล่องจดหมาย: เกินเวลาผลิต (ยังไม่รายงาน) และรอผลิตเกิน 2 วันทำงาน ต้องมีจดหมาย
+  if (afterScan && slaRes.ok) {
+    const overIds = slaRes.body.filter(f => f.over && f.need_report).map(f => f.job_id)
+    if (overIds.length) {
+      const got = await client.sql(`select job_id from public.inbox_messages where kind = 'sla_over' and job_id = any($1::uuid[])`, [overIds])
+      const have = new Set(got.map(r => r.job_id))
+      const lost = overIds.filter(id => !have.has(id))
+      if (lost.length) errors.push(`B11: เกินเวลาผลิตแต่ไม่มีจดหมาย ${lost.length} งาน`)
+    }
+    const waiting = await client.sql(`select id, confirmation_no, stage_entered_at from public.jobs where phase = 'materials'`)
+    const late = waiting.filter(w => workDays(w.stage_entered_at, new Date()) > 2)
+    if (late.length) {
+      const got = await client.sql(`select distinct job_id from public.inbox_messages where kind = 'materials_late' and job_id = any($1::uuid[])`, [late.map(w => w.id)])
+      const have = new Set(got.map(r => r.job_id))
+      const lost = late.filter(w => !have.has(w.id))
+      if (lost.length) errors.push(`B11: รอผลิตเกิน 2 วันทำงานแต่ไม่มีจดหมาย: ${lost.map(w => w.confirmation_no).join(', ')}`)
+    }
   }
 
   return errors
 }
 
-// พิสูจน์ว่าข้อตรวจ B1-B10 จับข้อมูลผิดได้จริงทุกข้อ
 export async function runInvariantSelfTests(client) {
   const cases = []
-  const verifyCatches = async (code, corruptFn) => {
-    await client.reset(true)
+  const verifyCatches = async (code, corruptFn, opts = {}) => {
+    await client.reset(false)
     const r = await client.rpc('admin1', 'receive_job', {
       p_confirmation_no: `SELF-${code}`, p_customer_name: 'SelfTest', p_job_name: code,
       p_product_type_code: 'tshirt', p_qty: 50, p_unit: 'ตัว', p_due_date: '2099-01-20',
       p_route_code: 'cut_only', p_confirmation_pdf_path: null, p_confirmation_rev: 0,
       p_spec: {}, p_needs_sample: false,
     })
-    if (!r.ok) throw new Error(`setup ${code} failed`)
+    if (!r.ok) throw new Error(`setup ${code}: ${JSON.stringify(r.body)}`)
     const jobId = r.body
     const st = createInvariantState()
-    const cleanErrs = await checkInvariants(client, st)
-    if (cleanErrs.length) throw new Error(`${code} clean state failed: ${cleanErrs.join('; ')}`)
-    await corruptFn(jobId, st)
-    const caught = await checkInvariants(client, st)
+    const clean = await checkInvariants(client, st, opts)
+    if (clean.length) throw new Error(`${code} ข้อมูลตั้งต้นไม่ผ่าน: ${clean.join('; ')}`)
+    await corruptFn(jobId)
+    const caught = await checkInvariants(client, st, opts)
     const hit = caught.some(e => e.startsWith(code + ':'))
-    cases.push({ code, caught: hit, messages: caught })
-    if (!hit) throw new Error(`Self-test ${code} ไม่สามารถจับข้อมูลผิดได้! got=${JSON.stringify(caught)}`)
+    cases.push({ code, caught: hit })
+    if (!hit) throw new Error(`self-test ${code} จับข้อมูลผิดไม่ได้: ${JSON.stringify(caught)}`)
+  }
+  const raw = async sql => {
+    await client.sql('set session_replication_role = replica')
+    try { await client.sql(sql) } finally { await client.sql('set session_replication_role = origin') }
   }
 
-  await verifyCatches('B1', async (jobId) => {
-    await client.sql('alter table public.events disable trigger all')
-    await client.sql("update public.events set type = 'tampered' where job_id = $1", [jobId])
-  })
-  await verifyCatches('B2', async (jobId) => {
-    await client.sql("update public.jobs set station_seq = 1 where id = $1", [jobId])
-  })
-  await verifyCatches('B3', async (jobId) => {
+  await verifyCatches('B1', id => raw(`update public.events set payload = '{"x":1}' where job_id = '${id}'`))
+  await verifyCatches('B2', id => raw(`update public.jobs set station_seq = 9 where id = '${id}'`))
+  await verifyCatches('B3', async id => {
     await client.sql('alter table public.jobs drop constraint if exists jobs_queue_seq_key')
     await client.sql('drop index if exists public.jobs_queue_seq_key')
-    await client.sql(`insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, phase, station_seq, station_status, queue_seq)
-      select 'SELF-B3-DUP', 'A', 'B', 'tshirt', 10, 'ตัว', '2099-01-20', 'cut_only', 'materials', 0, null, queue_seq from public.jobs where id = $1`, [jobId])
+    await raw(`insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, phase, station_seq, station_status, queue_seq)
+      select 'SELF-B3-DUP', 'A', 'B', 'tshirt', 10, 'ตัว', '2099-01-20', 'cut_only', 'materials', 0, null, queue_seq from public.jobs where id = '${id}'`)
+    await raw(`insert into public.events (job_id, type, payload) select id, 'received', '{}' from public.jobs where confirmation_no = 'SELF-B3-DUP'`)
   })
-  await verifyCatches('B4', async (jobId) => {
-    await client.sql('alter table public.jobs drop constraint if exists jobs_qty_check')
-    await client.sql('alter table public.jobs drop constraint if exists jobs_qty_cap')
-    await client.sql('update public.jobs set qty = 0 where id = $1', [jobId])
+  await verifyCatches('B4', id => raw(`insert into public.qc_results (job_id, passed) values ('${id}', 51)`))
+  await verifyCatches('B5', async id => {
+    await raw(`update public.jobs set qty = 1000 where id = '${id}'`)
+    await client.sql(`create or replace function private.lead_days(p_qty int) returns int language sql immutable set search_path = '' as $$ select 10 $$`)
   })
-  await verifyCatches('B5', async (jobId) => {
-    await client.sql("update public.jobs set phase = 'production', station_seq = 1, station_status = 'queued', qty = 1000 where id = $1", [jobId])
-    await client.sql(`create or replace function public.job_sla_flags() returns table(job_id uuid, warn boolean, over boolean, need_report boolean, lead_days int, lead_due date) language sql stable as $$ select '${jobId}'::uuid, false, false, false, 1, current_date $$`)
-  })
-  await verifyCatches('B6', async (jobId) => {
+  await verifyCatches('B6', async id => {
     await client.sql("update public.stations set machines = 1 where code = 'cut'")
-    await client.sql("update public.jobs set phase = 'production', station_seq = 1, station_status = 'doing' where id = $1", [jobId])
-    await client.sql(`insert into public.jobs (confirmation_no, customer_name, job_name, product_type_code, qty, unit, due_date, route_code, phase, station_seq, station_status)
-      values ('SELF-B6-2', 'A', 'B', 'tshirt', 10, 'ตัว', '2099-01-20', 'cut_only', 'production', 1, 'doing')`)
+    await raw(`update public.jobs set station_status = 'doing' where id = '${id}'`)
+    const r = await client.rpc('admin1', 'receive_job', {
+      p_confirmation_no: 'SELF-B6-2', p_customer_name: 'A', p_job_name: 'B', p_product_type_code: 'tshirt',
+      p_qty: 10, p_unit: 'ตัว', p_due_date: '2099-01-20', p_route_code: 'cut_only',
+      p_confirmation_pdf_path: null, p_confirmation_rev: 0, p_spec: {}, p_needs_sample: false,
+    })
+    await raw(`update public.jobs set station_status = 'doing' where id = '${r.body}'`)
   })
-  await verifyCatches('B7', async (jobId) => {
-    await client.sql('alter table public.jobs drop constraint if exists jobs_confirmation_rev_check')
-    await client.sql('update public.jobs set confirmation_rev = -1 where id = $1', [jobId])
+  await verifyCatches('B7', id => raw(`update public.jobs set confirmation_rev = -1 where id = '${id}'`))
+  await verifyCatches('B8', async id => {
+    const p = await client.seedMockJpg('mockups', 'SELF-B8', 'mock-b8')
+    await raw(`update public.jobs set mockup_path = '${p}' where id = '${id}'`)
+    await raw(`insert into public.job_material_photos (job_id, path) values ('${id}', '${p}')`)
   })
-  await verifyCatches('B8', async (jobId) => {
-    const p = await client.seedMockJpg('mockups', `SELF-B8`, 'mock-b8')
-    await client.sql('update public.jobs set mockup_path = $1 where id = $2', [p, jobId])
-    await client.sql('insert into public.job_material_photos (job_id, path) values ($1, $2)', [jobId, p])
-  })
-  await verifyCatches('B9', async (jobId) => {
-    await client.sql("insert into public.job_material_photos (job_id, path) values ($1, 'MISSING/nofile.jpg')", [jobId])
-  })
-  await verifyCatches('B10', async (jobId) => {
+  await verifyCatches('B9', id => raw(`insert into public.job_material_photos (job_id, path) values ('${id}', 'MISSING/nofile.jpg')`))
+  await verifyCatches('B10', async id => {
     await client.sql('alter table public.inbox_messages drop constraint if exists inbox_messages_dedupe_key_key')
-    await client.sql("insert into public.inbox_messages (kind, job_id, dedupe_key, title, body, audience) values ('materials_late', $1, 'dup-k', 't', 'b', array['admin']), ('materials_late', $1, 'dup-k', 't', 'b', array['admin'])", [jobId])
+    await raw(`insert into public.inbox_messages (kind, job_id, dedupe_key, title, body, audience) values
+      ('materials_late', '${id}', 'dup-k', 't', 'b', array['admin']), ('materials_late', '${id}', 'dup-k', 't', 'b', array['admin'])`)
   })
+  await verifyCatches('B11', async id => {
+    await raw(`update public.jobs set created_at = now() - interval '40 day' where id = '${id}'`)
+    await raw(`update public.events set at = at - interval '40 day' where job_id = '${id}'`)
+    await raw(`insert into public.inbox_settings (kind, enabled) values ('sla_over', false) on conflict (kind) do update set enabled = false`)
+    await client.rpc('admin1', 'inbox_scan')
+  }, { afterScan: true })
   return cases
 }
