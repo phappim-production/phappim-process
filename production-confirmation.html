@@ -413,7 +413,7 @@ const HEM_FOLD='data:image/webp;base64,UklGRvwjAABXRUJQVlA4IPAjAACwrwCdASpAATsBP
 const SIGNERS_CUSTOMER=['ลูกค้า','ผู้อนุมัติ'], SIGNERS_FACTORY=[...SIGNERS_CUSTOMER,'ผู้ควบคุมการผลิต'];
 const OPT_IMG = { 'พับริมเย็บ':HEM_FOLD, 'พับริมเย็บ 4 ด้าน':HEM_FOLD, 'ม้วนริม 0.6 ซม.':HEM_ROLL, 'ม้วนริม 0.3 ซม.':HEM_ROLL, 'ม้วนริม (ประมาณ 0.4–0.6 ซม.)':HEM_ROLL };
 const HEM_SIZED = new Set(['พับริมเย็บ','พับริมเย็บ 4 ด้าน','ม้วนริม (ประมาณ 0.4–0.6 ซม.)']);
-const HEM_SIZE = key => R('edge_size','ขนาดพับ / ม้วนริม',['0.3 ซม.','0.6 ซม.','1 ซม.'],{ other:true, req:true, otherPh:'เช่น 1.5 ซม.', hint:'ความกว้างของริมที่พับหรือม้วนแล้วเย็บ', when:v=>HEM_SIZED.has(v[key]) });
+const HEM_SIZE = key => R('edge_size','ขนาดพับ / ม้วนริม',['0.3 ซม.','0.6 ซม.','1 ซม.'],{ other:true, req:true, otherPh:'เช่น 1.5 ซม.', hint:'ความกว้างของริมที่พับหรือม้วนแล้วเย็บ', when:v=>HEM_SIZED.has(typeof key==='function'?key(v):v[key]) });
 const OPT_DESC = {
   'ลูกค้าส่งผ้ามาเอง (ไม่มีลายที่ต้องพิมพ์ · ตัด/เย็บอย่างเดียว)': 'ผ้าผืนที่โรงงานตัด + เย็บ · ผ้าที่ตัดมาแล้ว เย็บอย่างเดียว ให้ใช้ใบ "เย็บอย่างเดียว" ในหมวดงานบริการแทน',
   'ผ้าเดียวกับตัว': 'ขอบคอใช้ผ้าเดียวกับตัวเสื้อ',
@@ -884,9 +884,9 @@ const PRODUCTS = {
     itemsSec('ผืน',{ hint:'ขนาดยอดนิยม 50 × 50, 60 × 60, 100 × 100 ซม.' }),
     printSec(M_FLAT,null,{ title:'งานพิมพ์', def:['ซับลิเมชั่น พิมพ์เต็มผืน'], extra:[ R('sides','จำนวนหน้า',['หน้าเดียว','สองหน้าประกบ']) ] }),
     { title:'การเย็บ', fields:[
-      R('sew_style','รูปแบบการเย็บ',['ม้วนริม 0.6 ซม.','ม้วนริม 0.3 ซม.'],{ other:true, when:v=>v.item==='ผ้าเช็ดหน้า' }),
+      R('sew_style','รูปแบบการเย็บ',['ม้วนริม 0.6 ซม.','ม้วนริม 0.3 ซม.','พับริมเย็บ'],{ other:true, when:v=>v.item==='ผ้าเช็ดหน้า' }),
       R('edge','การเก็บขอบ',['ม้วนริม (ประมาณ 0.4–0.6 ซม.)','พับริมเย็บ','โพ้งริม (ริมเล็ก)','ตัดลุ่ย (ฟรินจ์)','ตัดเลเซอร์'],{ other:true, when:v=>v.item!=='ผ้าเช็ดหน้า' }),
-      HEM_SIZE('edge'),
+      HEM_SIZE(v=>v.item==='ผ้าเช็ดหน้า'?v.sew_style:v.edge),
       THREAD ]},
     packSec(['พับใส่ถุงแยกผืน','พับใส่ซอง + การ์ด','ไม่ใส่ถุง']),
   ]},
