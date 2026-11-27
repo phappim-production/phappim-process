@@ -95,7 +95,8 @@ function SpecEditor({ spec, used, stations, edit, disabled }: {
         <Num label="สูง" value={spec.height} onCommit={v => set({ height: v })} disabled={disabled} />
         <label className={label}>หน่วย
           <select value={spec.unit} disabled={disabled} onChange={e => set({ unit: e.target.value as Unit })} className={`${fieldClass} font-normal text-ink`}>
-            {Object.entries(UNIT_NAME).map(([k, n]) => <option key={k} value={k}>{n}</option>)}
+            {/* โรงงานใช้ ซม. / นิ้ว เท่านั้น · สเปกเก่าที่เป็น มม. ยังเปิดดูได้ */}
+            {Object.entries(UNIT_NAME).filter(([k]) => k !== 'mm' || spec.unit === 'mm').map(([k, n]) => <option key={k} value={k}>{n}</option>)}
           </select>
         </label>
       </div>

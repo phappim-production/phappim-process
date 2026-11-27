@@ -196,6 +196,23 @@ test('ฟอร์มใบยืนยัน: ใบโปโลเก่าท
   assert.equal(api.state.p.sport.collar, 'ปกพิมพ์')
 })
 
+test('ฟอร์มใบยืนยัน: ไม่ใช้หน่วย มม. · ใบเก่าที่เลือกความกว้างสาย / วัสดุเหรียญเป็น มม. เปิดแล้วเป็น ซม.', () => {
+  const { api, els } = boot()
+  api.loadData({ h: { doc_no: 'SC-MM', customer: 'x' }, product: 'lanyard', p: { lanyard: { width: '25 มม.' }, medal: { material: 'อะคริลิค หนา 5 มม. (พิมพ์สี)' } } }, 'x')
+  assert.equal(api.state.p.lanyard.width, '2.5 ซม.')
+  assert.equal(api.state.p.medal.material, 'อะคริลิค หนา 0.5 ซม. (พิมพ์สี)')
+  api.renderDoc()
+  assert.equal(els.get('#doc').innerHTML.includes('มม.'), false)
+})
+
+test('ฟอร์มใบยืนยัน: ทุกสินค้าไม่มีหน่วย มม. ในชื่อช่อง ตัวเลือก คำแนะนำ', () => {
+  const { api } = boot()
+  const texts = Object.values(api.PRODUCTS).flatMap(p => p.sections.flatMap(s => (s.fields || []).flatMap(f => [
+    f.label, f.hint, f.ph, ...(f.options || []), ...(f.parts || []), ...(f.cols || []).flatMap(c => [c.label, ...(c.options || [])]),
+  ]))).filter(t => typeof t === 'string')
+  assert.deepEqual(texts.filter(t => /มม\.|มิลลิเมตร/.test(t)), [])
+})
+
 test('ฟอร์มใบยืนยัน: เปิดดูจากระบบ (ฝ่ายผลิต) แสดงใบล่าสุดแบบดูอย่างเดียว ไม่เขียนทับใบที่แอดมินกรอกค้างในเครื่อง', () => {
   const { api, store, els } = boot()
   const mine = { h: { doc_no: 'SC-DRAFT', customer: 'ใบที่แอดมินกรอกค้าง' }, product: 'tshirt', p: { tshirt: {} }, imgs: [] }
@@ -336,7 +353,7 @@ const FACTORY_HEAD = { contact: 'คุณติดต่อภายใน', ph
 const FACTORY_TEXT = ['ซิลค์สกรีน', 'งานปัก', 'หมึกขาวล้วน', 'ด้ายปักทองเบอร์ 9', 'ด้ายเย็บสีเทา', 'เผื่อเสีย', 'ปกจีน', 'หน้าอกซ้าย', '8x8',
   'พิมพ์สีพิเศษ 2 สี', 'กรมท่าเข้ม', 'ขาวนวล', 'แดงสด', 'ตัวหลังพิเศษ', 'หมายเหตุภายในโรงงาน', 'คุณติดต่อภายใน', '081-555-0000']
 const CUSTOMER_TEXT = ['SC-T1', 'เสื้อยืด', 'วันที่สั่งงาน', '24/11/2569', 'ผู้ประสานงาน', 'แอดมินน้ำ · 090-111-2222', 'การจัดส่ง', 'รถบริษัทไปส่ง',
-  'TC (คอตตอน/โพลี)', 'ผ้าริบ', 'แบบหลัก', 'แพ็ค 1/1 (ถุงแยกตัว)', 'ลูกค้ายืนยันรายละเอียด']
+  'TC (คอตตอน/โพลี)', 'ผ้าริบ', 'แบบหลัก', 'แพ็ค 1/1 (ถุงแยกตัว)', 'ผู้อนุมัติ']
 
 test('ฟอร์มใบยืนยัน: ใบที่ส่งลูกค้าแสดงเฉพาะเลขที่ใบ ประเภทสินค้า วันที่สั่งงาน ผู้ประสานงาน การจัดส่ง วัสดุ ไซซ์ จำนวน แพ็คกิ้ง + ช่องเซ็น · ระบบยังได้รับครบ', () => {
   const { api, store, els, s, v } = filled()
@@ -405,11 +422,21 @@ test('ฟอร์มใบยืนยัน: ใบลูกค้าไม่
   assert.match(els.get('#doc').innerHTML, /logo-final\.ai/)
 })
 
-test('ฟอร์มใบยืนยัน: ช่องเซ็นมีแค่ลูกค้า และผู้ควบคุมงาน (ไม่มีช่องแอดมินผู้ทำใบ)', () => {
+const signBoxes = html => [...html.matchAll(/<div class="t">([^<]*)<\/div>/g)].map(m => m[1])
+
+test('ฟอร์มใบยืนยัน: ฉบับลูกค้ามีช่องเซ็น ลูกค้า + ผู้อนุมัติ', () => {
   const { api, els } = filled()
   api.renderDoc()
-  const signs = [...els.get('#doc').innerHTML.matchAll(/<div class="t">([^<]*)<\/div>/g)].map(m => m[1])
-  assert.deepEqual(signs, ['ลูกค้ายืนยันรายละเอียด', 'ผู้ควบคุมงาน (รับงานเข้าโรงงาน)'])
+  assert.deepEqual(signBoxes(els.get('#doc').innerHTML), ['ลูกค้า', 'ผู้อนุมัติ'])
+})
+
+test('ฟอร์มใบยืนยัน: ฉบับโรงงานมีช่องเซ็น ลูกค้า + ผู้อนุมัติ + ผู้ควบคุมการผลิต', () => {
+  const { api, store, els } = boot()
+  store.set('pp142.confirmation.inbox', JSON.stringify({ view: true, h: { doc_no: 'SC-SIGN', customer: 'ลูกค้า' }, product: 'tshirt', p: { tshirt: {} } }))
+  api.takeInbox()
+  const doc = els.get('#doc').innerHTML
+  assert.deepEqual(signBoxes(doc), ['ลูกค้า', 'ผู้อนุมัติ', 'ผู้ควบคุมการผลิต'])
+  assert.match(doc, /class="sign s3"/)
 })
 
 test('ฟอร์มใบยืนยัน: ภาพม็อคอัพขึ้นหน้าใหม่ต่อจากรายละเอียด อยู่เหนือข้อตกลงและช่องเซ็น · ไม่มีภาพ = ไม่มีหน้าม็อคอัพ', () => {
@@ -423,7 +450,7 @@ test('ฟอร์มใบยืนยัน: ภาพม็อคอัพข
   const doc = els.get('#doc').innerHTML
   const page = doc.indexOf('class="d-mockpage"'), accept = doc.indexOf('class="d-accept"')
   assert.ok(page > doc.indexOf('แพ็คกิ้ง') && accept > page)
-  assert.ok(doc.indexOf('class="sign"') > accept)
+  assert.ok(doc.indexOf('class="sign') > accept)
   assert.ok(doc.indexOf('รูป 1 · ด้านหน้า') > page)
   assert.match(doc.slice(page), /d-imgs one/)
   assert.equal((doc.match(/class="d-mock"/g) || []).length, 1)
