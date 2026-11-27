@@ -5,6 +5,8 @@ export const RPC_POLICY = {
   cancel_confirmation_draft: { gate: ['admin'] },
   receive_job: { gate: ['admin'] },
   attach_confirmation_pdf: { gate: ['admin'] },
+  set_customer_signature: { gate: ['admin'] },
+  job_customer_signature: { scope: 'active' },
   revise_job_spec: { gate: ['admin'] },
   ack_confirmation_revision: { gate: ['supervisor', 'qc'], station: true },
   confirmation_revision_flags: { scope: 'active' },

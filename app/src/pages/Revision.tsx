@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { STATION_NAME, type Job } from '../proto/model'
+import { signatureForForm } from '../data/customerSignature'
 import { loadFormData } from '../data/jobForm'
 import { INBOX_KEY } from '../data/confirmationDrafts'
 import { openFormWindow } from '../lib/install'
@@ -21,11 +22,11 @@ export function ViewConfirmation({ job, wide }: { job: Job; wide?: boolean }) {
     // เปิดหน้าต่างก่อนรอข้อมูล ไม่อย่างนั้นเบราว์เซอร์บนมือถือจะบล็อกป๊อปอัป
     const win = openFormWindow()
     setBusy(true)
-    const r = await loadFormData(job.id)
+    const [r, sig] = await Promise.all([loadFormData(job.id), signatureForForm(job.id)])
     setBusy(false)
     if (!r.ok) { win?.close(); setError(r.reason); return }
     const rv = job.revision
-    const payload = { ...r.data, view: true, ...(rv ? { revision: { rev: rv.rev, at: revisionWhen(rv.at), by: rv.by, fields: rv.fields } } : {}) }
+    const payload = { ...r.data, view: true, ...(sig ? { customer_sig: sig } : {}), ...(rv ? { revision: { rev: rv.rev, at: revisionWhen(rv.at), by: rv.by, fields: rv.fields } } : {}) }
     try { window.localStorage.setItem(INBOX_KEY, JSON.stringify(payload)) } catch { win?.close(); setError('เปิดใบยืนยันไม่ได้ (พื้นที่เบราว์เซอร์เต็ม)'); return }
     if (win) win.location.href = CONFIRMATION_FORM
     else window.location.href = CONFIRMATION_FORM

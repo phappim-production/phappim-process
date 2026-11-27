@@ -430,6 +430,31 @@ test('ฟอร์มใบยืนยัน: ฉบับลูกค้าม
   assert.deepEqual(signBoxes(els.get('#doc').innerHTML), ['ลูกค้า', 'ผู้อนุมัติ'])
 })
 
+test('ฟอร์มใบยืนยัน: ฉบับโรงงานแสดงลายเซ็นลูกค้าที่แอดมินตัดไว้ · ใบแก้ครั้งใหม่บอกว่ายังไม่ได้เซ็น · ฉบับลูกค้าไม่แสดง', () => {
+  const open = sig => {
+    const b = boot()
+    b.store.set('pp142.confirmation.inbox', JSON.stringify({ view: true, h: { doc_no: 'SC-SIG', customer: 'ลูกค้า' }, product: 'tshirt', p: { tshirt: {} }, customer_sig: sig }))
+    b.api.takeInbox()
+    return b
+  }
+  const ok = open({ src: 'https://files.test/f/mockups/SC-SIG/sigab.png?sig=1', signed_on: '2026-11-26', rev: 1, current_rev: 1 })
+  const doc = ok.els.get('#doc').innerHTML
+  assert.match(doc, /<div class="signed"><div class="t">ลูกค้า<\/div><img src="https:\/\/files\.test\/f\/mockups\/SC-SIG\/sigab\.png\?sig=1"/)
+  assert.match(doc, /วันที่ 26\/11\/2569/)
+  assert.equal((doc.match(/class="signed"/g) || []).length, 1)
+
+  const stale = open({ src: 'https://files.test/x.png', signed_on: '2026-11-20', rev: 0, current_rev: 2 }).els.get('#doc').innerHTML
+  assert.equal(stale.includes('class="signed"'), false)
+  assert.match(stale, /ลูกค้าเซ็นใบครั้งที่ 0 · ใบนี้ \(ครั้งที่ 2\) ยังไม่ได้เซ็น/)
+
+  const bad = open({ src: 'javascript:alert(1)', signed_on: '2026-11-26', rev: 0, current_rev: 0 }).els.get('#doc').innerHTML
+  assert.equal(bad.includes('class="signed"'), false)
+
+  const { api, els } = filled()
+  api.renderDoc()
+  assert.equal(els.get('#doc').innerHTML.includes('class="signed"'), false)
+})
+
 test('ฟอร์มใบยืนยัน: ฉบับโรงงานมีช่องเซ็น ลูกค้า + ผู้อนุมัติ + ผู้ควบคุมการผลิต', () => {
   const { api, store, els } = boot()
   store.set('pp142.confirmation.inbox', JSON.stringify({ view: true, h: { doc_no: 'SC-SIGN', customer: 'ลูกค้า' }, product: 'tshirt', p: { tshirt: {} } }))
