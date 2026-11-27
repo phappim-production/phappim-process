@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { MIN_PASSWORD_LENGTH, newPasswordProblem, passwordChangeErrorMessage, signInErrorMessage } from './messages'
 import { DocumentLang, LangToggle, Tr } from '../i18n/Tr'
 import { useT } from '../i18n/lang'
+import { OpenInBrowser } from '../components/InstallApp'
 
 export const primaryButton = 'min-h-12 rounded-xl bg-brand px-5 py-2.5 font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60'
 export const secondaryButton = 'min-h-12 rounded-xl border border-line px-5 py-2.5 font-semibold text-brand hover:bg-brand-soft disabled:opacity-60'
@@ -21,6 +22,7 @@ export function AccountScreen({ title, children }: { title: string; children: Re
         </div>
         <p className="mb-1 text-sm font-medium text-muted"><Tr th="ระบบติดตามการผลิต" /></p>
         <h1 className="mb-4 text-2xl font-semibold tracking-tight"><Tr th={title} /></h1>
+        <OpenInBrowser />
         {children}
       </Card>
     </main>

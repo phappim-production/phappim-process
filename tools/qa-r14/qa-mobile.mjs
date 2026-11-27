@@ -6,6 +6,8 @@ import { ACCOUNT_BY_KEY, DEFAULT_PASSWORD } from './db.mjs'
 
 const ANDROID = { userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-A155F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36', platform: 'Linux armv8l' }
 const IPHONE = { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1', platform: 'iPhone' }
+const LINE_ANDROID = { userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-A155F Build/UP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/131.0.0.0 Mobile Safari/537.36 Line/14.19.1/IAB', platform: 'Linux armv8l' }
+const LINE_IPHONE = { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Safari Line/14.19.0', platform: 'iPhone' }
 const WINDOWS = { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', platform: 'Win32' }
 
 // Chrome จริงอาจส่ง beforeinstallprompt เอง · กันไว้ให้ผลทดสอบไม่ขึ้นกับเครื่อง แล้วส่งของปลอมเองเมื่อต้องการ
@@ -81,7 +83,37 @@ try {
     await t.waitText('เลื่อนลงแล้วกด เพิ่มไปยังหน้าจอโฮม')
   })
 
+  await step('line-android-card-opens-chrome', async () => {
+    await device(LINE_ANDROID, true)
+    await t.goto('staff_single', '#/system', 375)
+    await t.waitText('เปิดอยู่ใน LINE · ติดตั้งแอปไม่ได้ ให้เปิดในเบราว์เซอร์ก่อน')
+    const href = await tab.ev(() => [...document.querySelectorAll('a')].find(a => a.textContent.trim() === 'เปิดใน Chrome')?.href ?? '')
+    assert.match(href, /\?(.*&)?openExternalBrowser=1(&.*)?#\/system$/)
+    assert.equal(await tab.ev(() => document.body.innerText.includes('กดเมนู ⋮ มุมขวาบนของ Chrome')), false, 'ใน LINE ไม่ควรขึ้นขั้นตอนเมนู Chrome')
+    await shotCard('mobile-install-line-android')
+  })
+
+  await step('line-iphone-login-opens-safari-burmese', async () => {
+    await device(LINE_IPHONE, true)
+    await tab.ev(() => { localStorage.clear(); localStorage.setItem('pp142-lang', 'my') })
+    await t.goto(null, '#/', 375)
+    await t.waitText('Safari နဲ့ ဖွင့်မယ်')
+    await t.waitText('เปิดใน Safari')
+    const right = await tab.ev(() => document.querySelector('[role="note"]')?.getBoundingClientRect().right ?? 999)
+    assert.ok(right <= 375, 'กล่องเปิดในเบราว์เซอร์ล้นจอ')
+    await t.screenshot('mobile-login-line-iphone-my')
+    await tab.ev(() => localStorage.setItem('pp142-lang', 'th'))
+  })
+
+  await step('external-param-removed-after-open', async () => {
+    await device(ANDROID, true)
+    await tab.send('Page.navigate', { url: `${stack.origin}/?openExternalBrowser=1#/` })
+    await waitFor(() => tab.ev(() => document.readyState === 'complete' && !location.search.includes('openExternalBrowser')), 'เอาพารามิเตอร์ออกจากที่อยู่เว็บ')
+    assert.equal(await tab.ev(() => document.querySelector('[role="note"]') === null), true, 'Chrome ปกติไม่ควรขึ้นกล่องเปิดในเบราว์เซอร์')
+  })
+
   await step('opened-from-home-screen-hides-card', async () => {
+    await device(IPHONE, true)
     await tab.ev(() => sessionStorage.setItem('qa-standalone', '1'))
     await t.goto('staff_single', '#/system', 375)
     await t.waitText('ออกจากระบบ')

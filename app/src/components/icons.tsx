@@ -67,3 +67,4 @@ export const IconCompare = icon(<><rect x="3" y="4" width="18" height="16" rx="2
 export const IconZoom = icon(<><circle cx="11" cy="11" r="7" /><path d="m20.5 20.5-4.5-4.5M11 8v6M8 11h6" /></>)
 export const IconChevronLeft = icon(<path d="m15 18-6-6 6-6" />)
 export const IconDownload = icon(<><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></>)
+export const IconExternal = icon(<><path d="M14 4h6v6" /><path d="M20 4 10 14" /><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></>)
