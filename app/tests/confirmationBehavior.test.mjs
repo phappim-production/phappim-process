@@ -406,6 +406,21 @@ test('ฟอร์มใบยืนยัน: ฝ่ายผลิตเปิ
   assert.match(doc, /เผื่อเสีย 7 ตัว/)
 })
 
+test('ฟอร์มใบยืนยัน: ใบลูกค้าเห็นรูปแบบการเย็บขอบ (ตัวเลือก รูป ขนาด) ของผ้าผืน · ไม่เห็นสีด้าย / วิธีเย็บ', () => {
+  const { api, els, v } = filled('scarf')
+  Object.assign(v, { item: 'ผ้าเช็ดหน้า', sew_mode: 'ลูกค้ากำหนดวิธีเย็บเอง', sew_style: 'ม้วนริม 0.6 ซม.', thread: 'ขาว' })
+  api.renderDoc()
+  let doc = els.get('#doc').innerHTML
+  assert.match(doc, /รูปแบบการเย็บ<\/span><b>ม้วนริม 0\.6 ซม\.<img class="optimg"/)
+  assert.equal(doc.includes('สีด้าย'), false)
+  assert.equal(doc.includes('ลูกค้ากำหนดวิธีเย็บเอง'), false)
+  Object.assign(v, { item: 'ผ้าพันคอ', edge: 'พับริมเย็บ', edge_size: '1 ซม.' })
+  api.renderDoc()
+  doc = els.get('#doc').innerHTML
+  assert.match(doc, /การเก็บขอบ<\/span><b>พับริมเย็บ<img class="optimg"/)
+  assert.match(doc, /ขนาดพับ \/ ม้วนริม<\/span><b>1 ซม\./)
+})
+
 test('ฟอร์มใบยืนยัน: ใบลูกค้าไม่มีหัวข้อการเย็บ งานพิมพ์ / ตกแต่ง ไฟล์งาน · ภาพม็อคอัพยังพิมพ์ · ฉบับโรงงานมีครบ', () => {
   const { api, els, s, v } = filled()
   withFactoryDetails(v)

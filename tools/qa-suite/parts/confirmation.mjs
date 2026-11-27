@@ -120,7 +120,7 @@ export async function runConfirmationTests(client, browser, fixtures, { seed = 1
     if (res.broken.length || res.unused.length) fail(`รูปเย็บขอบ: รูปเสีย ${res.broken.join(', ')} · ไม่ตรงตัวเลือกใด ${res.unused.join(', ')}`)
     if (res.formImgs < 2) fail(`รูปเย็บขอบ: ฟอร์มแสดงรูป ${res.formImgs} รูป (ควรมีม้วนริม + พับริมเย็บ)`)
     if (res.factory !== 1) fail(`รูปเย็บขอบ: ฉบับโรงงานแสดงรูป ${res.factory} รูป (ควร 1 รูปของแบบที่เลือก)`)
-    if (res.customer !== 0) fail(`รูปเย็บขอบ: ฉบับลูกค้าแสดงรูป ${res.customer} รูป (ช่องเย็บเป็นข้อมูลภายใน)`)
+    if (res.customer !== 1) fail(`รูปเย็บขอบ: ฉบับลูกค้าแสดงรูป ${res.customer} รูป (ควร 1 รูป ลูกค้าเห็นรูปแบบการเย็บขอบ)`)
   })
 
   await check('hem-size', async () => {
