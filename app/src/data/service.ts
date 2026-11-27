@@ -22,6 +22,7 @@ export function serviceRoute(spec: Spec): RouteCode | null {
     case 'svc_print': return part(spec, 'svc_print').print_output === PRINT_ON_FABRIC ? 'print_press_only' : 'print_only'
     case 'svc_press': return 'press_only'
     case 'svc_dtf': return 'dtf_only'
+    case 'svc_uvdtf': return 'outside'
     default: return null
   }
 }
@@ -39,6 +40,15 @@ export function customerFabric(spec: Spec): boolean {
   if (serviceRoute(spec) || typeof spec.product !== 'string') return false
   const methods = part(spec, spec.product).print_method
   return Array.isArray(methods) && methods.some(m => text(m).startsWith('ลูกค้าส่งผ้ามาเอง'))
+}
+
+export const UVDTF_UNITS = ['แผ่น', 'ชิ้น'] as const
+
+// ใบ UV DTF เลือกนับเป็นแผ่นหรือชิ้นได้ · ใบอื่นใช้หน่วยของสินค้า
+export function serviceUnit(spec: Spec, productUnit: string): string {
+  if (spec.product !== 'svc_uvdtf') return productUnit
+  const u = text(part(spec, 'svc_uvdtf').uv_unit)
+  return (UVDTF_UNITS as readonly string[]).includes(u) ? u : productUnit
 }
 
 export const customerFilm = (spec: Spec) => spec.product === 'svc_dtf' && part(spec, 'svc_dtf').film_source === FILM_CUSTOMER
