@@ -90,6 +90,64 @@ export async function runConfirmationTests(client, browser, fixtures, { seed = 1
     copies = `copies-${sample.length}-products-${fieldsFilled}-fields`
   })
 
+  await check('hem-images', async () => {
+    const res = await browser.ev(() => {
+      const out = []
+      for (const [product, sec] of Object.entries(PRODUCTS)) {
+        for (const s of sec.sections) for (const f of s.fields ?? []) {
+          if (f.type !== 'radio') continue
+          for (const o of f.options) if (OPT_IMG[o]) out.push({ product, field: f.id, option: o })
+        }
+      }
+      const broken = Object.entries(OPT_IMG).filter(([, src]) => !/^data:image\/webp;base64,/.test(src)).map(([o]) => o)
+      const unused = Object.keys(OPT_IMG).filter(o => !out.some(x => x.option === o))
+      state = fresh()
+      state.product = 'scarf'
+      state.pickOpen = false
+      Object.assign(scope('p'), { item: 'ผ้าพันคอ', sew_mode: SEW_CUSTOM, edge: 'พับริมเย็บ' })
+      renderForm()
+      const formImgs = document.querySelectorAll('.opt .optimg').length
+      const was = viewOnly
+      viewOnly = true
+      renderDoc()
+      const factory = document.querySelectorAll('#doc .optimg').length
+      viewOnly = false
+      renderDoc()
+      const customer = document.querySelectorAll('#doc .optimg').length
+      viewOnly = was
+      return { used: out.length, broken, unused, formImgs, factory, customer }
+    })
+    if (res.broken.length || res.unused.length) fail(`รูปเย็บขอบ: รูปเสีย ${res.broken.join(', ')} · ไม่ตรงตัวเลือกใด ${res.unused.join(', ')}`)
+    if (res.formImgs < 2) fail(`รูปเย็บขอบ: ฟอร์มแสดงรูป ${res.formImgs} รูป (ควรมีม้วนริม + พับริมเย็บ)`)
+    if (res.factory !== 1) fail(`รูปเย็บขอบ: ฉบับโรงงานแสดงรูป ${res.factory} รูป (ควร 1 รูปของแบบที่เลือก)`)
+    if (res.customer !== 0) fail(`รูปเย็บขอบ: ฉบับลูกค้าแสดงรูป ${res.customer} รูป (ช่องเย็บเป็นข้อมูลภายใน)`)
+  })
+
+  await check('hem-size', async () => {
+    const res = await browser.ev(() => {
+      state = fresh()
+      state.product = 'scarf'
+      state.pickOpen = false
+      const v = scope('p')
+      Object.assign(v, { item: 'ผ้าพันคอ', sew_mode: SEW_CUSTOM, edge: 'พับริมเย็บ' })
+      const ids = () => validate().map(m => m.id)
+      const askedWhenFold = ids().includes('fld_p_edge_size')
+      v.edge_size = '0.6 ซม.'
+      const doneWhenFilled = !ids().includes('fld_p_edge_size')
+      const was = viewOnly
+      viewOnly = true
+      renderDoc()
+      const factory = document.querySelector('#doc').innerText
+      viewOnly = was
+      v.edge = 'โพ้งริม (ริมเล็ก)'
+      delete v.edge_size
+      const notAskedWhenOverlock = !ids().includes('fld_p_edge_size')
+      return { askedWhenFold, doneWhenFilled, printed: /ขนาดพับ \/ ม้วนริม\s*0\.6 ซม\./.test(factory), notAskedWhenOverlock }
+    })
+    const bad = Object.entries(res).filter(([, ok]) => !ok).map(([k]) => k)
+    if (bad.length) fail(`ขนาดพับ/ม้วนริม: ${bad.join(', ')}`)
+  })
+
   await check('PR241-taken-doc-no', async () => {
     const dupNo = `F-TAKEN-${seed}`
     const taken = await client.rpc('admin1', 'receive_job', {
