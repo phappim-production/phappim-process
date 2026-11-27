@@ -34,7 +34,7 @@ try {
               switch (f.type) {
                 case 'text': case 'date': case 'textarea': if (!String(val ?? '').trim()) v[f.id] = fillText(f); break
                 case 'number': if (!(num(val) > 0)) v[f.id] = f.id === 'rev' ? '' : 5; break
-                case 'radio': if (!val) v[f.id] = f.options[0]; break
+                case 'radio': if (f.id === 'collar' && (!val || val === 'ไม่มีปก')) v[f.id] = f.options.find(o => o !== 'ไม่มีปก'); else if (!val) v[f.id] = f.options[0]; break
                 case 'check': if (!(val || []).length) v[f.id] = [f.options[0]]; break
                 case 'dims': f.parts.forEach((p, i) => { if (!(num(v[f.id + '_' + i]) > 0)) v[f.id + '_' + i] = 20 + i * 10 }); break
                 case 'sizeTable': {
@@ -46,7 +46,7 @@ try {
                   const rs = rows(v, f.id, !!f.none)
                   if (!rs.length || !rs[0][f.cols[0].c]) {
                     const r = {}
-                    f.cols.forEach(c => { r[c.c] = c.t === 'select' ? c.options[0] : c.t === 'img' ? '1' : c.t === 'number' ? 5 : (c.label.includes('ขนาด') ? '10 × 12' : 'ตัวอย่าง') })
+                    f.cols.forEach(c => { r[c.c] = c.t === 'select' ? c.options[0] : c.t === 'img' ? '1' : c.t === 'number' ? 5 : (c.label.includes('ขนาด') ? '10 × 12' : 'ตัวอย่าง' + c.label) })
                     if (rs.length) Object.assign(rs[0], r); else rs.push(r)
                   }
                   break
@@ -85,7 +85,7 @@ try {
         const d = document.querySelector('#doc')
         const text = d.innerText
         const bad = []
-        for (const re of [/undefined/, /NaN/, /\[object/, /\bnull\b/, /ภาพภาพ/, /(\S{2,})\s+\1\s/, /:\s*$/m]) { const m = text.match(re); if (m) bad.push(m[0].slice(0, 40)) }
+        for (const re of [/undefined/, /NaN/, /\[object/, /\bnull\b/, /ภาพภาพ/, /(?:^|\s)(\S{2,})\s+\1\s/m, /:\s*$/m]) { const m = text.match(re); if (m) bad.push(m[0].slice(0, 40)) }
         const over = [...d.querySelectorAll('*')].filter(e => e.scrollWidth > e.clientWidth + 2 && getComputedStyle(e).overflow !== 'visible' && e.clientWidth > 0).map(e => e.className + ':' + e.textContent.slice(0, 30))
         return { pages: document.querySelector('#pageNote')?.textContent, bad, over: over.slice(0, 5), text }
       })
