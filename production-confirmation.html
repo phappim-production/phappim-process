@@ -907,7 +907,7 @@ const PRODUCTS = {
     itemsSec('ผืน',{ hint:'ใส่ขนาดสำเร็จ' }),
     printSec(['ดิจิทัลพริ้นท์ (เต็มผืน)','ซิลค์สกรีน','ปั๊มจม','สกรีนฟอยล์ทอง'],null,{ title:'งานพิมพ์',
       extra:[ R('logo_pos','ตำแหน่งโลโก้',['กลางผืน','มุมล่างขวา','มุมล่างซ้าย','เต็มผืน'],{ other:true }) ] }),
-    { title:'ขอบผ้า', fields:[ R('edge','ขอบผ้า',['โพ้งริม','ตัดเลเซอร์ (ไม่เย็บ)','ตัดร้อน'],{ other:true }) ]},
+    { title:'ขอบผ้า', fields:[ R('edge','การเก็บขอบ',['โพ้งริม','ตัดเลเซอร์ (ไม่เย็บ)','ตัดร้อน'],{ other:true }) ]},
     packSec(['ซองพลาสติกใส','ซองผ้า / ซองกำมะหยี่','กล่องกระดาษ','ไม่บรรจุ']),
   ]},
   blanket: { cat:'flat', name:'ผ้านาโน / ผ้าห่ม', unit:'ผืน', sections:[
@@ -1257,7 +1257,7 @@ function customerSig(x){
 }
 // ใบที่ส่งลูกค้าเซ็นแสดงเฉพาะรายการที่เจ้าของกำหนด (วัสดุ ไซซ์ จำนวน แพ็คกิ้ง) · ฝ่ายผลิตเปิดดูจากระบบเห็นครบ ข้อมูลที่บันทึกเข้าระบบไม่ถูกตัด
 const CUSTOMER_FIELDS=new Set(['fabric','fabric_rows','material','filling','handle_mat','sizes','size_chart','measure_rows','items','qty','dims','head_size',
-  'supplied','supply_by','supply_date','supply_spare','garment','print_output','fabric_kind','press_target','press_material','press_yards','dtf_item','film_source']);
+  'supplied','supply_by','supply_date','supply_spare','garment','print_output','fabric_kind','press_target','press_material','press_yards','dtf_item','film_source','sew_style','edge','edge_size']);
 const PACK_SEC='แพ็คกิ้ง';
 const customerCopy=()=>!viewOnly;
 const customerSees=(f,sec)=>f.type==='images'||sec.title===PACK_SEC||CUSTOMER_FIELDS.has(f.id);
@@ -2279,7 +2279,7 @@ function estimatePages(){
   let n=$('#pageNote'); if(!n){ n=document.createElement('div'); n.id='pageNote'; d.parentNode.insertBefore(n,d); }
   n.className='page-note'+(pages>2?' warn':'');
   n.textContent=pages>2?`ประมาณ ${pages} หน้า A4 · เกินเป้า 2 หน้า ลองลดจำนวนภาพ หรือรวมแถวในตาราง`:`ประมาณ ${pages} หน้า A4 · ทุกหน้ามีโลโก้ เลขที่ใบ ลูกค้า และชื่องาน`;
-  if(customerCopy()) n.textContent+=' · ฉบับลูกค้า: แสดงเฉพาะเลขที่ใบ ประเภทสินค้า วันที่สั่งงาน ผู้ประสานงาน การจัดส่ง วัสดุ (ไม่มีสี) ไซซ์ จำนวน แพ็คกิ้ง ภาพ และช่องเซ็น (ระบบยังได้รับครบทุกช่อง)';
+  if(customerCopy()) n.textContent+=' · ฉบับลูกค้า: แสดงเฉพาะเลขที่ใบ ประเภทสินค้า วันที่สั่งงาน ผู้ประสานงาน การจัดส่ง วัสดุ (ไม่มีสี) ไซซ์ จำนวน การเย็บขอบ แพ็คกิ้ง ภาพ และช่องเซ็น (ระบบยังได้รับครบทุกช่อง)';
 }
 function setPageStyle(){
   const h=state.h, q=t=>String(t||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/[\r\n]+/g,' ');
