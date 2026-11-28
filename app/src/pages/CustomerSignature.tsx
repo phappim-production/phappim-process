@@ -7,7 +7,7 @@ import {
   type CropBox, type CustomerSignature,
 } from '../data/customerSignature'
 import { mockupProblem } from '../data/mockups'
-import { isSignedImage } from '../data/confirmation'
+import { isPdfFile, openPdf, type PdfDoc } from '../data/pdfPages'
 import { thaiDay, type Job } from '../proto/model'
 import { thaiFullDate } from '../proto/format'
 
@@ -83,11 +83,14 @@ function CropDialog({ job, rev, attached, onClose, onSaved }: { job: Job; rev: n
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [broken, setBroken] = useState(false)
-  const [fetching, setFetching] = useState(false)
+  const [fetching, setFetching] = useState('')
+  const [pdf, setPdf] = useState<{ doc: PdfDoc; page: number; name: string } | null>(null)
   const img = useRef<HTMLImageElement>(null)
   const start = useRef<{ x: number; y: number } | null>(null)
+  const openDoc = useRef<PdfDoc | null>(null)
 
   useEffect(() => () => { if (src) URL.revokeObjectURL(src) }, [src])
+  useEffect(() => () => openDoc.current?.close(), [])
   const pick = (f: File | null) => {
     setFile(f)
     setSrc(f ? URL.createObjectURL(f) : '')
@@ -97,14 +100,41 @@ function CropDialog({ job, rev, attached, onClose, onSaved }: { job: Job; rev: n
     setError('')
   }
 
+  const closePdf = () => {
+    openDoc.current?.close()
+    openDoc.current = null
+    setPdf(null)
+  }
+
+  async function showPage(doc: PdfDoc, page: number, name: string) {
+    setFetching(`กำลังแสดงหน้า ${page}…`)
+    const png = await doc.render(page).catch(() => null)
+    setFetching('')
+    if (!png) { setError('แสดงหน้านี้ไม่ได้ · ลองหน้าอื่น หรือแคปหน้าจอหน้าที่มีลายเซ็นแทน'); return }
+    setPdf({ doc, page, name })
+    pick(new File([png], `${name.replace(/\.pdf$/i, '')}-p${page}.png`, { type: 'image/png' }))
+  }
+
+  // ช่องเซ็นของลูกค้าอยู่ท้ายใบ จึงเปิดหน้าสุดท้ายก่อน
+  async function choose(f: File | null) {
+    setError('')
+    if (!f || !isPdfFile(f)) { closePdf(); pick(f); return }
+    setFetching('กำลังเปิด PDF…')
+    const r = await openPdf(await f.arrayBuffer())
+    if (!r.ok) { setFetching(''); setError(r.reason); return }
+    closePdf()
+    openDoc.current = r.doc
+    await showPage(r.doc, r.doc.pages, f.name)
+  }
+
   async function openAttached() {
     if (!attached) return
-    setFetching(true)
+    setFetching('กำลังเปิดใบที่แนบไว้…')
     setError('')
     const r = await fetchAttached(attached)
-    setFetching(false)
+    setFetching('')
     if (!r.ok) { setError(r.reason); return }
-    pick(r.file)
+    await choose(r.file)
   }
 
   const point = (e: PointerEvent) => {
@@ -151,15 +181,25 @@ function CropDialog({ job, rev, attached, onClose, onSaved }: { job: Job; rev: n
   return (
     <Dialog title="ตัดลายเซ็นลูกค้า" onClose={close} wide>
       <div className="mt-3 grid gap-3">
-        <p className="text-muted">ถ่ายรูปหรือแคปหน้าจอใบที่ลูกค้าเซ็น (ถ้าได้เป็น PDF ให้แคปหน้าที่มีลายเซ็น) แล้วลากกรอบรอบลายเซ็น</p>
+        <p className="text-muted">ใช้ใบที่ลูกค้าเซ็น (รูปถ่าย / สแกน / PDF) แล้วลากกรอบรอบลายเซ็น</p>
         <p className="rounded-lg bg-warn-soft p-2 text-sm font-medium text-warn">ลายเซ็นนี้จะนับเป็นของใบยืนยันครั้งที่ {rev} (ใบล่าสุด) · ตัดจากใบครั้งที่ {rev} ที่ลูกค้าเซ็นเท่านั้น</p>
-        {attached && isSignedImage(attached) && (
-          <button type="button" className={file ? secondaryBtn : primaryBtn} disabled={fetching || busy} onClick={() => void openAttached()}>
-            {fetching ? 'กำลังเปิดรูปใบที่แนบไว้…' : 'ใช้รูปใบที่ลูกค้าเซ็นที่แนบไว้ในงาน'}
+        {attached && (
+          <button type="button" className={file ? secondaryBtn : primaryBtn} disabled={!!fetching || busy} onClick={() => void openAttached()}>
+            ใช้ใบที่ลูกค้าเซ็นที่แนบไว้ในงาน
           </button>
         )}
-        <FilePick accept="image/jpeg,image/png,image/webp" label={file ? 'เลือกรูปอื่น' : 'เลือกรูปใบที่ลูกค้าเซ็น'} chosen={file?.name ?? ''}
-          onPick={f => pick(f ?? null)} />
+        <FilePick accept="image/jpeg,image/png,image/webp,application/pdf,.pdf" label={file ? 'เลือกไฟล์อื่น' : 'เลือกรูปหรือ PDF ใบที่ลูกค้าเซ็น'}
+          chosen={pdf ? `${pdf.name} · หน้า ${pdf.page}/${pdf.doc.pages}` : file?.name ?? ''} onPick={f => void choose(f ?? null)} />
+        {fetching && <p role="status" className="text-muted">{fetching}</p>}
+        {pdf && pdf.doc.pages > 1 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className={secondaryBtn} disabled={!!fetching || pdf.page <= 1} title={pdf.page <= 1 ? 'อยู่หน้าแรกแล้ว' : undefined}
+              onClick={() => void showPage(pdf.doc, pdf.page - 1, pdf.name)}>หน้าก่อน</button>
+            <span className="font-medium">หน้า {pdf.page} / {pdf.doc.pages}</span>
+            <button type="button" className={secondaryBtn} disabled={!!fetching || pdf.page >= pdf.doc.pages} title={pdf.page >= pdf.doc.pages ? 'อยู่หน้าสุดท้ายแล้ว' : undefined}
+              onClick={() => void showPage(pdf.doc, pdf.page + 1, pdf.name)}>หน้าถัดไป</button>
+          </div>
+        )}
         {problem && <p role="alert" className="text-danger">{problem}</p>}
         {broken && <p role="alert" className="text-danger">เปิดรูปนี้ไม่ได้ (ไฟล์อาจเสีย) · เลือกรูปอื่น หรือแคปหน้าจอใหม่</p>}
         {src && !problem && !broken && (

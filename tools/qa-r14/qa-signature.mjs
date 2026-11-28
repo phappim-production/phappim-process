@@ -77,7 +77,7 @@ try {
   await step('admin-crops-and-saves-signature', async () => {
     await t.clickButton('ตัดลายเซ็นลูกค้า', { exact: true })
     await t.waitText('ลากกรอบรอบลายเซ็น')
-    await t.uploadFiles('input[type="file"][aria-label="เลือกรูปใบที่ลูกค้าเซ็น"]', [fixtures.paths.frontPng])
+    await t.uploadFiles('input[type="file"][aria-label="เลือกรูปหรือ PDF ใบที่ลูกค้าเซ็น"]', [fixtures.paths.frontPng])
     await waitFor(() => tab.ev(() => { const i = document.querySelector('[data-crop-area] img'); return !!i?.complete && i.naturalWidth > 0 }), 'รูปใบที่เซ็นโหลด')
     const disabled = await tab.ev(() => [...document.querySelectorAll('button')].find(b => b.textContent.startsWith('บันทึกลายเซ็น'))?.disabled)
     assert.equal(disabled, true, 'ยังไม่ลากกรอบต้องกดบันทึกไม่ได้')
@@ -116,7 +116,7 @@ try {
   await step('crop-dialog-fits-375', async () => {
     await t.goto('admin1', `#/board?job=${jobId}`, 375)
     await t.clickButton('เปลี่ยนลายเซ็นลูกค้า', { exact: true })
-    await t.uploadFiles('input[type="file"][aria-label="เลือกรูปใบที่ลูกค้าเซ็น"]', [fixtures.paths.frontPng])
+    await t.uploadFiles('input[type="file"][aria-label="เลือกรูปหรือ PDF ใบที่ลูกค้าเซ็น"]', [fixtures.paths.frontPng])
     await waitFor(() => tab.ev(() => { const i = document.querySelector('[data-crop-area] img'); return !!i?.complete && i.naturalWidth > 0 }), 'รูปโหลดบนมือถือ')
     const m = await t.measureFloorUx(375)
     assert.ok(m.docScrollWidth <= 376, `กว้างเกินจอ ${m.docScrollWidth}`)
@@ -143,7 +143,7 @@ try {
   await step('admin-crops-from-attached-photo', async () => {
     await t.goto('admin1', `#/board?job=${jobId}`, 1440)
     await t.clickButton('ตัดลายเซ็นลูกค้า', { exact: true })
-    await t.clickButton('ใช้รูปใบที่ลูกค้าเซ็นที่แนบไว้ในงาน', { exact: true })
+    await t.clickButton('ใช้ใบที่ลูกค้าเซ็นที่แนบไว้ในงาน', { exact: true })
     await waitFor(() => tab.ev(() => { const i = document.querySelector('[data-crop-area] img'); return !!i?.complete && i.naturalWidth > 0 }), 'รูปใบที่แนบไว้โหลด', 15000)
     const size = await tab.ev(() => { const i = document.querySelector('[data-crop-area] img'); return [i.naturalWidth, i.naturalHeight] })
     assert.deepEqual(size, [600, 600])
@@ -156,9 +156,73 @@ try {
     return row.p
   })
 
+  let twoPagePdf = ''
+  await step('make-two-page-pdf', async () => {
+    await t.goto('admin1', '#/', 1440)
+    await tab.ev(() => {
+      document.body.innerHTML = '<div style="height:250mm;font:40px sans-serif">หน้า 1 ใบยืนยัน</div>'
+        + '<div style="break-before:page;font:40px sans-serif">หน้า 2 ลูกค้าเซ็น<svg width="400" height="160"><path d="M10 120 C 80 10, 160 150, 390 40" stroke="#000" stroke-width="6" fill="none"/></svg></div>'
+    })
+    twoPagePdf = (await t.printPdf('signed-two-pages')).path
+    const head = (await import('node:fs')).readFileSync(twoPagePdf).subarray(0, 5).toString()
+    assert.equal(head, '%PDF-')
+  })
+
+  const waitCropImage = () => waitFor(() => tab.ev(() => { const i = document.querySelector('[data-crop-area] img'); return !!i?.complete && i.naturalWidth > 0 }), 'หน้า PDF แสดงเป็นภาพ', 20000)
+  const chosen = () => tab.ev(() => document.querySelector('[role="dialog"] input[type="file"]')?.closest('span')?.parentElement?.innerText ?? '')
+
+  await step('admin-crops-from-pdf-file', async () => {
+    await t.goto('admin1', `#/board?job=${jobId}`, 1440)
+    await t.clickButton('เปลี่ยนลายเซ็นลูกค้า', { exact: true })
+    await t.uploadFiles('input[type="file"][aria-label="เลือกรูปหรือ PDF ใบที่ลูกค้าเซ็น"]', [twoPagePdf])
+    await waitCropImage()
+    assert.match(await chosen(), /หน้า 2\/2/)
+    const size = await tab.ev(() => { const i = document.querySelector('[data-crop-area] img'); return Math.max(i.naturalWidth, i.naturalHeight) })
+    assert.ok(size >= 2300 && size <= 2401, `ขนาดภาพจาก PDF ${size}`)
+    await t.clickButton('หน้าก่อน', { exact: true })
+    await waitFor(async () => /หน้า 1\/2/.test(await chosen()), 'ไปหน้า 1')
+    await waitCropImage()
+    await t.clickButton('หน้าถัดไป', { exact: true })
+    await waitFor(async () => /หน้า 2\/2/.test(await chosen()), 'กลับหน้า 2')
+    await waitCropImage()
+    const before = (await sql('select customer_signature_path p from public.jobs where id = $1', [jobId]))[0].p
+    await drag('[data-crop-area] img', [0.05, 0.02], [0.6, 0.15])
+    await t.screenshot('signature-crop-pdf')
+    await t.clickButton('บันทึกลายเซ็น', { exact: true })
+    await t.waitText('บันทึกลายเซ็นลูกค้าแล้ว', 15000)
+    const after = (await sql('select customer_signature_path p from public.jobs where id = $1', [jobId]))[0].p
+    assert.ok(after && after !== before, `${before} → ${after}`)
+    return `${size}px · ${after}`
+  })
+
+  await step('admin-crops-from-attached-pdf', async () => {
+    const client = createClient(stack)
+    const second = await client.rpc('admin1', 'receive_job', {
+      p_confirmation_no: 'SC-SIG-2', p_customer_name: 'ลูกค้าเซ็น PDF', p_job_name: 'เสื้อทีม', p_product_type_code: 'tshirt',
+      p_qty: 10, p_unit: 'ตัว', p_due_date: '2099-01-20', p_route_code: 'cut_only', p_confirmation_pdf_path: null,
+      p_spare_qty: 0, p_confirmation_rev: 0, p_spec: {}, p_needs_sample: false,
+    })
+    assert.ok(second.ok, JSON.stringify(second.body))
+    await t.goto('admin1', `#/board?job=${second.body}`, 1440)
+    await t.waitText('ยังไม่มีใบยืนยันที่ลูกค้าเซ็น')
+    await t.uploadFiles('input[type="file"][aria-label="เลือกใบยืนยันที่ลูกค้าเซ็น (PDF หรือรูป)"]', [twoPagePdf])
+    await t.clickButton('แนบใบยืนยันที่ลูกค้าเซ็น', { exact: true })
+    await t.waitText('เปิด PDF ใบยืนยัน', 15000)
+    await t.clickButton('ตัดลายเซ็นลูกค้า', { exact: true })
+    await t.clickButton('ใช้ใบที่ลูกค้าเซ็นที่แนบไว้ในงาน', { exact: true })
+    await waitCropImage()
+    assert.match(await chosen(), /หน้า 2\/2/)
+    await drag('[data-crop-area] img', [0.05, 0.02], [0.6, 0.15])
+    await t.clickButton('บันทึกลายเซ็น', { exact: true })
+    await t.waitText('บันทึกลายเซ็นลูกค้าแล้ว', 15000)
+    const [row] = await sql('select customer_signature_path p from public.jobs where id = $1', [second.body])
+    assert.match(row.p, /^SC-SIG-2\/sig[0-9a-f]+\.png$/)
+    return row.p
+  })
+
   await step('no-console-errors', async () => {
     const errs = (tab.logs ?? []).filter(l => !/favicon|fonts\.g/.test(`${l.text} ${l.url ?? ''}`))
-    assert.deepEqual(errs, [])
+    assert.deepEqual(errs, [], JSON.stringify(errs.map(e => `${e.text} ${e.url ?? ''}`).slice(0, 5)))
   })
 } finally {
   await chrome.close()

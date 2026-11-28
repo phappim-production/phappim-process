@@ -38,7 +38,7 @@
 ## 27 พ.ย.: PR 246–257
 | PR | เรื่อง |
 |---|---|
-| 262 | **แนบใบยืนยันที่ลูกค้าเซ็นเป็นรูปได้** (เจ้าของขอ): ฐาน/Worker/แอปรับ .pdf .jpg .png .webp · ตัดลายเซ็นใช้รูปที่แนบไว้ได้ · migration `20261216000000_signed_confirmation_images` + **deploy Worker** ก่อน merge · ตัดลายเซ็นจาก PDF รอเจ้าของอนุญาต `pdfjs-dist` · รายละเอียด `docs/handoff/claude-signed-image-upload.md` |
+| 262 | **แนบใบยืนยันที่ลูกค้าเซ็นเป็นรูปได้** (เจ้าของขอ): ฐาน/Worker/แอปรับ .pdf .jpg .png .webp · ตัดลายเซ็นจากรูป/PDF (เครื่องหรือที่แนบไว้) · dependency ใหม่ `pdfjs-dist` (เจ้าของอนุญาต · โหลดเฉพาะตอนเปิด PDF) · migration `20261216000000_signed_confirmation_images` + **deploy Worker** ก่อน merge · รายละเอียด `docs/handoff/claude-signed-image-upload.md` |
 | 261 | **ภาพม็อคอัพในใบยืนยันฉบับโรงงานใหญ่ขึ้น** (เจ้าของว่าเล็กเกิน): `factNeedH` ทุกภาพด้านยาว ≥ 9 ซม. (`FACT_SIDE` · ภาพมีจุดกำกับวัดที่ตัวภาพ) · สูงสุด 170 มม. · ไม่พอ = ขึ้นหน้าถัดไป ไม่ย่อ · บางใบใช้กระดาษเพิ่ม 1 หน้า · ไม่แตะฐาน · รายละเอียด `docs/handoff/claude-factory-mockup-size.md` |
 | 260 | **ส่งออกทั้งงานจากสถานีรีดฟิล์ม** (เจ้าของขอ · เดิมได้แค่แบ่ง): `dtf_press` เพิ่มใน `private.outsourceable` + `OUTSOURCEABLE` · migration `20261215000000_outsource_dtf_press` (ลงฐานจริงแล้ว 28 พ.ย. · md5 3/3) · เริ่ม/พักแล้วยังส่งไม่ได้ · รายละเอียด `docs/handoff/claude-outsource-dtf-press.md` |
 | 259 | **ใบยืนยันฉบับโรงงานประหยัดกระดาษ** (เจ้าของขอ · ข้อมูลครบเท่าเดิม): กริด 3 คอลัมน์ยังแบ่งหัวข้อ · ภาพม็อคอัพต่อจากรายละเอียด ไม่บังคับขึ้นหน้าใหม่ · จุดกำกับบนภาพ = เลข + ชื่อ รายละเอียดในตาราง · `fitFactoryPage` เลือกแบบที่ใช้หน้าน้อยสุด · `factoryPages` นับหน้าตรง PDF · กรณีใหญ่สุดจริง 4 → 2 หน้า · ไม่แตะฐาน · รายละเอียด `docs/handoff/claude-factory-compact.md` |
