@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MIN_CROP_PX, cropOnImage, currentRevOf, outputSize, parseSignature, signatureIsCurrent, signaturePath } from './customerSignature'
+import { MIN_CROP_PX, cropOnImage, currentRevOf, outputSize, parseSignature, parseSignatures, signatureIsCurrent, signaturePath } from './customerSignature'
 
 describe('ตัดลายเซ็นลูกค้า', () => {
   const shown = { w: 400, h: 300 }, natural = { w: 2000, h: 1500 }
@@ -40,6 +40,18 @@ describe('ตัดลายเซ็นลูกค้า', () => {
     expect(parseSignature({ current_rev: 3 })).toBeNull()
     expect(currentRevOf(null)).toBe(0)
     expect(currentRevOf({ current_rev: 'x' })).toBe(0)
+  })
+
+  it('อ่านลายเซ็นลูกค้าและผู้อนุมัติแยกกัน · ผู้อนุมัติใช้ใบครั้งปัจจุบันเดียวกัน', () => {
+    const both = parseSignatures({ path: 'SC-1/sigc.png', signed_on: '2026-11-26', rev: 1, current_rev: 1,
+      approver: { path: 'SC-1/siga.png', signed_on: '2026-11-27T00:00:00', rev: 0 } })
+    expect(both.customer).toEqual({ path: 'SC-1/sigc.png', signedOn: '2026-11-26', rev: 1, currentRev: 1 })
+    expect(both.approver).toEqual({ path: 'SC-1/siga.png', signedOn: '2026-11-27', rev: 0, currentRev: 1 })
+    expect(signatureIsCurrent(both.approver!)).toBe(false)
+    expect(parseSignatures({ current_rev: 2, approver: { path: 'SC-1/siga.png', signed_on: '2026-11-27', rev: 2 } })).toMatchObject({ customer: null, currentRev: 2 })
+    expect(parseSignatures({ current_rev: 2 })).toEqual({ customer: null, approver: null, currentRev: 2 })
+    expect(parseSignatures({ current_rev: 0, approver: 'x' }).approver).toBeNull()
+    expect(parseSignatures(null)).toEqual({ customer: null, approver: null, currentRev: 0 })
   })
 
   it('ที่เก็บรูปลายเซ็นผ่านกฎชื่อไฟล์ของ Worker ทั้งเลขที่ใบไทย / มีช่องว่าง / เครื่องที่ไม่มี crypto', () => {

@@ -3,78 +3,106 @@ import { Dialog, dangerBtn, fieldClass, primaryBtn, secondaryBtn } from '../comp
 import { FilePick } from '../components/FilePick'
 import { IconCheck } from '../components/icons'
 import {
-  cropOnImage, cropToPng, fetchAttached, loadSignature, removeSignature, saveSignature, signatureIsCurrent,
-  type CropBox, type CustomerSignature,
+  SIGNER_NAME, cropOnImage, cropToPng, fetchAttached, loadSignatures, removeSignature, saveSignature, signatureIsCurrent,
+  type CropBox, type CustomerSignature, type LoadedSignatures, type SignatureWho,
 } from '../data/customerSignature'
-import { mockupProblem } from '../data/mockups'
 import { SIGNED_ACCEPT, withSignedType } from '../data/confirmation'
+import { mockupProblem } from '../data/mockups'
 import { openPdf, type PdfDoc } from '../data/pdfPages'
 import { thaiDay, type Job } from '../proto/model'
 import { thaiFullDate } from '../proto/format'
 
-type Loaded = { sig: CustomerSignature | null; url: string | null; currentRev: number }
+const SIGNERS: SignatureWho[] = ['customer', 'approver']
+const needsSigning = (sig: CustomerSignature | null) => !sig || !signatureIsCurrent(sig)
 
 export function CustomerSignaturePanel({ job, attached }: { job: Job; attached: string | null }) {
-  const [loaded, setLoaded] = useState<Loaded | null>(null)
+  const [loaded, setLoaded] = useState<LoadedSignatures | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [cropping, setCropping] = useState(false)
+  const [cropping, setCropping] = useState<SignatureWho | null>(null)
   const [busy, setBusy] = useState(false)
 
   const [version, setVersion] = useState(0)
   const reload = useCallback(() => setVersion(v => v + 1), [])
   useEffect(() => {
     let alive = true
-    void loadSignature(job.id).then(r => {
+    void loadSignatures(job.id).then(r => {
       if (!alive) return
       if (!r.ok) { setError(r.reason); return }
       setError('')
-      setLoaded({ sig: r.sig, url: r.url, currentRev: r.currentRev })
+      setLoaded(r)
     })
     return () => { alive = false }
   }, [job.id, version])
 
-  async function remove() {
-    if (!window.confirm('ลบลายเซ็นลูกค้าออกจากใบฉบับโรงงาน?')) return
+  async function remove(who: SignatureWho) {
+    if (!window.confirm(`ลบลายเซ็น${SIGNER_NAME[who]}ออกจากใบฉบับโรงงาน?`)) return
     setBusy(true)
-    const r = await removeSignature(job.id)
+    const r = await removeSignature(job.id, who)
     setBusy(false)
     if (!r.ok) { setError(r.reason); return }
-    setNotice('ลบลายเซ็นลูกค้าแล้ว')
+    setNotice(`ลบลายเซ็น${SIGNER_NAME[who]}แล้ว`)
     reload()
   }
 
-  const sig = loaded?.sig ?? null
-  const stale = sig && !signatureIsCurrent(sig)
+  const missing = !loaded || SIGNERS.some(w => needsSigning(loaded[w]))
   return (
-    <div className={`grid gap-2 rounded-xl border p-3 ${sig && !stale ? 'border-line' : 'border-warn/30 bg-warn-soft'}`}>
-      <p className={`font-medium ${sig && !stale ? '' : 'text-warn'}`}>
-        {!loaded ? (error ? 'โหลดลายเซ็นลูกค้าไม่ได้' : 'กำลังโหลดลายเซ็นลูกค้า…')
-          : !sig ? 'ยังไม่มีลายเซ็นลูกค้าในใบฉบับโรงงาน · ตัดลายเซ็นจากใบที่ลูกค้าเซ็นแล้ว ฝ่ายผลิตไม่ต้องให้ลูกค้าเซ็นซ้ำ'
-          : stale ? `ลายเซ็นนี้เป็นของใบครั้งที่ ${sig.rev} · ใบปัจจุบันครั้งที่ ${sig.currentRev} ยังไม่มีลายเซ็น ให้ตัดลายเซ็นจากใบแก้ที่ลูกค้าเซ็น`
-          : `ลายเซ็นลูกค้า · เซ็นวันที่ ${thaiFullDate(sig.signedOn)}`}
+    <div className={`grid gap-3 rounded-xl border p-3 ${missing ? 'border-warn/30 bg-warn-soft' : 'border-line'}`}>
+      <p className={`font-medium ${missing ? 'text-warn' : ''}`}>
+        {!loaded ? (error ? 'โหลดลายเซ็นไม่ได้' : 'กำลังโหลดลายเซ็น…')
+          : missing ? 'ลายเซ็นในใบฉบับโรงงาน · ตัดลายเซ็นลูกค้าและผู้อนุมัติจากใบที่ลูกค้าเซ็นแล้ว · ฝ่ายผลิตเซ็นช่องผู้ควบคุมการผลิตในกระดาษเท่านั้น'
+          : 'ลายเซ็นในใบฉบับโรงงานครบแล้ว (ลูกค้า + ผู้อนุมัติ) · ฝ่ายผลิตเซ็นช่องผู้ควบคุมการผลิตในกระดาษ'}
       </p>
-      {sig && (loaded?.url
-        ? <img src={loaded.url} alt="ลายเซ็นลูกค้า" className="max-h-28 w-auto max-w-full self-start rounded-lg border border-line bg-white object-contain p-1" />
-        : <p className="text-sm text-muted">เปิดรูปลายเซ็นไม่ได้ตอนนี้ (ลองโหลดหน้าใหม่)</p>)}
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className={sig && !stale ? secondaryBtn : primaryBtn} disabled={busy || !loaded} onClick={() => { setNotice(''); setCropping(true) }}>
-          {sig ? 'เปลี่ยนลายเซ็นลูกค้า' : 'ตัดลายเซ็นลูกค้า'}
-        </button>
-        {sig && <button type="button" className={dangerBtn} disabled={busy} onClick={() => void remove()}>ลบลายเซ็น</button>}
-      </div>
+      {loaded && SIGNERS.map(who => (
+        <SignerRow key={who} who={who} sig={loaded[who]} url={loaded.urls[who]} busy={busy}
+          onCrop={() => { setNotice(''); setCropping(who) }} onRemove={() => void remove(who)} />
+      ))}
       {notice && <p role="status" className="flex items-center gap-2 font-medium text-ok"><IconCheck className="size-5" />{notice}</p>}
       {error && <p role="alert" className="text-danger">{error}</p>}
       {error && !loaded && <button type="button" className={secondaryBtn} onClick={reload}>ลองโหลดลายเซ็นอีกครั้ง</button>}
       {cropping && loaded && (
-        <CropDialog job={job} rev={loaded.currentRev} attached={attached} onClose={() => setCropping(false)}
-          onSaved={async () => { setCropping(false); setNotice('บันทึกลายเซ็นลูกค้าแล้ว · ใบฉบับโรงงานแสดงลายเซ็นในช่องลูกค้า'); reload() }} />
+        <CropDialog job={job} rev={loaded.currentRev} attached={attached} first={cropping}
+          pending={SIGNERS.filter(w => w !== cropping && needsSigning(loaded[w]))}
+          onClose={() => setCropping(null)}
+          onSaved={who => { setNotice(`บันทึกลายเซ็น${SIGNER_NAME[who]}แล้ว · ใบฉบับโรงงานแสดงลายเซ็นในช่อง${SIGNER_NAME[who]}`); reload() }} />
       )}
     </div>
   )
 }
 
-function CropDialog({ job, rev, attached, onClose, onSaved }: { job: Job; rev: number; attached: string | null; onClose: () => void; onSaved: () => void }) {
+function SignerRow({ who, sig, url, busy, onCrop, onRemove }: {
+  who: SignatureWho; sig: CustomerSignature | null; url: string | null; busy: boolean; onCrop: () => void; onRemove: () => void
+}) {
+  const name = SIGNER_NAME[who]
+  const stale = sig && !signatureIsCurrent(sig)
+  const wait = busy ? 'รอให้บันทึกเสร็จก่อน' : undefined
+  return (
+    <div className="grid gap-2 border-t border-line pt-2 first-of-type:border-t-0 first-of-type:pt-0" data-signer={who}>
+      <p className={sig && !stale ? '' : 'text-warn'}>
+        <span className="font-semibold">{name}: </span>
+        {!sig ? `ยังไม่มีลายเซ็น${name}`
+          : stale ? `ลายเซ็นนี้เป็นของใบครั้งที่ ${sig.rev} · ใบปัจจุบันครั้งที่ ${sig.currentRev} ยังไม่มีลายเซ็น ให้ตัดจากใบแก้ที่ลูกค้าเซ็น`
+          : `เซ็นวันที่ ${thaiFullDate(sig.signedOn)}`}
+      </p>
+      {sig && (url
+        ? <img src={url} alt={`ลายเซ็น${name}`} className="max-h-28 w-auto max-w-full self-start rounded-lg border border-line bg-white object-contain p-1" />
+        : <p className="text-sm text-muted">เปิดรูปลายเซ็นไม่ได้ตอนนี้ (ลองโหลดหน้าใหม่)</p>)}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={sig && !stale ? secondaryBtn : primaryBtn} disabled={busy} title={wait} onClick={onCrop}>
+          {sig ? `เปลี่ยนลายเซ็น${name}` : `ตัดลายเซ็น${name}`}
+        </button>
+        {sig && <button type="button" className={dangerBtn} disabled={busy} title={wait} onClick={onRemove}>ลบลายเซ็น{name}</button>}
+      </div>
+    </div>
+  )
+}
+
+function CropDialog({ job, rev, attached, first, pending, onClose, onSaved }: {
+  job: Job; rev: number; attached: string | null; first: SignatureWho; pending: SignatureWho[]; onClose: () => void; onSaved: (who: SignatureWho) => void
+}) {
+  const [who, setWho] = useState<SignatureWho>(first)
+  const [saved, setSaved] = useState<SignatureWho[]>([])
+  const [savedNote, setSavedNote] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [src, setSrc] = useState('')
   const [box, setBox] = useState<CropBox | null>(null)
@@ -170,8 +198,8 @@ function CropDialog({ job, rev, attached, onClose, onSaved }: { job: Job; rev: n
 
   const crop = box && dims ? cropOnImage(box, dims.shown, dims.natural) : null
   const problem = file ? mockupProblem(file) : null
-  const dateProblem = !/^\d{4}-\d{2}-\d{2}$/.test(signedOn) ? 'ใส่วันที่ลูกค้าเซ็น' : signedOn > today ? 'วันที่ลูกค้าเซ็นอยู่ในอนาคต' : ''
-  const why = !file ? 'เลือกรูปใบที่ลูกค้าเซ็นก่อน' : problem ?? (broken ? 'เปิดรูปนี้ไม่ได้ เลือกรูปอื่น' : !crop ? 'ลากกรอบรอบลายเซ็นบนรูปก่อน' : dateProblem)
+  const dateProblem = !/^\d{4}-\d{2}-\d{2}$/.test(signedOn) ? `ใส่วันที่${SIGNER_NAME[who]}เซ็น` : signedOn > today ? `วันที่${SIGNER_NAME[who]}เซ็นอยู่ในอนาคต` : ''
+  const why = !file ? 'เลือกรูปใบที่ลูกค้าเซ็นก่อน' : problem ?? (broken ? 'เปิดรูปนี้ไม่ได้ เลือกรูปอื่น' : !crop ? `ลากกรอบรอบลายเซ็น${SIGNER_NAME[who]}บนรูปก่อน` : dateProblem)
 
   async function save() {
     if (why || !img.current || !crop) return
@@ -179,18 +207,35 @@ function CropDialog({ job, rev, attached, onClose, onSaved }: { job: Job; rev: n
     setError('')
     const png = await cropToPng(img.current, crop)
     if (!png) { setBusy(false); setError('ตัดรูปไม่ได้ ลองเลือกรูปใหม่'); return }
-    const r = await saveSignature(job, png, signedOn)
+    const r = await saveSignature(job, png, signedOn, who)
     setBusy(false)
     if (!r.ok) { setError(r.reason); return }
-    onSaved()
+    onSaved(who)
+    const done = [...saved, who]
+    setSaved(done)
+    const next = pending.find(w => !done.includes(w))
+    if (!next) { onClose(); return }
+    // ลายเซ็นทั้งสองอยู่ในใบเดียวกัน ใช้รูปเดิมลากกรอบต่อได้เลย
+    setWho(next)
+    setBox(null)
+    setSavedNote(`บันทึกลายเซ็น${SIGNER_NAME[who]}แล้ว · ลากกรอบรอบลายเซ็น${SIGNER_NAME[next]}ต่อบนรูปเดิม`)
   }
 
   const close = () => { if (!busy) onClose() }
   const norm = box && { left: Math.min(box.x, box.x + box.w), top: Math.min(box.y, box.y + box.h), width: Math.abs(box.w), height: Math.abs(box.h) }
   return (
-    <Dialog title="ตัดลายเซ็นลูกค้า" onClose={close} wide>
+    <Dialog title={`ตัดลายเซ็น${SIGNER_NAME[who]}`} onClose={close} wide>
       <div className="mt-3 grid gap-3">
-        <p className="text-muted">ใช้ใบที่ลูกค้าเซ็น (รูปถ่าย / สแกน / PDF) แล้วลากกรอบรอบลายเซ็น</p>
+        <p className="text-muted">ใช้ใบที่ลูกค้าเซ็น (รูปถ่าย / สแกน / PDF) แล้วลากกรอบรอบลายเซ็น{SIGNER_NAME[who]}</p>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="ลายเซ็นของ">
+          {SIGNERS.map(w => (
+            <button key={w} type="button" aria-pressed={who === w} disabled={busy} title={busy ? 'รอบันทึกลายเซ็นให้เสร็จก่อน' : undefined}
+              className={who === w ? primaryBtn : secondaryBtn} onClick={() => { setWho(w); setBox(null); setSavedNote('') }}>
+              {saved.includes(w) && <IconCheck className="size-5" />}ลายเซ็น{SIGNER_NAME[w]}
+            </button>
+          ))}
+        </div>
+        {savedNote && <p role="status" className="flex items-center gap-2 rounded-lg bg-ok-soft p-2 font-medium text-ok"><IconCheck className="size-5 shrink-0" />{savedNote}</p>}
         <p className="rounded-lg bg-warn-soft p-2 text-sm font-medium text-warn">ลายเซ็นนี้จะนับเป็นของใบยืนยันครั้งที่ {rev} (ใบล่าสุด) · ตัดจากใบครั้งที่ {rev} ที่ลูกค้าเซ็นเท่านั้น</p>
         {attached && (
           <button type="button" className={file ? secondaryBtn : primaryBtn} disabled={!!fetching || busy} onClick={() => void openAttached()}>
@@ -219,15 +264,15 @@ function CropDialog({ job, rev, attached, onClose, onSaved }: { job: Job; rev: n
             {norm && <div aria-hidden className="pointer-events-none absolute border-2 border-brand bg-brand/10" style={norm} />}
           </div>
         )}
-        <label className="grid gap-1 font-medium">วันที่ลูกค้าเซ็น (วันที่เขียนข้างลายเซ็นในใบ)
+        <label className="grid gap-1 font-medium">วันที่{SIGNER_NAME[who]}เซ็น (วันที่เขียนข้างลายเซ็นในใบ)
           <input type="date" className={fieldClass} value={signedOn} max={today} onChange={e => setSignedOn(e.target.value)} />
         </label>
         {why && file && !problem && <p className="text-sm text-muted">{why}</p>}
         {error && <p role="alert" className="text-danger">{error}</p>}
         <div className="flex flex-wrap justify-end gap-2">
-          <button type="button" className={secondaryBtn} disabled={busy} title={busy ? 'รอบันทึกลายเซ็นให้เสร็จก่อน' : undefined} onClick={close}>ยกเลิก</button>
+          <button type="button" className={secondaryBtn} disabled={busy} title={busy ? 'รอบันทึกลายเซ็นให้เสร็จก่อน' : undefined} onClick={close}>{saved.length ? 'ปิด' : 'ยกเลิก'}</button>
           <button type="button" className={primaryBtn} disabled={!!why || busy} title={why || undefined} onClick={() => void save()}>
-            {busy ? 'กำลังบันทึกลายเซ็น…' : why ? `บันทึกลายเซ็น (${why})` : 'บันทึกลายเซ็น'}
+            {busy ? 'กำลังบันทึกลายเซ็น…' : why ? `บันทึกลายเซ็น${SIGNER_NAME[who]} (${why})` : `บันทึกลายเซ็น${SIGNER_NAME[who]}`}
           </button>
         </div>
       </div>

@@ -489,6 +489,32 @@ test('ฟอร์มใบยืนยัน: ฉบับโรงงานแ
   assert.equal(els.get('#doc').innerHTML.includes('class="signed"'), false)
 })
 
+test('ฟอร์มใบยืนยัน: ฉบับโรงงานแสดงลายเซ็นผู้อนุมัติในช่องผู้อนุมัติ · ผู้ควบคุมการผลิตยังว่างให้เซ็นในกระดาษ', () => {
+  const open = extra => {
+    const b = boot()
+    b.store.set('pp142.confirmation.inbox', JSON.stringify({ view: true, h: { doc_no: 'SC-SIG2', customer: 'ลูกค้า' }, product: 'tshirt', p: { tshirt: {} }, ...extra }))
+    b.api.takeInbox()
+    return b.els.get('#doc').innerHTML
+  }
+  const customer = { src: 'https://files.test/f/mockups/SC-SIG2/sigc.png?sig=1', signed_on: '2026-11-26', rev: 1, current_rev: 1 }
+  const approver = { src: 'https://files.test/f/mockups/SC-SIG2/siga.png?sig=1', signed_on: '2026-11-27', rev: 1, current_rev: 1 }
+  const both = open({ customer_sig: customer, approver_sig: approver })
+  assert.equal((both.match(/class="signed"/g) || []).length, 2)
+  assert.match(both, /<div class="signed"><div class="t">ลูกค้า<\/div><img src="https:\/\/files\.test\/f\/mockups\/SC-SIG2\/sigc\.png\?sig=1" alt="ลายเซ็นลูกค้า">วันที่ 26\/11\/2569/)
+  assert.match(both, /<div class="signed"><div class="t">ผู้อนุมัติ<\/div><img src="https:\/\/files\.test\/f\/mockups\/SC-SIG2\/siga\.png\?sig=1" alt="ลายเซ็นผู้อนุมัติ">วันที่ 27\/11\/2569/)
+  assert.match(both, /<div><div class="t">ผู้ควบคุมการผลิต<\/div><div class="ln"><\/div>/)
+
+  const onlyApprover = open({ approver_sig: approver })
+  assert.equal((onlyApprover.match(/class="signed"/g) || []).length, 1)
+  assert.match(onlyApprover, /<div><div class="t">ลูกค้า<\/div><div class="ln"><\/div>/)
+
+  const stale = open({ customer_sig: customer, approver_sig: { ...approver, rev: 0, current_rev: 1 } })
+  assert.equal((stale.match(/class="signed"/g) || []).length, 1)
+  assert.match(stale, /ผู้อนุมัติเซ็นใบครั้งที่ 0 · ใบนี้ \(ครั้งที่ 1\) ยังไม่ได้เซ็น/)
+
+  assert.equal(open({ approver_sig: { ...approver, src: 'javascript:alert(1)' } }).includes('class="signed"'), false)
+})
+
 test('ฟอร์มใบยืนยัน: ฉบับโรงงานมีช่องเซ็น ลูกค้า + ผู้อนุมัติ + ผู้ควบคุมการผลิต', () => {
   const { api, store, els } = boot()
   store.set('pp142.confirmation.inbox', JSON.stringify({ view: true, h: { doc_no: 'SC-SIGN', customer: 'ลูกค้า' }, product: 'tshirt', p: { tshirt: {} } }))

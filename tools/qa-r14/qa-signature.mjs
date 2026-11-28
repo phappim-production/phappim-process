@@ -50,7 +50,9 @@ try {
 
   await step('admin-sees-no-signature-yet', async () => {
     await t.goto('admin1', `#/board?job=${jobId}`, 1440)
-    await t.waitText('ยังไม่มีลายเซ็นลูกค้าในใบฉบับโรงงาน')
+    await t.waitText('ยังไม่มีลายเซ็นลูกค้า')
+    await t.waitText('ยังไม่มีลายเซ็นผู้อนุมัติ')
+    await t.waitText('ฝ่ายผลิตเซ็นช่องผู้ควบคุมการผลิตในกระดาษเท่านั้น')
   })
 
   await step('admin-attaches-signed-photo', async () => {
@@ -74,32 +76,53 @@ try {
     return row.p
   })
 
-  await step('admin-crops-and-saves-signature', async () => {
+  await step('admin-crops-customer-then-approver-from-one-photo', async () => {
     await t.clickButton('ตัดลายเซ็นลูกค้า', { exact: true })
-    await t.waitText('ลากกรอบรอบลายเซ็น')
+    await t.waitText('ลากกรอบรอบลายเซ็นลูกค้า')
     await t.uploadFiles('input[type="file"][aria-label="เลือกรูปหรือ PDF ใบที่ลูกค้าเซ็น"]', [fixtures.paths.frontPng])
     await waitFor(() => tab.ev(() => { const i = document.querySelector('[data-crop-area] img'); return !!i?.complete && i.naturalWidth > 0 }), 'รูปใบที่เซ็นโหลด')
     const disabled = await tab.ev(() => [...document.querySelectorAll('button')].find(b => b.textContent.startsWith('บันทึกลายเซ็น'))?.disabled)
     assert.equal(disabled, true, 'ยังไม่ลากกรอบต้องกดบันทึกไม่ได้')
     await drag('[data-crop-area] img', [0.2, 0.6], [0.8, 0.9])
     await t.screenshot('signature-crop-dialog')
-    await t.clickButton('บันทึกลายเซ็น', { exact: true })
-    await t.waitText('บันทึกลายเซ็นลูกค้าแล้ว', 15000)
-    const [row] = await sql('select customer_signature_path p, customer_signed_on::text d, customer_signature_rev r from public.jobs where id = $1', [jobId])
+    await t.clickButton('บันทึกลายเซ็นลูกค้า', { exact: true })
+    await t.waitText('ลากกรอบรอบลายเซ็นผู้อนุมัติต่อบนรูปเดิม', 15000)
+    assert.equal(await tab.ev(() => document.body.innerText.includes('ตัดลายเซ็นผู้อนุมัติ')), true, 'หน้าต่างเปลี่ยนเป็นลายเซ็นผู้อนุมัติ')
+    assert.equal(await tab.ev(() => { const i = document.querySelector('[data-crop-area] img'); return !!i && i.naturalWidth > 0 }), true, 'ใช้รูปเดิมต่อ ไม่ต้องเลือกใหม่')
+    const waitingApprover = await tab.ev(() => [...document.querySelectorAll('button')].find(b => b.textContent.startsWith('บันทึกลายเซ็นผู้อนุมัติ'))?.disabled)
+    assert.equal(waitingApprover, true, 'ยังไม่ลากกรอบผู้อนุมัติต้องกดบันทึกไม่ได้')
+    await drag('[data-crop-area] img', [0.5, 0.1], [0.9, 0.4])
+    await t.screenshot('signature-crop-approver')
+    await t.clickButton('บันทึกลายเซ็นผู้อนุมัติ', { exact: true })
+    await waitFor(() => tab.ev(() => !document.querySelector('[data-crop-area]')), 'ปิดหน้าต่างตัดลายเซ็นเมื่อครบทั้งสอง', 15000)
+    await t.waitText('บันทึกลายเซ็นผู้อนุมัติแล้ว')
+    const [row] = await sql(`select customer_signature_path p, customer_signature_rev r, approver_signature_path a, approver_signature_rev ar,
+      approver_signed_on::text ad from public.jobs where id = $1`, [jobId])
     assert.match(row.p, /^SC-SIG-1\/sig[0-9a-f]+\.png$/)
+    assert.match(row.a, /^SC-SIG-1\/sig[0-9a-f]+\.png$/)
+    assert.notEqual(row.a, row.p, 'ลายเซ็นสองคนเป็นคนละรูป')
     assert.equal(row.r, 0)
-    const stored = stack.r2Store.get(`mockups/${row.p}`)
-    assert.ok(stored?.bytes?.length > 100, 'ไฟล์ลายเซ็นอยู่ใน R2')
-    assert.deepEqual([...stored.bytes.slice(1, 4)].map(c => String.fromCharCode(c)).join(''), 'PNG')
-    await waitFor(() => tab.ev(() => { const i = document.querySelector('img[alt="ลายเซ็นลูกค้า"]'); return !!i?.complete && i.naturalWidth > 0 }), 'รูปลายเซ็นในรายละเอียดงาน')
-    return `${row.p} · ${stored.bytes.length} bytes`
+    assert.equal(row.ar, 0)
+    for (const path of [row.p, row.a]) {
+      const stored = stack.r2Store.get(`mockups/${path}`)
+      assert.ok(stored?.bytes?.length > 100, 'ไฟล์ลายเซ็นอยู่ใน R2')
+      assert.deepEqual([...stored.bytes.slice(1, 4)].map(c => String.fromCharCode(c)).join(''), 'PNG')
+    }
+    for (const alt of ['ลายเซ็นลูกค้า', 'ลายเซ็นผู้อนุมัติ']) {
+      await waitFor(() => tab.ev(a => { const i = document.querySelector(`img[alt="${a}"]`); return !!i?.complete && i.naturalWidth > 0 }, alt), `รูป${alt}ในรายละเอียดงาน`)
+    }
+    await t.waitText('ลายเซ็นในใบฉบับโรงงานครบแล้ว')
+    return `${row.p} + ${row.a}`
   })
 
   await step('production-sees-signature-in-factory-copy', async () => {
     await openView('prod1')
-    await waitFor(() => tab.ev(() => { const i = document.querySelector('#doc .sign .signed img'); return !!i?.complete && i.naturalWidth > 0 }), 'ลายเซ็นในช่องลูกค้า')
+    await waitFor(() => tab.ev(() => { const s = [...document.querySelectorAll('#doc .sign .signed img')]; return s.length === 2 && s.every(i => i.complete && i.naturalWidth > 0) }), 'ลายเซ็นในช่องลูกค้าและผู้อนุมัติ')
     const boxes = await tab.ev(() => [...document.querySelectorAll('#doc .sign > div .t')].map(e => e.textContent))
     assert.deepEqual(boxes, ['ลูกค้า', 'ผู้อนุมัติ', 'ผู้ควบคุมการผลิต'])
+    const signed = await tab.ev(() => [...document.querySelectorAll('#doc .sign .signed')].map(e => e.querySelector('.t').textContent + ':' + e.querySelector('img').alt))
+    assert.deepEqual(signed, ['ลูกค้า:ลายเซ็นลูกค้า', 'ผู้อนุมัติ:ลายเซ็นผู้อนุมัติ'])
+    assert.equal(await tab.ev(() => !![...document.querySelectorAll('#doc .sign > div')].find(d => d.querySelector('.t')?.textContent === 'ผู้ควบคุมการผลิต')?.querySelector('.ln')), true, 'ช่องผู้ควบคุมการผลิตว่างไว้เซ็นในกระดาษ')
     await tab.ev(() => document.querySelector('#doc .sign').scrollIntoView({ block: 'center' }))
     await t.screenshot('signature-factory-copy')
   })
@@ -108,7 +131,9 @@ try {
     await sql('update public.jobs set confirmation_rev = 1 where id = $1', [jobId])
     await openView('prod1')
     assert.equal(await tab.ev(() => !!document.querySelector('#doc .sign .signed')), false)
-    assert.match(await tab.ev(() => document.querySelector('#doc .sign').innerText), /ลูกค้าเซ็นใบครั้งที่ 0 · ใบนี้ \(ครั้งที่ 1\) ยังไม่ได้เซ็น/)
+    const signText = await tab.ev(() => document.querySelector('#doc .sign').innerText)
+    assert.match(signText, /ลูกค้าเซ็นใบครั้งที่ 0 · ใบนี้ \(ครั้งที่ 1\) ยังไม่ได้เซ็น/)
+    assert.match(signText, /ผู้อนุมัติเซ็นใบครั้งที่ 0 · ใบนี้ \(ครั้งที่ 1\) ยังไม่ได้เซ็น/)
     await t.goto('admin1', `#/board?job=${jobId}`, 1440)
     await t.waitText('ลายเซ็นนี้เป็นของใบครั้งที่ 0')
   })
@@ -128,16 +153,18 @@ try {
   await step('staff-cannot-see-edit-controls', async () => {
     await t.goto('staff_single', `#/board?job=${jobId}`, 375)
     await t.waitText('SC-SIG-1')
-    assert.equal(await tab.ev(() => document.body.innerText.includes('ตัดลายเซ็นลูกค้า') || document.body.innerText.includes('เปลี่ยนลายเซ็นลูกค้า')), false)
+    assert.equal(await tab.ev(() => /(ตัด|เปลี่ยน)ลายเซ็น(ลูกค้า|ผู้อนุมัติ)/.test(document.body.innerText)), false)
   })
 
   await step('admin-removes-signature', async () => {
     await t.goto('admin1', `#/board?job=${jobId}`, 1440)
     await t.waitText('เปลี่ยนลายเซ็นลูกค้า')
     await tab.ev(() => { window.confirm = () => true })
-    await t.clickButton('ลบลายเซ็น', { exact: true })
+    await t.clickButton('ลบลายเซ็นลูกค้า', { exact: true })
     await t.waitText('ลบลายเซ็นลูกค้าแล้ว')
-    assert.equal((await sql('select customer_signature_path p from public.jobs where id = $1', [jobId]))[0].p, null)
+    const [row] = await sql('select customer_signature_path p, approver_signature_path a from public.jobs where id = $1', [jobId])
+    assert.equal(row.p, null)
+    assert.ok(row.a, 'ลบลายเซ็นลูกค้าแล้ว ลายเซ็นผู้อนุมัติยังอยู่')
   })
 
   await step('admin-crops-from-attached-photo', async () => {
@@ -148,7 +175,7 @@ try {
     const size = await tab.ev(() => { const i = document.querySelector('[data-crop-area] img'); return [i.naturalWidth, i.naturalHeight] })
     assert.deepEqual(size, [600, 600])
     await drag('[data-crop-area] img', [0.1, 0.5], [0.9, 0.8])
-    await t.clickButton('บันทึกลายเซ็น', { exact: true })
+    await t.clickButton('บันทึกลายเซ็นลูกค้า', { exact: true })
     await t.waitText('บันทึกลายเซ็นลูกค้าแล้ว', 15000)
     const [row] = await sql('select customer_signature_path p, customer_signature_rev r from public.jobs where id = $1', [jobId])
     assert.match(row.p, /^SC-SIG-1\/sig[0-9a-f]+\.png$/)
@@ -188,7 +215,7 @@ try {
     const before = (await sql('select customer_signature_path p from public.jobs where id = $1', [jobId]))[0].p
     await drag('[data-crop-area] img', [0.05, 0.02], [0.6, 0.15])
     await t.screenshot('signature-crop-pdf')
-    await t.clickButton('บันทึกลายเซ็น', { exact: true })
+    await t.clickButton('บันทึกลายเซ็นลูกค้า', { exact: true })
     await t.waitText('บันทึกลายเซ็นลูกค้าแล้ว', 15000)
     const after = (await sql('select customer_signature_path p from public.jobs where id = $1', [jobId]))[0].p
     assert.ok(after && after !== before, `${before} → ${after}`)
@@ -213,11 +240,16 @@ try {
     await waitCropImage()
     assert.match(await chosen(), /หน้า 2\/2/)
     await drag('[data-crop-area] img', [0.05, 0.02], [0.6, 0.15])
-    await t.clickButton('บันทึกลายเซ็น', { exact: true })
+    await t.clickButton('บันทึกลายเซ็นลูกค้า', { exact: true })
     await t.waitText('บันทึกลายเซ็นลูกค้าแล้ว', 15000)
-    const [row] = await sql('select customer_signature_path p from public.jobs where id = $1', [second.body])
+    await t.waitText('ลากกรอบรอบลายเซ็นผู้อนุมัติต่อบนรูปเดิม')
+    await drag('[data-crop-area] img', [0.4, 0.02], [0.95, 0.15])
+    await t.clickButton('บันทึกลายเซ็นผู้อนุมัติ', { exact: true })
+    await waitFor(() => tab.ev(() => !document.querySelector('[data-crop-area]')), 'ครบทั้งสองแล้วปิดหน้าต่าง', 15000)
+    const [row] = await sql('select customer_signature_path p, approver_signature_path a from public.jobs where id = $1', [second.body])
     assert.match(row.p, /^SC-SIG-2\/sig[0-9a-f]+\.png$/)
-    return row.p
+    assert.match(row.a, /^SC-SIG-2\/sig[0-9a-f]+\.png$/)
+    return `${row.p} + ${row.a}`
   })
 
   await step('no-console-errors', async () => {

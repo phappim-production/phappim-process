@@ -221,6 +221,8 @@ const { signedConfirmationImageTests } = await import('./signed-confirmation-ima
 await signedConfirmationImageTests({ db, ok })
 const { sweep1128Tests } = await import('./sweep-1128.mjs')
 await sweep1128Tests({ db, ok })
+const { approverSignatureTests } = await import('./approver-signature.mjs')
+await approverSignatureTests({ db, ok })
 const { serviceUvdtfTests } = await import('./service-uvdtf.mjs')
 await serviceUvdtfTests({ db, ok })
 const { materialEtaTests } = await import('./material-eta.mjs')

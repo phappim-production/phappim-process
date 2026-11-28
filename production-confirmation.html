@@ -1314,7 +1314,7 @@ function load(key=LS, store=localStorage){ try{ if(!store) return null; const s=
 let warnedQuota=false, saveTimer=0;
 // เปิดดูจากระบบ (ฝ่ายผลิต / หน้างาน) ห้ามเขียนทับใบที่แอดมินกรอกค้างในเครื่องเดียวกัน
 let viewOnly=false;
-// ลายเซ็นลูกค้าที่แอดมินตัดจากใบที่เซ็นแล้ว · ส่งมาเฉพาะตอนเปิดดูฉบับโรงงาน ไม่เก็บลงใบ
+// ลายเซ็นลูกค้า / ผู้อนุมัติที่แอดมินตัดจากใบที่เซ็นแล้ว · ส่งมาเฉพาะตอนเปิดดูฉบับโรงงาน ไม่เก็บลงใบ
 let viewSig=null;
 function customerSig(x){
   if(!x||typeof x!=='object'||typeof x.src!=='string'||!/^(https?:|blob:)/.test(x.src)||!/^\d{4}-\d{2}-\d{2}/.test(String(x.signed_on||''))) return null;
@@ -2123,7 +2123,7 @@ function takeInbox(){
 
 function openView(d){
   viewOnly=true;
-  viewSig=customerSig(d.customer_sig);
+  viewSig={ [SIGNERS_CUSTOMER[0]]:customerSig(d.customer_sig), [SIGNERS_CUSTOMER[1]]:customerSig(d.approver_sig) };
   document.body.classList.add('view-only');
   if(!loadData(d, 'เปิดดูใบยืนยัน '+(d.h?.doc_no||'')+' (ดูอย่างเดียว)')){ alert('ข้อมูลจากระบบไม่ใช่ใบยืนยันการผลิต'); return; }
   togglePreview(true);
@@ -2330,10 +2330,12 @@ function renderDoc(){
   }
   else if(mockup) x+=`<section class="fd-mock"><h3>ภาพม็อคอัพ (Mock up)</h3>${mockup}<div class="d-mock">${esc(MOCKUP_NOTE)}</div></section>`;
   const blank=t=>`<div><div class="t">${t}</div><div class="ln"></div>(.......................................)<br>วันที่ ....../....../......</div>`;
-  const cs=!forCustomer&&viewSig;
-  const sig=t=>t!==SIGNERS_CUSTOMER[0]||!cs?blank(t)
-    :cs.rev===cs.current?`<div class="signed"><div class="t">${t}</div><img src="${esc(cs.src)}" alt="ลายเซ็นลูกค้า">วันที่ ${thDate(cs.on)}</div>`
-    :`<div><div class="t">${t}</div><div class="ln"></div><span class="sig-old">ลูกค้าเซ็นใบครั้งที่ ${esc(cs.rev)} · ใบนี้ (ครั้งที่ ${esc(cs.current)}) ยังไม่ได้เซ็น</span><br>วันที่ ....../....../......</div>`;
+  const sig=t=>{
+    const cs=!forCustomer&&viewSig&&viewSig[t];
+    return !cs?blank(t)
+      :cs.rev===cs.current?`<div class="signed"><div class="t">${t}</div><img src="${esc(cs.src)}" alt="ลายเซ็น${t}">วันที่ ${thDate(cs.on)}</div>`
+      :`<div><div class="t">${t}</div><div class="ln"></div><span class="sig-old">${t}เซ็นใบครั้งที่ ${esc(cs.rev)} · ใบนี้ (ครั้งที่ ${esc(cs.current)}) ยังไม่ได้เซ็น</span><br>วันที่ ....../....../......</div>`;
+  };
   x+=`<div class="close">${mockup?'':`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`}
     <div class="d-accept"><b>${esc(ACCEPT_TITLE)}</b>${esc(ACCEPT_TEXT)}</div>
     <ol class="d-terms">${[...TERMS,...(P.cat==='service'&&state.product!=='svc_uvdtf'?TERMS_SERVICE:[])].map(t=>`<li>${esc(t)}</li>`).join('')}</ol>
@@ -2559,8 +2561,8 @@ async function exportPdf(){
   renderDoc();
   await docFontsReady();
   await docImagesReady();
-  const sigImg=$('#doc .sign .signed img');
-  if(sigImg&&!sigImg.naturalWidth&&!confirm('เปิดรูปลายเซ็นลูกค้าไม่ได้ (ลิงก์รูปหมดอายุหลังเปิดใบนานเกิน 1 ชั่วโมง)\nปิดหน้านี้แล้วเปิดใบจากระบบใหม่ ลายเซ็นจะกลับมา\n\nกด "ตกลง" = ส่งออก PDF โดยไม่มีลายเซ็น · "ยกเลิก" = กลับไปก่อน')) return;
+  const sigImg=[...document.querySelectorAll('#doc .sign .signed img')].find(im=>!im.naturalWidth);
+  if(sigImg&&!confirm('เปิดรูป'+sigImg.alt+'ไม่ได้ (ลิงก์รูปหมดอายุหลังเปิดใบนานเกิน 1 ชั่วโมง)\nปิดหน้านี้แล้วเปิดใบจากระบบใหม่ ลายเซ็นจะกลับมา\n\nกด "ตกลง" = ส่งออก PDF โดยไม่มีลายเซ็น · "ยกเลิก" = กลับไปก่อน')) return;
   const old=document.title;
   document.title=fileBase();
   window.print();
