@@ -135,7 +135,7 @@ export function telHref(phone?: string): string | undefined {
   return `tel:${digits.length === 9 && !digits.startsWith('0') ? '0' + digits : digits}`
 }
 /** สถานีที่ส่งออกได้ (ตรงกับ private.outsourceable ในฐานข้อมูล) */
-export const OUTSOURCEABLE: StationCode[] = ['outside', 'print', 'press', 'cut', 'sew', 'emb']
+export const OUTSOURCEABLE: StationCode[] = ['outside', 'print', 'press', 'cut', 'dtf_press', 'sew', 'emb']
 export const OUTSIDE_START_BLOCK = 'งานผลิตข้างนอกทั้งหมด เริ่มที่โรงงานไม่ได้ · แอดมินกด "ส่งออกบริษัทภายนอก" แล้วกด "รับเข้า" เมื่อของถึง'
 export const isOutLate = (j: Job, now: Date) => !!j.out && j.out.backAt.getTime() < now.getTime()
 

@@ -22,8 +22,17 @@ const run = (over: Partial<OutRun> = {}): OutRun => ({
 describe('ส่งงานออกบริษัทภายนอก', () => {
   it('ส่งได้หลายสถานีติดกัน หยุดที่สถานีที่ต้องทำในโรงงาน', () => {
     expect(outSpan(base, 'print')).toEqual(['print', 'press', 'cut', 'sew'])
-    expect(outSpan({ ...base, route: 'dtf' }, 'cut')).toEqual(['cut'])            // รีดฟิล์มทำในโรงงาน
+    expect(outSpan({ ...base, route: 'dtf' }, 'cut')).toEqual(['cut', 'dtf_press', 'sew'])
+    expect(outSpan({ ...base, route: 'dtf_only' }, 'dtf_press')).toEqual(['dtf_press'])
     expect(outSpan({ ...base, route: 'print_emb' }, 'cut')).toEqual(['cut', 'emb', 'sew'])
+  })
+
+  it('งานรอเริ่มที่รีดฟิล์ม: แอดมินเห็นปุ่มส่งออกทั้งงาน · เริ่มแล้วไม่เห็น', () => {
+    const atPress: Job = { ...base, route: 'dtf', station: 'dtf_press', qty: 60 }
+    const view = (job: Job, admin = true) => renderToStaticMarkup(createElement(OutsourcePanel, { job, vendors: [], admin, now, refresh: async () => {} }))
+    expect(view(atPress)).toMatch(/>ส่งออกบริษัทภายนอก<\/button>/)
+    expect(view(atPress, false)).not.toMatch(/>ส่งออกบริษัทภายนอก<\/button>/)
+    expect(view({ ...atPress, status: 'doing' })).not.toMatch(/>ส่งออกบริษัทภายนอก<\/button>/)
   })
 
   it('วันคาดว่าของถึง = ของถึงบริษัท + จำนวนวันที่ใช้', () => {

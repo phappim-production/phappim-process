@@ -173,7 +173,7 @@ describe('R5 ปุ่มตามสถานะและบทบาท', () =
     const admin = role === 'owner' || role === 'admin'
     for (const job of jobs) {
       const html = outsourceView(job, role)
-      expect(/>ส่งออกบริษัทภายนอก<\/button>/.test(html), job.id).toBe(admin && ['A', 'B', 'H', 'P'].includes(job.id))
+      expect(/>ส่งออกบริษัทภายนอก<\/button>/.test(html), job.id).toBe(admin && ['A', 'B', 'H', 'J', 'P'].includes(job.id))
       expect(html.includes('แบ่งจำนวน (ส่งออกบางส่วน)'), job.id).toBe(admin && ['A', 'B', 'J', 'P'].includes(job.id))
       expect(html.includes('ของถึงโรงงานแล้ว · รับเข้า'), job.id).toBe(admin && ['F', 'G', 'I'].includes(job.id))
       expect(html.includes('แก้กำหนด'), job.id).toBe(admin && ['F', 'G', 'I'].includes(job.id))
