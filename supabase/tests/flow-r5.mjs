@@ -53,7 +53,7 @@ const rules = {
   order_film: ['owner admin', 'J'],
   receive_film: ['owner admin', 'J'],
   move_job_ahead: ['owner production manager', 'BCDEFGHIJKLMP'],
-  send_out: ['owner admin', 'ABHP'],
+  send_out: ['owner admin', 'ABHJP'],
   forward_out: ['owner admin', 'FG'],
   receive_back: ['owner admin', 'FGI'],
   update_out_plan: ['owner admin', 'FGI'],

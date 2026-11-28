@@ -69,8 +69,8 @@ export async function outsourceWaitingTests({ db, ok }) {
       p_product_type_code => 'svc_dtf', p_qty => 100, p_unit => 'ชิ้น', p_due_date => current_date + 30, p_route_code => 'dtf_only',
       p_confirmation_pdf_path => null, p_spare_qty => 0, p_confirmation_rev => 0,
       p_spec => '{"product":"svc_dtf","h":{"doc_no":"SC-OW-DTF"},"p":{"svc_dtf":{"film_source":"โรงงานสั่งฟิล์ม"}}}'::jsonb, p_needs_sample => false)::text`)
-    await reject('สถานีแรกทำที่โรงงานเท่านั้น (รีดฟิล์ม) ส่งออกไม่ได้', U.admin, send(svc, vendor), /ทำที่โรงงานเท่านั้น/)
-    ok('ส่งออกไม่ได้ = ยังรอผลิต', (await job(svc)).phase === 'materials')
+    await pass('สถานีแรกรีดฟิล์ม: ส่งออกจากรอผลิตได้', U.admin, send(svc, vendor))
+    ok('ส่งออกแล้ว = อยู่ที่บริษัทภายนอก สถานีรีดฟิล์ม', (await job(svc)).station_status === 'out' && (await job(svc)).current_station === 'dtf_press')
 
     const mid = await receive('SC-OW-MID', 'plain')
     await keep(U.admin, `public.add_job_material('${mid}', 'ผ้า', now() + interval '2 days')`)

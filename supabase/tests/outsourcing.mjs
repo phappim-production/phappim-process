@@ -28,7 +28,7 @@ export async function outsourcingTests({ db, ok, as }) {
   const B = await pass('แอดมินเพิ่มบริษัทเย็บ', U.admin, `public.add_vendor('บ.B เย็บ', array['sew'])`)
   await reject('ฝ่ายผลิตเพิ่มบริษัทไม่ได้ (แอดมินบันทึก)', U.prod, `public.add_vendor('บ.X')`, /ทำขั้นนี้ไม่ได้/)
   await reject('ชื่อบริษัทว่างไม่ได้', U.admin, `public.add_vendor('  ')`, /ใส่ชื่อบริษัท/)
-  await reject('บริษัทรับ QC ไม่ได้', U.admin, `public.add_vendor('บ.Q', array['qc_pack'])`, /พิมพ์ · รีด · ตัด · เย็บ · ปัก/)
+  await reject('บริษัทรับ QC ไม่ได้', U.admin, `public.add_vendor('บ.Q', array['qc_pack'])`, /พิมพ์ · รีด · ตัด · รีดฟิล์ม · เย็บ · ปัก/)
   ok('ทุกคนอ่านรายชื่อบริษัทได้', (await as(U.prod, () => db.query('select count(*)::int n from public.vendors'))).rows[0].n >= 2)
 
   const j1 = await receive('SC-OUT-1', 'normal')
