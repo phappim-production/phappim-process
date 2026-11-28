@@ -2,7 +2,7 @@
 
 เจ้าของ (ภาพช่องเซ็นฉบับโรงงาน มีแต่ลายเซ็นลูกค้า): "การนำลายเซ็นมาแปะ ต้องการ 2 ลายเซ็นที่นำเข้ามาคือ ของลูกค้าและก็ของ ผู้อนุมัติ มีแค่ฝ่ายผลิตที่จะเซ็นลงกระดาษ"
 
-branch `claude/approver-signature` · migration `20261218000000_approver_signature.sql` (**ต้องลงฐานจริงก่อน merge**)
+branch `claude/approver-signature` · migration `20261218000000_approver_signature.sql` **ลงฐานจริงแล้ว 28 พ.ย.** (เจ้าของรันใน SQL Editor · md5 3/3 = ไฟล์ · คอลัมน์ + index ครบ · บันทึก version แล้ว)
 
 ## เปลี่ยนอะไร
 - ฐาน: คอลัมน์ `jobs.approver_signature_path / approver_signed_on / approver_signature_rev` · `set_approver_signature` (แอดมิน · กฎเดียวกับลายเซ็นลูกค้า: รูปต้องอยู่โฟลเดอร์ของงาน/ส่วนที่แบ่ง · วันที่ไม่ว่าง ปี ค.ศ. ไม่อยู่ในอนาคต · เก็บทุกส่วนที่แบ่ง · ผูกกับใบครั้งที่ · event `approver_signature`) · `job_customer_signature` คืน `approver` เพิ่ม · `file_read_allowed` เปิดรูปลายเซ็นผู้อนุมัติได้
