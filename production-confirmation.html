@@ -174,7 +174,7 @@ body.preview .page-note{display:block}
 .kv div.w{grid-column:1/-1}
 .kv span{color:#555}
 .kv b{font-weight:600;white-space:pre-wrap}
-.kv b .optimg{display:block;width:32mm;height:32mm;object-fit:cover;border-radius:2mm;margin-top:1.5mm;border:1px solid #c9cec8}
+.kv b .optimg{display:block;width:22mm;height:22mm;object-fit:cover;border-radius:2mm;margin-top:1.5mm;border:1px solid #c9cec8}
 table.dt{border-collapse:collapse;width:100%;font-size:11.5px;margin:5px 0 2px;break-inside:avoid}
 table.dt th,table.dt td{border:1px solid #bfc5be;padding:2.5px 5px;text-align:center}
 table.dt th{background:#f1f3ef}
@@ -427,6 +427,7 @@ const RENAMED_OPTS = {
   '25 มม.': '2.5 ซม.',
   'อะคริลิค หนา 5 มม. (พิมพ์สี)': 'อะคริลิค หนา 0.5 ซม. (พิมพ์สี)',
   'ไม้ยางพารา หนา 10 มม. (สลักเลเซอร์)': 'ไม้ยางพารา หนา 1 ซม. (สลักเลเซอร์)',
+  'ถุงผ้าทั่วไป / ถุงช้อปปิ้ง': 'ถุงผ้า',
 };
 function upgradeOpts(p){
   Object.values(p&&typeof p==='object'?p:{}).forEach(part=>{ if(!part||typeof part!=='object') return;
@@ -984,7 +985,7 @@ const PRODUCTS = {
 
   bag: { cat:'bag', name:'ถุงผ้า / กระเป๋าผ้า / ถุงยังชีพ / ของชำร่วย', unit:'ใบ', sections:[
     { title:'แบบและขนาด', fields:[
-      R('usage','การใช้งาน',['ถุงผ้าทั่วไป / ถุงช้อปปิ้ง','ถุงยังชีพ','กระเป๋าของชำร่วย'],{ other:true }),
+      R('usage','การใช้งาน',['ถุงผ้า','ถุงยังชีพ','กระเป๋าของชำร่วย'],{ other:true }),
       R('style','ทรง',['ทรงแบน (ไม่มีก้น ไม่มีข้าง)','ขยายเฉพาะก้น','ขยายก้นและข้าง (ทรงกล่อง)','ถุงหูรูด','ทรงสะพายข้าง','ทรงเป้หูรูด'],{ other:true }),
       D('dims','ขนาดสำเร็จ',['กว้าง','สูง','ข้าง/ก้น'],{ hint:'ทรงแบน ใส่ข้าง/ก้น = 0' }),
       VARIANTS('ใบ'), SPARE('ใบ') ]},
@@ -1126,7 +1127,7 @@ const PRODUCTS = {
   ]},
   premium: { cat:'other', name:'ของพรีเมียมอื่นๆ (แก้ว ปฏิทิน ร่ม สมุด ฯลฯ)', unit:'ชิ้น', route:'งานจัดหา/ของพรีเมียม: สั่งสินค้า → พิมพ์/สกรีน → QC+Packing', sections:[
     { title:'สินค้า', fields:[
-      R('item','ชนิดสินค้า',['แก้วน้ำ / แก้วเปลี่ยนสี','ปฏิทิน','ร่ม','สมุด / หนังสือ','หน้ากากอนามัย','Power bank'],{ other:true }),
+      R('item','ชนิดสินค้า',['แก้วน้ำ','แก้วเปลี่ยนสี','ปฏิทิน','ร่ม','สมุด','หนังสือ','หน้ากากอนามัย','Power bank'],{ other:true }),
       A('spec','สเปกสินค้า',{ req:true, hint:'รุ่น ขนาด วัสดุ สี ความจุ จำนวนหน้า ฯลฯ' }) ]},
     itemsSec('ชิ้น',{ size:false, nameLabel:'แบบ / สี', title:'จำนวน' }),
     printSec(['ซิลค์สกรีน','พิมพ์ UV','ซับลิเมชั่น','สลักเลเซอร์','พิมพ์ออฟเซ็ท'],null,{ customerFabric:false,
@@ -1176,9 +1177,13 @@ const SERVICE_SIZES = label => ({ title:'ไซซ์และจำนวน', 
   { id:'sizes', type:'sizeTable', label, req:true, rowLabel:'แบบ / สี' },
 ]});
 const GARMENT_NAMES = Object.values(PRODUCTS).filter(x=>x.cat==='garment').map(x=>x.name);
+// ชื่อสินค้าเสื้อผ้าหลายตัวเป็นชื่อกลุ่ม (เช่น "เสื้อกีฬา / เสื้อองค์กรพิมพ์ลาย") · ตัวเลือกเปลี่ยนตามสินค้าที่เลือก
+const garmentParts=v=>String(v.garment||'').replace(/\s*\([^)]*\)/g,'').trim().split(' / ').filter(Boolean);
+const GARMENT_KIND={ ...R('garment_kind','ชนิดเสื้อที่เย็บ',[],{ other:true, hint:'ใบที่ส่งลูกค้าแสดงชนิดนี้', when:v=>garmentParts(v).length>1 }), get options(){ return garmentParts(scope('p')); } };
 PRODUCTS.svc_sew = { cat:'service', name:'เย็บอย่างเดียว (ลูกค้าส่งชิ้นส่วนที่ตัดแล้ว)', unit:'ตัว', route:'เย็บ → QC + Packing', sections:[
   { title:'สินค้า', fields:[
     R('garment','สินค้าที่จะเย็บ',GARMENT_NAMES,{ hint:'ฝ่ายผลิตจ่ายจักรตามสินค้านี้ · ไม่มีในรายการ = ใช้ "งานบริการอื่นๆ"' }),
+    GARMENT_KIND,
     T('garment_style','แบบ / ทรง',{ wide:true, ph:'เช่น คอกลม แขนสั้น ทรงตรง' }) ]},
   SERVICE_SIZES('จำนวนชุดชิ้นส่วนแยกตามไซซ์'),
   SUPPLY({ spareUnit:'ชุด', bySize:true }),
@@ -1242,7 +1247,7 @@ Object.values(PRODUCTS).forEach(P=>P.sections.filter(sec=>sec.title==='การ
 }));
 
 // ใบลูกค้าต้องบอกสินค้าชนิดเดียว ไม่ใช่ชื่อกลุ่ม (เช่น "ป้ายผ้า / ฉากผ้า") · สินค้าที่มีช่องชนิดอยู่แล้วใช้ช่องนั้น ที่เหลือให้แอดมินเลือก
-const TYPE_FIELD={ scarf:'item', premium:'item', kids:'item', pet:'item', yan:'yan_type', pillow:'type', hat:'style', kajood:'style', bag:'usage' };
+const TYPE_FIELD={ svc_sew:'garment_kind', scarf:'item', premium:'item', kids:'item', pet:'item', yan:'yan_type', pillow:'type', hat:'style', kajood:'style', bag:'usage' };
 const baseName=n=>n.replace(/\s*\([^)]*\)/g,'').trim();
 Object.entries(PRODUCTS).forEach(([k,P])=>{
   if(TYPE_FIELD[k]||P.cat==='service'||!baseName(P.name).includes(' / ')) return;
@@ -1251,8 +1256,9 @@ Object.entries(PRODUCTS).forEach(([k,P])=>{
 });
 function productType(v){
   const id=TYPE_FIELD[state.product], f=id&&allFields().find(x=>x.id===id);
-  const t=f&&visible(f,v)?(v[id]===OTHER?String(v[id+'__other']||'').trim():valText(f,v)):'';
-  return t||baseName(prod().name);
+  let t=f&&visible(f,v)?(v[id]===OTHER?String(v[id+'__other']||'').trim():valText(f,v)):'';
+  if(!t&&state.product==='svc_sew') t=garmentParts(v).join(' / ');
+  return prod().cat==='service'&&t?baseName(prod().name)+' · '+t:t||baseName(prod().name);
 }
 
 const TAIL = [
@@ -2189,7 +2195,7 @@ function validate(){
     if(!visible(f,v)||(naAllowed(f)&&isNA(f,v))) return;
     const { bad, why }=fieldIssue(f,v);
     if(negativeIn(f,v)){ out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why:'มีขนาดหรือจำนวนติดลบ แก้เป็นค่าบวก', hard:true }); return; }
-    const typeField=s==='p'&&f.id===TYPE_FIELD[state.product];
+    const typeField=!viewOnly&&s==='p'&&f.id===TYPE_FIELD[state.product];
     if(bad) out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why:typeField&&!v[f.id]?'เลือก 1 ชนิด · ใบที่ส่งลูกค้าแสดงชนิดนี้เป็นประเภทสินค้า':why, hard:(s==='h'&&MUST_FILL.includes(f.id))||typeField });
   }); });
   pieceFields().forEach(({ sec, f, values })=>{
@@ -2310,7 +2316,7 @@ function renderDoc(){
         mockup=co+(plain.length?`<div class="d-imgs${plain.length===1?' one':''}">${plain.map(({m,i})=>`<figure data-ar="${m.w>0&&m.h>0?m.w/m.h:4/3}"><img src="${m.src}" alt=""><figcaption>${esc(imgName(i+1))}</figcaption></figure>`).join('')}</div>`:'');
       }
     });
-    if(forCustomer){ custKV+=kvItems(simple.filter(f=>f.id!==TYPE_FIELD[state.product]),v,true); custTables+=body; return; }
+    if(forCustomer){ custKV+=kvItems(simple.filter(f=>f.id!==TYPE_FIELD[state.product]&&!(state.product==='svc_sew'&&f.id==='garment')),v,true); custTables+=body; return; }
     body=kvHTML(simple,v)+body;
     if(body) x+=`<section class="ds"><h3>${++n}. ${esc(sec.title)}</h3>${body}</section>`;
   });

@@ -257,6 +257,7 @@ async function runA1(ctx) {
       const clickRadio = (s, k, val) => document.querySelector(`input[type="radio"][data-s="${s}"][data-k="${k}"][value="${val}"]`)?.click()
       clickRadio('h', 'sample', 'ไม่ขึ้นตัวอย่าง')
       clickRadio('h', 'delivery', 'ลูกค้ารับเองที่โรงงาน')
+      clickRadio('p', 'kind', 'ป้ายผ้า')
       for (let i = 0; i < 10; i++) {
         const next = [...document.querySelectorAll('input[type="checkbox"][data-s="p"][data-k="print_method"]')].find(c => {
           const want = c.value.includes('ลูกค้าส่งผ้ามาเอง')

@@ -573,6 +573,41 @@ test('ฟอร์มใบยืนยัน: สินค้าที่ชื
   assert.match(doc, /ชนิดสินค้า<\/span><b>อื่นๆ: ธงราว/)
 })
 
+test('ฟอร์มใบยืนยัน: งานเก่าที่ยังไม่มีชนิดสินค้า ฝ่ายผลิตเปิดดูจากระบบแล้วส่งออก PDF ฉบับโรงงานได้ ไม่ถูกบังคับเลือก', () => {
+  const { api, store, els } = boot()
+  store.set('pp142.confirmation.inbox', JSON.stringify({ view: true, h: { doc_no: 'SC-OLD', customer: 'ลูกค้า' }, product: 'worker', p: { worker: { fabric: 'TC' } } }))
+  api.takeInbox()
+  assert.equal(api.validate().some(m => m.hard), false)
+  assert.match(els.get('#doc').innerHTML, /ฉบับโรงงาน/)
+})
+
+test('ฟอร์มใบยืนยัน: เย็บอย่างเดียว สินค้าชื่อรวม ต้องเลือกชนิดเสื้อ · ใบลูกค้าแสดง "เย็บอย่างเดียว · ชนิด" ไม่มีชื่อกลุ่ม · สินค้าชื่อเดียวไม่ถาม', () => {
+  const { api, els, v } = filled('svc_sew')
+  v.garment = 'เสื้อกีฬา / เสื้อองค์กรพิมพ์ลาย'
+  assert.ok(api.validate().some(m => m.hard && m.id === 'fld_p_garment_kind'))
+  v.garment_kind = 'เสื้อองค์กรพิมพ์ลาย'
+  assert.equal(api.validate().some(m => m.id === 'fld_p_garment_kind'), false)
+  api.renderDoc()
+  const doc = els.get('#doc').innerHTML
+  assert.match(doc, /ประเภทสินค้า<\/span><b>เย็บอย่างเดียว · เสื้อองค์กรพิมพ์ลาย<\/b>/)
+  assert.equal(doc.includes('เสื้อกีฬา / เสื้อองค์กร'), false)
+  v.garment = 'เสื้อโปโล'
+  delete v.garment_kind
+  assert.equal(api.validate().some(m => m.id === 'fld_p_garment_kind'), false)
+  api.renderDoc()
+  assert.match(els.get('#doc').innerHTML, /ประเภทสินค้า<\/span><b>เย็บอย่างเดียว · เสื้อโปโล<\/b>/)
+})
+
+test('ฟอร์มใบยืนยัน: ถุงผ้าใบเก่า "ถุงผ้าทั่วไป / ถุงช้อปปิ้ง" เปิดแล้วเป็น "ถุงผ้า" · ตัวเลือกชนิดสินค้าไม่มีชื่อรวม', () => {
+  const { api, store } = boot()
+  store.set('pp142.confirmation.inbox', JSON.stringify({ h: { doc_no: 'SC-BAG', customer: 'ลูกค้า' }, product: 'bag', p: { bag: { usage: 'ถุงผ้าทั่วไป / ถุงช้อปปิ้ง' } } }))
+  api.takeInbox()
+  assert.equal(api.scope('p').usage, 'ถุงผ้า')
+  const opts = (k, id) => api.PRODUCTS[k].sections.flatMap(s => s.fields).find(f => f.id === id).options
+  assert.equal(opts('bag', 'usage').some(o => o.includes(' / ')), false)
+  assert.equal(opts('premium', 'item').some(o => o.includes(' / ')), false)
+})
+
 test('ฟอร์มใบยืนยัน: ใบลูกค้าป้ายผ้าเห็นรางสอด ตาไก่ · สายคล้องเห็นกว้าง/ยาว · ถุงพับเห็นขนาดตอนพับ', () => {
   const show = (product, values, want) => {
     const { api, els, v } = filled(product)

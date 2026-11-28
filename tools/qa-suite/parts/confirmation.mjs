@@ -179,6 +179,52 @@ export async function runConfirmationTests(client, browser, fixtures, { seed = 1
     if (bad.length) fail(`จัดภาพม็อคอัพให้พอดีหน้า: ${bad.join(', ')}`)
   })
 
+  await check('customer-fields-all-products', async () => {
+    const res = await browser.ev(() => {
+      const keep = state, wasView = viewOnly, out = []
+      const fill = (f, v) => {
+        if (['text', 'textarea'].includes(f.type)) v[f.id] = 'QV' + f.id + 'QV'
+        else if (f.type === 'number') v[f.id] = '7'
+        else if (f.type === 'dims') f.parts.forEach((p, i) => { v[f.id + '_' + i] = '9' })
+        else if (f.type === 'radio' && f.options?.length) v[f.id] = f.options[f.options.length > 1 ? 1 : 0]
+        else if (f.type === 'checkbox' && f.options?.length) v[f.id] = [f.options[0]]
+      }
+      const label = f => f.label.replace(/ \(.*\)$/, '')
+      const groupName = t => / \/ /.test(String(t).replace(/\([^)]*\)/g, ''))
+      viewOnly = false
+      for (const k of Object.keys(PRODUCTS)) {
+        state = fresh()
+        state.product = k
+        state.pickOpen = false
+        Object.assign(state.h, { doc_no: 'AUD-1', customer: 'ลูกค้า', job_name: 'งาน', admin: 'น้ำ', delivery: 'ลูกค้ามารับสินค้าเอง' })
+        const v = scope('p')
+        if (k === 'svc_sew') v.garment = 'เสื้อกีฬา / เสื้อองค์กรพิมพ์ลาย'
+        for (let pass = 0; pass < 3; pass++) for (const sec of allSecs()) for (const f of sec.fields) if (visible(f, v) && v[f.id] === undefined) fill(f, v)
+        renderDoc()
+        const doc = document.querySelector('#doc'), text = doc.innerText
+        const shownLabels = new Set([...doc.querySelectorAll('.cd-info .kv span')].map(s => s.textContent))
+        const customerLabels = new Set(allSecs().flatMap(sec => sec.fields.filter(f => visible(f, v) && customerSees(f, sec)).map(label)))
+        const problems = []
+        for (const sec of allSecs()) for (const f of sec.fields) {
+          if (!visible(f, v) || ['images', 'sizeTable', 'itemTable', 'placements'].includes(f.type)) continue
+          const sees = customerSees(f, sec) && f.id !== TYPE_FIELD[k] && !(k === 'svc_sew' && f.id === 'garment')
+          if (!sees && (text.includes('QV' + f.id + 'QV') || (shownLabels.has(label(f)) && !customerLabels.has(label(f))))) problems.push('ภายในหลุด ' + f.id)
+          if (sees && valText(f, v) && !shownLabels.has(label(f)) && !text.includes('QV' + f.id + 'QV')) problems.push('ไม่แสดง ' + f.id)
+        }
+        const head = (doc.innerHTML.match(/<small>([^<]*)<\/small>/) || [])[1]
+        if (groupName(productType(v)) || groupName(head)) problems.push('ประเภทสินค้าเป็นชื่อกลุ่ม ' + head)
+        if (/undefined|NaN|\[object/.test(text)) problems.push('undefined/NaN')
+        if (validate().some(m => m.hard)) problems.push('กรอกครบแล้วยังติด ' + validate().filter(m => m.hard).map(m => m.id).join(','))
+        if (problems.length) out.push(k + ': ' + problems.join(', '))
+      }
+      viewOnly = wasView
+      state = keep
+      renderForm()
+      return out
+    })
+    if (res.length) fail(`ฉบับลูกค้า ${res.length} สินค้า: ${res.slice(0, 6).join(' ; ')}`)
+  })
+
   await check('customer-one-page', async () => {
     const res = await browser.ev(() => {
       const keep = state, wasView = viewOnly, out = {}
