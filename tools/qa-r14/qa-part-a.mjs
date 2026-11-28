@@ -257,6 +257,7 @@ async function runA1(ctx) {
       const clickRadio = (s, k, val) => document.querySelector(`input[type="radio"][data-s="${s}"][data-k="${k}"][value="${val}"]`)?.click()
       clickRadio('h', 'sample', 'ไม่ขึ้นตัวอย่าง')
       clickRadio('h', 'delivery', 'ลูกค้ารับเองที่โรงงาน')
+      clickRadio('p', 'kind', 'ป้ายผ้า')
       for (let i = 0; i < 10; i++) {
         const next = [...document.querySelectorAll('input[type="checkbox"][data-s="p"][data-k="print_method"]')].find(c => {
           const want = c.value.includes('ลูกค้าส่งผ้ามาเอง')
@@ -281,6 +282,7 @@ async function runA1(ctx) {
     await t.fillInput('input[data-t="items"][data-r="0"][data-c="name"]', 'ป้ายงานวิ่ง')
     await t.fillInput('input[data-t="items"][data-r="0"][data-c="w"]', '150')
     await t.fillInput('input[data-t="items"][data-r="0"][data-c="h"]', '80')
+    await t.fillInput('[data-s="p"][data-k="edge_w"]', '2')
     await t.fillInput('input[data-t="items"][data-r="0"][data-c="qty"]', '5')
     await t.uploadFiles('input[type="file"][data-img]', [fixtures.paths.frontPng])
     await waitFor(() => t.ev(() => !readingImgs && state.imgs.length > 0), 'โหลดรูป banner')

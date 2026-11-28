@@ -21,11 +21,11 @@ export type InAppBrowser = 'line' | 'other'
 // ลิงก์ที่กดในแชตเปิดในเบราว์เซอร์ของแอปแชตเอง ซึ่งติดตั้งแอปไม่ได้ และเก็บการล็อกอินแยกจาก Chrome/Safari
 export function inAppBrowser(userAgent: string): InAppBrowser | null {
   if (/\bLine\/\d/i.test(userAgent)) return 'line'
-  if (/FBAN|FBAV|FB_IAB|Instagram|MessengerForiOS|; wv\)/.test(userAgent)) return 'other'
+  if (/FBAN|FBAV|FB_IAB|Instagram|MessengerForiOS|musical_ly|TikTok|BytedanceWebview|MicroMessenger|; wv\)/.test(userAgent)) return 'other'
   return null
 }
 
-// LINE เปิดลิงก์ที่มีพารามิเตอร์นี้ในเบราว์เซอร์ของเครื่อง (Chrome / Safari) แทนเบราว์เซอร์ใน LINE
+// LINE เปิดลิงก์ที่มีพารามิเตอร์นี้ในเบราว์เซอร์หลักของเครื่อง (Android อาจเป็น Samsung Internet ไม่ใช่ Chrome)
 export const LINE_EXTERNAL_PARAM = 'openExternalBrowser'
 
 export function externalBrowserUrl(href: string): string {

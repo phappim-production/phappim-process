@@ -59,7 +59,7 @@ export function OpenInBrowser({ inCard = false }: { inCard?: boolean }) {
       </p>
       {kind === 'line' ? (
         <a href={externalBrowserUrl(location.href)} className={`inline-flex items-center justify-center gap-2 ${primaryButton}`}>
-          <IconExternal className="size-5" /><Tr th={browser === 'Safari' ? 'เปิดใน Safari' : 'เปิดใน Chrome'} />
+          <IconExternal className="size-5" /><Tr th={browser === 'Safari' ? 'เปิดใน Safari' : 'เปิดในเบราว์เซอร์'} />
         </a>
       ) : (
         <p><Tr th="กด ⋮ หรือ ⋯ มุมขวาบน แล้วเลือก เปิดในเบราว์เซอร์" /></p>

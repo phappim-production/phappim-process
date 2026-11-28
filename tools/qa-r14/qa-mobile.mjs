@@ -87,7 +87,7 @@ try {
     await device(LINE_ANDROID, true)
     await t.goto('staff_single', '#/system', 375)
     await t.waitText('เปิดอยู่ใน LINE · ติดตั้งแอปไม่ได้ ให้เปิดในเบราว์เซอร์ก่อน')
-    const href = await tab.ev(() => [...document.querySelectorAll('a')].find(a => a.textContent.trim() === 'เปิดใน Chrome')?.href ?? '')
+    const href = await tab.ev(() => [...document.querySelectorAll('a')].find(a => a.textContent.trim() === 'เปิดในเบราว์เซอร์')?.href ?? '')
     assert.match(href, /\?(.*&)?openExternalBrowser=1(&.*)?#\/system$/)
     assert.equal(await tab.ev(() => document.body.innerText.includes('กดเมนู ⋮ มุมขวาบนของ Chrome')), false, 'ใน LINE ไม่ควรขึ้นขั้นตอนเมนู Chrome')
     await shotCard('mobile-install-line-android')

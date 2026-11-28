@@ -119,7 +119,7 @@ export async function flowRouteTests({ db, ok }) {
     ok(`สินค้าที่มีสูตรจักร ${sewn.length} ชนิด เดินถึงเสร็จได้ทุกชนิด`, stuck.length === 0, stuck.join(' · '))
 
     const noRecipe = (await db.query(`select code from public.product_types p where active
-      and not exists (select 1 from public.product_machine_needs n where n.product_type_code = p.code) order by code`)).rows.map(r => r.code)
+      and p.code not like 'svc\_%' and not exists (select 1 from public.product_machine_needs n where n.product_type_code = p.code) order by code`)).rows.map(r => r.code)
     for (const p of noRecipe) {
       const r = await walk('cut_only', false, p)
       ok(`สินค้าไม่ผ่านเย็บ ${p}: เส้นทางตัดงานลูกค้า เดินถึงเสร็จ`, r.ok, r.why)

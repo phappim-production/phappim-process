@@ -131,6 +131,18 @@ describe('เปิดลิงก์จากแอปแชต', () => {
     for (const ua of [ANDROID, IPHONE, IPAD_DESKTOP_UA, WINDOWS]) expect(inAppBrowser(ua)).toBeNull()
   })
 
+  it('Samsung Internet และ Chrome Custom Tab = เบราว์เซอร์จริง ไม่ใช่แอปแชต', () => {
+    const samsung = 'Mozilla/5.0 (Linux; Android 14; SM-A155F) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/26.0 Chrome/122.0.0.0 Mobile Safari/537.36'
+    const customTab = 'Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36'
+    expect(inAppBrowser(samsung)).toBeNull()
+    expect(inAppBrowser(customTab)).toBeNull()
+  })
+
+  it('TikTok และ WeChat = แอปแชตอื่น', () => {
+    expect(inAppBrowser('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 musical_ly_32.5.0 BytedanceWebview/d8a21c6')).toBe('other')
+    expect(inAppBrowser('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.47')).toBe('other')
+  })
+
   it('แอปที่ติดตั้งแล้ว หรือ Chrome เสนอติดตั้งได้ ยังใช้ตามเดิม', () => {
     expect(installMode(env({ userAgent: LINE_ANDROID, standalone: true }))).toBe('installed')
     expect(installMode(env({ userAgent: LINE_ANDROID, hasPrompt: true }))).toBe('prompt')
@@ -145,7 +157,7 @@ describe('เปิดลิงก์จากแอปแชต', () => {
   })
 
   it('ข้อความเปิดในเบราว์เซอร์มีคำแปลพม่า', () => {
-    for (const th of ['เปิดอยู่ใน LINE · ติดตั้งแอปไม่ได้ ให้เปิดในเบราว์เซอร์ก่อน', 'เปิดอยู่ในแอปแชต · ติดตั้งแอปไม่ได้ ให้เปิดในเบราว์เซอร์ก่อน', 'เปิดใน Chrome', 'เปิดใน Safari', 'กด ⋮ หรือ ⋯ มุมขวาบน แล้วเลือก เปิดในเบราว์เซอร์']) {
+    for (const th of ['เปิดอยู่ใน LINE · ติดตั้งแอปไม่ได้ ให้เปิดในเบราว์เซอร์ก่อน', 'เปิดอยู่ในแอปแชต · ติดตั้งแอปไม่ได้ ให้เปิดในเบราว์เซอร์ก่อน', 'เปิดในเบราว์เซอร์', 'เปิดใน Safari', 'กด ⋮ หรือ ⋯ มุมขวาบน แล้วเลือก เปิดในเบราว์เซอร์']) {
       expect(MY[th]).toBeTruthy()
     }
   })

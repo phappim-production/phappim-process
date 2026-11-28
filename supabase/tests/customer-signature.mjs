@@ -2,9 +2,10 @@
 import { readFileSync } from 'node:fs'
 
 export async function customerSignatureTests({ db, ok }) {
-  const file = '20261212000000_customer_signature.sql'
-  try { await db.exec(readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8')); ok(`รันซ้ำบนฐานที่ลงแล้วได้: ${file}`, true) }
-  catch (e) { ok(`รันซ้ำบนฐานที่ลงแล้วได้: ${file}`, false, e.message.split(String.fromCharCode(10))[0]) }
+  for (const file of ['20261212000000_customer_signature.sql', '20261214000000_signature_service_fixes.sql']) {
+    try { await db.exec(readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8')); ok(`รันซ้ำบนฐานที่ลงแล้วได้: ${file}`, true) }
+    catch (e) { ok(`รันซ้ำบนฐานที่ลงแล้วได้: ${file}`, false, e.message.split(String.fromCharCode(10))[0]) }
+  }
   const U = {
     admin: '00000000-0000-0000-0000-00000000c501', prod: '00000000-0000-0000-0000-00000000c502',
     mgr: '00000000-0000-0000-0000-00000000c503', staff: '00000000-0000-0000-0000-00000000c504',
@@ -48,7 +49,7 @@ export async function customerSignatureTests({ db, ok }) {
     const a = await receive('SC-CS-A')
     const folder = await val(`select private.mockup_folder('SC-CS-A')`)
     const path = `${folder}/sig1a2b3c.png`, path2 = `${folder}/sig4d5e6f.png`
-    ok('งานใหม่ยังไม่มีลายเซ็นลูกค้า', (await keep(U.prod, `public.job_customer_signature('${a}')`)) === null)
+    ok('งานใหม่ยังไม่มีลายเซ็นลูกค้า (บอกใบครั้งปัจจุบัน)', JSON.stringify(await keep(U.prod, `public.job_customer_signature('${a}')`)) === '{"current_rev":0}')
 
     await reject('รูปที่ยังอัปโหลดไม่สำเร็จ แนบเป็นลายเซ็นไม่ได้', U.admin, sign(a, path), /ยังไม่พบรูป/)
     await db.query(`insert into private.file_objects (kind, path, size, content_type) values ('mockups', $1, 10, 'image/png'), ('mockups', $2, 10, 'image/png'), ('mockups', 'SC-OTHER/sig9.png', 10, 'image/png')`, [path, path2])
@@ -77,19 +78,26 @@ export async function customerSignatureTests({ db, ok }) {
     const part = await keep(U.admin, `public.split_job('${a}', 40)::text`)
     const fromPart = await keep(U.prod, `public.job_customer_signature('${part}')`)
     ok('ส่วนที่แบ่งออกมาเห็นลายเซ็นของงานแม่', fromPart?.path === path2, JSON.stringify(fromPart))
+    const partNo = await val(`select confirmation_no from public.jobs where id = $1`, [part])
+    const partPath = `${await val(`select private.mockup_folder($1)`, [partNo])}/sig7a8b9c.png`
+    await db.query(`insert into private.file_objects (kind, path, size, content_type) values ('mockups', $1, 10, 'image/png')`, [partPath])
+    await pass('ตัดลายเซ็นจากส่วนที่แบ่ง (รูปอยู่โฟลเดอร์ของส่วนนั้น) ได้', U.admin, sign(part, partPath))
+    ok('ลายเซ็นจากส่วนที่แบ่งไปถึงงานแม่', (await keep(U.prod, `public.job_customer_signature('${a}')`))?.path === partPath)
     await pass('แนบลายเซ็นจากส่วนที่แบ่ง = เก็บที่งานแม่', U.admin, sign(part, path))
     ok('แนบจากส่วนที่แบ่ง = งานแม่และทุกส่วนได้ลายเซ็นเดียวกัน',
       (await val(`select count(distinct customer_signature_path) || ':' || max(customer_signature_path) from public.jobs where id in ($1, $2)`, [a, part])) === `1:${path}`)
 
     await pass('แอดมินลบลายเซ็น', U.admin, sign(a, null))
-    ok('ลบแล้วไม่มีลายเซ็นทั้งงานแม่และส่วนที่แบ่ง', (await keep(U.admin, `public.job_customer_signature('${a}')`)) === null &&
+    ok('ลบแล้วไม่มีลายเซ็นทั้งงานแม่และส่วนที่แบ่ง', !(await keep(U.admin, `public.job_customer_signature('${a}')`))?.path &&
       (await val(`select count(*) from public.jobs where id in ($1, $2) and customer_signature_path is not null`, [a, part])) === 0)
     const ev = (await db.query(`select payload from public.events where job_id = $1 and type = 'customer_signature' order by id`, [a])).rows.map(r => r.payload)
     ok('แนบ / เปลี่ยน / ลบ บันทึกใน events ครั้งละ 1 แถว',
-      ev.length === 4 && ev[0].replaced === false && ev[1].replaced === true && ev[3].removed === true, JSON.stringify(ev))
+      ev.length === 5 && ev[0].replaced === false && ev[1].replaced === true && ev[3].from && ev[4].removed === true, JSON.stringify(ev))
 
-    await db.exec(`update public.jobs set phase = 'cancelled' where id = '${a}'`)
+    await db.exec(`update public.jobs set phase = 'cancelled', station_status = null where id = '${a}'`)
     await reject('งานที่ยกเลิกแล้วแนบลายเซ็นไม่ได้', U.admin, sign(a, path), /ยกเลิกแล้ว/)
+    await pass('งานแม่ยกเลิก แต่ส่วนที่แบ่งยังผลิต แนบลายเซ็นจากส่วนนั้นได้', U.admin, sign(part, partPath))
+    ok('ส่วนที่แบ่งอ่านลายเซ็นได้หลังงานแม่ยกเลิก', (await keep(U.prod, `public.job_customer_signature('${part}')`))?.path === partPath)
 
     await db.exec('savepoint direct')
     let directBlocked = false

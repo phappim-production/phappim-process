@@ -135,7 +135,7 @@ try {
     const missing = (await t.ev(() => validate())).filter(m => m.id !== 'fld_p_images')
     if (missing.length) throw new Error('ฟอร์มยังขาด ' + JSON.stringify(missing).slice(0, 200))
     await t.ev(() => togglePreview(true))
-    const total = await t.ev(() => document.querySelector('#doc').innerText.match(/จำนวนรวม\s*([\d,]+ \S+)/)?.[1])
+    const total = await t.ev(() => document.querySelector('#doc').innerText.match(/จำนวนที่สั่ง\s*([\d,]+ \S+)/)?.[1])
     if (!/ชิ้น$/.test(total ?? '')) throw new Error('ยอดรวมใน PDF ' + total)
     await as(id('admin1'), 'public.save_confirmation_draft($2::jsonb)', [JSON.stringify(data)])
     await t.goto('admin1', '#/', 1440)

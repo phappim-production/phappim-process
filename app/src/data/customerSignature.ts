@@ -48,16 +48,24 @@ export async function cropToPng(img: HTMLImageElement, crop: CropBox): Promise<B
   return new Promise(resolve => canvas.toBlob(b => resolve(b), 'image/png'))
 }
 
-export async function loadSignature(jobId: string): Promise<{ ok: true; sig: CustomerSignature | null; url: string | null } | { ok: false; reason: string }> {
-  const r = await rpc('job_customer_signature', { p_job: jobId })
+export const signaturePath = (no: string, key: string) => mockupPath(no, `sig${key}`, 'png')
+
+export const currentRevOf = (raw: unknown): number => {
+  const n = raw && typeof raw === 'object' ? Number((raw as Record<string, unknown>).current_rev) : NaN
+  return Number.isFinite(n) ? n : 0
+}
+
+export async function loadSignature(jobId: string): Promise<{ ok: true; sig: CustomerSignature | null; url: string | null; currentRev: number } | { ok: false; reason: string }> {
+  const r = await rpc('job_customer_signature', { p_job: jobId }, { read: true })
   if (!r.ok) return { ok: false, reason: r.reason }
   const sig = parseSignature(r.data)
-  if (!sig) return { ok: true, sig: null, url: null }
-  return { ok: true, sig, url: (await signedUrls([sig.path])).get(sig.path) ?? null }
+  const currentRev = currentRevOf(r.data)
+  if (!sig) return { ok: true, sig: null, url: null, currentRev }
+  return { ok: true, sig, url: (await signedUrls([sig.path])).get(sig.path) ?? null, currentRev }
 }
 
 export async function saveSignature(job: { id: string; no: string }, png: Blob, signedOn: string): Promise<{ ok: true } | { ok: false; reason: string }> {
-  const path = mockupPath(job.no, `sig${await contentKey(png)}`, 'png')
+  const path = signaturePath(job.no, await contentKey(png))
   const up = await uploadFile('mockups', path, png, 'image/png')
   if (!up.ok) return up
   const r = await rpc('set_customer_signature', { p_job: job.id, p_path: path, p_signed_on: signedOn })
@@ -70,8 +78,8 @@ export async function removeSignature(jobId: string): Promise<{ ok: true } | { o
 }
 
 // ส่งให้ฟอร์มเฉพาะตอนเปิดดูฉบับโรงงาน (ลิงก์ 1 ชั่วโมง ไม่เก็บลงสเปกของงาน)
-export async function signatureForForm(jobId: string): Promise<{ src: string; signed_on: string; rev: number; current_rev: number } | null> {
+export async function signatureForForm(jobId: string): Promise<{ src: string; signed_on: string; rev: number; current_rev: number; at: number } | null> {
   const r = await loadSignature(jobId)
   if (!r.ok || !r.sig || !r.url) return null
-  return { src: r.url, signed_on: r.sig.signedOn, rev: r.sig.rev, current_rev: r.sig.currentRev }
+  return { src: r.url, signed_on: r.sig.signedOn, rev: r.sig.rev, current_rev: r.sig.currentRev, at: Date.now() }
 }

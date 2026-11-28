@@ -10,7 +10,7 @@ import { mockupProblem } from '../data/mockups'
 import { thaiDay, type Job } from '../proto/model'
 import { thaiFullDate } from '../proto/format'
 
-type Loaded = { sig: CustomerSignature | null; url: string | null }
+type Loaded = { sig: CustomerSignature | null; url: string | null; currentRev: number }
 
 export function CustomerSignaturePanel({ job }: { job: Job }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
@@ -27,7 +27,7 @@ export function CustomerSignaturePanel({ job }: { job: Job }) {
       if (!alive) return
       if (!r.ok) { setError(r.reason); return }
       setError('')
-      setLoaded({ sig: r.sig, url: r.url })
+      setLoaded({ sig: r.sig, url: r.url, currentRev: r.currentRev })
     })
     return () => { alive = false }
   }, [job.id, version])
@@ -47,7 +47,7 @@ export function CustomerSignaturePanel({ job }: { job: Job }) {
   return (
     <div className={`grid gap-2 rounded-xl border p-3 ${sig && !stale ? 'border-line' : 'border-warn/30 bg-warn-soft'}`}>
       <p className={`font-medium ${sig && !stale ? '' : 'text-warn'}`}>
-        {!loaded ? 'กำลังโหลดลายเซ็นลูกค้า…'
+        {!loaded ? (error ? 'โหลดลายเซ็นลูกค้าไม่ได้' : 'กำลังโหลดลายเซ็นลูกค้า…')
           : !sig ? 'ยังไม่มีลายเซ็นลูกค้าในใบฉบับโรงงาน · ตัดลายเซ็นจากใบที่ลูกค้าเซ็นแล้ว ฝ่ายผลิตไม่ต้องให้ลูกค้าเซ็นซ้ำ'
           : stale ? `ลายเซ็นนี้เป็นของใบครั้งที่ ${sig.rev} · ใบปัจจุบันครั้งที่ ${sig.currentRev} ยังไม่มีลายเซ็น ให้ตัดลายเซ็นจากใบแก้ที่ลูกค้าเซ็น`
           : `ลายเซ็นลูกค้า · เซ็นวันที่ ${thaiFullDate(sig.signedOn)}`}
@@ -63,15 +63,16 @@ export function CustomerSignaturePanel({ job }: { job: Job }) {
       </div>
       {notice && <p role="status" className="flex items-center gap-2 font-medium text-ok"><IconCheck className="size-5" />{notice}</p>}
       {error && <p role="alert" className="text-danger">{error}</p>}
-      {cropping && (
-        <CropDialog job={job} onClose={() => setCropping(false)}
+      {error && !loaded && <button type="button" className={secondaryBtn} onClick={reload}>ลองโหลดลายเซ็นอีกครั้ง</button>}
+      {cropping && loaded && (
+        <CropDialog job={job} rev={loaded.currentRev} onClose={() => setCropping(false)}
           onSaved={async () => { setCropping(false); setNotice('บันทึกลายเซ็นลูกค้าแล้ว · ใบฉบับโรงงานแสดงลายเซ็นในช่องลูกค้า'); reload() }} />
       )}
     </div>
   )
 }
 
-function CropDialog({ job, onClose, onSaved }: { job: Job; onClose: () => void; onSaved: () => void }) {
+function CropDialog({ job, rev, onClose, onSaved }: { job: Job; rev: number; onClose: () => void; onSaved: () => void }) {
   const [file, setFile] = useState<File | null>(null)
   const [src, setSrc] = useState('')
   const [box, setBox] = useState<CropBox | null>(null)
@@ -80,6 +81,7 @@ function CropDialog({ job, onClose, onSaved }: { job: Job; onClose: () => void; 
   const [dims, setDims] = useState<{ shown: { w: number; h: number }; natural: { w: number; h: number } } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [broken, setBroken] = useState(false)
   const img = useRef<HTMLImageElement>(null)
   const start = useRef<{ x: number; y: number } | null>(null)
 
@@ -89,6 +91,7 @@ function CropDialog({ job, onClose, onSaved }: { job: Job; onClose: () => void; 
     setSrc(f ? URL.createObjectURL(f) : '')
     setBox(null)
     setDims(null)
+    setBroken(false)
     setError('')
   }
 
@@ -117,7 +120,7 @@ function CropDialog({ job, onClose, onSaved }: { job: Job; onClose: () => void; 
   const crop = box && dims ? cropOnImage(box, dims.shown, dims.natural) : null
   const problem = file ? mockupProblem(file) : null
   const dateProblem = !/^\d{4}-\d{2}-\d{2}$/.test(signedOn) ? 'ใส่วันที่ลูกค้าเซ็น' : signedOn > today ? 'วันที่ลูกค้าเซ็นอยู่ในอนาคต' : ''
-  const why = !file ? 'เลือกรูปใบที่ลูกค้าเซ็นก่อน' : problem ?? (!crop ? 'ลากกรอบรอบลายเซ็นบนรูปก่อน' : dateProblem)
+  const why = !file ? 'เลือกรูปใบที่ลูกค้าเซ็นก่อน' : problem ?? (broken ? 'เปิดรูปนี้ไม่ได้ เลือกรูปอื่น' : !crop ? 'ลากกรอบรอบลายเซ็นบนรูปก่อน' : dateProblem)
 
   async function save() {
     if (why || !img.current || !crop) return
@@ -131,29 +134,32 @@ function CropDialog({ job, onClose, onSaved }: { job: Job; onClose: () => void; 
     onSaved()
   }
 
+  const close = () => { if (!busy) onClose() }
   const norm = box && { left: Math.min(box.x, box.x + box.w), top: Math.min(box.y, box.y + box.h), width: Math.abs(box.w), height: Math.abs(box.h) }
   return (
-    <Dialog title="ตัดลายเซ็นลูกค้า" onClose={onClose} wide>
+    <Dialog title="ตัดลายเซ็นลูกค้า" onClose={close} wide>
       <div className="mt-3 grid gap-3">
         <p className="text-muted">ถ่ายรูปหรือแคปหน้าจอใบที่ลูกค้าเซ็น (ถ้าได้เป็น PDF ให้แคปหน้าที่มีลายเซ็น) แล้วลากกรอบรอบลายเซ็น</p>
+        <p className="rounded-lg bg-warn-soft p-2 text-sm font-medium text-warn">ลายเซ็นนี้จะนับเป็นของใบยืนยันครั้งที่ {rev} (ใบล่าสุด) · ตัดจากใบครั้งที่ {rev} ที่ลูกค้าเซ็นเท่านั้น</p>
         <FilePick accept="image/jpeg,image/png,image/webp" label={file ? 'เลือกรูปอื่น' : 'เลือกรูปใบที่ลูกค้าเซ็น'} chosen={file?.name ?? ''}
           onPick={f => pick(f ?? null)} />
         {problem && <p role="alert" className="text-danger">{problem}</p>}
-        {src && !problem && (
-          <div className="relative touch-none select-none self-start overflow-hidden rounded-lg border border-line"
+        {broken && <p role="alert" className="text-danger">เปิดรูปนี้ไม่ได้ (ไฟล์อาจเสีย) · เลือกรูปอื่น หรือแคปหน้าจอใหม่</p>}
+        {src && !problem && !broken && (
+          <div className="relative w-fit max-w-full touch-none select-none self-start overflow-hidden rounded-lg border border-line"
             onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} data-crop-area>
             <img ref={img} src={src} alt="ใบที่ลูกค้าเซ็น" draggable={false} className="block max-h-[60vh] w-auto max-w-full"
-              onLoad={measure} />
+              onLoad={measure} onError={() => setBroken(true)} />
             {norm && <div aria-hidden className="pointer-events-none absolute border-2 border-brand bg-brand/10" style={norm} />}
           </div>
         )}
-        <label className="grid gap-1 font-medium">วันที่ลูกค้าเซ็น
+        <label className="grid gap-1 font-medium">วันที่ลูกค้าเซ็น (วันที่เขียนข้างลายเซ็นในใบ)
           <input type="date" className={fieldClass} value={signedOn} max={today} onChange={e => setSignedOn(e.target.value)} />
         </label>
         {why && file && !problem && <p className="text-sm text-muted">{why}</p>}
         {error && <p role="alert" className="text-danger">{error}</p>}
         <div className="flex flex-wrap justify-end gap-2">
-          <button type="button" className={secondaryBtn} onClick={onClose}>ยกเลิก</button>
+          <button type="button" className={secondaryBtn} disabled={busy} title={busy ? 'รอบันทึกลายเซ็นให้เสร็จก่อน' : undefined} onClick={close}>ยกเลิก</button>
           <button type="button" className={primaryBtn} disabled={!!why || busy} title={why || undefined} onClick={() => void save()}>
             {busy ? 'กำลังบันทึกลายเซ็น…' : why ? `บันทึกลายเซ็น (${why})` : 'บันทึกลายเซ็น'}
           </button>

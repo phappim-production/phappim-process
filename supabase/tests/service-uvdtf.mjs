@@ -2,9 +2,10 @@
 import { readFileSync } from 'node:fs'
 
 export async function serviceUvdtfTests({ db, ok }) {
-  const file = '20261213000000_service_uvdtf.sql'
-  try { await db.exec(readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8')); ok(`รันซ้ำบนฐานที่ลงแล้วได้: ${file}`, true) }
-  catch (e) { ok(`รันซ้ำบนฐานที่ลงแล้วได้: ${file}`, false, e.message.split(String.fromCharCode(10))[0]) }
+  for (const file of ['20261213000000_service_uvdtf.sql', '20261214000000_signature_service_fixes.sql']) {
+    try { await db.exec(readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8')); ok(`รันซ้ำบนฐานที่ลงแล้วได้: ${file}`, true) }
+    catch (e) { ok(`รันซ้ำบนฐานที่ลงแล้วได้: ${file}`, false, e.message.split(String.fromCharCode(10))[0]) }
+  }
   const U = { admin: '00000000-0000-0000-0000-00000000aa71', prod: '00000000-0000-0000-0000-00000000aa72' }
   const q = s => s.replace(/'/g, "''")
   const run = async (uid, sql) => {
@@ -49,6 +50,17 @@ export async function serviceUvdtfTests({ db, ok }) {
     ok('อยู่ที่บริษัทภายนอก', (await db.query('select station_status from public.jobs where id = $1', [id])).rows[0]?.station_status === 'out')
     await pass('เสื้อยืดยังใช้เส้นทางผลิตข้างนอกได้ (ไม่ใช่เส้นทางเฉพาะงานบริการ)', U.admin,
       receive('SC-UV-SHIRT', 'tshirt', 'outside', { app: 'phappim-confirm', v: 1, product: 'tshirt', h: { doc_no: 'SC-UV-SHIRT' }, p: { tshirt: {} } }, 'ตัว'))
+    await reject('หน่วยของงานไม่ตรงกับใบ (ใบนับชิ้น ส่งมาเป็นแผ่น) ถูกปฏิเสธ', U.admin,
+      receive('SC-UV-UNIT', 'svc_uvdtf', 'outside', { ...spec('SC-UV-UNIT'), p: { svc_uvdtf: { uv_unit: 'ชิ้น' } } }, 'แผ่น'), /หน่วยของงานต้องตรงกับใบ UV DTF \(ชิ้น\)/)
+    await reject('แก้ใบเปลี่ยนหน่วย UV DTF จากแผ่นเป็นชิ้นไม่ได้', U.admin,
+      `public.revise_job_spec('${ch}', '${q(JSON.stringify({ ...spec('SC-UV-2'), p: { svc_uvdtf: { uv_unit: 'แผ่น' } } }))}'::jsonb, 1, 'ลูกค้า UV', 'สติกเกอร์ UV DTF', 50, 0, current_date + 20, false, array[]::text[])`,
+      /เปลี่ยนแบบงานบริการในใบแก้ไม่ได้/)
+    await pass('แก้ใบ UV DTF ช่องอื่น (หน่วยเดิม) ได้', U.admin,
+      `public.revise_job_spec('${ch}', '${q(JSON.stringify({ ...spec('SC-UV-2'), p: { svc_uvdtf: { uv_unit: 'ชิ้น', uv_use: 'แก้วน้ำ' } } }))}'::jsonb, 1, 'ลูกค้า UV', 'สติกเกอร์ UV DTF', 50, 0, current_date + 20, false, array[]::text[])`)
+    await reject('สินค้างานบริการรับโดยไม่มีใบงานบริการไม่ได้', U.admin, receive('SC-UV-NOSPEC', 'svc_uvdtf', 'outside', {}), /สินค้างานบริการต้องรับจากใบงานบริการ/)
+    await reject('สินค้าของงานไม่ตรงกับใบงานบริการไม่ได้ (เสื้อยืด + ใบ UV DTF)', U.admin, receive('SC-UV-MIS', 'tshirt', 'outside', spec('SC-UV-MIS'), 'แผ่น'), /สินค้าของงานต้องตรงกับใบงานบริการ/)
+    await reject('สินค้าของงานไม่ตรงกับใบงานบริการไม่ได้ (UV DTF + ใบรีด)', U.admin,
+      receive('SC-UV-MIS2', 'svc_uvdtf', 'press_only', { app: 'phappim-confirm', v: 1, product: 'svc_press', h: { doc_no: 'SC-UV-MIS2' }, p: { svc_press: {} } }), /สินค้าของงานต้องตรงกับใบงานบริการ/)
     await reject('แก้ใบ UV DTF เป็นใบบริการแบบอื่นไม่ได้', U.admin,
       `public.revise_job_spec('${id}', '${q(JSON.stringify({ ...spec('SC-UV-1'), product: 'svc_press', p: { svc_press: {} } }))}'::jsonb, 1, 'ลูกค้า UV', 'สติกเกอร์ UV DTF', 50, 0, current_date + 20, false, array[]::text[])`,
       /เปลี่ยนแบบงานบริการ|เปลี่ยนชนิดสินค้า/)

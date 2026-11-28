@@ -364,7 +364,8 @@ test('ฟอร์มใบยืนยัน: ใบที่ส่งลูก
   for (const t of FACTORY_TEXT) assert.equal(doc.includes(t), false, t)
   for (const t of CUSTOMER_TEXT) assert.ok(doc.includes(t), t)
   assert.equal(doc.includes('ฉบับโรงงาน'), false)
-  assert.match(doc, /จำนวนรวม <b>20 ตัว<\/b>/)
+  assert.match(doc, /จำนวนที่สั่ง<\/span><b>20 ตัว<\/b>/)
+  assert.match(doc, /ประเภทสินค้า<\/span><b>เสื้อยืด/)
   api.saveToSystem()
   const p = sent(store).p.tshirt
   assert.equal(p.spare, '7')
@@ -446,9 +447,9 @@ test('ฟอร์มใบยืนยัน: ใบลูกค้าไม่
   s.imgs = [{ name: 'ด้านหน้า', src: 'data:image/png;base64,AA==', w: 4, h: 3 }]
   const headings = () => [...els.get('#doc').innerHTML.matchAll(/<h3>\d+\. ([^<]*)<\/h3>/g)].map(m => m[1])
   api.renderDoc()
-  assert.deepEqual(headings(), ['ผ้า', 'ไซซ์และจำนวน', 'แพ็คกิ้ง'])
+  assert.deepEqual(headings(), [])
   assert.equal(els.get('#doc').innerHTML.includes('logo-final.ai'), false)
-  assert.match(els.get('#doc').innerHTML, /รูป 1 · ด้านหน้า/)
+  assert.match(els.get('#doc').innerHTML, /<section class="cd-mock"><div class="d-imgs"><figure data-ar="[^"]*"><img src="data:image\/png;base64,AA=="/)
   api.setViewOnly(true)
   api.renderDoc()
   for (const h of ['การเย็บ', 'งานพิมพ์ / ตกแต่ง', 'ไฟล์งานและหมายเหตุ']) assert.ok(headings().includes(h), h)
@@ -497,9 +498,10 @@ test('ฟอร์มใบยืนยัน: ฉบับโรงงานม
   assert.match(doc, /class="sign s3"/)
 })
 
-test('ฟอร์มใบยืนยัน: ภาพม็อคอัพขึ้นหน้าใหม่ต่อจากรายละเอียด อยู่เหนือข้อตกลงและช่องเซ็น · ไม่มีภาพ = ไม่มีหน้าม็อคอัพ', () => {
+test('ฟอร์มใบยืนยัน: ฉบับโรงงาน ภาพม็อคอัพขึ้นหน้าใหม่ต่อจากรายละเอียด อยู่เหนือข้อตกลงและช่องเซ็น · ไม่มีภาพ = ไม่มีหน้าม็อคอัพ', () => {
   const { api, els, s, v } = filled()
   withFactoryDetails(v)
+  api.setViewOnly(true)
   api.renderDoc()
   assert.equal(els.get('#doc').innerHTML.includes('d-mockpage'), false)
   assert.match(els.get('#doc').innerHTML, /class="d-mock"/)
@@ -513,6 +515,110 @@ test('ฟอร์มใบยืนยัน: ภาพม็อคอัพข
   assert.match(doc.slice(page), /d-imgs one/)
   assert.equal((doc.match(/class="d-mock"/g) || []).length, 1)
   assert.ok(doc.indexOf('class="d-mock"') > page && doc.indexOf('class="d-mock"') < accept)
+})
+
+test('ฟอร์มใบยืนยัน: ฉบับลูกค้าหน้าเดียว ข้อมูลรวมด้านบน → ภาพม็อคอัพไม่มีข้อความชี้จุด → ข้อตกลง → ช่องเซ็นล่างสุด', () => {
+  const { api, els, s, v } = filled()
+  withFactoryDetails(v)
+  s.imgs = [{ name: 'ด้านหน้า.png', src: 'data:image/png;base64,AA==', w: 4, h: 3 }, { name: 'ด้านหลัง.png', src: 'data:image/png;base64,BB==', w: 4, h: 3 }]
+  s.callouts = [{ img: 0, ref: 'field:fabric', title: 'จุดกำกับฝ่ายผลิต', body: 'ข้อความภายใน', x: 0.5, y: 0.5, bx: 0.9, by: 0.2 }]
+  api.renderDoc()
+  const doc = els.get('#doc').innerHTML
+  const info = doc.indexOf('class="cd-info"'), mock = doc.indexOf('class="cd-mock"'), accept = doc.indexOf('class="d-accept"'), sign = doc.indexOf('class="sign')
+  assert.ok(info > 0 && mock > info && accept > mock && sign > accept)
+  assert.equal(doc.includes('d-mockpage'), false)
+  for (const t of ['co-stage', 'co-box', 'จุดกำกับฝ่ายผลิต', 'ข้อความภายใน', 'ด้านหน้า.png']) assert.equal(doc.includes(t), false, t)
+  assert.equal((doc.match(/<figure data-ar=/g) || []).length, 2)
+  assert.match(doc, /<figcaption>รูป 2<\/figcaption>/)
+  assert.equal((doc.match(/class="d-mock"/g) || []).length, 1)
+  assert.ok(doc.indexOf('class="d-mock"') > mock && doc.indexOf('class="d-mock"') < accept)
+  api.setViewOnly(true)
+  api.renderDoc()
+  assert.match(els.get('#doc').innerHTML, /จุดกำกับฝ่ายผลิต/)
+})
+
+test('ฟอร์มใบยืนยัน: ผ้าเช็ดหน้า / ผ้าพันคอ ถามรูปแบบการเย็บแม้เลือกเย็บตามมาตรฐานโรงงาน · ใบลูกค้าเห็นการพับเย็บ แพ็คกิ้ง ชนิดสินค้า', () => {
+  const { api, els, v } = filled('scarf')
+  Object.assign(v, { item: 'ผ้าเช็ดหน้า', sew_mode: 'เย็บตามมาตรฐานโรงงาน', fabric: 'ผ้าคอตตอน', pack: 'พับใส่ถุงแยกผืน' })
+  assert.ok(api.validate().some(m => m.id === 'fld_p_sew_style'))
+  Object.assign(v, { sew_style: 'พับริมเย็บ', edge_size: '1 ซม.', thread: 'ขาว' })
+  assert.equal(api.validate().some(m => m.id === 'fld_p_sew_style' || m.id === 'fld_p_edge_size'), false)
+  assert.equal(api.validate().some(m => m.id === 'fld_p_thread'), false)
+  api.renderDoc()
+  const doc = els.get('#doc').innerHTML
+  for (const re of [/ประเภทสินค้า<\/span><b>ผ้าเช็ดหน้า<\/b>/, /<small>ผ้าเช็ดหน้า<\/small>/, /รูปแบบการเย็บ<\/span><b>พับริมเย็บ/, /ขนาดพับ \/ ม้วนริม<\/span><b>1 ซม\./, /วิธีแพ็ค<\/span><b>พับใส่ถุงแยกผืน/, /ชนิดผ้า<\/span><b>ผ้าคอตตอน/]) assert.match(doc, re)
+  assert.equal(doc.includes('สีด้าย'), false)
+  assert.equal(doc.includes('ผ้าคลุมไหล่ / ผ้าพันคอ'), false)
+  assert.equal(doc.includes('ชนิดสินค้า'), false)
+})
+
+test('ฟอร์มใบยืนยัน: สินค้าที่ชื่อรวมหลายชนิด แอดมินต้องเลือกชนิด · ใบลูกค้าแสดงชนิดเดียว · ฉบับโรงงานยังเห็นชื่อกลุ่ม', () => {
+  const { api, els, v } = filled('banner')
+  assert.ok(api.validate().some(m => m.hard && m.id === 'fld_p_kind'))
+  v.kind = 'ฉากผ้า'
+  assert.equal(api.validate().some(m => m.id === 'fld_p_kind'), false)
+  api.renderDoc()
+  let doc = els.get('#doc').innerHTML
+  assert.match(doc, /ประเภทสินค้า<\/span><b>ฉากผ้า<\/b>/)
+  assert.match(doc, /<small>ฉากผ้า<\/small>/)
+  assert.equal(doc.includes('ป้ายผ้า / ฉากผ้า'), false)
+  v.kind = 'อื่นๆ'
+  v.kind__other = 'ธงราว'
+  api.renderDoc()
+  assert.match(els.get('#doc').innerHTML, /ประเภทสินค้า<\/span><b>ธงราว<\/b>/)
+  api.setViewOnly(true)
+  api.renderDoc()
+  doc = els.get('#doc').innerHTML
+  assert.match(doc, /ป้ายผ้า \/ ฉากผ้า · ฉบับโรงงาน/)
+  assert.match(doc, /ชนิดสินค้า<\/span><b>อื่นๆ: ธงราว/)
+})
+
+test('ฟอร์มใบยืนยัน: งานเก่าที่ยังไม่มีชนิดสินค้า ฝ่ายผลิตเปิดดูจากระบบแล้วส่งออก PDF ฉบับโรงงานได้ ไม่ถูกบังคับเลือก', () => {
+  const { api, store, els } = boot()
+  store.set('pp142.confirmation.inbox', JSON.stringify({ view: true, h: { doc_no: 'SC-OLD', customer: 'ลูกค้า' }, product: 'worker', p: { worker: { fabric: 'TC' } } }))
+  api.takeInbox()
+  assert.equal(api.validate().some(m => m.hard), false)
+  assert.match(els.get('#doc').innerHTML, /ฉบับโรงงาน/)
+})
+
+test('ฟอร์มใบยืนยัน: เย็บอย่างเดียว สินค้าชื่อรวม ต้องเลือกชนิดเสื้อ · ใบลูกค้าแสดง "เย็บอย่างเดียว · ชนิด" ไม่มีชื่อกลุ่ม · สินค้าชื่อเดียวไม่ถาม', () => {
+  const { api, els, v } = filled('svc_sew')
+  v.garment = 'เสื้อกีฬา / เสื้อองค์กรพิมพ์ลาย'
+  assert.ok(api.validate().some(m => m.hard && m.id === 'fld_p_garment_kind'))
+  v.garment_kind = 'เสื้อองค์กรพิมพ์ลาย'
+  assert.equal(api.validate().some(m => m.id === 'fld_p_garment_kind'), false)
+  api.renderDoc()
+  const doc = els.get('#doc').innerHTML
+  assert.match(doc, /ประเภทสินค้า<\/span><b>เย็บอย่างเดียว · เสื้อองค์กรพิมพ์ลาย<\/b>/)
+  assert.equal(doc.includes('เสื้อกีฬา / เสื้อองค์กร'), false)
+  v.garment = 'เสื้อโปโล'
+  delete v.garment_kind
+  assert.equal(api.validate().some(m => m.id === 'fld_p_garment_kind'), false)
+  api.renderDoc()
+  assert.match(els.get('#doc').innerHTML, /ประเภทสินค้า<\/span><b>เย็บอย่างเดียว · เสื้อโปโล<\/b>/)
+})
+
+test('ฟอร์มใบยืนยัน: ถุงผ้าใบเก่า "ถุงผ้าทั่วไป / ถุงช้อปปิ้ง" เปิดแล้วเป็น "ถุงผ้า" · ตัวเลือกชนิดสินค้าไม่มีชื่อรวม', () => {
+  const { api, store } = boot()
+  store.set('pp142.confirmation.inbox', JSON.stringify({ h: { doc_no: 'SC-BAG', customer: 'ลูกค้า' }, product: 'bag', p: { bag: { usage: 'ถุงผ้าทั่วไป / ถุงช้อปปิ้ง' } } }))
+  api.takeInbox()
+  assert.equal(api.scope('p').usage, 'ถุงผ้า')
+  const opts = (k, id) => api.PRODUCTS[k].sections.flatMap(s => s.fields).find(f => f.id === id).options
+  assert.equal(opts('bag', 'usage').some(o => o.includes(' / ')), false)
+  assert.equal(opts('premium', 'item').some(o => o.includes(' / ')), false)
+})
+
+test('ฟอร์มใบยืนยัน: ใบลูกค้าป้ายผ้าเห็นรางสอด ตาไก่ · สายคล้องเห็นกว้าง/ยาว · ถุงพับเห็นขนาดตอนพับ', () => {
+  const show = (product, values, want) => {
+    const { api, els, v } = filled(product)
+    Object.assign(v, values)
+    api.renderDoc()
+    const doc = els.get('#doc').innerHTML
+    for (const t of want) assert.ok(doc.includes(t), product + ': ' + t)
+  }
+  show('banner', { rail: ['ด้านบน'], rail_w: '5', rail_end: 'เปิดสองด้าน', eyelet: '4 มุม' }, ['รางสอด', 'ด้านบน', 'ขนาดรางสอด', 'ปลายราง', 'ตาไก่', '4 มุม'])
+  show('lanyard', { width: '2', length: '90' }, ['ความกว้างสาย', 'ความยาวสาย'])
+  show('foldable', { fold: 'พับเก็บในกระเป๋าตัวเอง', fold_dims_0: '10', fold_dims_1: '12' }, ['แบบพับเก็บ', 'ขนาดตอนพับ'])
 })
 
 test('ฟอร์มใบยืนยัน: กล่อง "ส่งใบเข้าระบบแล้ว" ไม่พิมพ์ลง PDF', () => {

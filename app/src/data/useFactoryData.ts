@@ -249,7 +249,8 @@ const SETTLE_FALLBACK_MS = 1200
 
 export type RpcResult<T> = { ok: true; data: T } | { ok: false; reason: string }
 
-export async function rpc<T = unknown>(name: string, args: Record<string, unknown>): Promise<RpcResult<T>> {
+// คำสั่งอ่านอย่างเดียวไม่ต้องสั่งโหลดรายละเอียดงานใหม่ (touchJob)
+export async function rpc<T = unknown>(name: string, args: Record<string, unknown>, { read = false }: { read?: boolean } = {}): Promise<RpcResult<T>> {
   if (!supabase) return { ok: false, reason: 'ยังไม่ได้ตั้งค่า Supabase' }
   if (typeof navigator !== 'undefined' && !navigator.onLine) return { ok: false, reason: 'ไม่มีอินเทอร์เน็ต ต่อเน็ตแล้วกดอีกครั้ง' }
   const client = supabase
@@ -258,7 +259,7 @@ export async function rpc<T = unknown>(name: string, args: Record<string, unknow
     if (reply.timedOut) return { ok: false, reason: SLOW_REPLY }
     const { data, error } = reply.value
     if (error) return { ok: false, reason: thaiError(error.message) }
-    if (typeof args.p_job === 'string') touchJob(args.p_job)
+    if (!read && typeof args.p_job === 'string') touchJob(args.p_job)
     return { ok: true, data: data as T }
   } catch (e) {
     return { ok: false, reason: thaiError(e instanceof Error ? e.message : undefined) }
