@@ -70,7 +70,7 @@ export function eventWords(e: EventRow, n: Names, unit = 'ชิ้น'): EventW
         title: word('รับงานเข้าโรงงาน'), tone: 'brand',
         detail: joined(!!str(p.qty) && word('{qty} {unit}', { qty: num(p.qty), unit: u }),
           p.sample === false ? word('ไม่ขึ้นตัวอย่าง') : p.sample === true && word('ขึ้นตัวอย่าง'),
-          p.pdf === false && word('ยังไม่มี PDF ที่ลูกค้าเซ็น')),
+          p.pdf === false && word('ยังไม่มีใบที่ลูกค้าเซ็น')),
       }
     case 'material_checked': return { title: word('ติ๊กวัตถุดิบ: {name}', { name: str(p.name) }), tone: 'ok' }
     case 'material_unchecked': return { title: word('ยกเลิกติ๊กวัตถุดิบ: {name}', { name: str(p.name) }), tone: 'warn' }

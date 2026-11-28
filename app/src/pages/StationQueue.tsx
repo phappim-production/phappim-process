@@ -120,7 +120,7 @@ export function StationQueue({ station, jobs, role, myStations = [], machines, o
               return (
                 <QueueCard key={j.id} job={j} now={now} station={station} onOpen={() => onOpen(j.id)} badge={<Pill tone={late ? 'danger' : 'info'}><IconUsers className="size-4" />{t('ข้างนอก')}</Pill>}>
                   <p className={`rounded-xl px-3 py-2 ${late ? 'bg-danger-soft font-semibold text-danger' : 'bg-info-soft text-info'}`}>
-                    <Tr th="{vendor} · {stations} · คาดว่าของถึง {at} น." vars={{ vendor: j.out!.vendor, stations: j.out!.stations.map(s => t(STATION_NAME[s])).join(' → '), at: j.out!.backAt.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }} />{late ? t(' · เลยกำหนด') : ''}
+                    <Tr th="{vendor} · {stations} · คาดว่าของถึง {at} น." vars={{ vendor: j.out!.vendor, stations: j.out!.stations.map(s => ({ th: STATION_NAME[s] })), at: { at: j.out!.backAt, time: true } }} />{late ? t(' · เลยกำหนด') : ''}
                   </p>
                 </QueueCard>
               )

@@ -39,7 +39,7 @@ test('ไทม์ไลน์: ส่งงานเข้าโดยยัง
   const names = { station: c => c, step: (_s, k) => k }
   const base = { id: 1, phase: 'materials', station_code: null, by: null, at: '2026-11-17T10:00:00Z' }
   const rec = eventLine({ ...base, type: 'received', payload: { qty: 10, sample: false, pdf: false } }, names, 'ตัว')
-  assert.match(rec.detail ?? '', /ยังไม่มี PDF ที่ลูกค้าเซ็น/)
+  assert.match(rec.detail ?? '', /ยังไม่มีใบที่ลูกค้าเซ็น/)
   assert.equal(eventLine({ ...base, type: 'confirmation_pdf', payload: { replaced: false } }, names, 'ตัว').title, 'แนบ PDF ใบยืนยันที่ลูกค้าเซ็น')
   assert.equal(eventLine({ ...base, type: 'confirmation_pdf', payload: { replaced: true } }, names, 'ตัว').title, 'เปลี่ยน PDF ใบยืนยัน')
 })

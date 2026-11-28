@@ -196,6 +196,11 @@ export function signedExt(file: { name: string; type: string }): SignedExt | nul
   return ext === 'jpeg' ? 'jpg' : (ext as SignedExt | undefined) ?? null
 }
 
+export function withSignedType(file: File): File {
+  const ext = signedExt(file)
+  return ext && file.type !== SIGNED_TYPES[ext] ? new File([file], file.name, { type: SIGNED_TYPES[ext], lastModified: file.lastModified }) : file
+}
+
 export function confirmationPath(no: string, key: string, ext: SignedExt = 'pdf'): string {
   const safe = no.trim().replace(/[^A-Za-z0-9-]/g, '_') || 'job'
   return `${safe}/${key}.${ext}`

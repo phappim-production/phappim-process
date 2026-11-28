@@ -18,7 +18,7 @@ export const PERMISSIONS: Permission[] = [
   { key: 'skip', name: 'เริ่มข้ามคิว (ใส่เหตุผล)', roles: { owner: true, production: true, supervisor: true, qc: true, staff: 'สถานีที่จับคู่' } },
   { key: 'sew', name: 'เริ่มเย็บ · จัดการจักร · แจ้งจักรเสีย', roles: { owner: true, production: true, supervisor: 'เฟส 2' } },
   { key: 'outsource', name: 'ส่งออกบริษัทภายนอก · รับกลับ · แบ่งงาน', roles: { owner: true, admin: true } },
-  { key: 'admin', name: 'ฟิล์ม · ผลตัวอย่าง · แนบ PDF · รูปม็อคอัพ', roles: { owner: true, admin: true } },
+  { key: 'admin', name: 'ฟิล์ม · ผลตัวอย่าง · แนบใบที่ลูกค้าเซ็น · รูปม็อคอัพ', roles: { owner: true, admin: true } },
   { key: 'mockup_edit', name: 'ม็อคอัพกำกับสเปก: อัปโหลดภาพ · ทำร่าง · อนุมัติใช้ผลิตเอง', roles: { owner: true, admin: true } },
   { key: 'mockup_approve', name: 'ม็อคอัพกำกับสเปก: อนุมัติ · ส่งกลับแก้ (ฉบับที่ส่งมาตรวจ)', roles: { owner: true, admin: true, manager: 'งานเริ่มผลิตแล้วก็ได้', production: 'ก่อนเริ่มผลิต' } },
   { key: 'mockup_ack', name: 'ม็อคอัพกำกับสเปก: รับทราบสเปก', roles: { owner: true, production: true, supervisor: true, qc: 'QC + Packing', staff: 'สถานีที่จับคู่' } },

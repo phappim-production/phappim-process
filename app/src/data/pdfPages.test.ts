@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { isPdfFile, PDF_RENDER_LONG_SIDE, renderScale } from './pdfPages'
+import { withSignedType } from './confirmation'
+import { PDF_RENDER_LONG_SIDE, renderScale } from './pdfPages'
 
 describe('เปิด PDF ในหน้าตัดลายเซ็น', () => {
   it('ขยายหน้า A4 ให้ด้านยาวราว 2400 px พอเห็นลายเซ็นชัด', () => {
@@ -13,10 +14,19 @@ describe('เปิด PDF ในหน้าตัดลายเซ็น', ()
     expect(renderScale(0, 0)).toBe(1)
   })
 
-  it('รู้ว่าไฟล์เป็น PDF จากชนิด หรือจากนามสกุลเมื่อเครื่องไม่บอกชนิด', () => {
-    expect(isPdfFile({ name: 'a.bin', type: 'application/pdf' })).toBe(true)
-    expect(isPdfFile({ name: 'ใบเซ็น.PDF', type: '' })).toBe(true)
-    expect(isPdfFile({ name: 'a.pdf', type: 'image/png' })).toBe(false)
-    expect(isPdfFile({ name: 'a.jpg', type: 'image/jpeg' })).toBe(false)
+  it('ไฟล์จากแอปแชตที่ไม่บอกชนิด ใช้ชนิดตามนามสกุล ตัดลายเซ็นได้', () => {
+    expect(withSignedType(new File(['%PDF'], 'ใบเซ็น.PDF', { type: '' })).type).toBe('application/pdf')
+    expect(withSignedType(new File(['x'], 'scan.pdf', { type: 'application/octet-stream' })).type).toBe('application/pdf')
+    expect(withSignedType(new File(['x'], 'IMG_01.JPEG', { type: 'application/octet-stream' })).type).toBe('image/jpeg')
+    expect(withSignedType(new File(['x'], 'a.webp', { type: '' })).type).toBe('image/webp')
+  })
+
+  it('ชนิดที่เครื่องบอกมาแล้วไม่เปลี่ยน · ชนิดอื่นไม่เดาจากนามสกุล', () => {
+    const png = new File(['x'], 'a.pdf', { type: 'image/png' })
+    expect(withSignedType(png)).toBe(png)
+    const gif = new File(['x'], 'a.png', { type: 'image/gif' })
+    expect(withSignedType(gif)).toBe(gif)
+    const pdf = new File(['x'], 'a.bin', { type: 'application/pdf' })
+    expect(withSignedType(pdf)).toBe(pdf)
   })
 })

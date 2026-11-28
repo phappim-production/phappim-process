@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { decideBoardJob, fetchBoardJob, rpc, useFactoryData, type FactoryData } from '../data/useFactoryData'
 import {
   COLUMNS, ROUTES, SLA_LABEL, byQueue, isOutLate, STATION_NAME, STATUS_NAME, stationNo,
-  filmLabel, savedStation, startStation, isDoneToday, isFilmLate, isFilmNotOrdered, isOverdue, isWaitingFilm, queueHead,
+  filmLabel, savedStation, startStation, isDoneToday, isFilmLate, isFilmNotOrdered, isOverdue, isWaitingFilm, needsFilm, queueHead,
   type ColumnKey, type Job, type RouteCode, type StationCode,
 } from '../proto/model'
 import { lateDays, sewFloorOf, simulate, workdayToDate } from '../proto/capacity'
@@ -266,13 +266,13 @@ function DashboardView({ view, startTab, overviewView, today, role, myScope, dat
   const linkMissing = fromLink?.status === 'missing' || (fetched && !fetched.job && !fetched.error)
   const linkNotice = (linkLoading || linkMissing || fetched?.error) && (
     <p role={linkLoading ? 'status' : 'alert'} className={linkLoading ? 'px-5 py-3 text-muted' : 'border-b border-danger/30 bg-danger-soft px-5 py-3 font-medium text-danger'}>
-      {linkLoading ? 'กำลังโหลดรายละเอียดงาน…' : fetched?.error ?? 'ไม่พบงานนี้'}
+      <Tr th={linkLoading ? 'กำลังโหลดรายละเอียดงาน…' : fetched?.error ?? 'ไม่พบงานนี้'} />
     </p>
   )
   const doneNotice = closedNotice && (
     <p role="status" className="flex items-center justify-between gap-3 rounded-xl bg-ok-soft px-4 py-3 font-medium text-ok">
-      <span>{closedNotice}</span>
-      <button type="button" className="min-h-12 shrink-0 px-2 font-semibold" onClick={() => setClosedNotice(null)}>ปิด</button>
+      <span><Tr th={closedNotice} /></span>
+      <button type="button" className="min-h-12 shrink-0 px-2 font-semibold" onClick={() => setClosedNotice(null)}><Tr th="ปิด" /></button>
     </p>
   )
   const matchingColumns = columns.filter(c => station === 'all' ? (byColumn.get(c.key)?.length ?? 0) > 0 : c.key === station)
@@ -789,9 +789,11 @@ export function JobDrawer({ job: j, now, finish, onClose, actions, history }: { 
           <div className="rounded-2xl border border-line bg-card p-4 shadow-card">
             <h3 className="mb-2 font-semibold"><Tr inline th={filmLabel(j.route)} /></h3>
             <p className="flex items-center gap-2">
-              <IconFilm className={`size-4 ${j.film.received ? 'text-ok' : isFilmLate(j, now) ? 'text-danger' : 'text-warn'}`} />
+              <IconFilm className={`size-4 ${j.film.received ? 'text-ok' : !needsFilm(j) ? 'text-muted' : isFilmLate(j, now) ? 'text-danger' : 'text-warn'}`} />
               <span className="flex-1">{t(filmLabel(j.route))}</span>
-              <Pill tone={j.film.received ? 'ok' : isFilmLate(j, now) ? 'danger' : 'warn'}>{j.film.received ? t('ได้รับแล้ว') : t('ETA {at}', { at: { at: j.film.eta } })}</Pill>
+              <Pill tone={j.film.received ? 'ok' : !needsFilm(j) ? 'neutral' : isFilmLate(j, now) ? 'danger' : 'warn'}>
+                {j.film.received ? t('ได้รับแล้ว') : !needsFilm(j) ? t('ไม่ต้องรอแล้ว (ผ่านรีดฟิล์ม)') : t('ETA {at}', { at: { at: j.film.eta } })}
+              </Pill>
             </p>
           </div>
           )}

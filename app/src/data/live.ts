@@ -226,10 +226,10 @@ export function sharedTypes(rows: MachineTypeRow[]): MachineType[] {
 export function thaiError(message: string | undefined): string {
   if (message && /[฀-๿]/.test(message)) return message
   if (message && /fetch|network|timeout|offline/i.test(message)) return 'เชื่อมต่อระบบไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง'
-  // ข้อความจาก Storage ตอนอัปโหลด PDF ใบยืนยัน
-  if (message && /exceeded|too large|maximum allowed size|payload too large/i.test(message)) return 'ไฟล์ใหญ่เกิน 20 MB ให้ย่อไฟล์ก่อน หรือใช้ PDF ที่ฟอร์มสร้าง'
-  if (message && /mime|content.?type/i.test(message)) return 'ไฟล์ต้องเป็น PDF'
-  if (message && /bucket not found/i.test(message)) return 'ระบบยังไม่พร้อมรับไฟล์ PDF แจ้งเจ้าของระบบ'
+  // ข้อความจาก Supabase Storage (ที่เก็บสำรองเมื่อปิด R2)
+  if (message && /exceeded|too large|maximum allowed size|payload too large/i.test(message)) return 'ไฟล์ใหญ่เกิน 20 MB ให้ย่อไฟล์ก่อน'
+  if (message && /mime|content.?type/i.test(message)) return 'ชนิดไฟล์ไม่ถูกต้อง ให้เลือกไฟล์ใหม่'
+  if (message && /bucket not found/i.test(message)) return 'ระบบยังไม่พร้อมรับไฟล์ แจ้งเจ้าของระบบ'
   if (message && /permission denied|row-level security|jwt/i.test(message)) return 'บัญชีนี้ทำรายการนี้ไม่ได้ ถ้าเพิ่งเปลี่ยนบทบาทให้ออกจากระบบแล้วเข้าใหม่'
   return 'ทำรายการไม่สำเร็จ กรุณาลองใหม่ ถ้ายังไม่ได้ให้แจ้งเจ้าของระบบ'
 }

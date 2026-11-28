@@ -260,9 +260,18 @@ export function isDueSoon(j: Job, now: Date) {
   const days = thaiDayDiff(j.due, now)
   return j.phase !== 'done' && days >= 0 && days <= 2
 }
+// รีดฟิล์มส่งบริษัทภายนอกทำได้ ฟิล์มจึงอาจไม่เคยถูกบันทึกว่าได้รับ ทั้งที่งานผ่านสถานีรีดฟิล์มไปแล้ว
+export function isPastFilmPress(j: Job) {
+  if (j.phase === 'done' || j.rework) return true
+  if ((j.phase !== 'production' && j.phase !== 'sample') || !j.station) return false
+  const stations = ROUTES[j.route].stations
+  return stations.includes('dtf_press') && stations.indexOf(j.station) > stations.indexOf('dtf_press')
+}
+export function needsFilm(j: Job) {
+  return usesFilm(j.route) && !j.film?.received && !isPastFilmPress(j)
+}
 export function isWaitingFilm(j: Job) {
-  if (!usesFilm(j.route) || !j.film || j.film.received || j.phase === 'done') return false
-  return true
+  return !!j.film && needsFilm(j)
 }
 // เส้นทางฟิล์มที่แอดมินยังไม่ได้บันทึกสั่ง และงานยังไม่ผ่านสถานีรีดฟิล์ม
 export function isFilmNotOrdered(j: Job) {

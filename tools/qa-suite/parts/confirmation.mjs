@@ -179,6 +179,46 @@ export async function runConfirmationTests(client, browser, fixtures, { seed = 1
     if (bad.length) fail(`จัดภาพม็อคอัพให้พอดีหน้า: ${bad.join(', ')}`)
   })
 
+  await check('factory-mixed-shapes', async () => {
+    const res = await browser.ev(() => {
+      const keep = state, wasView = viewOnly, out = {}
+      viewOnly = true
+      const dot = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+      const longSides = dims => {
+        state = fresh()
+        state.product = 'scarf'
+        state.pickOpen = false
+        Object.assign(state.h, { doc_no: 'FIT-2', customer: 'ลูกค้า', job_name: 'สายคล้อง' })
+        Object.assign(scope('p'), { item: 'ผ้าเช็ดหน้า' })
+        state.imgs = dims.map(([w, h], i) => ({ name: `รูป${i}.png`, src: dot, w, h }))
+        renderDoc()
+        const d = document.querySelector('#doc'), t = d.querySelector('table.pg')
+        d.style.display = 'block'
+        t.style.width = '190mm'
+        const mm = docMM()
+        const sides = [...d.querySelectorAll('.fd-mock .d-imgs figure img')].map((im, i) => {
+          const b = im.getBoundingClientRect(), a = dims[i][0] / dims[i][1], w = Math.min(b.width, b.height * a) / mm
+          return { long: Math.max(w, w / a), gap: b.height / mm - w / a }
+        })
+        d.style.display = ''
+        t.style.width = ''
+        return sides
+      }
+      const strip = longSides([[6000, 1000], [3000, 3000]])
+      out.closeUpBesideStripIsBig = strip[1].long >= 89
+      out.stripUsesFullWidth = strip[0].long >= 150
+      out.stripHasNoEmptyBand = strip[0].gap < 1
+      out.portraitBesideStripIsBig = longSides([[8000, 1000], [3000, 4000], [3000, 4000]]).slice(1).every(s => s.long >= 89)
+      out.sameShapesStillBig = longSides([[800, 600], [800, 600], [800, 600], [800, 600]]).every(s => s.long >= 89)
+      viewOnly = wasView
+      state = keep
+      renderForm()
+      return out
+    })
+    const bad = Object.entries(res).filter(([, ok]) => !ok).map(([k]) => k)
+    if (bad.length) fail(`ฉบับโรงงานภาพรูปทรงต่างกัน: ${bad.join(', ')}`)
+  })
+
   await check('customer-fields-all-products', async () => {
     const res = await browser.ev(() => {
       const keep = state, wasView = viewOnly, out = []

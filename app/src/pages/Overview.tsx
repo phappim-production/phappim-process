@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import type { OverviewView } from '../auth/menus'
 import { DEFAULT_SEW_PRODUCT, LEAD, QUEUE_FULL_DAYS, QUEUE_OK_DAYS, hasSewMinutes, lateDays, lineRate, linesFor, machineSets, simulate, verdict, workdayToDate, type Forecast, type SewFloor } from '../proto/capacity'
 import { MACHINE_TYPE_NAME } from '../proto/sewing'
-import { ROUTES, STATION_NAME, WORK_END, byQueue, filmLabel, isFilmNotOrdered, isOutLate, stationCounts, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
+import { ROUTES, STATION_NAME, WORK_END, byQueue, filmLabel, isFilmNotOrdered, isOutLate, isWaitingFilm, stationCounts, isDueSoon, isFilmLate, isDoneToday, isOverdue, type Job, type RouteCode, type StationCode } from '../proto/model'
 import { YEAR_PROBLEM, dayDiff, duration, shortDate, stageSteps, stageText, yearOutOfRange } from '../proto/format'
 import { leadDueDate, leadLateDays, leadTimeFor } from '../proto/leadTime'
 import { Card, CardHeader, DueLabel, MockupThumb, Pill, RouteBadge, StageDots, StatTile, ViewSwitch } from '../components/ui'
@@ -395,7 +395,7 @@ export function AdminTodo({ jobs, now, atRisk, onOpen }: { jobs: Job[]; now: Dat
       text: [j.lead && `ครบ ${shortDate(leadDueDate(j.lead.due))} (${j.lead.days} วันทำงาน)`, j.station && STATION_NAME[j.station],
         j.sla === 'report' ? 'ยังไม่ส่งรายงานสาเหตุ' : 'รายงานสาเหตุแล้ว'].filter(Boolean).join(' · '), job: j })
     else if (isOverdue(j, now)) items.push({ id: j.id + 'd', tone: 'danger', tag: `เลยกำหนด ${-dayDiff(j.due, now)} วัน`, text: `กำหนดส่ง ${shortDate(j.due)}`, job: j })
-    else if (j.film && !j.film.received) {
+    else if (j.film && isWaitingFilm(j)) {
       const late = isFilmLate(j, now)
       items.push({ id: j.id + 'f', tone: late ? 'danger' : 'warn', tag: late ? 'ฟิล์มเลย ETA' : 'รอฟิล์ม', text: late ? `ETA ${shortDate(j.film.eta)} · ตามร้านฟิล์ม` : `ETA ${shortDate(j.film.eta)}`, job: j })
     }
