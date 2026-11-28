@@ -185,8 +185,6 @@ table.dt tfoot td{font-weight:700;background:#f7f8f6}
 .d-imgs img{width:100%;height:var(--mh,95mm);object-fit:contain;display:block;background:#fafafa}
 .d-imgs figcaption{font-size:10.5px;color:#555;text-align:center;margin-top:2px}
 .close{break-inside:avoid;page-break-inside:avoid;margin-top:12px}
-.d-mockpage{break-before:page;page-break-before:always}
-@media screen{.d-mockpage{margin-top:18px;padding-top:6px;border-top:2px dashed var(--line)}}
 @media screen and (max-width:640px){.d-imgs img{height:auto}.d-imgs figure{width:calc(50% - 4px)!important}.d-imgs.one figure{width:100%!important}}
 .d-note{border:1px solid #e3d3a8;background:#fbf7ec;border-radius:5px;padding:6px 10px;font-size:11.5px}
 .d-mock{color:var(--warn);text-align:center;font-weight:600;font-size:12px;margin:6px 0}
@@ -245,36 +243,44 @@ div[data-co-part].co-box{cursor:move;touch-action:none}
 .co-list li select[data-cf="img"]{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:13px}
 .co-n{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:12px;display:grid;place-items:center}
 @media (max-width:640px){.co-list li{grid-template-columns:26px minmax(0,1fr) auto}.co-list li select[data-cf="ref"],.co-list li input[data-cf="body"]{grid-column:2/3}.co-list li.has-img{grid-template-columns:26px auto minmax(0,1fr) auto}.co-list li.has-img input[data-cf="title"]{grid-column:3/4}.co-list li.has-img select[data-cf="ref"],.co-list li.has-img input[data-cf="body"]{grid-column:2/4}}
-.cust .kv{grid-template-columns:repeat(3,minmax(0,1fr));column-gap:10px;font-size:11px;line-height:1.35}
-.cust .kv div{grid-template-columns:auto minmax(0,1fr);gap:5px;padding:2px 1px;align-items:start}
-.cust .kv b{display:flex;align-items:flex-start;gap:2mm}
-.cust .kv b .optimg{flex:none;width:11mm;height:11mm;margin:0}
-.cust table.dt{font-size:10.5px;margin:4px 0 1px}
-.cust table.dt th,.cust table.dt td{padding:1.5px 4px}
-.cust .tlabel{font-size:10.5px;margin-top:4px}
-.cust .cd-info p{margin:0;font-size:10.5px}
+.cmp .kv{grid-template-columns:repeat(3,minmax(0,1fr));column-gap:10px;font-size:11px;line-height:1.35}
+.cmp .kv div{grid-template-columns:auto minmax(0,1fr);gap:5px;padding:2px 1px;align-items:start}
+.cmp .kv b{display:flex;align-items:flex-start;gap:2mm}
+.cmp .kv b .optimg{flex:none;width:11mm;height:11mm;margin:0}
+.cmp table.dt{font-size:10.5px;margin:4px 0 1px}
+.cmp table.dt th,.cmp table.dt td{padding:1.5px 4px}
+.cmp .tlabel{font-size:10.5px;margin-top:4px}
+.cmp .cd-info p,.cmp .ds p{margin:0;font-size:10.5px}
+.cmp h3{font-size:12px;margin:6px 0 3px;padding:2px 8px}
 .cust .cd-mock{margin-top:4px;border:1px solid #bfc5be;border-radius:4px;padding:3mm 2mm 1mm;break-inside:avoid;page-break-inside:avoid}
 .cust .cd-mock .d-imgs{margin-top:0;gap:3mm 2.5mm}
 .cust .cd-mock .d-imgs figure{border:0;padding:0;border-radius:0}
 .cust .cd-mock .d-imgs img{background:#fff}
 .cust .cd-mock .d-mock{margin:2mm 0 0;font-size:11px}
-.cust .close{margin-top:4px}
-.cust .d-accept{margin:0 0 4px;padding:4px 8px;font-size:10px}
-.cust .d-accept b{font-size:12px}
-.cust .d-terms{font-size:9.5px;line-height:1.38}
-.cust .d-terms+.d-note{margin-top:4px}
-.cust .d-note{font-size:10.5px;padding:4px 8px}
-.cust .sign{margin-top:5px;gap:10px}
-.cust .sign>div{padding:5px;font-size:11px}
-.cust .sign .t{margin-bottom:16px}
-.cust.tight .kv{font-size:10px}
-.cust.tight table.dt{font-size:9.5px}
-.cust.tight .d-terms{font-size:8.6px;line-height:1.3;column-count:2;column-gap:6mm}
-.cust.tight .d-terms li{break-inside:avoid}
-.cust.tight .d-accept{font-size:9px}
-.cust.tight .d-note{font-size:9.5px}
-.cust.tight .sign .t{margin-bottom:12px}
-@media screen and (max-width:700px){.cust .kv{grid-template-columns:1fr}}
+.cmp .close{margin-top:4px}
+.cmp .d-accept{margin:0 0 4px;padding:4px 8px;font-size:10px}
+.cmp .d-accept b{font-size:12px}
+.cmp .d-terms{font-size:9.5px;line-height:1.38}
+.cmp .d-terms+.d-note{margin-top:4px}
+.cmp .d-note{font-size:10.5px;padding:4px 8px}
+.cmp .sign{margin-top:5px;gap:10px}
+.cmp .sign>div{padding:5px;font-size:11px}
+.cmp .sign .t{margin-bottom:16px}
+.cmp.tight .kv{font-size:10px}
+.cmp.tight table.dt{font-size:9.5px}
+.cmp.tight .d-terms,.fac .d-terms{font-size:8.6px;line-height:1.3;column-count:2;column-gap:6mm}
+.fac .d-terms li{break-inside:avoid}
+.cmp.tight .d-terms li{break-inside:avoid}
+.cmp.tight .d-accept{font-size:9px}
+.cmp.tight .d-note{font-size:9.5px}
+.cmp.tight .sign .t{margin-bottom:12px}
+.fac .fd-mock .d-imgs{gap:3mm 2.5mm;margin-top:2px}
+.fac .fd-mock .d-imgs figure{padding:2px}
+.fac .fd-mock .d-imgs img{background:#fff}
+.fac .co-fig .co-stage{max-width:none!important;margin:0!important;border-radius:2px}
+.fac .co-fig .co-box{font-size:7.5pt;max-width:30%;padding:1px 4px}
+.fac .fd-mock .d-mock{margin:2mm 0 1mm}
+@media screen and (max-width:700px){.cmp .kv{grid-template-columns:1fr}}
 .d-co{margin:6px 0 0;border:1px solid #ccc;border-radius:4px;padding:4px;break-inside:avoid;page-break-inside:avoid}
 .d-co .co-box{font-size:7.5pt;max-width:23%}
 .d-co .co-box small{font-size:7pt}
@@ -1712,10 +1718,8 @@ function coStageHTML(edit, idx=coActiveImg()){
   const dots=onImg.map(({c,i})=>edit
     ?`<button type="button" class="co-dot" data-co-i="${i}" data-co-part="pt" style="${coPct(c.x,c.y)}" aria-label="จุด ${i+1}"></button>`
     :'').join('');
-  const boxes=onImg.map(({c,i})=>`<div class="co-box" ${edit?`data-co-i="${i}" data-co-part="box"`:''} style="${coBoxPct(c.bx,c.by)}">${coBoxInner(c,i,refs)}</div>`).join('');
-  // ภาพในใบสูงไม่เกิน 85 มม. (กว้างพิมพ์ 190 มม.) ให้ตารางจุดกำกับ ข้อตกลง และช่องเซ็นอยู่หน้าเดียวกับภาพ
-  const fitPage=edit?'':`;max-width:${Math.min(100,Math.round(100*85/190*W/H))}%;margin:0 auto`;
-  return `<div class="co-stage" ${edit?`data-co-stage="${idx}"`:''} style="aspect-ratio:${W}/${H}${fitPage}">`+
+  const boxes=onImg.map(({c,i})=>`<div class="co-box" ${edit?`data-co-i="${i}" data-co-part="box"`:''} style="${coBoxPct(c.bx,c.by)}">${edit?coBoxInner(c,i,refs):`<b>${i+1}</b> ${esc(c.title||'')}`}</div>`).join('');
+  return `<div class="co-stage" ${edit?`data-co-stage="${idx}"`:''} style="aspect-ratio:${W}/${H}">`+
     `<img src="${m.src}" alt="" ${edit?`data-co-img="${idx}" draggable="false"`:''} style="left:${CO_MX/(1+2*CO_MX)*100}%;top:${CO_MY/(1+2*CO_MY)*100}%;width:${100/(1+2*CO_MX)}%;height:${100/(1+2*CO_MY)}%">`+
     `<svg viewBox="${-CO_MX*w} ${-CO_MY*h} ${W} ${H}" preserveAspectRatio="none">${lines}</svg>${dots}${boxes}</div>`;
 }
@@ -1750,13 +1754,9 @@ function coEditorHTML(){
 }
 function coDocHTML(){
   const cs=coList(); if(!state.imgs.length||!cs.length) return '';
-  const refs=coRefs(customerCopy()), withCo=state.imgs.map((_,i)=>i).filter(i=>cs.some(c=>coImgAt(c)===i));
-  if(!withCo.length) return '';
+  const refs=coRefs(customerCopy());
   const multi=state.imgs.length>1;
-  return withCo.map(i=>{ const n=cs.filter(c=>coImgAt(c)===i).length;
-    return `<figure class="d-co">${coStageHTML(false,i)}<figcaption>${esc(imgName(i+1))} · จุดกำกับ ${n} จุด</figcaption></figure>`; }).join('')+
-    `<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`+
-    `<table class="dt"><thead><tr><th>#</th>${multi?'<th>รูป</th>':''}<th>จุด</th><th>รายละเอียด</th></tr></thead><tbody>`+
+  return `<table class="dt"><thead><tr><th>#</th>${multi?'<th>รูป</th>':''}<th>จุด</th><th>รายละเอียด</th></tr></thead><tbody>`+
     cs.map((c,i)=>`<tr><td>${i+1}</td>${multi?`<td>รูป ${coImgAt(c)+1}</td>`:''}<td class="l">${esc(c.title)}</td><td class="l">${esc(coLabel(c,refs))}</td></tr>`).join('')+`</tbody></table>`;
 }
 let coDrag=null;
@@ -2268,11 +2268,11 @@ function renderDoc(){
   const hv=id=>h[id+'__na']?'':h[id];
   const coordinator=[hv('admin'),h.admin_phone].filter(x=>!isNone(x)).join(' · ');
   const address=needsAddress(h.delivery)?hk('ที่อยู่จัดส่ง',hv('address'),true):'';
-  const hItems=forCustomer?[hk('ประเภทสินค้า',productType(v)), hk('จำนวนที่สั่ง',qty), hk('วันที่สั่งงาน',h.issue_date?thDate(h.issue_date):''), hk('ผู้ประสานงาน',coordinator), hk('การจัดส่ง',h.delivery), address].join(''):[hk('ผู้ติดต่อ',hv('contact')), hk('เบอร์โทร',hv('phone')),
+  const spare=num(v.spare)>0?` (+ เผื่อเสีย ${v.spare} ${P.unit})`:'';
+  const hItems=forCustomer?[hk('ประเภทสินค้า',productType(v)), hk('จำนวนที่สั่ง',qty), hk('วันที่สั่งงาน',h.issue_date?thDate(h.issue_date):''), hk('ผู้ประสานงาน',coordinator), hk('การจัดส่ง',h.delivery), address].join(''):[hk('จำนวนรวม',qty+spare), hk('ผู้ติดต่อ',hv('contact')), hk('เบอร์โทร',hv('phone')),
     hk('วันที่ออกใบ',h.issue_date?thDate(h.issue_date):''), hk('วันนัดส่งตัวอย่าง',sampleDateShown(h)&&h.sample_date?thDate(h.sample_date):''),
     hk('การรับสินค้า',h.delivery), hk('แอดมินผู้ดูแล',coordinator), address].join('');
-  let x=forCustomer?'':`<section class="ds">${hItems?`<div class="kv">${hItems}</div>`:''}
-  <div class="d-prod"><span>จำนวนรวม <b>${qty}</b>${num(v.spare)>0?` (+ เผื่อเสีย ${esc(v.spare)} ${P.unit})`:''}</span></div></section>`;
+  let x=forCustomer?'':`<section class="ds"><div class="kv">${hItems}</div></section>`;
 
   let n=0, mockup='', custKV='', custTables='';
   allSecs().forEach(sec=>{
@@ -2311,9 +2311,12 @@ function renderDoc(){
         mockup=`<div class="d-imgs">${state.imgs.map((m,i)=>`<figure data-ar="${m.w>0&&m.h>0?m.w/m.h:4/3}"><img src="${m.src}" alt="">${many?`<figcaption>รูป ${i+1}</figcaption>`:''}</figure>`).join('')}</div>`;
       }
       else if(f.type==='images'&&state.imgs.length){
-        const co=coDocHTML();
-        const plain=state.imgs.map((m,i)=>({m,i})).filter(({i})=>!co||!coList().some(c=>coImgAt(c)===i));
-        mockup=co+(plain.length?`<div class="d-imgs${plain.length===1?' one':''}">${plain.map(({m,i})=>`<figure data-ar="${m.w>0&&m.h>0?m.w/m.h:4/3}"><img src="${m.src}" alt=""><figcaption>${esc(imgName(i+1))}</figcaption></figure>`).join('')}</div>`:'');
+        const cs=coList();
+        mockup=`<div class="d-imgs">${state.imgs.map((m,i)=>{ const n=cs.filter(c=>coImgAt(c)===i).length;
+          if(!n) return `<figure data-ar="${m.w>0&&m.h>0?m.w/m.h:4/3}"><img src="${m.src}" alt=""><figcaption>${esc(imgName(i+1))}</figcaption></figure>`;
+          const sz=coSizeOf(i);
+          return `<figure class="co-fig" data-co="1" data-ar="${sz.w*(1+2*CO_MX)/(sz.h*(1+2*CO_MY))}">${coStageHTML(false,i)}<figcaption>${esc(imgName(i+1))} · จุดกำกับ ${n} จุด</figcaption></figure>`;
+        }).join('')}</div>`+coDocHTML();
       }
     });
     if(forCustomer){ custKV+=kvItems(simple.filter(f=>f.id!==TYPE_FIELD[state.product]&&!(state.product==='svc_sew'&&f.id==='garment')),v,true); custTables+=body; return; }
@@ -2325,7 +2328,7 @@ function renderDoc(){
     x=`<section class="cd-info"><div class="kv">${hItems}${custKV}</div>${custTables}</section>`;
     if(mockup) x+=`<section class="cd-mock">${mockup}<div class="d-mock">${esc(MOCKUP_NOTE)}</div></section>`;
   }
-  else if(mockup) x+=`<section class="d-mockpage"><h3>ภาพม็อคอัพ (Mock up)</h3>${mockup}${mockup.includes('class="d-co"')?'':`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`}</section>`;
+  else if(mockup) x+=`<section class="fd-mock"><h3>ภาพม็อคอัพ (Mock up)</h3>${mockup}<div class="d-mock">${esc(MOCKUP_NOTE)}</div></section>`;
   const blank=t=>`<div><div class="t">${t}</div><div class="ln"></div>(.......................................)<br>วันที่ ....../....../......</div>`;
   const cs=!forCustomer&&viewSig;
   const sig=t=>t!==SIGNERS_CUSTOMER[0]||!cs?blank(t)
@@ -2340,10 +2343,12 @@ function renderDoc(){
 
   // ใช้ thead ของตารางเป็นหัวกระดาษ: เบราว์เซอร์จะพิมพ์ thead ซ้ำทุกหน้าเมื่อเนื้อหายาวเกิน 1 หน้า
   $('#doc').innerHTML=`<table class="pg"><thead><tr><td>${head}</td></tr></thead><tbody><tr><td>${x}</td></tr></tbody></table>`;
+  $('#doc').classList.add('cmp');
   $('#doc').classList.toggle('cust',forCustomer);
+  $('#doc').classList.toggle('fac',!forCustomer);
   $('#doc').classList.remove('tight');
   setPageStyle();
-  if(forCustomer) fitCustomerPage(); else fitMockups();
+  if(forCustomer) fitCustomerPage(); else fitFactoryPage();
   estimatePages();
 }
 function docMM(){
@@ -2366,16 +2371,59 @@ function fitCustomerPage(){
     g=mockupGrid(ars,room,width,170);
     if(g.h>=CUST_MIN_H) break;
   }
-  if(g.h<CUST_MIN_H) for(let c=Math.min(ars.length,4);c>=1;c--){
+  applyGrid(box,figs,ars,g.h<CUST_MIN_H?smallestGrid(ars,width,CUST_MIN_H):g,CUST_MIN_H);
+  t.style.width=''; d.style.display=prev;
+}
+// ภาพเล็กสุดที่ยังอ่านได้ ใส่คอลัมน์ให้มากที่สุด แถวจะน้อยสุด
+function smallestGrid(ars,width,minH){
+  for(let c=Math.min(ars.length,4);c>1;c--){
     const cell=(width-(c-1)*3)/c-2;
-    if(c===1||ars.every(a=>cell/a>=CUST_MIN_H)){ g={ cols:c, cell, h:Math.min(CUST_MIN_H,...ars.map(a=>cell/a)) }; break; }
+    if(ars.every(a=>cell/a>=minH)) return { cols:c, cell, h:minH };
   }
-  const h=Math.max(g.h,Math.min(CUST_MIN_H,...ars.map(a=>g.cell/a)));
+  const cell=width-2;
+  return { cols:1, cell, h:Math.min(minH,...ars.map(a=>cell/a)) };
+}
+function applyGrid(box,figs,ars,g,minH){
+  const h=Math.max(g.h,Math.min(minH,...ars.map(a=>g.cell/a)));
   box.style.setProperty('--mh',h.toFixed(1)+'mm');
   const widths=ars.map(a=>Math.min(g.cell,h*a+2.5));
   figs.forEach((f,i)=>{ f.style.width=widths[i].toFixed(1)+'mm'; });
   box.style.maxWidth=(g.cols*Math.max(...widths)+(g.cols-1)*2.5+1).toFixed(1)+'mm';
   box.style.marginInline='auto';
+}
+// ฉบับโรงงาน: ลองทุกแบบ (ต่อจากรายละเอียด / ล้นไปหน้าถัดไป / ขึ้นหน้าใหม่ · ตัวอักษรปกติ / ย่อ) แล้วเลือกแบบที่ใช้กระดาษน้อยสุด ภาพใหญ่สุด · ภาพมีจุดกำกับต้องสูงพอให้อ่านชื่อจุด
+const FACT_MIN_H=40, FACT_CO_MIN_H=50;
+function fitFactoryPage(){
+  const d=$('#doc'), t=d.querySelector('table.pg'), mp=d.querySelector('.fd-mock'), box=mp&&mp.querySelector('.d-imgs'); if(!t||!box) return;
+  const figs=[...box.querySelectorAll('figure[data-ar]')], ars=figs.map(f=>+f.dataset.ar||4/3);
+  const minH=figs.some(f=>f.dataset.co)?FACT_CO_MIN_H:FACT_MIN_H;
+  const prev=d.style.display; d.style.display='block'; t.style.width='190mm';
+  const mm=docMM(), width=box.clientWidth/mm-1, close=d.querySelector('.close');
+  const per=CUST_PAGE_MM-t.tHead.offsetHeight/mm;
+  const measure=()=>{
+    box.style.display='none'; mp.style.breakBefore='';
+    const top=(mp.getBoundingClientRect().top-t.tBodies[0].getBoundingClientRect().top)/mm;
+    const out={ left:per-(top%per), rest:mp.offsetHeight/mm, closeH:close?close.offsetHeight/mm+3:0 };
+    box.style.display=''; return out;
+  };
+  const plans=[[m=>m.left-m.rest-m.closeH,false],[m=>m.left-m.rest,false],[m=>m.left+per-m.rest-m.closeH-12,false],[m=>per-m.rest-m.closeH,true],[m=>per-m.rest,true]];
+  let best=null;
+  for(const tight of [false,true]){
+    d.classList.toggle('tight',tight);
+    const m=measure();
+    for(const [room,fresh] of plans){
+      const g=mockupGrid(ars,room(m),width,130);
+      if(g.h<minH) continue;
+      mp.style.breakBefore=fresh?'page':'';
+      applyGrid(box,figs,ars,g,minH);
+      const pages=factoryPages(t,mm), score=[pages,tight?1:0,-g.h];
+      if(!best||score[0]<best.score[0]||(score[0]===best.score[0]&&(score[1]<best.score[1]||(score[1]===best.score[1]&&score[2]<best.score[2])))) best={ score, tight, fresh, g };
+    }
+  }
+  if(!best){ d.classList.remove('tight'); best={ tight:false, fresh:true, g:smallestGrid(ars,width,minH) }; }
+  d.classList.toggle('tight',best.tight);
+  mp.style.breakBefore=best.fresh?'page':'';
+  applyGrid(box,figs,ars,best.g,minH);
   t.style.width=''; d.style.display=prev;
 }
 // ขนาดภาพม็อคอัพ (มม.) ทุกภาพสูงเท่ากันและพอดีพื้นที่ที่เหลือ · ไม่พอ = ขึ้นหน้าใหม่พร้อมข้อตกลง · ยังไม่พอ = ใช้ทั้งหน้า
@@ -2390,41 +2438,40 @@ function mockupGrid(ars, room, width=190, maxH=110){
   }
   return best;
 }
-function fitMockups(){
-  const d=$('#doc'), t=d.querySelector('table.pg'), box=d.querySelector('.d-mockpage .d-imgs'); if(!t||!box) return;
-  const figs=[...box.querySelectorAll('figure[data-ar]')]; if(!figs.length) return;
-  const ars=figs.map(f=>+f.dataset.ar||4/3);
-  const prev=d.style.display; d.style.display='block'; t.style.width='190mm';
-  const probe=document.createElement('div'); probe.style.cssText='position:absolute;visibility:hidden;height:100mm;width:1px';
-  document.body.appendChild(probe); const mm=probe.offsetHeight/100; probe.remove();
-  box.style.display='none'; box.style.breakBefore='';
-  const mp=d.querySelector('.d-mockpage'), close=d.querySelector('.close');
-  const page=274-t.tHead.offsetHeight/mm-4, head=mp.querySelector('h3').offsetHeight/mm+4;
-  const above=mp.offsetHeight/mm, after=close?close.offsetHeight/mm:0, before=above-head>12;
-  box.style.display='';
-  const ok=g=>g&&g.h>=MOCK_MIN_H;
-  let g=mockupGrid(ars,page-above-after), fresh=false;
-  if(!ok(g)&&before){ g=mockupGrid(ars,page-after); fresh=true; }
-  if(!ok(g)){ g=mockupGrid(ars,page-(before?0:head)); fresh=before; }
-  if(fresh) box.style.breakBefore='page';
-  box.style.setProperty('--mh',Math.max(g.h,20).toFixed(1)+'mm');
-  const widths=ars.map(a=>Math.min(g.cell,g.h*a+2.5));
-  figs.forEach((f,i)=>{ f.style.width=widths[i].toFixed(1)+'mm'; });
-  box.style.maxWidth=(g.cols*Math.max(...widths)+(g.cols-1)*2.5+1).toFixed(1)+'mm';
-  box.style.marginInline='auto';
-  t.style.width=''; d.style.display=prev;
+// จำลองการตัดหน้าของเบราว์เซอร์: ก้อนที่ห้ามตัด (หัวข้อ แถวภาพ แถวตาราง ข้อตกลง) ไม่พอที่เหลือ = ขึ้นหน้าใหม่
+function factoryPages(t,mm){
+  const per=CUST_PAGE_MM-t.tHead.offsetHeight/mm;
+  let page=1, used=0, carry=0;
+  const add=(h,avoid,breakBefore)=>{
+    h+=carry; carry=0;
+    if(breakBefore&&used>0){ page++; used=0; }
+    if(avoid&&h<=per&&used+h>per+0.5){ page++; used=0; }
+    used+=h;
+    while(used>per+0.5){ page++; used-=per; }
+  };
+  const outer=el=>{ const st=getComputedStyle(el); return (el.getBoundingClientRect().height+parseFloat(st.marginTop)+parseFloat(st.marginBottom))/mm; };
+  for(const c of t.tBodies[0].rows[0].cells[0].children){
+    const breakBefore=getComputedStyle(c).breakBefore==='page';
+    if(!c.classList.contains('fd-mock')){ add(outer(c),true,breakBefore); continue; }
+    let first=breakBefore;
+    for(const k of c.children){
+      if(k.tagName==='H3'){ if(first&&used>0){ page++; used=0; } first=false; carry=outer(k); continue; }
+      if(k.classList.contains('d-imgs')){
+        const rows=new Map(); for(const f of k.children){ const top=Math.round(f.offsetTop); rows.set(top,Math.max(rows.get(top)||0,outer(f)+3)); }
+        for(const h of rows.values()) add(h,true,false);
+      } else if(k.tagName==='TABLE'){ for(const r of k.rows) add(r.getBoundingClientRect().height/mm,true,false); }
+      else add(outer(k),true,false);
+    }
+  }
+  return page;
 }
 function estimatePages(){
   const d=$('#doc'), t=d.querySelector('table.pg'); if(!t) return;
   const prev=d.style.display; d.style.display='block'; t.style.width='190mm';
   const probe=document.createElement('div'); probe.style.cssText='position:absolute;visibility:hidden;height:100mm;width:1px';
   document.body.appendChild(probe); const mm=probe.offsetHeight/100; probe.remove();
-  const headH=t.tHead.offsetHeight, bodyH=t.tBodies[0].offsetHeight, per=274*mm-headH;
-  const mp=t.querySelector('.d-mockpage'), top=t.tBodies[0].getBoundingClientRect().top;
-  const split=mp?mp.getBoundingClientRect().top-top:bodyH, sheets=(h,k)=>h>0?Math.ceil(h/per*k):0;
   const cust=customerCopy();
-  const pages=cust?Math.max(1,Math.ceil((t.offsetHeight/mm-1)/CUST_PAGE_MM))
-    :Math.max(1,sheets(split-(mp?parseFloat(getComputedStyle(mp).marginTop):0),mp?1:1.03)+sheets(bodyH-split,1));
+  const pages=cust?Math.max(1,Math.ceil((t.offsetHeight/mm-1)/CUST_PAGE_MM)):factoryPages(t,mm);
   t.style.width=''; d.style.display=prev;
   let n=$('#pageNote'); if(!n){ n=document.createElement('div'); n.id='pageNote'; d.parentNode.insertBefore(n,d); }
   const goal=cust?1:2;

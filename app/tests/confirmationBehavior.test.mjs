@@ -498,23 +498,27 @@ test('ฟอร์มใบยืนยัน: ฉบับโรงงานม
   assert.match(doc, /class="sign s3"/)
 })
 
-test('ฟอร์มใบยืนยัน: ฉบับโรงงาน ภาพม็อคอัพขึ้นหน้าใหม่ต่อจากรายละเอียด อยู่เหนือข้อตกลงและช่องเซ็น · ไม่มีภาพ = ไม่มีหน้าม็อคอัพ', () => {
+test('ฟอร์มใบยืนยัน: ฉบับโรงงาน ภาพม็อคอัพต่อจากรายละเอียด (ไม่บังคับขึ้นหน้าใหม่) อยู่เหนือข้อตกลงและช่องเซ็น · จุดกำกับบนภาพมีเลข + ชื่อ รายละเอียดอยู่ในตาราง · ไม่มีภาพ = ไม่มีส่วนม็อคอัพ', () => {
   const { api, els, s, v } = filled()
   withFactoryDetails(v)
   api.setViewOnly(true)
   api.renderDoc()
-  assert.equal(els.get('#doc').innerHTML.includes('d-mockpage'), false)
+  assert.equal(els.get('#doc').innerHTML.includes('fd-mock'), false)
   assert.match(els.get('#doc').innerHTML, /class="d-mock"/)
-  s.imgs = [{ name: 'ด้านหน้า', src: 'data:image/png;base64,AA==', w: 4, h: 3 }]
+  s.imgs = [{ name: 'ด้านหน้า', src: 'data:image/png;base64,AA==', w: 4, h: 3 }, { name: 'ด้านหลัง', src: 'data:image/png;base64,BB==', w: 4, h: 3 }]
+  s.callouts = [{ img: 1, title: 'โลโก้หลัง', body: 'ปัก 8 ซม.', x: 0.5, y: 0.5, bx: 1.1, by: 0.2 }]
   api.renderDoc()
   const doc = els.get('#doc').innerHTML
-  const page = doc.indexOf('class="d-mockpage"'), accept = doc.indexOf('class="d-accept"')
-  assert.ok(page > doc.indexOf('แพ็คกิ้ง') && accept > page)
+  const mock = doc.indexOf('class="fd-mock"'), accept = doc.indexOf('class="d-accept"')
+  assert.ok(mock > doc.indexOf('แพ็คกิ้ง') && accept > mock)
   assert.ok(doc.indexOf('class="sign') > accept)
-  assert.ok(doc.indexOf('รูป 1 · ด้านหน้า') > page)
-  assert.match(doc.slice(page), /d-imgs one/)
+  assert.equal(doc.includes('d-mockpage'), false)
+  assert.match(doc, /<figcaption>รูป 1 · ด้านหน้า<\/figcaption>/)
+  assert.match(doc, /class="co-fig" data-co="1"[^>]*>.*<b>1<\/b> โลโก้หลัง<\/div>/s)
+  assert.match(doc, /<td class="l">โลโก้หลัง<\/td><td class="l">ปัก 8 ซม\.<\/td>/)
   assert.equal((doc.match(/class="d-mock"/g) || []).length, 1)
-  assert.ok(doc.indexOf('class="d-mock"') > page && doc.indexOf('class="d-mock"') < accept)
+  assert.ok(doc.indexOf('class="d-mock"') > mock && doc.indexOf('class="d-mock"') < accept)
+  assert.match(doc, /จำนวนรวม<\/span><b>20 ตัว \(\+ เผื่อเสีย 7 ตัว\)/)
 })
 
 test('ฟอร์มใบยืนยัน: ฉบับลูกค้าหน้าเดียว ข้อมูลรวมด้านบน → ภาพม็อคอัพไม่มีข้อความชี้จุด → ข้อตกลง → ช่องเซ็นล่างสุด', () => {
