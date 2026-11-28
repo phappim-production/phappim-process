@@ -2,8 +2,6 @@ export type PdfDoc = { pages: number; render: (page: number) => Promise<Blob | n
 
 export const PDF_RENDER_LONG_SIDE = 2400
 
-export const isPdfFile = (file: { name: string; type: string }) => file.type === 'application/pdf' || (!file.type && /\.pdf$/i.test(file.name))
-
 export function renderScale(width: number, height: number, longSide = PDF_RENDER_LONG_SIDE): number {
   const side = Math.max(width, height)
   return side > 0 ? Math.min(6, longSide / side) : 1

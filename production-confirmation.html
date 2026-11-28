@@ -2396,12 +2396,46 @@ const FACT_MIN_H=40, FACT_CO_MIN_H=50, FACT_SIDE=90, FACT_MAX_H=170;
 const factNeedH=(co,a)=>co
   ? Math.max(FACT_CO_MIN_H, a*(1+2*CO_MY)>=1+2*CO_MX ? FACT_SIDE*(1+2*CO_MX)/a : FACT_SIDE*(1+2*CO_MY))
   : Math.max(FACT_MIN_H, FACT_SIDE/Math.max(1,a));
+// ภาพแถบยาวมากเต็มความกว้างก็ยังเตี้ยกว่าเกณฑ์ → เกณฑ์ของภาพนั้นคือเต็มความกว้าง
+const factNeeds=(figs,ars,width)=>figs.map((f,i)=>Math.min(factNeedH(!!f.dataset.co,ars[i]),(width-2)/ars[i]));
+// ฉบับโรงงานภาพรูปทรงต่างกัน (แถบสายคล้อง + ภาพขยาย) ไม่บังคับสูงเท่ากัน: ภาพที่กว้างเต็มช่องเตี้ยลงเอง ภาพอื่นยังใหญ่ตามเกณฑ์
+function factoryGrid(ars,needs,room,width){
+  const GAP=3;
+  let best=null;
+  for(let c=1;c<=Math.min(ars.length,4);c++){
+    const cell=(width-(c-1)*GAP)/c-2, rows=Math.ceil(ars.length/c), empty=c*rows-ars.length;
+    const used=h=>Array.from({length:rows},(_,r)=>Math.max(...ars.slice(r*c,r*c+c).map(a=>Math.min(h,cell/a)))+MOCK_CAP+GAP).reduce((x,y)=>x+y,0);
+    let h=Math.min(FACT_MAX_H, Math.max(...ars.map(a=>cell/a)));
+    if(used(h)>room){ let lo=0; for(let k=0;k<30;k++){ const mid=(lo+h)/2; if(used(mid)>room) h=mid; else lo=mid; } h=lo; }
+    const ok=ars.every((a,i)=>Math.min(h,cell/a)>=needs[i]-0.05);
+    if(!best||(ok&&!best.ok)||(ok===best.ok&&(h>best.h+0.5||(h>best.h-0.5&&empty<best.empty)))) best={ cols:c, h, cell, empty, ok };
+  }
+  return best;
+}
+function factoryFallbackGrid(ars,needs,width){
+  const h=Math.max(...needs);
+  for(let c=Math.min(ars.length,4);c>1;c--){
+    const cell=(width-(c-1)*3)/c-2;
+    if(ars.every((a,i)=>Math.min(h,cell/a)>=needs[i]-0.05)) return { cols:c, cell, h };
+  }
+  return { cols:1, cell:width-2, h };
+}
+function applyFactoryGrid(box,figs,ars,g){
+  box.style.setProperty('--mh',g.h.toFixed(1)+'mm');
+  const widths=ars.map(a=>Math.min(g.cell,g.h*a+2.5));
+  figs.forEach((f,i)=>{
+    f.style.width=widths[i].toFixed(1)+'mm';
+    const fitH=(widths[i]-1.6)/ars[i];
+    if(fitH<g.h-1) f.style.setProperty('--mh',fitH.toFixed(1)+'mm'); else f.style.removeProperty('--mh');
+  });
+  box.style.maxWidth=(g.cols*Math.max(...widths)+(g.cols-1)*2.5+1).toFixed(1)+'mm';
+  box.style.marginInline='auto';
+}
 function fitFactoryPage(){
   const d=$('#doc'), t=d.querySelector('table.pg'), mp=d.querySelector('.fd-mock'), box=mp&&mp.querySelector('.d-imgs'); if(!t||!box) return;
   const figs=[...box.querySelectorAll('figure[data-ar]')], ars=figs.map(f=>+f.dataset.ar||4/3);
-  const minH=Math.max(...figs.map((f,i)=>factNeedH(!!f.dataset.co,ars[i])));
   const prev=d.style.display; d.style.display='block'; t.style.width='190mm';
-  const mm=docMM(), width=box.clientWidth/mm-1, close=d.querySelector('.close');
+  const mm=docMM(), width=box.clientWidth/mm-1, close=d.querySelector('.close'), needs=factNeeds(figs,ars,width);
   const per=CUST_PAGE_MM-t.tHead.offsetHeight/mm;
   const measure=()=>{
     box.style.display='none'; mp.style.breakBefore='';
@@ -2415,18 +2449,18 @@ function fitFactoryPage(){
     d.classList.toggle('tight',tight);
     const m=measure();
     for(const [room,fresh] of plans){
-      const g=mockupGrid(ars,room(m),width,FACT_MAX_H);
-      if(g.h<minH) continue;
+      const g=factoryGrid(ars,needs,room(m),width);
+      if(!g.ok) continue;
       mp.style.breakBefore=fresh?'page':'';
-      applyGrid(box,figs,ars,g,minH);
+      applyFactoryGrid(box,figs,ars,g);
       const pages=factoryPages(t,mm), score=[pages,tight?1:0,-g.h];
       if(!best||score[0]<best.score[0]||(score[0]===best.score[0]&&(score[1]<best.score[1]||(score[1]===best.score[1]&&score[2]<best.score[2])))) best={ score, tight, fresh, g };
     }
   }
-  if(!best){ d.classList.remove('tight'); best={ tight:false, fresh:true, g:smallestGrid(ars,width,minH) }; }
+  if(!best){ d.classList.remove('tight'); best={ tight:false, fresh:true, g:factoryFallbackGrid(ars,needs,width) }; }
   d.classList.toggle('tight',best.tight);
   mp.style.breakBefore=best.fresh?'page':'';
-  applyGrid(box,figs,ars,best.g,minH);
+  applyFactoryGrid(box,figs,ars,best.g);
   t.style.width=''; d.style.display=prev;
 }
 // ขนาดภาพม็อคอัพ (มม.) ทุกภาพสูงเท่ากันและพอดีพื้นที่ที่เหลือ · ไม่พอ = ขึ้นหน้าใหม่พร้อมข้อตกลง · ยังไม่พอ = ใช้ทั้งหน้า

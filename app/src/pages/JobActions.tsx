@@ -9,7 +9,7 @@ import { openFormWindow } from '../lib/install'
 import { contentKey, mockupProblem, shrinkImage, uploadMockup } from '../data/mockups'
 import { signFiles, uploadFile } from '../data/files'
 import { etaFromDay, missingSteps, type Substep } from '../data/stationSteps'
-import { OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, stationNo, usesFilm, type Job, type StationCode, type Vendor } from '../proto/model'
+import { OUTSIDE_START_BLOCK, ROUTES, STATION_NAME, filmLabel, needsFilm, stationNo, type Job, type StationCode, type Vendor } from '../proto/model'
 import { OutsourcePanel } from './OutsourcePanel'
 import { FilePick } from '../components/FilePick'
 import { relDayWord, spaced, thaiFullDate, wholeCount } from '../proto/format'
@@ -130,7 +130,7 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
       <OutsourcePanel job={j} vendors={vendors} admin={admin} now={now} refresh={refresh} />
       {j.phase === 'done' && <Delivery job={j} admin={admin} busy={busy} now={now} act={act} />}
       {j.phase === 'materials' && <MaterialsCheck job={j} items={d.materials} photos={d.photos} admin={admin} busy={busy} now={now} act={act} />}
-      {usesFilm(j.route) && !j.film?.received && j.phase !== 'done' && (
+      {needsFilm(j) && (
         <Film job={j} ordered={d.filmOrdered} admin={admin} busy={busy} now={now}
           onOrder={eta => act('order_film', { p_eta: eta }, `บันทึกสั่ง${filmLabel(j.route)} · คาดว่าได้รับ ${thaiFullDate(eta)}`)}
           onReceive={() => act('receive_film', {}, `บันทึกได้รับ${spaced(filmLabel(j.route))}แล้ว · เริ่มรีดฟิล์มได้`)} />
@@ -156,7 +156,7 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
         <Station job={j} queueHead={queueHead} detail={d} canPress={canStation} canResume={canCloseIssue(role, st)} role={role} busy={busy} now={now} act={act} />
       )}
       {canCancelJob(role) && j.phase !== 'done' && <CancelJob job={j} busy={busy} act={act} onCancelled={onCancelled} />}
-      {!d.pdfPath && !admin && <p className="text-muted"><Tr th="ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น (แอดมินแนบทีหลัง)" /></p>}
+      {!d.pdfPath && !admin && <p className="text-muted"><Tr th="ยังไม่มีใบยืนยันที่ลูกค้าเซ็น (แอดมินแนบทีหลัง)" /></p>}
     </div>
   )
 }
@@ -369,7 +369,7 @@ function Film({ job: j, ordered, admin, busy, now, onOrder, onReceive }: {
           <label className="grid gap-1 font-medium">วันคาดว่าได้รับ
             <input type="date" value={eta} onChange={e => setEta(e.target.value)} className={fieldClass} />
           </label>
-          <button type="button" disabled={busy || !eta} className={`${secondaryBtn} self-end`} onClick={() => void onOrder(eta)}>
+          <button type="button" disabled={busy || !eta} title={!eta ? 'ใส่วันคาดว่าได้รับก่อน' : undefined} className={`${secondaryBtn} self-end`} onClick={() => void onOrder(eta)}>
             {ordered ? 'เลื่อนวันได้รับ' : `บันทึกสั่ง${label}`}
           </button>
           {ordered && (
@@ -669,7 +669,7 @@ function QcPanel({ job: j, passed, busy, act }: { job: Job; passed: number; busy
             <span className="shrink-0 font-normal text-muted">{t('/ {qty} {unit}', { qty: j.qty.toLocaleString('th-TH'), unit })}</span>
           </span>
         </label>
-        <button type="button" disabled={busy || !passQty} className={okBtn}
+        <button type="button" disabled={busy || !passQty} className={okBtn} title={!passQty ? t('ใส่จำนวนที่ผ่านก่อน') : undefined}
           onClick={async () => { if (passQty && await act('record_qc', { p_passed: passQty, p_request: request.idFor(String(passQty)) }, { th: 'บันทึกผ่าน QC {qty} {unit}', vars: { qty: passQty, unit } })) { setPass(''); request.clear() } }}>
           {pass.trim() && !passQty ? <Tr th="ใส่จำนวนเต็ม" /> : <><IconCheck className="size-5 shrink-0" /><Tr th="บันทึกผ่าน" /></>}</button>
       </div>

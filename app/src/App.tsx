@@ -203,14 +203,14 @@ function WorkspaceBody({ path: requestedPath, route: requested, labelId, profile
           {!canOpenPage(profile.role, page) ? (
             <main className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto p-4 sm:p-6">
               <Card>
-                <CardHeader title={['settings', 'sysOverview', 'roles', 'audit'].includes(page) ? 'หน้านี้สำหรับเจ้าของระบบ' : 'บทบาทของคุณเปิดหน้านี้ไม่ได้'} />
+                <CardHeader title={<Tr inline th={['settings', 'sysOverview', 'roles', 'audit'].includes(page) ? 'หน้านี้สำหรับเจ้าของระบบ' : 'บทบาทของคุณเปิดหน้านี้ไม่ได้'} />} />
                 <div className="px-5 pb-5">
-                  <a href="#/board" className={`inline-flex items-center ${primaryButton}`}>ไปหน้างาน</a>
+                  <a href="#/board" className={`inline-flex items-center ${primaryButton}`}><Tr inline th="ไปหน้างาน" /></a>
                 </div>
               </Card>
             </main>
           ) : isFactoryView(page) ? (
-            <Suspense fallback={<main className="p-5"><p role="status">กำลังโหลดหน้าติดตามการผลิต…</p></main>}>
+            <Suspense fallback={<main className="p-5"><p role="status"><Tr th="กำลังโหลดหน้าติดตามการผลิต…" /></p></main>}>
               <Dashboard view={page} routeKey={path} tab={route.tab} overviewView={route.overviewView} today={today} role={profile.role} scope={scope} />
             </Suspense>
           ) : (

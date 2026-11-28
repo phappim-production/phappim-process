@@ -56,9 +56,9 @@ export default function AccountPage({ name, role, roleLabel, email }: { name: st
         <CardHeader icon={IconLock} title={<Tr inline th="เปลี่ยนรหัสผ่าน" />} sub={<Tr th="รหัสที่ได้จากเจ้าของระบบ ควรเปลี่ยนเป็นรหัสของตัวเอง" />} />
         <div className="grid gap-4 px-5 pb-5">
           <ul className="grid gap-1 rounded-xl bg-paper px-4 py-3 text-sm text-muted">
-            <li>• อย่างน้อย 8 ตัว ยาวกว่านี้ยิ่งปลอดภัย</li>
-            <li>• อย่าใช้รหัสเดียวกับคนอื่น และอย่าบอกรหัสให้เพื่อนกดแทน</li>
-            <li>• ลืมรหัส ให้แจ้งเจ้าของระบบตั้งใหม่ให้</li>
+            <li>• <Tr inline th="อย่างน้อย 8 ตัว ยาวกว่านี้ยิ่งปลอดภัย" /></li>
+            <li>• <Tr inline th="อย่าใช้รหัสเดียวกับคนอื่น และอย่าบอกรหัสให้เพื่อนกดแทน" /></li>
+            <li>• <Tr inline th="ลืมรหัส ให้แจ้งเจ้าของระบบตั้งใหม่ให้" /></li>
           </ul>
           <ChangePasswordForm />
         </div>
