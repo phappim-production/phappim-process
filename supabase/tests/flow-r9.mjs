@@ -353,8 +353,8 @@ export async function flowR9Tests({ db, ok }) {
       assert.equal((await live(noPdf)).phase, 'done')
       const path = 'TEST-R9-PDF/signed.pdf'
       await db.exec("insert into storage.buckets values ('confirmations') on conflict do nothing")
-      await deny(id, 'admin', 'attach_confirmation_pdf', ['TEST-R9-PDF/signed.png'], /ต้องเป็น PDF/)
-      await deny(id, 'admin', 'attach_confirmation_pdf', [path], /ยังไม่พบไฟล์ PDF/)
+      await deny(id, 'admin', 'attach_confirmation_pdf', ['TEST-R9-PDF/signed.gif'], /ต้องเป็น PDF หรือรูป/)
+      await deny(id, 'admin', 'attach_confirmation_pdf', [path], /ยังไม่พบไฟล์ใบยืนยัน/)
       await db.query("insert into storage.objects values ('confirmations',$1)", [path])
       await deny(id, 'production', 'attach_confirmation_pdf', [path], { code: '42501' })
       await change(id, 'admin', 'attach_confirmation_pdf', [path], ['confirmation_pdf'])

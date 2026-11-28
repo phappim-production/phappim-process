@@ -168,7 +168,10 @@ export function eventWords(e: EventRow, n: Names, unit = 'ชิ้น'): EventW
     case 'queue_insert': return { title: word('แทรกคิวงานด่วน (ก่อน {no})', { no: str(p.before) }), detail: reason, tone: 'warn' }
     case 'queue_skip': return { title: word('เริ่มก่อนคิว{at}', { at }), detail: joined(reason, !!list(p.ahead) && word('ข้ามคิว {jobs}', { jobs: list(p.ahead) })), tone: 'warn' }
     case 'correction': return { title: word('แจ้งว่ารายการก่อนหน้ากดผิด'), detail: reason, tone: 'warn' }
-    case 'confirmation_pdf': return { title: p.replaced ? word('เปลี่ยน PDF ใบยืนยัน') : word('แนบ PDF ใบยืนยันที่ลูกค้าเซ็น'), tone: 'ok' }
+    case 'confirmation_pdf': {
+      const image = /\.(jpg|png|webp)$/i.test(str(p.path))
+      return { title: p.replaced ? word(image ? 'เปลี่ยนใบยืนยันที่ลูกค้าเซ็นเป็นรูป' : 'เปลี่ยน PDF ใบยืนยัน') : word(image ? 'แนบรูปใบยืนยันที่ลูกค้าเซ็น' : 'แนบ PDF ใบยืนยันที่ลูกค้าเซ็น'), tone: 'ok' }
+    }
     case 'spec_revised': {
       const stale = typeof p.mockup_stale === 'number' && p.mockup_stale > 0
       const moved = (k: string) => p[`${k}_from`] != null && str(p[`${k}_from`]) !== str(p[`${k}_to`])

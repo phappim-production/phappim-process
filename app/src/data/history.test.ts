@@ -118,6 +118,14 @@ it('ไทม์ไลน์: ส่งออกบริษัทภายน�
   expect(eventLine(row, names)).toEqual({ title: 'ปล่อยเข้าไลน์การผลิต', detail: 'ส่งออกบริษัทภายนอก · ไม่ต้องเช็ควัตถุดิบ', tone: 'ok' })
 })
 
+it('ไทม์ไลน์: แนบใบที่ลูกค้าเซ็นเป็นรูป / PDF บอกชนิดไฟล์', () => {
+  const row = (path: string, replaced: boolean): EventRow => ({ id: 9, type: 'confirmation_pdf', phase: 'production', station_code: null, payload: { path, replaced }, by: null, at: '2026-11-28T03:00:00Z' })
+  expect(eventLine(row('SC1/ab12.jpg', false), names).title).toBe('แนบรูปใบยืนยันที่ลูกค้าเซ็น')
+  expect(eventLine(row('SC1/ab12.png', true), names).title).toBe('เปลี่ยนใบยืนยันที่ลูกค้าเซ็นเป็นรูป')
+  expect(eventLine(row('SC1/ab12.pdf', false), names).title).toBe('แนบ PDF ใบยืนยันที่ลูกค้าเซ็น')
+  expect(eventLine(row('SC1/ab12.pdf', true), names).title).toBe('เปลี่ยน PDF ใบยืนยัน')
+})
+
 describe('ไทม์ไลน์: วันที่คาดว่าได้รับวัตถุดิบ', () => {
   const row = (type: string, payload: Record<string, unknown>): EventRow => ({ id: 6, type, phase: 'materials', station_code: null, payload, by: null, at: '2026-11-26T03:00:00Z' })
   it('เพิ่มรายการบอกวันคาดว่าได้รับ หรือมีของแล้ว · เลื่อนวันบอกวันเดิมและวันใหม่', () => {

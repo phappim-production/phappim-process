@@ -74,7 +74,7 @@ export async function workflowTests({ db, ok, as }) {
   // PDF ที่ลูกค้าเซ็นไม่บังคับ แนบทีหลังได้ · ถ้าแนบต้องเป็น PDF
   await pass('กฎ 1: ส่งงานเข้าได้โดยยังไม่มี PDF ที่ลูกค้าเซ็น', U.admin, receive('SC-NOPDF2', 'normal', { pdf: "''" }))
   ok('งานที่ยังไม่มี PDF เก็บ path ว่าง', (await db.query(`select confirmation_pdf_path p from public.jobs where confirmation_no = 'SC-NOPDF2'`)).rows[0]?.p === null)
-  await reject('กฎ 1: ไฟล์ที่ไม่ใช่ PDF ไม่ได้', U.admin, receive('SC-JPG', 'normal', { pdf: "'x.jpg'" }), /ต้องเป็น PDF/)
+  await reject('กฎ 1: ไฟล์ที่ไม่ใช่ PDF หรือรูปไม่ได้', U.admin, receive('SC-JPG', 'normal', { pdf: "'x.docx'" }), /ต้องเป็น PDF หรือรูป/)
   await reject('รับงาน: จำนวน 0 ไม่ได้', U.admin, receive('SC-Q0B', 'normal', { qty: 0 }), /มากกว่า 0/)
   const A = await newJob('SC-A', 'normal')
   // ไม่มีขั้นรอวัตถุดิบ: แอดมินเตรียมของครบก่อนส่งงานเข้า → ไปสถานีแรกทันที

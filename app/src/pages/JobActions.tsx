@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
-import { confirmationPath, pdfProblem } from '../data/confirmation'
+import { confirmationPath, isSignedImage, SIGNED_ACCEPT, SIGNED_TYPES, signedExt, signedFileProblem } from '../data/confirmation'
 import { INBOX_KEY } from '../data/confirmationDrafts'
 import { openFormWindow } from '../lib/install'
 import { contentKey, mockupProblem, shrinkImage, uploadMockup } from '../data/mockups'
@@ -123,7 +123,7 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
     <div className="grid gap-4 text-base">
       {j.revision ? <RevisionBanner job={j} canAck={canStation && inStation} busy={busy} act={act} /> : <ViewConfirmation job={j} />}
       {d.pdfPath ? <OpenPdf path={d.pdfPath} /> : admin && <AttachPdf job={j} refresh={refresh} />}
-      {admin && <CustomerSignaturePanel key={j.id} job={j} />}
+      {admin && <CustomerSignaturePanel key={j.id} job={j} attached={d.pdfPath} />}
       {admin && <SetMockup job={j} refresh={refresh} />}
       {admin && <ReviseConfirmation job={j} hasPdf={!!d.pdfPath} refresh={refresh} />}
       {notice && <NoticeBox notice={notice} />}
@@ -173,20 +173,21 @@ function NoticeBox({ notice }: { notice: NonNullable<Notice> }) {
   )
 }
 
-// ส่งงานเข้าได้ก่อนลูกค้าเซ็น แล้วแนบ PDF ทีหลัง
+// ส่งงานเข้าได้ก่อนลูกค้าเซ็น แล้วแนบใบที่เซ็น (PDF หรือรูป) ทีหลัง
 function AttachPdf({ job, refresh, replace = false }: { job: Job; refresh: () => Promise<void>; replace?: boolean }) {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [replaced, setReplaced] = useState(false)
-  const problem = pdfProblem(file)
+  const problem = signedFileProblem(file)
   async function attach() {
-    if (!file || problem) return
+    const ext = file && signedExt(file)
+    if (!file || problem || !ext) return
     setBusy(true)
     setError('')
     setReplaced(false)
-    const path = confirmationPath(job.no, await contentKey(file))
-    const up = await uploadFile('confirmations', path, file, 'application/pdf')
+    const path = confirmationPath(job.no, await contentKey(file), ext)
+    const up = await uploadFile('confirmations', path, file, SIGNED_TYPES[ext])
     if (!up.ok) { setBusy(false); setError(up.reason); return }
     const r = await rpc('attach_confirmation_pdf', { p_job: job.id, p_path: path })
     setBusy(false)
@@ -195,27 +196,27 @@ function AttachPdf({ job, refresh, replace = false }: { job: Job; refresh: () =>
     if (replace) setReplaced(true)
     await refresh()
   }
-  const verb = replace ? 'เปลี่ยนเป็น PDF ใบใหม่' : 'แนบ PDF ใบยืนยัน'
+  const verb = replace ? 'เปลี่ยนเป็นใบใหม่' : 'แนบใบยืนยันที่ลูกค้าเซ็น'
   const pick = (
     <>
-      <FilePick accept="application/pdf,.pdf" label={replace ? 'เลือก PDF ใบแก้ไขที่ลูกค้าเซ็นแล้ว' : 'เลือก PDF ใบยืนยันที่ลูกค้าเซ็น'} chosen={file?.name ?? ''}
+      <FilePick accept={SIGNED_ACCEPT} label={replace ? 'เลือกใบแก้ไขที่ลูกค้าเซ็นแล้ว (PDF หรือรูป)' : 'เลือกใบยืนยันที่ลูกค้าเซ็น (PDF หรือรูป)'} chosen={file?.name ?? ''}
         onPick={f => { setFile(f ?? null); setError('') }} />
       {file && problem && <p role="alert" className="text-danger">{problem}</p>}
       <button type="button" className={replace ? secondaryBtn : primaryBtn} disabled={!file || !!problem || busy} onClick={() => void attach()}>
-        {busy ? 'กำลังแนบ PDF…' : file ? verb : `${verb} (เลือกไฟล์ก่อน)`}
+        {busy ? 'กำลังแนบใบยืนยัน…' : file ? verb : `${verb} (เลือกไฟล์ก่อน)`}
       </button>
     </>
   )
   if (replace) return (
     <div className="grid gap-2">
       {pick}
-      {replaced && <p role="status" className="rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">เปลี่ยน PDF ใบยืนยันแล้ว · ปุ่มเปิด PDF ด้านบนเปิดใบใหม่</p>}
+      {replaced && <p role="status" className="rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">เปลี่ยนใบยืนยันที่ลูกค้าเซ็นแล้ว · ปุ่มเปิดใบด้านบนเปิดใบใหม่</p>}
       {error && <p role="alert" className="text-danger">{error}</p>}
     </div>
   )
   return (
     <div className="grid gap-2 rounded-xl border border-warn/30 bg-warn-soft p-3">
-      <p className="font-medium text-warn">ยังไม่มี PDF ใบยืนยันที่ลูกค้าเซ็น</p>
+      <p className="font-medium text-warn">ยังไม่มีใบยืนยันที่ลูกค้าเซ็น · แนบ PDF หรือรูปถ่าย/สแกนใบที่เซ็นได้</p>
       {pick}
       {error && <p role="alert" className="text-danger">{error}</p>}
     </div>
@@ -268,7 +269,7 @@ function ReviseConfirmation({ job, hasPdf, refresh }: { job: Job; hasPdf: boolea
         </li>
         {hasPdf && (
           <li className="grid gap-1">
-            <span>ได้ใบที่ลูกค้าเซ็นแล้ว แนบแทนใบเดิม (ประวัติงานบันทึกว่าเปลี่ยน PDF)</span>
+            <span>ได้ใบที่ลูกค้าเซ็นแล้ว แนบแทนใบเดิม เป็น PDF หรือรูป (ประวัติงานบันทึกว่าเปลี่ยนใบ)</span>
             <AttachPdf job={job} refresh={refresh} replace />
           </li>
         )}
@@ -305,6 +306,7 @@ function OpenInForm({ job }: { job: Job }) {
 
 // ลิงก์มีอายุ 5 นาที เพราะไฟล์ไม่เปิดสาธารณะ
 function OpenPdf({ path }: { path: string }) {
+  const image = isSignedImage(path)
   const [error, setError] = useState('')
   const [link, setLink] = useState('')
   async function open() {
@@ -316,7 +318,7 @@ function OpenPdf({ path }: { path: string }) {
     const url = r.ok ? r.urls.get(path) : undefined
     if (!url) {
       win?.close()
-      setError(r.ok ? 'เปิด PDF นี้ไม่ได้ (ไม่มีสิทธิ์ หรือไฟล์หาย) แจ้งแอดมินให้แนบใหม่' : r.reason)
+      setError(r.ok ? (image ? 'เปิดรูปใบยืนยันนี้ไม่ได้ (ไม่มีสิทธิ์ หรือไฟล์หาย) แจ้งแอดมินให้แนบใหม่' : 'เปิด PDF นี้ไม่ได้ (ไม่มีสิทธิ์ หรือไฟล์หาย) แจ้งแอดมินให้แนบใหม่') : r.reason)
       return
     }
     if (win) win.location.href = url
@@ -325,7 +327,7 @@ function OpenPdf({ path }: { path: string }) {
   }
   return (
     <div className="grid gap-1">
-      <button type="button" className={secondaryBtn} onClick={() => void open()}><Tr th="เปิด PDF ใบยืนยัน" /></button>
+      <button type="button" className={secondaryBtn} onClick={() => void open()}><Tr th={image ? 'เปิดรูปใบยืนยันที่ลูกค้าเซ็น' : 'เปิด PDF ใบยืนยัน'} /></button>
       {link && (
         <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center font-medium text-brand underline">
           <Tr th="ถ้าไฟล์ไม่เปิดขึ้นมา กดที่นี่ (ลิงก์ใช้ได้ 5 นาที)" />

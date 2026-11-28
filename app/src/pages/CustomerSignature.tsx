@@ -3,16 +3,17 @@ import { Dialog, dangerBtn, fieldClass, primaryBtn, secondaryBtn } from '../comp
 import { FilePick } from '../components/FilePick'
 import { IconCheck } from '../components/icons'
 import {
-  cropOnImage, cropToPng, loadSignature, removeSignature, saveSignature, signatureIsCurrent,
+  cropOnImage, cropToPng, fetchAttached, loadSignature, removeSignature, saveSignature, signatureIsCurrent,
   type CropBox, type CustomerSignature,
 } from '../data/customerSignature'
 import { mockupProblem } from '../data/mockups'
+import { isSignedImage } from '../data/confirmation'
 import { thaiDay, type Job } from '../proto/model'
 import { thaiFullDate } from '../proto/format'
 
 type Loaded = { sig: CustomerSignature | null; url: string | null; currentRev: number }
 
-export function CustomerSignaturePanel({ job }: { job: Job }) {
+export function CustomerSignaturePanel({ job, attached }: { job: Job; attached: string | null }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -65,14 +66,14 @@ export function CustomerSignaturePanel({ job }: { job: Job }) {
       {error && <p role="alert" className="text-danger">{error}</p>}
       {error && !loaded && <button type="button" className={secondaryBtn} onClick={reload}>ลองโหลดลายเซ็นอีกครั้ง</button>}
       {cropping && loaded && (
-        <CropDialog job={job} rev={loaded.currentRev} onClose={() => setCropping(false)}
+        <CropDialog job={job} rev={loaded.currentRev} attached={attached} onClose={() => setCropping(false)}
           onSaved={async () => { setCropping(false); setNotice('บันทึกลายเซ็นลูกค้าแล้ว · ใบฉบับโรงงานแสดงลายเซ็นในช่องลูกค้า'); reload() }} />
       )}
     </div>
   )
 }
 
-function CropDialog({ job, rev, onClose, onSaved }: { job: Job; rev: number; onClose: () => void; onSaved: () => void }) {
+function CropDialog({ job, rev, attached, onClose, onSaved }: { job: Job; rev: number; attached: string | null; onClose: () => void; onSaved: () => void }) {
   const [file, setFile] = useState<File | null>(null)
   const [src, setSrc] = useState('')
   const [box, setBox] = useState<CropBox | null>(null)
@@ -82,6 +83,7 @@ function CropDialog({ job, rev, onClose, onSaved }: { job: Job; rev: number; onC
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [broken, setBroken] = useState(false)
+  const [fetching, setFetching] = useState(false)
   const img = useRef<HTMLImageElement>(null)
   const start = useRef<{ x: number; y: number } | null>(null)
 
@@ -93,6 +95,16 @@ function CropDialog({ job, rev, onClose, onSaved }: { job: Job; rev: number; onC
     setDims(null)
     setBroken(false)
     setError('')
+  }
+
+  async function openAttached() {
+    if (!attached) return
+    setFetching(true)
+    setError('')
+    const r = await fetchAttached(attached)
+    setFetching(false)
+    if (!r.ok) { setError(r.reason); return }
+    pick(r.file)
   }
 
   const point = (e: PointerEvent) => {
@@ -141,6 +153,11 @@ function CropDialog({ job, rev, onClose, onSaved }: { job: Job; rev: number; onC
       <div className="mt-3 grid gap-3">
         <p className="text-muted">ถ่ายรูปหรือแคปหน้าจอใบที่ลูกค้าเซ็น (ถ้าได้เป็น PDF ให้แคปหน้าที่มีลายเซ็น) แล้วลากกรอบรอบลายเซ็น</p>
         <p className="rounded-lg bg-warn-soft p-2 text-sm font-medium text-warn">ลายเซ็นนี้จะนับเป็นของใบยืนยันครั้งที่ {rev} (ใบล่าสุด) · ตัดจากใบครั้งที่ {rev} ที่ลูกค้าเซ็นเท่านั้น</p>
+        {attached && isSignedImage(attached) && (
+          <button type="button" className={file ? secondaryBtn : primaryBtn} disabled={fetching || busy} onClick={() => void openAttached()}>
+            {fetching ? 'กำลังเปิดรูปใบที่แนบไว้…' : 'ใช้รูปใบที่ลูกค้าเซ็นที่แนบไว้ในงาน'}
+          </button>
+        )}
         <FilePick accept="image/jpeg,image/png,image/webp" label={file ? 'เลือกรูปอื่น' : 'เลือกรูปใบที่ลูกค้าเซ็น'} chosen={file?.name ?? ''}
           onPick={f => pick(f ?? null)} />
         {problem && <p role="alert" className="text-danger">{problem}</p>}

@@ -183,16 +183,31 @@ export function reviseArgs(raw: unknown): ReviseArgs | null {
 }
 
 // ชื่อไฟล์ใช้อังกฤษ/ตัวเลขเท่านั้น (ชื่อไทยอัปโหลดไม่ผ่าน) · ชื่อไฟล์ = ลายนิ้วมือเนื้อไฟล์ ส่งซ้ำได้ไฟล์เดิม
-export function confirmationPath(no: string, key: string): string {
-  const safe = no.trim().replace(/[^A-Za-z0-9-]/g, '_') || 'job'
-  return `${safe}/${key}.pdf`
+export const SIGNED_TYPES = { pdf: 'application/pdf', jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' } as const
+export type SignedExt = keyof typeof SIGNED_TYPES
+export const SIGNED_ACCEPT = 'application/pdf,.pdf,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp'
+
+// บางเครื่อง (Android / ไฟล์จากแอปแชต) ไม่บอกชนิดไฟล์ จึงดูนามสกุลด้วย · Worker ตรวจเนื้อไฟล์อีกชั้น
+export function signedExt(file: { name: string; type: string }): SignedExt | null {
+  const byType = (Object.keys(SIGNED_TYPES) as SignedExt[]).find(k => SIGNED_TYPES[k] === file.type)
+  if (byType) return byType
+  if (file.type && file.type !== 'application/octet-stream') return null
+  const ext = /\.(pdf|jpe?g|png|webp)$/i.exec(file.name)?.[1].toLowerCase()
+  return ext === 'jpeg' ? 'jpg' : (ext as SignedExt | undefined) ?? null
 }
+
+export function confirmationPath(no: string, key: string, ext: SignedExt = 'pdf'): string {
+  const safe = no.trim().replace(/[^A-Za-z0-9-]/g, '_') || 'job'
+  return `${safe}/${key}.${ext}`
+}
+
+export const isSignedImage = (path: string) => /\.(jpg|png|webp)$/i.test(path)
 
 export const MAX_PDF_BYTES = 20 * 1024 * 1024
 
-export function pdfProblem(file: { name: string; size: number; type: string } | null): string | null {
-  if (!file) return 'ต้องแนบ PDF ใบยืนยันที่ลูกค้าเซ็นครบ'
-  if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) return 'ไฟล์ต้องเป็น PDF'
+export function signedFileProblem(file: { name: string; size: number; type: string } | null): string | null {
+  if (!file) return 'ต้องแนบใบยืนยันที่ลูกค้าเซ็นครบ (PDF หรือรูป)'
+  if (!signedExt(file)) return 'ไฟล์ต้องเป็น PDF หรือรูป (JPG / PNG / WEBP)'
   if (file.size > MAX_PDF_BYTES) return `ไฟล์ใหญ่ ${(Math.ceil(file.size / 104857.6) / 10).toFixed(1)} MB เกิน 20 MB ให้ย่อไฟล์ก่อน หรือใช้ PDF ที่ฟอร์มสร้าง`
   return null
 }

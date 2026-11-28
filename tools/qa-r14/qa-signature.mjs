@@ -1,4 +1,4 @@
-// ลายเซ็นลูกค้า: แอดมินตัดลายเซ็นจากรูปใบที่เซ็น → ฝ่ายผลิตเปิด "ดูใบยืนยัน" เห็นลายเซ็นในช่องลูกค้าของฉบับโรงงาน
+// ลายเซ็นลูกค้า: แอดมินแนบรูปใบที่เซ็น · ตัดลายเซ็นจากรูปในเครื่องหรือรูปที่แนบไว้ → ฝ่ายผลิตเปิด "ดูใบยืนยัน" เห็นลายเซ็นในช่องลูกค้าของฉบับโรงงาน
 import assert from 'node:assert/strict'
 import { startLocalStack } from './server.mjs'
 import { openChrome, waitFor } from './chrome.mjs'
@@ -51,6 +51,27 @@ try {
   await step('admin-sees-no-signature-yet', async () => {
     await t.goto('admin1', `#/board?job=${jobId}`, 1440)
     await t.waitText('ยังไม่มีลายเซ็นลูกค้าในใบฉบับโรงงาน')
+  })
+
+  await step('admin-attaches-signed-photo', async () => {
+    await t.waitText('ยังไม่มีใบยืนยันที่ลูกค้าเซ็น')
+    await t.uploadFiles('input[type="file"][aria-label="เลือกใบยืนยันที่ลูกค้าเซ็น (PDF หรือรูป)"]', [fixtures.paths.backJpg])
+    await t.clickButton('แนบใบยืนยันที่ลูกค้าเซ็น', { exact: true })
+    await t.waitText('เปิดรูปใบยืนยันที่ลูกค้าเซ็น', 15000)
+    const [row] = await sql('select confirmation_pdf_path p from public.jobs where id = $1', [jobId])
+    assert.match(row.p, /^SC-SIG-1\/[0-9a-f]+\.jpg$/)
+    const stored = stack.r2Store.get(`confirmations/${row.p}`)
+    assert.equal(stored?.type, 'image/jpeg')
+    await tab.ev(() => { window.open = () => null })
+    await t.clickButton('เปิดรูปใบยืนยันที่ลูกค้าเซ็น', { exact: true })
+    await t.waitText('ถ้าไฟล์ไม่เปิดขึ้นมา กดที่นี่')
+    const href = await tab.ev(() => [...document.querySelectorAll('a')].find(a => a.textContent.includes('กดที่นี่'))?.href)
+    const got = await fetch(href)
+    assert.equal(got.status, 200)
+    assert.equal(got.headers.get('content-type'), 'image/jpeg')
+    const ev = await sql(`select payload->>'path' p from public.events where job_id = $1 and type = 'confirmation_pdf'`, [jobId])
+    assert.equal(ev.length, 1)
+    return row.p
   })
 
   await step('admin-crops-and-saves-signature', async () => {
@@ -117,6 +138,22 @@ try {
     await t.clickButton('ลบลายเซ็น', { exact: true })
     await t.waitText('ลบลายเซ็นลูกค้าแล้ว')
     assert.equal((await sql('select customer_signature_path p from public.jobs where id = $1', [jobId]))[0].p, null)
+  })
+
+  await step('admin-crops-from-attached-photo', async () => {
+    await t.goto('admin1', `#/board?job=${jobId}`, 1440)
+    await t.clickButton('ตัดลายเซ็นลูกค้า', { exact: true })
+    await t.clickButton('ใช้รูปใบที่ลูกค้าเซ็นที่แนบไว้ในงาน', { exact: true })
+    await waitFor(() => tab.ev(() => { const i = document.querySelector('[data-crop-area] img'); return !!i?.complete && i.naturalWidth > 0 }), 'รูปใบที่แนบไว้โหลด', 15000)
+    const size = await tab.ev(() => { const i = document.querySelector('[data-crop-area] img'); return [i.naturalWidth, i.naturalHeight] })
+    assert.deepEqual(size, [600, 600])
+    await drag('[data-crop-area] img', [0.1, 0.5], [0.9, 0.8])
+    await t.clickButton('บันทึกลายเซ็น', { exact: true })
+    await t.waitText('บันทึกลายเซ็นลูกค้าแล้ว', 15000)
+    const [row] = await sql('select customer_signature_path p, customer_signature_rev r from public.jobs where id = $1', [jobId])
+    assert.match(row.p, /^SC-SIG-1\/sig[0-9a-f]+\.png$/)
+    assert.equal(row.r, 1)
+    return row.p
   })
 
   await step('no-console-errors', async () => {

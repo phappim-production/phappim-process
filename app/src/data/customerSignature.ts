@@ -1,6 +1,6 @@
 import { rpc } from './useFactoryData'
 import { contentKey, mockupPath, signedUrls } from './mockups'
-import { uploadFile } from './files'
+import { signFiles, uploadFile } from './files'
 
 export type CustomerSignature = { path: string; signedOn: string; rev: number; currentRev: number }
 export type CropBox = { x: number; y: number; w: number; h: number }
@@ -75,6 +75,21 @@ export async function saveSignature(job: { id: string; no: string }, png: Blob, 
 export async function removeSignature(jobId: string): Promise<{ ok: true } | { ok: false; reason: string }> {
   const r = await rpc('set_customer_signature', { p_job: jobId, p_path: null, p_signed_on: null })
   return r.ok ? { ok: true } : { ok: false, reason: r.reason }
+}
+
+export async function fetchAttached(path: string, fetcher: typeof fetch = (...a) => fetch(...a)): Promise<{ ok: true; file: File } | { ok: false; reason: string }> {
+  const r = await signFiles('confirmations', [path], 300)
+  if (!r.ok) return r
+  const url = r.urls.get(path)
+  if (!url) return { ok: false, reason: 'เปิดใบที่แนบไว้ไม่ได้ (ไม่มีสิทธิ์ หรือไฟล์หาย) เลือกรูปจากเครื่องแทน' }
+  try {
+    const res = await fetcher(url)
+    if (!res.ok) return { ok: false, reason: 'เปิดใบที่แนบไว้ไม่ได้ ลองอีกครั้ง หรือเลือกรูปจากเครื่องแทน' }
+    const blob = await res.blob()
+    return { ok: true, file: new File([blob], path.slice(path.lastIndexOf('/') + 1), { type: blob.type }) }
+  } catch {
+    return { ok: false, reason: 'โหลดใบที่แนบไว้ไม่ได้ (เน็ตหลุด) ลองอีกครั้ง หรือเลือกรูปจากเครื่องแทน' }
+  }
 }
 
 // ส่งให้ฟอร์มเฉพาะตอนเปิดดูฉบับโรงงาน (ลิงก์ 1 ชั่วโมง ไม่เก็บลงสเปกของงาน)

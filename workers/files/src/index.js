@@ -2,14 +2,14 @@ export const MAX_BYTES = 20 * 1024 * 1024
 export const THUMB_MAX_BYTES = 1024 * 1024
 const THUMB_SUFFIX = '.thumb.jpg'
 
-// เวลาหมดอายุปัดขึ้นถึงขอบช่วง: ขอซ้ำในช่วงเดียวกันได้ลิงก์เดิม เบราว์เซอร์ใช้ cache ได้ · อายุจริง ≤ maxAskSeconds + linkBucketSeconds (PDF ≤ 10 นาที รูป ≤ 2 ชม.)
+// เวลาหมดอายุปัดขึ้นถึงขอบช่วง: ขอซ้ำในช่วงเดียวกันได้ลิงก์เดิม เบราว์เซอร์ใช้ cache ได้ · อายุจริง ≤ maxAskSeconds + linkBucketSeconds (ใบยืนยัน ≤ 10 นาที รูป ≤ 2 ชม.)
 const KINDS = {
   confirmations: {
-    path: /^[A-Za-z0-9_-]{1,200}\/[A-Za-z0-9]{1,64}\.pdf$/,
-    types: { pdf: 'application/pdf' },
+    path: /^[A-Za-z0-9_-]{1,200}\/[A-Za-z0-9]{1,64}\.(?:pdf|jpg|png|webp)$/,
+    types: { pdf: 'application/pdf', jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' },
     maxAskSeconds: 9 * 60,
     linkBucketSeconds: 60,
-    wrongType: 'ไฟล์ใบยืนยันต้องเป็น PDF',
+    wrongType: 'ไฟล์ใบยืนยันต้องเป็น PDF หรือรูป (JPG / PNG / WEBP)',
   },
   mockups: {
     path: /^[A-Za-z0-9_-]{1,200}\/(?:sheet\/)?[A-Za-z0-9]{1,64}\.(?:jpg|png|webp)$/,
@@ -156,7 +156,7 @@ async function upload(request, env, fetcher, kind, path) {
   }
   if (bytes.byteLength > MAX_BYTES) return fail(request, env, 413, TOO_BIG)
   if (bytes.byteLength !== declared) return fail(request, env, 400, 'ไฟล์มาไม่ครบ (เน็ตหลุดระหว่างส่ง) ให้กดอัปโหลดอีกครั้ง')
-  if (!contentMatches(type, bytes)) return fail(request, env, 415, `เนื้อไฟล์ไม่ใช่ ${kind === 'confirmations' ? 'PDF' : kind === 'station_photos' ? 'ภาพ JPG' : 'ภาพ JPG / PNG / WEBP'} ให้บันทึกไฟล์ใหม่แล้วเลือกอีกครั้ง`)
+  if (!contentMatches(type, bytes)) return fail(request, env, 415, `เนื้อไฟล์ไม่ใช่ ${type === 'application/pdf' ? 'PDF' : kind === 'station_photos' ? 'ภาพ JPG' : 'ภาพ JPG / PNG / WEBP'} ให้บันทึกไฟล์ใหม่แล้วเลือกอีกครั้ง`)
 
   const key = `${kind}/${path}`
   let head = await env.FILES.head(key)
@@ -262,6 +262,8 @@ async function serve(request, env, now, kind, path, url) {
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
       'Cross-Origin-Resource-Policy': 'cross-origin',
+      // แอปอ่านไฟล์ใบยืนยันที่แนบไว้มาตัดลายเซ็น (fetch ข้ามโดเมน)
+      ...corsHeaders(request, env),
     },
   })
 }

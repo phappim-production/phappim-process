@@ -53,7 +53,7 @@ export async function r2FileTests({ db, ok, as }) {
   await tryAs('รูปม็อคอัพ WEBP ผ่าน', U.admin, allowed('mockups', 'SC-R2-M/a1.webp', 10, 'image/webp'))
   await tryAs('นามสกุลไม่ตรงชนิดไฟล์ ถูกปฏิเสธ', U.admin, allowed('mockups', 'SC-R2-M/abc.png', 10, 'image/jpeg'), /JPG \/ PNG \/ WEBP/)
   await tryAs('PDF ส่งเป็นรูปม็อคอัพไม่ได้', U.admin, allowed('mockups', 'SC-R2-M/abc.pdf', 10, 'application/pdf'), /JPG \/ PNG \/ WEBP/)
-  await tryAs('รูปส่งเป็นใบยืนยันไม่ได้', U.admin, allowed('confirmations', 'SC-R2-A/abc.jpg', 10, 'image/jpeg'), /ต้องเป็น PDF/)
+  await tryAs('ไฟล์ Word ส่งเป็นใบยืนยันไม่ได้', U.admin, allowed('confirmations', 'SC-R2-A/abc.docx', 10, 'application/msword'), /ต้องเป็น PDF หรือรูป/)
   await tryAs('path ย้อนโฟลเดอร์ไม่ได้', U.admin, allowed('confirmations', '../SC-R2-A/abc.pdf', 10, 'application/pdf'), /ต้องเป็น PDF/)
   await tryAs('path มีช่องว่างไม่ได้', U.admin, allowed('mockups', 'SC-R2-M/a b.jpg', 10, 'image/jpeg'), /JPG/)
   await tryAs('ประเภทไฟล์อื่นไม่ได้', U.admin, allowed('other', 'SC-R2-M/a.jpg', 10, 'image/jpeg'), /ไม่รู้จักประเภทไฟล์/)
@@ -69,7 +69,7 @@ export async function r2FileTests({ db, ok, as }) {
   await tryAs('ลายเซ็นถูกต้องแต่เกิน 20 MB บันทึกไม่ได้', U.admin, record('mockups', 'SC-R2-M/big.jpg', MiB20 + 1, 'image/jpeg'), /เกิน 20 MB/)
 
   const receive = (no, pdf) => `select public.receive_job('${no}', 'ลูกค้า R2', 'งาน R2', 'tshirt', 10, 'ตัว', '2026-12-31', 'normal', ${q(pdf)})`
-  await tryAs('PDF ที่ยังไม่อยู่ใน R2 ส่งงานเข้าไม่ได้', U.admin, receive('SC-R2-A', pdfA), /ยังไม่พบไฟล์ PDF/)
+  await tryAs('PDF ที่ยังไม่อยู่ใน R2 ส่งงานเข้าไม่ได้', U.admin, receive('SC-R2-A', pdfA), /ยังไม่พบไฟล์ใบยืนยัน/)
   await tryAs('Worker ยืนยัน PDF แล้ว บันทึกได้', U.admin, record('confirmations', pdfA, 1000, 'application/pdf'))
   await tryAs('อัปโหลดซ้ำหลังเน็ตหลุด บันทึกซ้ำได้ไม่ error', U.admin, record('confirmations', pdfA, 1000, 'application/pdf'))
   ok('อัปโหลดซ้ำไม่สร้างรายการไฟล์ซ้ำ', await val(`select count(*)::int from private.file_objects where path = '${pdfA}'`) === 1)
@@ -79,7 +79,7 @@ export async function r2FileTests({ db, ok, as }) {
   await tryAs('ส่งงานเข้าโดยไม่มี PDF ได้', U.admin, receive('SC-R2-M', null))
   const jobM = await val(`select id from public.jobs where confirmation_no = 'SC-R2-M'`)
   const pdfM = 'SC-R2-M/1122334455667788.pdf'
-  await tryAs('แนบ PDF ทีหลังที่ยังไม่อยู่ใน R2 ไม่ได้', U.admin, `select public.attach_confirmation_pdf('${jobM}', '${pdfM}')`, /ยังไม่พบไฟล์ PDF/)
+  await tryAs('แนบ PDF ทีหลังที่ยังไม่อยู่ใน R2 ไม่ได้', U.admin, `select public.attach_confirmation_pdf('${jobM}', '${pdfM}')`, /ยังไม่พบไฟล์ใบยืนยัน/)
   await as(U.admin, () => db.query(record('confirmations', pdfM, MiB20, 'application/pdf')))
   await tryAs('แนบ PDF 20 MiB ที่อยู่ใน R2 แล้วได้', U.admin, `select public.attach_confirmation_pdf('${jobM}', '${pdfM}')`)
 
