@@ -152,7 +152,7 @@ export async function flowR8Tests({ db, ok }) {
         add_finish_photos: [id, station ?? 'cut', ['TEST/cut/1/ab12.jpg']], set_station_photos_enabled: [false], station_photo_flags: [],
         ack_confirmation_revision: [id, station ?? 'cut'], confirmation_revision_flags: [],
         set_job_materials: [id, ['ผ้า']], add_material_photos: [id, [photo]], remove_material_photo: [0], release_job: [id], add_job_material: [id, 'ผ้า', null, true], set_material_eta: [0, null],
-        set_customer_signature: [id, photo, day], job_customer_signature: [id],
+        set_customer_signature: [id, photo, day], set_approver_signature: [id, photo, day], job_customer_signature: [id],
       }
       assert.deepEqual(functions.filter(name => !Object.hasOwn(args, name)), [])
       for (const name of functions) {

@@ -137,6 +137,7 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
       add_job_material: [admin, [waiting, 'ด้าย', null, true]],
       set_material_eta: [admin, [item.id, '2099-01-05T03:00:00Z']],
       set_customer_signature: [admin, [queued, signature, '2026-11-01']],
+      set_approver_signature: [admin, [queued, signature, '2026-11-01']],
       job_customer_signature: [all, [queued]],
     }
     const probes = [...Object.keys(roster), 'anon']
@@ -165,7 +166,7 @@ export async function roleMatrix({ check, rows, rpc, skipQueue, point, receive, 
       result.push({ name, expected, cells })
     }
     console.log('R13_MATRIX ' + JSON.stringify({ probes, result, discrepancies }))
-    assert.equal(result.length, 57)
+    assert.equal(result.length, 58)
     assert.equal(discrepancies.filter(item => ['anon', 'disabled'].includes(item.actor)).length, 0)
     assert.deepEqual(documented.sort(), Object.keys(rowsToTest).sort())
     return result.length + ' RPC × ' + probes.length + ' บัญชี'

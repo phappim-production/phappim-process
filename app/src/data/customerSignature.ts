@@ -55,25 +55,44 @@ export const currentRevOf = (raw: unknown): number => {
   return Number.isFinite(n) ? n : 0
 }
 
-export async function loadSignature(jobId: string): Promise<{ ok: true; sig: CustomerSignature | null; url: string | null; currentRev: number } | { ok: false; reason: string }> {
-  const r = await rpc('job_customer_signature', { p_job: jobId }, { read: true })
-  if (!r.ok) return { ok: false, reason: r.reason }
-  const sig = parseSignature(r.data)
-  const currentRev = currentRevOf(r.data)
-  if (!sig) return { ok: true, sig: null, url: null, currentRev }
-  return { ok: true, sig, url: (await signedUrls([sig.path])).get(sig.path) ?? null, currentRev }
+export type SignatureWho = 'customer' | 'approver'
+export const SIGNER_NAME: Record<SignatureWho, string> = { customer: 'ลูกค้า', approver: 'ผู้อนุมัติ' }
+export type Signatures = Record<SignatureWho, CustomerSignature | null> & { currentRev: number }
+
+export function parseSignatures(raw: unknown): Signatures {
+  const currentRev = currentRevOf(raw)
+  const approver = raw && typeof raw === 'object' ? (raw as Record<string, unknown>).approver : null
+  return {
+    customer: parseSignature(raw),
+    approver: approver && typeof approver === 'object' ? parseSignature({ ...approver, current_rev: currentRev }) : null,
+    currentRev,
+  }
 }
 
-export async function saveSignature(job: { id: string; no: string }, png: Blob, signedOn: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+export type LoadedSignatures = Signatures & { urls: Record<SignatureWho, string | null> }
+
+export async function loadSignatures(jobId: string): Promise<({ ok: true } & LoadedSignatures) | { ok: false; reason: string }> {
+  const r = await rpc('job_customer_signature', { p_job: jobId }, { read: true })
+  if (!r.ok) return { ok: false, reason: r.reason }
+  const sigs = parseSignatures(r.data)
+  const paths = [sigs.customer?.path, sigs.approver?.path].filter((p): p is string => !!p)
+  const links = paths.length ? await signedUrls(paths) : new Map<string, string>()
+  const url = (s: CustomerSignature | null) => (s && links.get(s.path)) ?? null
+  return { ok: true, ...sigs, urls: { customer: url(sigs.customer), approver: url(sigs.approver) } }
+}
+
+const SET_RPC: Record<SignatureWho, string> = { customer: 'set_customer_signature', approver: 'set_approver_signature' }
+
+export async function saveSignature(job: { id: string; no: string }, png: Blob, signedOn: string, who: SignatureWho = 'customer'): Promise<{ ok: true } | { ok: false; reason: string }> {
   const path = signaturePath(job.no, await contentKey(png))
   const up = await uploadFile('mockups', path, png, 'image/png')
   if (!up.ok) return up
-  const r = await rpc('set_customer_signature', { p_job: job.id, p_path: path, p_signed_on: signedOn })
+  const r = await rpc(SET_RPC[who], { p_job: job.id, p_path: path, p_signed_on: signedOn })
   return r.ok ? { ok: true } : { ok: false, reason: r.reason }
 }
 
-export async function removeSignature(jobId: string): Promise<{ ok: true } | { ok: false; reason: string }> {
-  const r = await rpc('set_customer_signature', { p_job: jobId, p_path: null, p_signed_on: null })
+export async function removeSignature(jobId: string, who: SignatureWho = 'customer'): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const r = await rpc(SET_RPC[who], { p_job: jobId, p_path: null, p_signed_on: null })
   return r.ok ? { ok: true } : { ok: false, reason: r.reason }
 }
 
@@ -92,9 +111,16 @@ export async function fetchAttached(path: string, fetcher: typeof fetch = (...a)
   }
 }
 
+export type FormSignature = { src: string; signed_on: string; rev: number; current_rev: number; at: number }
+
 // ส่งให้ฟอร์มเฉพาะตอนเปิดดูฉบับโรงงาน (ลิงก์ 1 ชั่วโมง ไม่เก็บลงสเปกของงาน)
-export async function signatureForForm(jobId: string): Promise<{ src: string; signed_on: string; rev: number; current_rev: number; at: number } | null> {
-  const r = await loadSignature(jobId)
-  if (!r.ok || !r.sig || !r.url) return null
-  return { src: r.url, signed_on: r.sig.signedOn, rev: r.sig.rev, current_rev: r.sig.currentRev, at: Date.now() }
+export async function signaturesForForm(jobId: string): Promise<{ customer_sig?: FormSignature; approver_sig?: FormSignature }> {
+  const r = await loadSignatures(jobId)
+  if (!r.ok) return {}
+  const form = (who: SignatureWho): FormSignature | undefined => {
+    const s = r[who], src = r.urls[who]
+    return s && src ? { src, signed_on: s.signedOn, rev: s.rev, current_rev: s.currentRev, at: Date.now() } : undefined
+  }
+  const customer = form('customer'), approver = form('approver')
+  return { ...(customer ? { customer_sig: customer } : {}), ...(approver ? { approver_sig: approver } : {}) }
 }

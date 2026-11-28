@@ -76,7 +76,10 @@ begin
             or exists (select 1 from public.mockup_views v where v.image_path = f.path)
             or exists (select 1 from public.jobs j where j.spec -> 'mockups' @> jsonb_build_array(jsonb_build_object('path', f.path)))
             or exists (select 1 from public.confirmation_drafts d where d.data ->> 'mockup_path' = f.path)
-            or exists (select 1 from public.confirmation_drafts d where d.data -> 'mockups' @> jsonb_build_array(jsonb_build_object('path', f.path)))))
+            or exists (select 1 from public.confirmation_drafts d where d.data -> 'mockups' @> jsonb_build_array(jsonb_build_object('path', f.path)))
+            or exists (select 1 from public.jobs j where f.path in (j.customer_signature_path, j.approver_signature_path))
+            or exists (select 1 from public.job_material_photos m where m.path = f.path)))
+      and not (f.kind = 'station_photos' and exists (select 1 from public.station_checks c where c.photos @> array[f.path]))
     returning f.kind, f.path
   )
   insert into golive_summary
