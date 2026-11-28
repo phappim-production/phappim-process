@@ -7,7 +7,7 @@ import { toJobs, type JobRow } from '../data/live'
 import { boardJobsFilter } from '../data/useFactoryData'
 import { AdminTodo } from '../pages/Overview'
 import { nextAction } from './actions'
-import { isFilmLate, isFilmNotOrdered, isWaitingFilm, needsFilm, queueHead, type Job } from './model'
+import { isFilmLate, isFilmNotOrdered, isWaitingFilm, needsFilm, queueHead, usesFilm, type Job } from './model'
 
 const now = new Date('2026-11-24T10:00:00+07:00')
 const job: Job = {
@@ -58,6 +58,16 @@ describe('เส้นทางฟิล์มที่ยังไม่ได�
     expect(needsFilm({ ...job, film, station: 'sew' })).toBe(false)
     expect(needsFilm({ ...job, station: 'cut' })).toBe(true)
     expect(needsFilm({ ...job, film: { ...film, received: true } })).toBe(false)
+  })
+
+  it('พิมพ์ + DTF: ต้องสั่งฟิล์มตั้งแต่อยู่สถานีพิมพ์ · รีดฟิล์มเสร็จแล้วไม่ต้องรอฟิล์ม', () => {
+    const printDtf: Job = { ...job, route: 'print_dtf', station: 'print' }
+    expect(usesFilm('print_dtf')).toBe(true)
+    expect(isFilmNotOrdered(printDtf)).toBe(true)
+    expect(needsFilm({ ...printDtf, station: 'dtf_press' })).toBe(true)
+    expect(needsFilm({ ...printDtf, station: 'sew' })).toBe(false)
+    expect(nextAction({ ...printDtf, station: 'dtf_press' }, now)?.text).toBe('ยังไม่ได้สั่งฟิล์ม DTF · แจ้งแอดมินสั่งก่อน ยังเริ่มรีดไม่ได้')
+    expect(nextAction({ ...printDtf, station: 'dtf_press', film: { eta: now, received: true } }, now)?.text).toBe('เริ่มรีดฟิล์ม')
   })
 
   it('ต้องทำตอนนี้ที่สถานีรีดฟิล์มบอกว่ายังไม่ได้สั่ง ไม่ใช่ให้เริ่มรีด', () => {

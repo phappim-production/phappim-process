@@ -10,7 +10,7 @@ const SERVICE = {
   press_only: { product: 'svc_press', spec: no => ({ product: 'svc_press', h: { doc_no: no }, p: {} }) },
   dtf_only: { product: 'svc_dtf', spec: no => ({ product: 'svc_dtf', h: { doc_no: no }, p: { svc_dtf: { film_source: 'โรงงานทำฟิล์ม' } } }) },
 }
-const ROUTES = ['normal', 'normal', 'dtf', 'print_emb', 'cut_only', 'outside', 'sew_only', 'print_only', 'print_press_only', 'press_only', 'dtf_only']
+const ROUTES = ['normal', 'normal', 'dtf', 'print_emb', 'print_dtf', 'cut_only', 'outside', 'sew_only', 'print_only', 'print_press_only', 'press_only', 'dtf_only']
 // คำตอบที่ถูกต้องตามกฎ (ไม่ใช่บั๊ก): เครื่อง/จักรเต็ม ต้องรอคิว
 const BUSY = /เต็ม|ไม่ว่าง|ไม่พอ|กำลังทำครบ|รอคิว/
 
