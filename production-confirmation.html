@@ -131,6 +131,13 @@ table.ft tfoot td{font-weight:700;background:#f7f8f6}
 .field.missing.hard input,.field.missing.hard .tbl-wrap,.field.missing.hard .opts .opt{border-color:#e6a49f}
 .alert{background:var(--warn-soft);border:1px solid #f0b9b4;color:var(--warn);border-radius:12px;padding:12px 16px;margin-bottom:14px}
 .alert b{display:block;margin-bottom:4px}
+.line-box{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px}
+.line-box[hidden]{display:none}
+.line-card{background:var(--card);border-radius:12px;padding:16px;width:100%;max-width:560px;max-height:100%;overflow:auto;display:grid;gap:10px}
+.line-card h2{margin:0;font-size:18px}
+.line-card textarea{width:100%;min-height:45vh;font-size:16px;line-height:1.6;border:1px solid var(--line);border-radius:8px;padding:10px}
+.line-card .row{display:flex;gap:8px;flex-wrap:wrap}
+.line-card .btn{min-height:48px;font-size:16px}
 .after-save{background:var(--accent-soft);border:1px solid var(--accent);color:var(--ink);border-radius:12px;padding:12px 16px;margin-bottom:14px;display:grid;gap:10px}
 .after-save .row{display:flex;flex-wrap:wrap;gap:8px}
 .after-save .btn{min-height:44px}
@@ -291,7 +298,7 @@ div[data-co-part].co-box{cursor:move;touch-action:none}
 }
 @media print{
   body{background:#fff}
-  .bar,#form,#nav,#afterSave,.alert,.toast,.page-note,.view-note{display:none!important}
+  .bar,#form,#nav,#afterSave,.alert,.toast,.page-note,.view-note,.line-box{display:none!important}
   main.layout{display:block;padding:0}
   #doc{display:block!important}
   .doc{width:auto;min-height:0;margin:0;padding:0;box-shadow:none}
@@ -311,6 +318,7 @@ div[data-co-part].co-box{cursor:move;touch-action:none}
     <button class="btn" data-act="savefile" title="บันทึกเป็นไฟล์ไว้เปิดแก้ไขหรือออกฉบับใหม่ภายหลัง">บันทึกไฟล์</button>
   </div>
   <button class="btn primary edit-only" data-act="savedb" title="เก็บใบนี้ในระบบติดตามการผลิต · ตอนส่งงานเข้าเลือกใบจากรายการได้เลย ไม่ต้องใช้ไฟล์">บันทึกเข้าระบบ</button>
+  <button class="btn" data-act="line" title="ข้อความสรุปงานนี้ ส่งในไลน์ทีมหรือคัดลอกไปวาง">สรุปส่งไลน์</button>
   <button class="btn" data-act="preview" id="btnPreview">ดูตัวอย่าง PDF</button>
   <button class="btn primary" data-act="export">ส่งออก PDF</button>
   <input type="file" id="openFile" accept=".json,application/json" hidden>
@@ -325,6 +333,17 @@ div[data-co-part].co-box{cursor:move;touch-action:none}
   </div>
 </main>
 <div class="toast" id="toast"></div>
+<div class="line-box" id="lineBox" hidden role="dialog" aria-modal="true" aria-labelledby="lineTitle">
+  <div class="line-card">
+    <h2 id="lineTitle">สรุปงานส่งไลน์</h2>
+    <textarea id="lineText" aria-label="ข้อความสรุปงาน (แก้ก่อนส่งได้)"></textarea>
+    <div class="row">
+      <button class="btn primary" data-act="lineshare" id="lineShare">ส่งเข้าไลน์ / แชร์</button>
+      <button class="btn" data-act="linecopy">คัดลอกข้อความ</button>
+      <button class="btn" data-act="lineclose">ปิด</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ตัวเลือกของฟอร์ม: แก้ตรงนี้เพื่อเพิ่ม/ลดตัวเลือก */
@@ -1902,6 +1921,10 @@ document.addEventListener('click',e=>{
   if(act==='back'){ if(history.length>1) history.back(); else location.href='/'; }
   if(act==='savedb'){ saveToSystem(); }
   if(act==='preview'){ togglePreview(); }
+  if(act==='line'){ openLine(); }
+  if(act==='lineshare'){ shareLine(); }
+  if(act==='linecopy'){ copyLine(); }
+  if(act==='lineclose'){ $('#lineBox').hidden=true; }
   if(act==='export'){ exportPdf(); }
 });
 
@@ -2135,6 +2158,7 @@ function openView(d){
     : `<b>ใบยืนยันในระบบ (ยังไม่เคยแก้)</b><span>ดูอย่างเดียว แก้ไม่ได้</span>`;
   $('#doc').before(note);
   document.title='ใบยืนยัน '+(d.h?.doc_no||'')+(r?' (แก้ไขครั้งที่ '+r.rev+')':'');
+  if(d.line) openLine();
 }
 
 // กด Enter = ไปช่องถัดไป (กรอกตารางไซซ์ได้เร็ว) · กันล้อเมาส์เปลี่ยนตัวเลขโดยไม่ตั้งใจ
@@ -2248,6 +2272,73 @@ function valText(f,v){
 function kvItems(fs,v,compact=false){
   return fs.map(f=>{ const t=valText(f,v), pic=f.type==='radio'&&optImg(v[f.id]); const wide=compact?f.type==='textarea'||t.length>60:f.type==='textarea'||t.length>40||pic;
     return t?`<div class="${wide?'w':''}"><span>${esc(f.label.replace(/ \(.*\)$/,''))}</span><b>${esc(t)}${pic?`<img class="optimg" src="${pic}" alt="">`:''}</b></div>`:''; }).join('');
+}
+// ส่งเข้ากลุ่มไลน์ จึงไม่ใส่ผู้ติดต่อ เบอร์ ที่อยู่ของลูกค้า
+const LINE_SKIP=new Set(['qty','spare','art_file','images','size_sets']);
+const lineDate=s=>{ const [y,m,d]=String(s).split('-'); return `${d.padStart(2,'0')}/${m.padStart(2,'0')}/${+y+543}`; };
+const oneLine=s=>String(s).replace(/\s*\n+\s*/g,' ').trim();
+function lineSummary(){
+  const h=state.h, v=scope('p'), P=prod(), typeId=TYPE_FIELD[state.product];
+  const head=[h.doc_no,h.customer].map(x=>String(x||'').trim()).filter(Boolean).join(' ');
+  const out=[head+(num(h.rev)>0?` (แก้ไขครั้งที่ ${h.rev})`:'')];
+  if(h.due_date) out.push('วันที่ส่งงาน '+lineDate(h.due_date));
+  const type=productType(v), name=String(h.job_name||'').trim();
+  out.push(name&&name!==type?`${type} · ${name}`:type);
+  allSecs().forEach(sec=>sec.fields.forEach(f=>{
+    if(!visible(f,v)||(naAllowed(f)&&isNA(f,v))||LINE_SKIP.has(f.id)||f.id===typeId) return;
+    if(f.type==='sizeTable'){
+      const cols=sizeCols(v);
+      rows(v,f.id).forEach(r=>{ const q=cols.filter(c=>num(r.q?.[c])>0); if(!q.length) return;
+        const sum=q.reduce((a,c)=>a+num(r.q[c]),0), label=oneLine(r.label||'');
+        out.push(`- ${label?label+': ':''}${q.map(c=>`${c} ${num(r.q[c])}`).join(', ')}${q.length>1?` (รวม ${sum})`:''}`); });
+      return;
+    }
+    if(f.type==='itemTable'){
+      const bare=l=>l.replace(/ \(.*\)$/,''), unitIn=l=>/\(([^)]+)\)$/.exec(l)?.[1]||P.unit;
+      rows(v,f.id,!!f.none).forEach(r=>{
+        const has=c=>c.t!=='img'&&!isNone(r[c.c]), lens=f.cols.filter(c=>c.len&&has(c)), cells=[];
+        f.cols.forEach((c,i)=>{
+          if(!has(c)) return;
+          const x=oneLine(r[c.c]);
+          if(c.len){ if(c===lens[0]) cells.push(`ขนาด ${lens.map(l=>oneLine(r[l.c])).join(' × ')} ${unitOf(f,v)}`); return; }
+          cells.push(c.sum?`${x} ${unitIn(c.label)}`:i===0?x:`${bare(c.label)} ${x}`);
+        });
+        if(cells.length) out.push('- '+cells.join(' · '));
+      });
+      return;
+    }
+    if(f.type==='placements'){
+      const ms=[].concat(v.print_method||[]).filter(m=>!/ไม่มีลาย/.test(m));
+      Object.entries(v[f.id]||{}).filter(([,p])=>p.on).forEach(([k,p])=>{
+        const size=String(p.size||'').trim();
+        out.push(`- ${k}: `+[p.tech||(ms.length===1?ms[0]:''), size&&`${size} ${unitOf(f,v)}`, p.note&&oneLine(p.note)].filter(Boolean).join(' '));
+      });
+      return;
+    }
+    const other=String(v[f.id+'__other']||'').trim(), own=x=>x===OTHER&&other?other:x;
+    const t=f.type==='radio'?(isNone(v[f.id])?'':own(v[f.id])):f.type==='check'?[].concat(v[f.id]||[]).filter(x=>!isNone(x)).map(own).join(', '):valText(f,v);
+    if(t) out.push(`- ${f.label.replace(/ \(.*\)$/,'')} ${oneLine(t)}`);
+  }));
+  out.push(`- จำนวนทั้งหมด ${totalQty().toLocaleString()} ${P.unit}`+(num(v.spare)>0?` (+ เผื่อเสีย ${v.spare} ${P.unit})`:''));
+  const sampleOn=sampleDateShown(h)&&h.sample_date?' · ส่งตัวอย่าง '+lineDate(h.sample_date):'';
+  if(h.sample===SAMPLE_YES) out.push(`(มีขึ้นตัวอย่าง 1 ${P.unit} ให้ลูกค้ายืนยันก่อนผลิตจริง${sampleOn})`);
+  if(h.sample===SAMPLE_DEV) out.push(`(งาน Develop · ทำตัวอย่างให้ลูกค้ายืนยัน ไม่ผลิตจริง${sampleOn})`);
+  return out.filter(Boolean).join('\n');
+}
+function openLine(){
+  $('#lineText').value=lineSummary();
+  $('#lineShare').hidden=typeof navigator==='undefined'||typeof navigator.share!=='function';
+  $('#lineBox').hidden=false;
+}
+async function copyLine(){
+  const t=$('#lineText');
+  try{ await navigator.clipboard.writeText(t.value); }
+  catch(e){ t.select(); if(!document.execCommand('copy')) return toast('คัดลอกไม่ได้ · กดค้างที่ข้อความแล้วเลือกคัดลอกเอง'); }
+  toast('คัดลอกแล้ว · เปิดไลน์แล้ววางได้เลย');
+}
+async function shareLine(){
+  try{ await navigator.share({ text:$('#lineText').value }); }
+  catch(e){ if(e&&e.name==='AbortError') return; copyLine(); }
 }
 function kvHTML(fs,v){
   const items=kvItems(fs,v);

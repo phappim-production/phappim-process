@@ -14,22 +14,28 @@ import { useT, type Word } from '../i18n/lang'
 
 const CONFIRMATION_FORM = '/confirmation'
 
+async function openConfirmationView(job: Job, extra: { line?: true }): Promise<string | null> {
+  // เปิดหน้าต่างก่อนรอข้อมูล ไม่อย่างนั้นเบราว์เซอร์บนมือถือจะบล็อกป๊อปอัป
+  const win = openFormWindow()
+  const [r, sigs] = await Promise.all([loadFormData(job.id), signaturesForForm(job.id)])
+  if (!r.ok) { win?.close(); return r.reason }
+  const rv = job.revision
+  const payload = { ...r.data, view: true, ...extra, ...sigs, ...(rv ? { revision: { rev: rv.rev, at: revisionWhen(rv.at), by: rv.by, fields: rv.fields } } : {}) }
+  try { window.localStorage.setItem(INBOX_KEY, JSON.stringify(payload)) } catch { win?.close(); return 'เปิดใบยืนยันไม่ได้ (พื้นที่เบราว์เซอร์เต็ม)' }
+  if (win) win.location.href = CONFIRMATION_FORM
+  else window.location.href = CONFIRMATION_FORM
+  return null
+}
+
 export function ViewConfirmation({ job, wide }: { job: Job; wide?: boolean }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   async function open() {
     setError('')
-    // เปิดหน้าต่างก่อนรอข้อมูล ไม่อย่างนั้นเบราว์เซอร์บนมือถือจะบล็อกป๊อปอัป
-    const win = openFormWindow()
     setBusy(true)
-    const [r, sigs] = await Promise.all([loadFormData(job.id), signaturesForForm(job.id)])
+    const problem = await openConfirmationView(job, {})
     setBusy(false)
-    if (!r.ok) { win?.close(); setError(r.reason); return }
-    const rv = job.revision
-    const payload = { ...r.data, view: true, ...sigs, ...(rv ? { revision: { rev: rv.rev, at: revisionWhen(rv.at), by: rv.by, fields: rv.fields } } : {}) }
-    try { window.localStorage.setItem(INBOX_KEY, JSON.stringify(payload)) } catch { win?.close(); setError('เปิดใบยืนยันไม่ได้ (พื้นที่เบราว์เซอร์เต็ม)'); return }
-    if (win) win.location.href = CONFIRMATION_FORM
-    else window.location.href = CONFIRMATION_FORM
+    if (problem) setError(problem)
   }
   return (
     <div className="grid gap-1">
@@ -37,6 +43,27 @@ export function ViewConfirmation({ job, wide }: { job: Job; wide?: boolean }) {
         <Tr th={busy ? 'กำลังเปิดใบยืนยัน…' : 'ดูใบยืนยัน (ฉบับล่าสุดในระบบ)'} />
       </button>
       {error && <p role="alert" className="text-danger"><Tr th={error} /></p>}
+    </div>
+  )
+}
+
+export function LineSummaryButton({ job }: { job: Job }) {
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  async function open() {
+    setError('')
+    setBusy(true)
+    const problem = await openConfirmationView(job, { line: true })
+    setBusy(false)
+    if (problem) setError(problem)
+  }
+  return (
+    <div className="grid gap-1">
+      <button type="button" className={secondaryBtn} disabled={busy} onClick={() => void open()}>
+        {busy ? 'กำลังเตรียมสรุปงาน…' : 'สรุปงานส่งไลน์'}
+      </button>
+      <p className="text-sm text-muted">ข้อความจากใบยืนยัน (เลขที่ใบ ลูกค้า วันส่ง สเปก จำนวน) แก้ก่อนส่งได้ · กดส่งเข้าไลน์หรือคัดลอกไปวาง</p>
+      {error && <p role="alert" className="text-danger">{error}</p>}
     </div>
   )
 }
