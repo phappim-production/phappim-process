@@ -165,9 +165,9 @@ export async function runConfirmationTests(client, browser, fixtures, { seed = 1
       Object.assign(scope('p'), { item: 'ผ้าเช็ดหน้า' })
       state.imgs = [1, 2, 3, 4].map(i => ({ name: `ลาย${i}.png`, src: dot, w: 3000, h: 3000 }))
       renderDoc()
-      const figs = [...document.querySelectorAll('#doc .d-mockpage .d-imgs figure')]
+      const figs = [...document.querySelectorAll('#doc .fd-mock .d-imgs figure')]
       const widths = new Set(figs.map(f => f.style.width))
-      const mh = document.querySelector('#doc .d-mockpage .d-imgs')?.style.getPropertyValue('--mh')
+      const mh = document.querySelector('#doc .fd-mock .d-imgs')?.style.getPropertyValue('--mh')
       out.allSameSize = figs.length === 4 && widths.size === 1 && !!mh
       out.notOldFixedHeight = mh !== '95mm' && parseFloat(mh) >= MOCK_MIN_H
       viewOnly = wasView
@@ -257,7 +257,7 @@ export async function runConfirmationTests(client, browser, fixtures, { seed = 1
       viewOnly = true
       state.product = 'scarf'
       renderDoc()
-      out.factoryKeepsCallouts = document.querySelector('#doc').innerText.includes('QAXCALLOUTQAX') && !!document.querySelector('#doc .d-mockpage')
+      out.factoryKeepsCallouts = document.querySelector('#doc').innerText.includes('QAXCALLOUTQAX') && !!document.querySelector('#doc .fd-mock .co-fig')
       viewOnly = wasView
       state = keep
       renderForm()
