@@ -3,22 +3,23 @@ import { supabase } from '../lib/supabase'
 import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { reviseArgs } from '../data/confirmation'
-import { SAVE_HASH, recentlyTaken, takeOutbox } from '../data/confirmationDrafts'
+import { SAVE_HASH, asNewDraft, recentlyTaken, takeOutbox } from '../data/confirmationDrafts'
 import { dataUrlBlob, mockupDataUrl, mockupFolder, uploadFormMockups, uploadMockup } from '../data/mockups'
 import { cardPath, formMockups, type JobMockup } from '../data/jobMockups'
 import { formInSameWindow } from '../lib/install'
 
 type Revised = { ok: 'revised'; no: string; rev: number; changed: boolean; picSaved: boolean; mockupRev: number | null; stale: number; parts: string[]; warning?: string | undefined }
-type Result = { ok: true; no: string; id: string; warning?: string | undefined } | { ok: false; text: string } | { ok: 'elsewhere'; no: string } | Revised
+type Result = { ok: true; no: string; id: string; warning?: string | undefined; reused?: boolean } | { ok: false; text: string } | { ok: 'elsewhere'; no: string } | Revised
 type ReviseReply = { changed: boolean; rev?: number; mockup_rev?: number | null; mockup_stale?: number; parts?: string[] | null }
 
-async function saveRevision(no: string, sent: Record<string, unknown>): Promise<Revised | { ok: false; text: string }> {
+async function saveRevision(no: string, sent: Record<string, unknown>): Promise<Revised | { ok: false; text: string } | { ok: 'cancelled' }> {
   const fail = (why: string) => ({ ok: false as const, text: `บันทึกการแก้ใบ ${no} ไม่สำเร็จ: ${why}` })
   if (!supabase) return fail('ยังไม่ได้ตั้งค่า Supabase')
-  const { data: job, error } = await supabase.from('jobs').select('id, mockup_path').eq('confirmation_no', no).maybeSingle()
+  const { data: job, error } = await supabase.from('jobs').select('id, mockup_path, phase').eq('confirmation_no', no).maybeSingle()
   if (error) return fail(thaiError(error.message))
   if (!job) return fail(`ไม่พบงาน ${no} ในระบบ (งานอาจถูกแบ่ง หรือเลขที่ใบในฟอร์มถูกเปลี่ยน)`)
-  const { id, mockup_path: current } = job as { id: string; mockup_path: string | null }
+  const { id, mockup_path: current, phase } = job as { id: string; mockup_path: string | null; phase: string }
+  if (phase === 'cancelled') return { ok: 'cancelled' }
   // รูปต้องเข้าที่เก็บก่อน สเปกจึงอ้างรูปได้ครบ · รูปไม่ผ่าน = ยังไม่แก้อะไรในงาน
   const { mockups: _m, ...data } = sent
   const items = formMockups(sent.mockups)
@@ -75,14 +76,19 @@ export function ConfirmationOutbox({ onReceive, onRevised }: { onReceive: (draft
         if (alive) setResult({ ok: false, text: 'ไม่พบใบยืนยันที่ส่งมาจากฟอร์ม ให้กด "บันทึกเข้าระบบ" ในฟอร์มอีกครั้ง' })
         return
       }
-      if (item.data.revise_job === true) {
-        const done = await saveRevision(item.no, item.data)
-        if (done.ok === 'revised' && (done.changed || done.picSaved)) await revised.current()
-        if (alive) setResult(done)
-        return
+      let sent = item.data
+      if (sent.revise_job === true) {
+        const done = await saveRevision(item.no, sent)
+        if (done.ok !== 'cancelled') {
+          if (done.ok === 'revised' && (done.changed || done.picSaved)) await revised.current()
+          if (alive) setResult(done)
+          return
+        }
+        sent = asNewDraft(sent)
       }
+      const reused = sent !== item.data
       // รูปม็อคอัพย่อจากฟอร์ม → ที่เก็บไฟล์ · ใบร่างเก็บแค่ path · อัปโหลดไม่ได้ = บันทึกใบต่อ (รูปเดิมยังอยู่) แล้วบอกให้รู้
-      const { mockup, mockups, ...data } = item.data
+      const { mockup, mockups, ...data } = sent
       const items = formMockups(mockups)
       const pic = items ? null : mockupDataUrl(mockup)
       let warning: string | undefined
@@ -102,7 +108,7 @@ export function ConfirmationOutbox({ onReceive, onRevised }: { onReceive: (draft
       }
       const r = await rpc<string>('save_confirmation_draft', { p_data: data })
       if (!alive) return
-      setResult(r.ok ? { ok: true, no: item.no, id: r.data, warning } : { ok: false, text: `บันทึกใบ ${item.no} ไม่สำเร็จ: ${r.reason}` })
+      setResult(r.ok ? { ok: true, no: item.no, id: r.data, warning, reused } : { ok: false, text: `บันทึกใบ ${item.no} ไม่สำเร็จ: ${r.reason}` })
     }
     void check()
     window.addEventListener('hashchange', check)
@@ -140,6 +146,7 @@ export function ConfirmationOutbox({ onReceive, onRevised }: { onReceive: (draft
   return (
     <div role="status" className="flex flex-wrap items-center gap-2 rounded-xl bg-ok-soft px-3 py-2 font-medium text-ok">
       <span>บันทึกใบยืนยัน {result.no} เข้าระบบแล้ว</span>
+      {result.reused && <span className="basis-full text-ink">งานเดิมเลขนี้ถูกยกเลิกแล้ว จึงบันทึกเป็นใบใหม่เลขเดิม (ไม่ใช่ใบแก้) · ส่งงานเข้าโรงงานแล้ว งานเก่าเปลี่ยนเลขเป็น "{result.no} (ยกเลิก)" ให้เอง</span>}
       {result.warning && <span className="basis-full text-warn">{result.warning}</span>}
       <button type="button" onClick={() => { setResult(null); onReceive(result.id) }}
         className="min-h-12 rounded-xl border border-ok/40 bg-card px-4 font-semibold text-ok">
