@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { confirmationPath, developChoice, draftFromConfirmation, pdfProblem, reviseArgs, sampleChoice, specYearProblem, syncConfirmationSpec, totalQty } from '../src/data/confirmation.ts'
+import { confirmationPath, developChoice, draftFromConfirmation, isSignedImage, reviseArgs, signedExt, signedFileProblem, sampleChoice, specYearProblem, syncConfirmationSpec, totalQty } from '../src/data/confirmation.ts'
 import { etaFromDay, missingSteps } from '../src/data/stationSteps.ts'
 
 const form = (over = {}) => ({
@@ -155,13 +155,30 @@ test('ชื่อไฟล์ PDF เป็นอังกฤษ/ตัวเ�
   assert.match(confirmationPath('SC 69/14 ไทย', key), /^[A-Za-z0-9_-]{1,200}\/[A-Za-z0-9]{1,64}\.pdf$/)
 })
 
-test('PDF: ต้องมีไฟล์ · ต้องเป็น PDF · ไม่เกิน 20 MB', () => {
-  assert.match(pdfProblem(null), /ต้องแนบ PDF/)
-  assert.match(pdfProblem({ name: 'a.jpg', size: 10, type: 'image/jpeg' }), /ต้องเป็น PDF/)
-  assert.match(pdfProblem({ name: 'a.pdf', size: 21 * 1024 * 1024, type: 'application/pdf' }), /เกิน 20 MB/)
-  assert.equal(pdfProblem({ name: 'a.pdf', size: 200_000, type: 'application/pdf' }), null)
-  assert.equal(pdfProblem({ name: 'a.pdf', size: 20 * 1024 * 1024, type: 'application/pdf' }), null)
-  assert.match(pdfProblem({ name: 'a.pdf', size: 20 * 1024 * 1024 + 1, type: 'application/pdf' }), /20\.1 MB เกิน 20 MB/)
+test('ใบที่ลูกค้าเซ็น: ต้องมีไฟล์ · PDF หรือรูป JPG / PNG / WEBP · ไม่เกิน 20 MB', () => {
+  assert.match(signedFileProblem(null), /ต้องแนบใบยืนยัน/)
+  assert.equal(signedFileProblem({ name: 'a.jpg', size: 10, type: 'image/jpeg' }), null)
+  assert.equal(signedFileProblem({ name: 'scan.PNG', size: 10, type: 'image/png' }), null)
+  assert.equal(signedFileProblem({ name: 'a.webp', size: 10, type: 'image/webp' }), null)
+  assert.match(signedFileProblem({ name: 'a.heic', size: 10, type: 'image/heic' }), /ต้องเป็น PDF หรือรูป/)
+  assert.match(signedFileProblem({ name: 'a.docx', size: 10, type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), /ต้องเป็น PDF หรือรูป/)
+  assert.match(signedFileProblem({ name: 'a.pdf', size: 21 * 1024 * 1024, type: 'application/pdf' }), /เกิน 20 MB/)
+  assert.equal(signedFileProblem({ name: 'a.pdf', size: 200_000, type: 'application/pdf' }), null)
+  assert.equal(signedFileProblem({ name: 'a.pdf', size: 20 * 1024 * 1024, type: 'application/pdf' }), null)
+  assert.match(signedFileProblem({ name: 'a.pdf', size: 20 * 1024 * 1024 + 1, type: 'application/pdf' }), /20\.1 MB เกิน 20 MB/)
+})
+
+test('ชนิดใบที่เซ็น: ดูชนิดไฟล์ก่อน · เครื่องที่ไม่บอกชนิดดูนามสกุล · .jpeg เก็บเป็น .jpg', () => {
+  assert.equal(signedExt({ name: 'x', type: 'image/jpeg' }), 'jpg')
+  assert.equal(signedExt({ name: 'IMG_01.JPEG', type: '' }), 'jpg')
+  assert.equal(signedExt({ name: 'ใบเซ็น.pdf', type: 'application/octet-stream' }), 'pdf')
+  assert.equal(signedExt({ name: 'a.png', type: 'image/gif' }), null)
+  assert.equal(signedExt({ name: 'a', type: '' }), null)
+  const key = '0a1b2c3d4e5f6071'
+  assert.equal(confirmationPath('SC691451', key, 'jpg'), `SC691451/${key}.jpg`)
+  assert.match(confirmationPath('SC 69/14', key, 'webp'), /^[A-Za-z0-9_-]{1,200}\/[A-Za-z0-9]{1,64}\.(pdf|jpg|png|webp)$/)
+  assert.equal(isSignedImage(`SC1/${key}.png`), true)
+  assert.equal(isSignedImage(`SC1/${key}.pdf`), false)
 })
 
 const steps = [

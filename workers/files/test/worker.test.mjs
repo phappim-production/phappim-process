@@ -54,11 +54,14 @@ function setup({ start = Date.UTC(2026, 10, 21, 2) } = {}) {
 const PDF = 'SC-1/0a1b2c3d4e5f6071.pdf'
 const JPG = 'SC-1/aabbccddeeff0011.jpg'
 
-test('ชนิดไฟล์ตาม path: PDF ใบยืนยัน / รูปม็อคอัพ / โฟลเดอร์ฉบับม็อคอัพ', () => {
+test('ชนิดไฟล์ตาม path: PDF / รูปใบยืนยัน / รูปม็อคอัพ / โฟลเดอร์ฉบับม็อคอัพ', () => {
   assert.equal(typeOfPath('confirmations', PDF), 'application/pdf')
+  assert.equal(typeOfPath('confirmations', JPG), 'image/jpeg')
+  assert.equal(typeOfPath('confirmations', 'SC-1/ab12.png'), 'image/png')
+  assert.equal(typeOfPath('confirmations', 'SC-1/ab12.webp'), 'image/webp')
   assert.equal(typeOfPath('mockups', 'SC-1/sheet/ab12.png'), 'image/png')
   assert.equal(typeOfPath('mockups', 'SC-1/ab12.webp'), 'image/webp')
-  for (const [kind, path] of [['mockups', PDF], ['confirmations', JPG], ['mockups', '../x/ab.jpg'], ['mockups', 'SC-1/a b.jpg'], ['other', JPG], ['mockups', 'SC-1/x/y/ab.jpg']]) {
+  for (const [kind, path] of [['mockups', PDF], ['confirmations', 'SC-1/ab12.gif'], ['confirmations', 'SC-1/sheet/ab12.jpg'], ['mockups', '../x/ab.jpg'], ['mockups', 'SC-1/a b.jpg'], ['other', JPG], ['mockups', 'SC-1/x/y/ab.jpg']]) {
     assert.equal(typeOfPath(kind, path), null, `${kind} ${path}`)
   }
 })
@@ -400,4 +403,32 @@ test('รูปจากสถานีต้องเป็น JPG จริง
   assert.equal(res.status, 415)
   assert.match((await res.json()).error, /ภาพ JPG/)
   assert.equal((await put('station_photos', STATION_JPG.replace('.jpg', '.png'), fileBytes('image/png', 100), { token: 'sup', type: 'image/png' })).status, 400)
+})
+
+test('รูปใบยืนยันที่ลูกค้าเซ็นอัปโหลดได้ · ชนิดต้องตรงนามสกุลและเนื้อไฟล์', async () => {
+  const { put, db } = setup()
+  assert.equal((await put('confirmations', JPG, fileBytes('image/jpeg', 500), { type: 'image/jpeg' })).status, 200)
+  assert.equal(db.records.get(`confirmations/${JPG}`), 500)
+  assert.equal((await put('confirmations', 'SC-1/ab12.png', fileBytes('image/png', 500), { type: 'image/png' })).status, 200)
+  assert.equal((await put('confirmations', 'SC-1/ab13.png', fileBytes('image/png', 500), { type: 'image/jpeg' })).status, 415)
+  const fake = await put('confirmations', 'SC-1/ab14.jpg', fileBytes('application/pdf', 500), { type: 'image/jpeg' })
+  assert.equal(fake.status, 415)
+  assert.match((await fake.json()).error, /ภาพ JPG \/ PNG \/ WEBP/)
+  const notPdf = await put('confirmations', PDF, fileBytes('image/png', 100))
+  assert.match((await notPdf.json()).error, /ไม่ใช่ PDF/)
+})
+
+test('ลิงก์เปิดไฟล์ตอบ CORS เฉพาะเว็บที่อนุญาต (แอปอ่านใบที่แนบมาตัดลายเซ็น)', async () => {
+  const { put, sign, handle, env, db } = setup()
+  await put('confirmations', JPG, fileBytes('image/jpeg', 300), { type: 'image/jpeg' })
+  db.referenced.add(`confirmations/${JPG}`)
+  const { urls } = await (await sign('confirmations', [JPG], { seconds: 300 })).json()
+  const ours = await handle(new Request(urls[JPG], { headers: { Origin: ORIGIN } }), env)
+  assert.equal(ours.status, 200)
+  assert.equal(ours.headers.get('Access-Control-Allow-Origin'), ORIGIN)
+  assert.equal(ours.headers.get('Content-Type'), 'image/jpeg')
+  const evil = await handle(new Request(urls[JPG], { headers: { Origin: 'https://evil.example' } }), env)
+  assert.equal(evil.headers.get('Access-Control-Allow-Origin'), null)
+  const plain = await handle(new Request(urls[JPG]), env)
+  assert.equal(plain.headers.get('Access-Control-Allow-Origin'), null)
 })

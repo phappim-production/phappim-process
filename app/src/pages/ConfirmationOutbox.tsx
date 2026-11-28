@@ -131,7 +131,7 @@ export function ConfirmationOutbox({ onReceive, onRevised }: { onReceive: (draft
         {result.parts.length > 1 && <span>งานนี้แบ่งแล้ว · สเปกใหม่ใช้กับทุกส่วน: {result.parts.join(', ')}</span>}
         {result.stale > 0 && <span className="text-warn">ม็อคอัพกำกับสเปกฉบับ {result.mockupRev} ยังเป็นค่าเก่า {result.stale} จุด · เปิดหน้าม็อคอัพของงานแล้วทำฉบับใหม่</span>}
         {result.warning && <span className="text-warn">{result.warning}</span>}
-        <span className="text-sm font-normal text-ink">ลูกค้าเซ็นใบใหม่แล้ว แนบที่รายละเอียดงาน → "เปลี่ยนเป็น PDF ใบใหม่"</span>
+        <span className="text-sm font-normal text-ink">ลูกค้าเซ็นใบใหม่แล้ว แนบที่รายละเอียดงาน → "เปลี่ยนเป็นใบใหม่" (PDF หรือรูป)</span>
         {formInSameWindow() && <a href="/confirmation" className="mt-1 inline-flex min-h-12 items-center justify-self-start rounded-xl border border-ok/40 bg-card px-4 font-semibold text-ok">เปิดฟอร์มเพื่อส่งออก PDF ใบแก้ไข</a>}
       </div>
     )

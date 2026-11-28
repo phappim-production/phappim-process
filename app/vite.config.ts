@@ -29,11 +29,14 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
+        // ตัวช่วยเปิด PDF มาเป็น .mjs · เซิร์ฟเวอร์บางที่ส่งชนิดไฟล์ผิด เบราว์เซอร์ไม่ยอมรัน จึงตั้งชื่อเป็น .js
+        assetFileNames: asset => asset.names.some(n => n.endsWith('.mjs')) ? 'assets/[name]-[hash].js' : 'assets/[name]-[hash][extname]',
         // ไลบรารีไม่เปลี่ยนทุกครั้งที่ขึ้นเว็บ · แยกไฟล์ให้เครื่องหน้างานไม่ต้องโหลดซ้ำหลัง deploy
         codeSplitting: {
           groups: [
             { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
             { name: 'supabase', test: /node_modules[\\/]@supabase[\\/]/ },
+            { name: 'pdfjs', test: /node_modules[\\/]pdfjs-dist[\\/]/ },
           ],
         },
       },
@@ -51,6 +54,8 @@ export default defineConfig({
       // ฟอร์มใบยืนยัน / หน้าเก็บสเปก / หน้าสลับบัญชีของระบบจำลอง เป็นหน้าแยก · workbox เทียบทั้ง path และ ?query จึงต้องรับ ?… ด้วย
       workbox: {
         navigateFallbackDenylist: [/^\/confirmation(\.html)?(\?|$)/, /^\/spec-check(\.html)?(\?|$)/, /^\/__qa\//],
+        // ตัวเปิด PDF ใช้เฉพาะแอดมินตอนตัดลายเซ็น ไม่ต้องให้ทุกเครื่องดาวน์โหลดเก็บไว้
+        globIgnores: ['**/assets/pdfjs-*.js', '**/assets/pdf.worker*'],
         // ฟอนต์มาจาก Google ไม่อยู่ในไฟล์ของแอป · เก็บไว้ในเครื่องให้เปิดแอปตอนเน็ตช้า/หลุดแล้วตัวอักษรยังถูกแบบ
         runtimeCaching: [
           { urlPattern: /^https:\/\/fonts\.googleapis\.com\//, handler: 'StaleWhileRevalidate', options: { cacheName: 'google-fonts-css', expiration: { maxEntries: 8 } } },

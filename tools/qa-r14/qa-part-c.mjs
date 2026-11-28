@@ -241,13 +241,13 @@ async function main() {
       await t.uploadFiles('input[type="file"][accept*="pdf"]', [fixtures.paths.txt])
       await t.waitText(/ต้องเป็น.*PDF/i)
       await t.uploadFiles('input[type="file"][accept*="pdf"]', [fixtures.paths.fakePdf])
-      await t.clickButton('แนบ PDF ใบยืนยัน')
+      await t.clickButton('แนบใบยืนยันที่ลูกค้าเซ็น')
       await t.waitText(/เนื้อไฟล์ไม่ใช่ PDF|ไม่ใช่ PDF/i)
 
       // รูป: gif / ปลอม / 0 byte / >20MB ในช่องรูปการ์ดงาน และในหน้าม็อคอัพ
-      await t.uploadFiles('input[type="file"][accept*="image/jpeg"]', [fixtures.paths.gif])
+      await t.uploadFiles('input[type="file"][accept^="image/jpeg"]', [fixtures.paths.gif])
       await t.waitText(/JPG \/ PNG \/ WEBP/)
-      await t.uploadFiles('input[type="file"][accept*="image/jpeg"]', [fixtures.paths.hugeJpg])
+      await t.uploadFiles('input[type="file"][accept^="image/jpeg"]', [fixtures.paths.hugeJpg])
       await t.waitText(/เกิน 20 MB/)
 
       await t.goto('admin1', `#/mockup?id=${jid}`, 1440)

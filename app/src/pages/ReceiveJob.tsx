@@ -5,7 +5,7 @@ import { rpc } from '../data/useFactoryData'
 import { thaiError } from '../data/live'
 import { uploadFile } from '../data/files'
 import { contentKey, signedUrls } from '../data/mockups'
-import { confirmationPath, draftFromConfirmation, FORM_LOCK_REASON, isFormDraft, pdfProblem, sewRecipeProblem, specYearProblem, syncConfirmationSpec, type ReceiveDraft } from '../data/confirmation'
+import { confirmationPath, draftFromConfirmation, FORM_LOCK_REASON, isFormDraft, SIGNED_ACCEPT, SIGNED_TYPES, signedExt, signedFileProblem, sewRecipeProblem, specYearProblem, syncConfirmationSpec, type ReceiveDraft } from '../data/confirmation'
 import { draftLabel, formDataFromDraft, INBOX_KEY, type DraftRow } from '../data/confirmationDrafts'
 import { formInSameWindow, openFormWindow } from '../lib/install'
 import { specMockups } from '../data/jobMockups'
@@ -106,7 +106,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
   const forecast = useMemo(() => product && draft.route && draft.qty > 0 && draft.needsSample !== null
     ? receiveForecast(jobs, now, floor, { route: draft.route, qty: draft.qty, productCode: product.code, needsSample: draft.needsSample, develop: draft.develop, due: draft.due })
     : null, [jobs, now, floor, product, draft.route, draft.qty, draft.needsSample, draft.develop, draft.due])
-  const pdfIssue = pdfProblem(pdf)
+  const pdfIssue = signedFileProblem(pdf)
   const dueWarning = dueDateWarning(draft.due, now)
   const lead = draft.qty > 0 && !draft.develop ? leadTimeFor(now, draft.qty) : null
   const dueBeforeLead = !!lead && /^\d{4}-\d{2}-\d{2}$/.test(draft.due) && draft.due < lead.due
@@ -119,7 +119,7 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
     draft.qty <= 0 && 'จำนวน', !draft.due && 'กำหนดส่ง', yearOutOfRange(draft.due) && 'ปีของกำหนดส่ง (ใช้ ค.ศ.)',
     specYearProblem(draft) && `ปีของ${specYearProblem(draft)}ในใบยืนยัน (${FORM_LOCK_REASON})`,
     draft.spec.product === 'svc_sew' && !specProduct(draft.spec) && 'สินค้าที่จะเย็บ (เลือกในฟอร์มใบยืนยัน)',
-    !draft.route && 'เส้นทางผลิต', draft.needsSample === null && 'ขึ้นตัวอย่างหรือไม่', pdf && pdfIssue && 'PDF ใบยืนยัน',
+    !draft.route && 'เส้นทางผลิต', draft.needsSample === null && 'ขึ้นตัวอย่างหรือไม่', pdf && pdfIssue && 'ไฟล์ใบยืนยันที่ลูกค้าเซ็น',
   ].filter(Boolean) as string[]
 
   async function readJson(file: File | undefined) {
@@ -142,10 +142,11 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
 กำหนดส่ง ${thaiFullDate(draft.due)} ถูกต้อง รับงานต่อ?`)) return
     setError('')
     let path: string | null = null
-    if (pdf) {
-      setSaving('กำลังอัปโหลด PDF…')
-      path = confirmationPath(draft.no, await contentKey(pdf))
-      const up = await uploadFile('confirmations', path, pdf, 'application/pdf')
+    const ext = pdf && signedExt(pdf)
+    if (pdf && ext) {
+      setSaving('กำลังอัปโหลดใบยืนยันที่ลูกค้าเซ็น…')
+      path = confirmationPath(draft.no, await contentKey(pdf), ext)
+      const up = await uploadFile('confirmations', path, pdf, SIGNED_TYPES[ext])
       if (!up.ok) {
         setSaving(null)
         setError(up.reason)
@@ -272,8 +273,8 @@ export function ReceiveJob({ onClose, onDone, jobs, now, floor, draftId }: {
           </div>
         </fieldset>
 
-        <label className={label}>PDF ใบยืนยันที่ลูกค้าเซ็นครบ · ไม่บังคับ (ลูกค้ายังไม่เซ็น แนบทีหลังได้ที่รายละเอียดงาน · ไม่เกิน 20 MB)
-          <FilePick accept="application/pdf,.pdf" chosen={pdf?.name ?? ''} onPick={f => { setPdf(f ?? null); setError('') }} />
+        <label className={label}>ใบยืนยันที่ลูกค้าเซ็นครบ (PDF หรือรูปถ่าย/สแกน) · ไม่บังคับ (ลูกค้ายังไม่เซ็น แนบทีหลังได้ที่รายละเอียดงาน · ไม่เกิน 20 MB)
+          <FilePick accept={SIGNED_ACCEPT} chosen={pdf?.name ?? ''} onPick={f => { setPdf(f ?? null); setError('') }} />
           {pdf && pdfIssue && <span role="alert" className="text-sm text-danger">{pdfIssue}</span>}
         </label>
 
