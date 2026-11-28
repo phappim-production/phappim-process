@@ -5,7 +5,7 @@ const U = {
   admin: '00000000-0000-0000-0000-000000000011', qc: '00000000-0000-0000-0000-000000000012',
   prod: '00000000-0000-0000-0000-000000000013', manager: '00000000-0000-0000-0000-000000000014',
 }
-const ROUTES = ['normal', 'plain', 'dtf', 'dtg', 'screen', 'emb', 'print_emb', 'cut_only']
+const ROUTES = ['normal', 'plain', 'dtf', 'dtg', 'screen', 'emb', 'print_emb', 'print_dtf', 'cut_only']
 
 export async function flowRouteTests({ db, ok }) {
   const one = async (sql, args = []) => (await db.query(sql, args)).rows[0]
@@ -78,7 +78,7 @@ export async function flowRouteTests({ db, ok }) {
         where = 'วัตถุดิบ'
         const mats = (await db.query(`select id, dept, key from public.job_materials where job_id = $1 order by id`, [id])).rows
         // งานที่ต้องสั่งฟิล์ม: แอดมินกด "บันทึกการสั่ง" + "ได้รับแล้ว" ในรายละเอียดงาน (ไม่ใช่รายการวัตถุดิบ)
-        if (['dtf', 'dtg', 'screen'].includes(route)) {
+        if (['dtf', 'dtg', 'screen', 'print_dtf'].includes(route)) {
           await call(U.admin, `public.order_film('${id}', (current_date + 2))`)
           await call(U.admin, `public.receive_film('${id}')`)
         }

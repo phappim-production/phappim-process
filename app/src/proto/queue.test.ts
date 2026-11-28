@@ -121,7 +121,7 @@ describe('คาดการณ์ตามคิวของสถานี', (
 
   // เกณฑ์หลวม 1,000 ms และใช้รอบเร็วสุดใน 3 รอบ เพราะ CI ช้ากว่าเครื่องพัฒนา 3–4 เท่า · จับแค่กรณีช้าลงหลายเท่า
   it('คาดการณ์ 300 งานผ่านหลายสถานีใช้เวลาไม่เกิน 1,000 ms', () => {
-    const routes = ['normal', 'dtf', 'dtg', 'screen', 'emb', 'print_emb', 'cut_only', 'plain'] as const
+    const routes = ['normal', 'dtf', 'dtg', 'screen', 'emb', 'print_emb', 'print_dtf', 'cut_only', 'plain'] as const
     const jobs = Array.from({ length: 300 }, (_, i) => job(String(i), {
       queue: 300 - i, route: routes[i % routes.length], station: undefined,
       qty: 10 + (i % 20) * 10, productCode: 'tshirt',

@@ -1,6 +1,6 @@
 
 export type StationCode = 'outside' | 'print' | 'press' | 'cut' | 'dtf_press' | 'emb' | 'sew' | 'qc_pack'
-export type RouteCode = 'outside' | 'normal' | 'dtf' | 'dtg' | 'screen' | 'emb' | 'print_emb' | 'cut_only' | 'plain'
+export type RouteCode = 'outside' | 'normal' | 'dtf' | 'dtg' | 'screen' | 'emb' | 'print_emb' | 'print_dtf' | 'cut_only' | 'plain'
   | 'sew_only' | 'print_only' | 'print_press_only' | 'press_only' | 'dtf_only'
 export type Dept = 'admin' | 'qc' | 'production'
 export type Phase = 'materials' | 'sample' | 'sample_review' | 'production' | 'done'
@@ -37,6 +37,7 @@ export const ROUTES: Record<RouteCode, { name: string; short: string; stations: 
   screen: { name: 'ซิลค์สกรีน', short: 'สกรีน', stations: ['cut', 'dtf_press', 'sew', 'qc_pack'] },
   emb: { name: 'ปัก', short: 'ปัก', stations: ['cut', 'emb', 'sew', 'qc_pack'] },
   print_emb: { name: 'พิมพ์ + ปัก', short: 'พิมพ์+ปัก', stations: ['print', 'press', 'cut', 'emb', 'sew', 'qc_pack'] },
+  print_dtf: { name: 'พิมพ์ + DTF', short: 'พิมพ์+DTF', stations: ['print', 'press', 'cut', 'dtf_press', 'sew', 'qc_pack'] },
   cut_only: { name: 'ตัดงานลูกค้า', short: 'ตัดอย่างเดียว', stations: ['cut', 'qc_pack'] },
   plain: { name: 'ไม่มีงานพิมพ์', short: 'ไม่พิมพ์', stations: ['cut', 'sew', 'qc_pack'] },
   outside: { name: 'ผลิตข้างนอกทั้งหมด', short: 'ผลิตข้างนอก', stations: ['outside', 'qc_pack'] },
@@ -48,7 +49,7 @@ export const ROUTES: Record<RouteCode, { name: string; short: string; stations: 
 }
 
 // เส้นทางที่สั่งฟิล์มมารีด (ตรงกับ private.uses_film)
-export const usesFilm = (r: RouteCode) => r === 'dtf' || r === 'dtg' || r === 'screen' || r === 'dtf_only'
+export const usesFilm = (r: RouteCode) => r === 'dtf' || r === 'dtg' || r === 'screen' || r === 'dtf_only' || r === 'print_dtf'
 export const filmLabel = (r: RouteCode) => (r === 'dtg' ? 'งาน DTG' : r === 'screen' ? 'งานสกรีน' : 'ฟิล์ม DTF')
 
 export const DEPT_NAME: Record<Dept, string> = { admin: 'แอดมิน', qc: 'QC', production: 'ฝ่ายผลิต' }
