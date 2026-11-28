@@ -150,7 +150,8 @@ export async function runConfirmationTests(client, browser, fixtures, { seed = 1
 
   await check('mockup-fit-page', async () => {
     const res = await browser.ev(() => {
-      const keep = state, out = {}
+      const keep = state, wasView = viewOnly, out = {}
+      viewOnly = true
       const dot = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
       const g4 = mockupGrid([1, 1, 1, 1], 120)
       out.fourSquaresTwoByTwo = g4.cols === 2 && g4.h >= MOCK_MIN_H
@@ -169,12 +170,55 @@ export async function runConfirmationTests(client, browser, fixtures, { seed = 1
       const mh = document.querySelector('#doc .d-mockpage .d-imgs')?.style.getPropertyValue('--mh')
       out.allSameSize = figs.length === 4 && widths.size === 1 && !!mh
       out.notOldFixedHeight = mh !== '95mm' && parseFloat(mh) >= MOCK_MIN_H
+      viewOnly = wasView
       state = keep
       renderForm()
       return out
     })
     const bad = Object.entries(res).filter(([, ok]) => !ok).map(([k]) => k)
     if (bad.length) fail(`จัดภาพม็อคอัพให้พอดีหน้า: ${bad.join(', ')}`)
+  })
+
+  await check('customer-one-page', async () => {
+    const res = await browser.ev(() => {
+      const keep = state, wasView = viewOnly, out = {}
+      const dot = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+      const pages = () => +(document.getElementById('pageNote')?.textContent.match(/ประมาณ (\d+) หน้า/)?.[1] ?? 0)
+      viewOnly = false
+      state = fresh()
+      state.product = 'scarf'
+      state.pickOpen = false
+      Object.assign(state.h, { doc_no: 'ONE-1', customer: 'ลูกค้า', job_name: 'ผ้าเช็ดหน้า 6 ลาย', admin: 'น้ำ', delivery: 'ลูกค้ามารับสินค้าเอง' })
+      Object.assign(scope('p'), { item: 'ผ้าเช็ดหน้า', fabric: 'ผ้าคอตตอน', sew_style: 'พับริมเย็บ', edge_size: '1 ซม.', pack: 'พับใส่ถุงแยกผืน',
+        items: [1, 2, 3, 4, 5, 6].map(i => ({ name: 'ลาย ' + i, w: '50', h: '50', qty: '50', img: String(i) })) })
+      state.imgs = [1, 2, 3, 4, 5, 6].map(i => ({ name: `ลาย${i}.png`, src: dot, w: 3000, h: 3000 }))
+      state.callouts = [{ img: 0, x: 0.5, y: 0.5, bx: 1.1, by: 0.2, title: 'QAXCALLOUTQAX', body: 'QAXBODYQAX' }]
+      const std = { ...scope('p'), sew_mode: SEW_STD, sew_style: undefined }
+      out.sewStyleShownInStandardMode = ['sew_style', 'edge_size'].every(id => visible(allFields().find(f => f.id === id), { ...std, sew_style: id === 'edge_size' ? 'พับริมเย็บ' : undefined }))
+      renderDoc()
+      const doc = document.querySelector('#doc')
+      const text = doc.innerText
+      out.onePage = pages() === 1
+      out.allImagesPlain = doc.querySelectorAll('.cd-mock figure img').length === 6 && !doc.querySelector('.d-co, .co-box, .co-stage')
+      out.noCalloutText = !text.includes('QAXCALLOUTQAX') && !text.includes('QAXBODYQAX')
+      out.showsSpec = ['ผ้าคอตตอน', 'พับริมเย็บ', '1 ซม.', 'พับใส่ถุงแยกผืน', '300 ผืน', 'ผ้าเช็ดหน้า'].every(s => text.includes(s))
+      out.signAtBottom = !!doc.querySelector('.close .sign') && doc.querySelector('.close').compareDocumentPosition(doc.querySelector('.cd-mock')) === Node.DOCUMENT_POSITION_PRECEDING
+      state.product = 'banner'
+      Object.assign(scope('p'), { fabric: 'ผ้าไวนิล', edge: 'พับริมเย็บ 4 ด้าน', edge_w: '2', rail: ['ด้านบน'], rail_w: '5', eyelet: '4 มุม', pack: 'ม้วนใส่ถุง' })
+      renderDoc()
+      const banner = document.querySelector('#doc').innerText
+      out.bannerShowsRailEyelet = ['รางสอด', 'ด้านบน', 'ตาไก่', '4 มุม', 'ม้วนใส่ถุง'].every(s => banner.includes(s))
+      viewOnly = true
+      state.product = 'scarf'
+      renderDoc()
+      out.factoryKeepsCallouts = document.querySelector('#doc').innerText.includes('QAXCALLOUTQAX') && !!document.querySelector('#doc .d-mockpage')
+      viewOnly = wasView
+      state = keep
+      renderForm()
+      return out
+    })
+    const bad = Object.entries(res).filter(([, ok]) => !ok).map(([k]) => k)
+    if (bad.length) fail(`ฉบับลูกค้าหน้าเดียว: ${bad.join(', ')}`)
   })
 
   await check('service-lock-terms-banner', async () => {

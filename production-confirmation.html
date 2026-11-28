@@ -245,6 +245,36 @@ div[data-co-part].co-box{cursor:move;touch-action:none}
 .co-list li select[data-cf="img"]{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:13px}
 .co-n{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:12px;display:grid;place-items:center}
 @media (max-width:640px){.co-list li{grid-template-columns:26px minmax(0,1fr) auto}.co-list li select[data-cf="ref"],.co-list li input[data-cf="body"]{grid-column:2/3}.co-list li.has-img{grid-template-columns:26px auto minmax(0,1fr) auto}.co-list li.has-img input[data-cf="title"]{grid-column:3/4}.co-list li.has-img select[data-cf="ref"],.co-list li.has-img input[data-cf="body"]{grid-column:2/4}}
+.cust .kv{grid-template-columns:repeat(3,minmax(0,1fr));column-gap:10px;font-size:11px;line-height:1.35}
+.cust .kv div{grid-template-columns:auto minmax(0,1fr);gap:5px;padding:2px 1px;align-items:start}
+.cust .kv b{display:flex;align-items:flex-start;gap:2mm}
+.cust .kv b .optimg{flex:none;width:11mm;height:11mm;margin:0}
+.cust table.dt{font-size:10.5px;margin:4px 0 1px}
+.cust table.dt th,.cust table.dt td{padding:1.5px 4px}
+.cust .tlabel{font-size:10.5px;margin-top:4px}
+.cust .cd-info p{margin:0;font-size:10.5px}
+.cust .cd-mock{margin-top:4px;border:1px solid #bfc5be;border-radius:4px;padding:3mm 2mm 1mm;break-inside:avoid;page-break-inside:avoid}
+.cust .cd-mock .d-imgs{margin-top:0;gap:3mm 2.5mm}
+.cust .cd-mock .d-imgs figure{border:0;padding:0;border-radius:0}
+.cust .cd-mock .d-imgs img{background:#fff}
+.cust .cd-mock .d-mock{margin:2mm 0 0;font-size:11px}
+.cust .close{margin-top:4px}
+.cust .d-accept{margin:0 0 4px;padding:4px 8px;font-size:10px}
+.cust .d-accept b{font-size:12px}
+.cust .d-terms{font-size:9.5px;line-height:1.38}
+.cust .d-terms+.d-note{margin-top:4px}
+.cust .d-note{font-size:10.5px;padding:4px 8px}
+.cust .sign{margin-top:5px;gap:10px}
+.cust .sign>div{padding:5px;font-size:11px}
+.cust .sign .t{margin-bottom:16px}
+.cust.tight .kv{font-size:10px}
+.cust.tight table.dt{font-size:9.5px}
+.cust.tight .d-terms{font-size:8.6px;line-height:1.3;column-count:2;column-gap:6mm}
+.cust.tight .d-terms li{break-inside:avoid}
+.cust.tight .d-accept{font-size:9px}
+.cust.tight .d-note{font-size:9.5px}
+.cust.tight .sign .t{margin-bottom:12px}
+@media screen and (max-width:700px){.cust .kv{grid-template-columns:1fr}}
 .d-co{margin:6px 0 0;border:1px solid #ccc;border-radius:4px;padding:4px;break-inside:avoid;page-break-inside:avoid}
 .d-co .co-box{font-size:7.5pt;max-width:23%}
 .d-co .co-box small{font-size:7pt}
@@ -881,9 +911,9 @@ const PRODUCTS = {
     itemsSec('ผืน',{ hint:'ขนาดยอดนิยม 50 × 50, 60 × 60, 100 × 100 ซม.' }),
     printSec(M_FLAT,null,{ title:'งานพิมพ์', def:['ซับลิเมชั่น พิมพ์เต็มผืน'], extra:[ R('sides','จำนวนหน้า',['หน้าเดียว','สองหน้าประกบ']) ] }),
     { title:'การเย็บ', fields:[
-      R('sew_style','รูปแบบการเย็บ',['ม้วนริม 0.6 ซม.','ม้วนริม 0.3 ซม.','พับริมเย็บ'],{ other:true, when:v=>v.item==='ผ้าเช็ดหน้า' }),
-      R('edge','การเก็บขอบ',['ม้วนริม (ประมาณ 0.4–0.6 ซม.)','พับริมเย็บ','โพ้งริม (ริมเล็ก)','ตัดลุ่ย (ฟรินจ์)','ตัดเลเซอร์'],{ other:true, when:v=>v.item!=='ผ้าเช็ดหน้า' }),
-      HEM_SIZE(v=>v.item==='ผ้าเช็ดหน้า'?v.sew_style:v.edge),
+      R('sew_style','รูปแบบการเย็บ',['ม้วนริม 0.6 ซม.','ม้วนริม 0.3 ซม.','พับริมเย็บ'],{ other:true, keepStd:true, when:v=>v.item==='ผ้าเช็ดหน้า' }),
+      R('edge','การเก็บขอบ',['ม้วนริม (ประมาณ 0.4–0.6 ซม.)','พับริมเย็บ','โพ้งริม (ริมเล็ก)','ตัดลุ่ย (ฟรินจ์)','ตัดเลเซอร์'],{ other:true, keepStd:true, when:v=>v.item!=='ผ้าเช็ดหน้า' }),
+      { ...HEM_SIZE(v=>v.item==='ผ้าเช็ดหน้า'?v.sew_style:v.edge), keepStd:true },
       THREAD ]},
     packSec(['พับใส่ถุงแยกผืน','พับใส่ซอง + การ์ด','ไม่ใส่ถุง']),
   ]},
@@ -1211,6 +1241,20 @@ Object.values(PRODUCTS).forEach(P=>P.sections.filter(sec=>sec.title==='การ
     ...sec.fields.map(f=>f===PIPING||f.keepStd?f:{ ...f, when:v=>v.sew_mode!==SEW_STD&&(!f.when||f.when(v)) }) ];
 }));
 
+// ใบลูกค้าต้องบอกสินค้าชนิดเดียว ไม่ใช่ชื่อกลุ่ม (เช่น "ป้ายผ้า / ฉากผ้า") · สินค้าที่มีช่องชนิดอยู่แล้วใช้ช่องนั้น ที่เหลือให้แอดมินเลือก
+const TYPE_FIELD={ scarf:'item', premium:'item', kids:'item', pet:'item', yan:'yan_type', pillow:'type', hat:'style', kajood:'style', bag:'usage' };
+const baseName=n=>n.replace(/\s*\([^)]*\)/g,'').trim();
+Object.entries(PRODUCTS).forEach(([k,P])=>{
+  if(TYPE_FIELD[k]||P.cat==='service'||!baseName(P.name).includes(' / ')) return;
+  TYPE_FIELD[k]='kind';
+  P.sections=[{ title:'ชนิดสินค้า', fields:[ R('kind','ชนิดสินค้า',baseName(P.name).split(' / '),{ other:true, hint:'ใบที่ส่งลูกค้าแสดงชนิดนี้เป็นประเภทสินค้า' }) ]}, ...P.sections];
+});
+function productType(v){
+  const id=TYPE_FIELD[state.product], f=id&&allFields().find(x=>x.id===id);
+  const t=f&&visible(f,v)?(v[id]===OTHER?String(v[id+'__other']||'').trim():valText(f,v)):'';
+  return t||baseName(prod().name);
+}
+
 const TAIL = [
   { title:'ไฟล์งานและหมายเหตุ', fields:[
     { id:'art_file', type:'text', label:'ไฟล์งาน / ที่เก็บไฟล์', wide:true, ph:'เช่น ชื่อไฟล์ AI/PDF หรือโฟลเดอร์ในไดรฟ์' },
@@ -1266,7 +1310,8 @@ function customerSig(x){
 }
 // ใบที่ส่งลูกค้าเซ็นแสดงเฉพาะรายการที่เจ้าของกำหนด (วัสดุ ไซซ์ จำนวน แพ็คกิ้ง) · ฝ่ายผลิตเปิดดูจากระบบเห็นครบ ข้อมูลที่บันทึกเข้าระบบไม่ถูกตัด
 const CUSTOMER_FIELDS=new Set(['fabric','fabric_rows','material','filling','handle_mat','sizes','size_chart','measure_rows','items','qty','dims','head_size',
-  'supplied','supply_by','supply_date','supply_spare','garment','print_output','fabric_kind','press_target','press_material','press_yards','dtf_item','film_source','sew_style','edge','edge_size','edge_w','uv_unit','uv_use']);
+  'supplied','supply_by','supply_date','supply_spare','garment','print_output','fabric_kind','press_target','press_material','press_yards','dtf_item','film_source','sew_style','edge','edge_size','edge_w','uv_unit','uv_use',
+  'item','type','sides','gsm','width','length','fold','fold_dims','handle_dims','blanket_size','ribbon_w','ribbon_len','rail','rail_w','rail_end','eyelet','eyelet_gap','tassel']);
 const PACK_SEC='แพ็คกิ้ง';
 const customerCopy=()=>!viewOnly;
 const customerSees=(f,sec)=>f.type==='images'||sec.title===PACK_SEC||CUSTOMER_FIELDS.has(f.id);
@@ -2144,7 +2189,8 @@ function validate(){
     if(!visible(f,v)||(naAllowed(f)&&isNA(f,v))) return;
     const { bad, why }=fieldIssue(f,v);
     if(negativeIn(f,v)){ out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why:'มีขนาดหรือจำนวนติดลบ แก้เป็นค่าบวก', hard:true }); return; }
-    if(bad) out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why, hard:s==='h'&&MUST_FILL.includes(f.id) });
+    const typeField=s==='p'&&f.id===TYPE_FIELD[state.product];
+    if(bad) out.push({ id:`fld_${s}_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, why:typeField&&!v[f.id]?'เลือก 1 ชนิด · ใบที่ส่งลูกค้าแสดงชนิดนี้เป็นประเภทสินค้า':why, hard:(s==='h'&&MUST_FILL.includes(f.id))||typeField });
   }); });
   pieceFields().forEach(({ sec, f, values })=>{
     const where={ id:`fld_p_${f.id}`, sec:sec.no, label:`${sec.title} › ${f.label}`, hard:true };
@@ -2193,8 +2239,12 @@ function valText(f,v){
     default: { const t=String(val??'').trim(); return isNone(t)?'':t; }
   }
 }
+function kvItems(fs,v,compact=false){
+  return fs.map(f=>{ const t=valText(f,v), pic=f.type==='radio'&&optImg(v[f.id]); const wide=compact?f.type==='textarea'||t.length>60:f.type==='textarea'||t.length>40||pic;
+    return t?`<div class="${wide?'w':''}"><span>${esc(f.label.replace(/ \(.*\)$/,''))}</span><b>${esc(t)}${pic?`<img class="optimg" src="${pic}" alt="">`:''}</b></div>`:''; }).join('');
+}
 function kvHTML(fs,v){
-  const items=fs.map(f=>{ const t=valText(f,v), pic=f.type==='radio'&&optImg(v[f.id]); return t?`<div class="${f.type==='textarea'||t.length>40||pic?'w':''}"><span>${esc(f.label.replace(/ \(.*\)$/,''))}</span><b>${esc(t)}${pic?`<img class="optimg" src="${pic}" alt="">`:''}</b></div>`:''; }).join('');
+  const items=kvItems(fs,v);
   return items?`<div class="kv">${items}</div>`:'';
 }
 function renderDoc(){
@@ -2203,7 +2253,7 @@ function renderDoc(){
   // หัวกระดาษ (พิมพ์ซ้ำทุกหน้า): โลโก้ + เลขที่ใบ + ลูกค้า + งาน เพื่อให้หยิบหน้าไหนก็รู้ว่าเป็นของงานอะไร
   const head=`<div class="ph">
     <img class="logo" src="${COMPANY.logo}" alt="${esc(COMPANY.name)}">
-    <div class="tt">ใบยืนยันการผลิต<small>${esc(P.name)}${forCustomer?'':' · ฉบับโรงงาน'}</small></div>
+    <div class="tt">ใบยืนยันการผลิต<small>${esc(forCustomer?productType(v):P.name)}${forCustomer?'':' · ฉบับโรงงาน'}</small></div>
     <div class="no"><span class="big">${esc(h.doc_no||'—')}</span>${num(h.rev)>0?`<span class="rev">แก้ไขครั้งที่ ${esc(h.rev)}</span>`:''}</div>
     <div class="job"><span>ลูกค้า <b>${esc(h.customer||'—')}</b></span><span>งาน <b>${esc(h.job_name||'—')}</b></span><span>จำนวน <b>${qty}</b></span></div>
   </div>`;
@@ -2212,17 +2262,17 @@ function renderDoc(){
   const hv=id=>h[id+'__na']?'':h[id];
   const coordinator=[hv('admin'),h.admin_phone].filter(x=>!isNone(x)).join(' · ');
   const address=needsAddress(h.delivery)?hk('ที่อยู่จัดส่ง',hv('address'),true):'';
-  const hItems=forCustomer?[hk('วันที่สั่งงาน',h.issue_date?thDate(h.issue_date):''), hk('ผู้ประสานงาน',coordinator), hk('การจัดส่ง',h.delivery), address].join(''):[hk('ผู้ติดต่อ',hv('contact')), hk('เบอร์โทร',hv('phone')),
+  const hItems=forCustomer?[hk('ประเภทสินค้า',productType(v)), hk('จำนวนที่สั่ง',qty), hk('วันที่สั่งงาน',h.issue_date?thDate(h.issue_date):''), hk('ผู้ประสานงาน',coordinator), hk('การจัดส่ง',h.delivery), address].join(''):[hk('ผู้ติดต่อ',hv('contact')), hk('เบอร์โทร',hv('phone')),
     hk('วันที่ออกใบ',h.issue_date?thDate(h.issue_date):''), hk('วันนัดส่งตัวอย่าง',sampleDateShown(h)&&h.sample_date?thDate(h.sample_date):''),
     hk('การรับสินค้า',h.delivery), hk('แอดมินผู้ดูแล',coordinator), address].join('');
-  let x=`<section class="ds">${hItems?`<div class="kv">${hItems}</div>`:''}
-  <div class="d-prod"><span>จำนวนรวม <b>${qty}</b>${!forCustomer&&num(v.spare)>0?` (+ เผื่อเสีย ${esc(v.spare)} ${P.unit})`:''}</span></div></section>`;
+  let x=forCustomer?'':`<section class="ds">${hItems?`<div class="kv">${hItems}</div>`:''}
+  <div class="d-prod"><span>จำนวนรวม <b>${qty}</b>${num(v.spare)>0?` (+ เผื่อเสีย ${esc(v.spare)} ${P.unit})`:''}</span></div></section>`;
 
-  let n=0, mockup='';
+  let n=0, mockup='', custKV='', custTables='';
   allSecs().forEach(sec=>{
     const fs=sec.fields.filter(f=>visible(f,v)&&!(naAllowed(f)&&isNA(f,v))&&(!forCustomer||customerSees(f,sec)));
     const simple=fs.filter(f=>!['sizeTable','itemTable','placements','images'].includes(f.type)&&f.id!=='spare');
-    let body=kvHTML(simple,v);
+    let body='';
     fs.forEach(f=>{
       if(f.type==='sizeTable'){
         const all=sizeCols(v), rs=rows(v,f.id).filter(r=>all.some(c=>num(r.q[c])>0));
@@ -2250,16 +2300,26 @@ function renderDoc(){
         if(on.length) body+=`<table class="dt"><thead><tr><th>ตำแหน่ง</th><th>เทคนิค</th><th>ขนาด (${unitOf(f,v)})</th><th>หมายเหตุ</th></tr></thead><tbody>`+
           on.map(([k,p])=>`<tr><td class="l">${esc(k)}</td><td class="l">${esc(p.tech||(ms.length===1?ms[0]:''))}</td><td>${esc(p.size)}</td><td class="l">${esc(p.note)}</td></tr>`).join('')+`</tbody></table>`;
       }
-      if(f.type==='images'&&state.imgs.length){
+      if(f.type==='images'&&state.imgs.length&&forCustomer){
+        const many=state.imgs.length>1;
+        mockup=`<div class="d-imgs">${state.imgs.map((m,i)=>`<figure data-ar="${m.w>0&&m.h>0?m.w/m.h:4/3}"><img src="${m.src}" alt="">${many?`<figcaption>รูป ${i+1}</figcaption>`:''}</figure>`).join('')}</div>`;
+      }
+      else if(f.type==='images'&&state.imgs.length){
         const co=coDocHTML();
         const plain=state.imgs.map((m,i)=>({m,i})).filter(({i})=>!co||!coList().some(c=>coImgAt(c)===i));
         mockup=co+(plain.length?`<div class="d-imgs${plain.length===1?' one':''}">${plain.map(({m,i})=>`<figure data-ar="${m.w>0&&m.h>0?m.w/m.h:4/3}"><img src="${m.src}" alt=""><figcaption>${esc(imgName(i+1))}</figcaption></figure>`).join('')}</div>`:'');
       }
     });
+    if(forCustomer){ custKV+=kvItems(simple.filter(f=>f.id!==TYPE_FIELD[state.product]),v,true); custTables+=body; return; }
+    body=kvHTML(simple,v)+body;
     if(body) x+=`<section class="ds"><h3>${++n}. ${esc(sec.title)}</h3>${body}</section>`;
   });
 
-  if(mockup) x+=`<section class="d-mockpage"><h3>ภาพม็อคอัพ (Mock up)</h3>${mockup}${mockup.includes('class="d-co"')?'':`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`}</section>`;
+  if(forCustomer){
+    x=`<section class="cd-info"><div class="kv">${hItems}${custKV}</div>${custTables}</section>`;
+    if(mockup) x+=`<section class="cd-mock">${mockup}<div class="d-mock">${esc(MOCKUP_NOTE)}</div></section>`;
+  }
+  else if(mockup) x+=`<section class="d-mockpage"><h3>ภาพม็อคอัพ (Mock up)</h3>${mockup}${mockup.includes('class="d-co"')?'':`<div class="d-mock">${esc(MOCKUP_NOTE)}</div>`}</section>`;
   const blank=t=>`<div><div class="t">${t}</div><div class="ln"></div>(.......................................)<br>วันที่ ....../....../......</div>`;
   const cs=!forCustomer&&viewSig;
   const sig=t=>t!==SIGNERS_CUSTOMER[0]||!cs?blank(t)
@@ -2274,18 +2334,52 @@ function renderDoc(){
 
   // ใช้ thead ของตารางเป็นหัวกระดาษ: เบราว์เซอร์จะพิมพ์ thead ซ้ำทุกหน้าเมื่อเนื้อหายาวเกิน 1 หน้า
   $('#doc').innerHTML=`<table class="pg"><thead><tr><td>${head}</td></tr></thead><tbody><tr><td>${x}</td></tr></tbody></table>`;
+  $('#doc').classList.toggle('cust',forCustomer);
+  $('#doc').classList.remove('tight');
   setPageStyle();
-  fitMockups();
+  if(forCustomer) fitCustomerPage(); else fitMockups();
   estimatePages();
 }
+function docMM(){
+  const probe=document.createElement('div'); probe.style.cssText='position:absolute;visibility:hidden;height:100mm;width:1px';
+  document.body.appendChild(probe); const mm=probe.offsetHeight/100; probe.remove(); return mm;
+}
+// ฉบับลูกค้าต้องจบใน A4 หน้าเดียว: ภาพม็อคอัพใช้ที่ว่างที่เหลือ · ไม่พอ = ย่อตัวอักษร · ยังไม่พอ = ภาพเล็กสุดแล้วยอมขึ้นหน้า 2
+const CUST_PAGE_MM=272, CUST_MIN_H=32;
+function fitCustomerPage(){
+  const d=$('#doc'), t=d.querySelector('table.pg'), box=d.querySelector('.cd-mock .d-imgs'); if(!t||!box) return;
+  const figs=[...box.querySelectorAll('figure[data-ar]')], ars=figs.map(f=>+f.dataset.ar||4/3);
+  const prev=d.style.display; d.style.display='block'; t.style.width='190mm';
+  const mm=docMM(), width=box.parentElement.clientWidth/mm-1;
+  let g=null;
+  for(const tight of [false,true]){
+    d.classList.toggle('tight',tight);
+    box.style.display='none';
+    const room=CUST_PAGE_MM-t.offsetHeight/mm+(ars.length>1?0:MOCK_CAP);
+    box.style.display='';
+    g=mockupGrid(ars,room,width,170);
+    if(g.h>=CUST_MIN_H) break;
+  }
+  if(g.h<CUST_MIN_H) for(let c=Math.min(ars.length,4);c>=1;c--){
+    const cell=(width-(c-1)*3)/c-2;
+    if(c===1||ars.every(a=>cell/a>=CUST_MIN_H)){ g={ cols:c, cell, h:Math.min(CUST_MIN_H,...ars.map(a=>cell/a)) }; break; }
+  }
+  const h=Math.max(g.h,Math.min(CUST_MIN_H,...ars.map(a=>g.cell/a)));
+  box.style.setProperty('--mh',h.toFixed(1)+'mm');
+  const widths=ars.map(a=>Math.min(g.cell,h*a+2.5));
+  figs.forEach((f,i)=>{ f.style.width=widths[i].toFixed(1)+'mm'; });
+  box.style.maxWidth=(g.cols*Math.max(...widths)+(g.cols-1)*2.5+1).toFixed(1)+'mm';
+  box.style.marginInline='auto';
+  t.style.width=''; d.style.display=prev;
+}
 // ขนาดภาพม็อคอัพ (มม.) ทุกภาพสูงเท่ากันและพอดีพื้นที่ที่เหลือ · ไม่พอ = ขึ้นหน้าใหม่พร้อมข้อตกลง · ยังไม่พอ = ใช้ทั้งหน้า
-const MOCK_MIN_H=40;
-function mockupGrid(ars, room, width=190){
-  const GAP=3, CAP=8, MAXH=110;
+const MOCK_MIN_H=40, MOCK_CAP=8;
+function mockupGrid(ars, room, width=190, maxH=110){
+  const GAP=3;
   let best=null;
   for(let c=1;c<=Math.min(ars.length,4);c++){
     const cell=(width-(c-1)*GAP)/c-2, rows=Math.ceil(ars.length/c);
-    const h=Math.min(MAXH, ...ars.map(a=>cell/a), (room-rows*(CAP+GAP))/rows), empty=c*rows-ars.length;
+    const h=Math.min(maxH, ...ars.map(a=>cell/a), (room-rows*(MOCK_CAP+GAP))/rows), empty=c*rows-ars.length;
     if(!best||h>best.h+0.5||(h>best.h-0.5&&empty<best.empty)) best={ cols:c, h, cell, empty };
   }
   return best;
@@ -2310,7 +2404,7 @@ function fitMockups(){
   box.style.setProperty('--mh',Math.max(g.h,20).toFixed(1)+'mm');
   const widths=ars.map(a=>Math.min(g.cell,g.h*a+2.5));
   figs.forEach((f,i)=>{ f.style.width=widths[i].toFixed(1)+'mm'; });
-  box.style.maxWidth=(g.cols*Math.max(...widths)+(g.cols-1)*2.5).toFixed(1)+'mm';
+  box.style.maxWidth=(g.cols*Math.max(...widths)+(g.cols-1)*2.5+1).toFixed(1)+'mm';
   box.style.marginInline='auto';
   t.style.width=''; d.style.display=prev;
 }
@@ -2322,12 +2416,15 @@ function estimatePages(){
   const headH=t.tHead.offsetHeight, bodyH=t.tBodies[0].offsetHeight, per=274*mm-headH;
   const mp=t.querySelector('.d-mockpage'), top=t.tBodies[0].getBoundingClientRect().top;
   const split=mp?mp.getBoundingClientRect().top-top:bodyH, sheets=(h,k)=>h>0?Math.ceil(h/per*k):0;
-  const pages=Math.max(1,sheets(split-(mp?parseFloat(getComputedStyle(mp).marginTop):0),mp?1:1.03)+sheets(bodyH-split,1));
+  const cust=customerCopy();
+  const pages=cust?Math.max(1,Math.ceil((t.offsetHeight/mm-1)/CUST_PAGE_MM))
+    :Math.max(1,sheets(split-(mp?parseFloat(getComputedStyle(mp).marginTop):0),mp?1:1.03)+sheets(bodyH-split,1));
   t.style.width=''; d.style.display=prev;
   let n=$('#pageNote'); if(!n){ n=document.createElement('div'); n.id='pageNote'; d.parentNode.insertBefore(n,d); }
-  n.className='page-note'+(pages>2?' warn':'');
-  n.textContent=pages>2?`ประมาณ ${pages} หน้า A4 · เกินเป้า 2 หน้า ลองลดจำนวนภาพ หรือรวมแถวในตาราง`:`ประมาณ ${pages} หน้า A4 · ทุกหน้ามีโลโก้ เลขที่ใบ ลูกค้า และชื่องาน`;
-  if(customerCopy()) n.textContent+=' · ฉบับลูกค้า: แสดงเฉพาะเลขที่ใบ ประเภทสินค้า วันที่สั่งงาน ผู้ประสานงาน การจัดส่ง วัสดุ (ไม่มีสี) ไซซ์ จำนวน การเย็บขอบ แพ็คกิ้ง ภาพ และช่องเซ็น (ระบบยังได้รับครบทุกช่อง)';
+  const goal=cust?1:2;
+  n.className='page-note'+(pages>goal?' warn':'');
+  n.textContent=pages>goal?`ประมาณ ${pages} หน้า A4 · เกินเป้า ${goal} หน้า ลองลดจำนวนภาพ หรือรวมแถวในตาราง`:`ประมาณ ${pages} หน้า A4 · ทุกหน้ามีโลโก้ เลขที่ใบ ลูกค้า และชื่องาน`;
+  if(cust) n.textContent+=' · ฉบับลูกค้า: แสดงเฉพาะเลขที่ใบ ประเภทสินค้า วันที่สั่งงาน ผู้ประสานงาน การจัดส่ง วัสดุ (ไม่มีสี) ไซซ์ จำนวน การเย็บขอบ แพ็คกิ้ง ภาพ (ไม่มีข้อความชี้จุด) และช่องเซ็น (ระบบยังได้รับครบทุกช่อง)';
 }
 function setPageStyle(){
   const h=state.h, q=t=>String(t||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/[\r\n]+/g,' ');
