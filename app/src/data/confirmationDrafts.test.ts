@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { OUTBOX_KEY, TAKEN_KEY, recentlyTaken, takeOutbox } from './confirmationDrafts'
+import { OUTBOX_KEY, TAKEN_KEY, asNewDraft, recentlyTaken, takeOutbox } from './confirmationDrafts'
 
 function memory(init: Record<string, string> = {}) {
   const m = new Map(Object.entries(init))
@@ -34,5 +34,21 @@ describe('ฟอร์มบันทึกเข้าระบบ เปิด
     const bad = memory({ [OUTBOX_KEY]: '{"h":{}}', [TAKEN_KEY]: 'x' })
     expect(takeOutbox(bad, now)).toBeNull()
     expect(recentlyTaken(bad, now)).toBeNull()
+  })
+})
+
+describe('ใบแก้ของงานที่ถูกยกเลิกแล้ว', () => {
+  it('บันทึกเป็นใบใหม่เลขเดิม: เอาส่วนของใบแก้ออก ข้อมูลใบ รูป และครั้งที่แก้อยู่ครบ', () => {
+    const sent = {
+      h: { doc_no: 'SC-X1', customer: 'ลูกค้า', rev: '1' }, product: 'tshirt', p: { tshirt: { fabric: 'คอตตอน' } },
+      mockups: [{ name: 'รูป 1', path: 'SC-X1/a.jpg' }], mockup_path: 'SC-X1/a.jpg',
+      revise_job: true, changes: ['ผ้า'], base_rev: 0, base_token: 'tok', from_job: true,
+    }
+    const fresh = asNewDraft(sent)
+    expect(fresh).toEqual({
+      h: { doc_no: 'SC-X1', customer: 'ลูกค้า', rev: '1' }, product: 'tshirt', p: { tshirt: { fabric: 'คอตตอน' } },
+      mockups: [{ name: 'รูป 1', path: 'SC-X1/a.jpg' }], mockup_path: 'SC-X1/a.jpg',
+    })
+    expect(sent.revise_job).toBe(true)
   })
 })

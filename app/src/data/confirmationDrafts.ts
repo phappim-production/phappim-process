@@ -66,6 +66,15 @@ export function formDataFromJob(spec: unknown, mockupPath: string | null, urls: 
   return out
 }
 
+// ฟอร์มที่เปิดใบของงานไว้ยังส่งมาเป็นใบแก้ แม้งานนั้นถูกยกเลิกไปแล้ว · บันทึกเป็นใบใหม่เลขเดิมแทน (รับงานแล้วงานเก่าเปลี่ยนเป็น "(ยกเลิก)")
+const REVISE_ONLY_KEYS = ['revise_job', 'changes', 'base_rev', 'base_token', 'from_job']
+
+export function asNewDraft(data: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...data }
+  for (const k of REVISE_ONLY_KEYS) delete out[k]
+  return out
+}
+
 /** ใบร่างที่บันทึกไว้ → ข้อมูลเปิดในฟอร์มพร้อมรูปทุกรูป */
 export function formDataFromDraft(data: unknown, urls: ReadonlyMap<string, string>): Record<string, unknown> | null {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return null
