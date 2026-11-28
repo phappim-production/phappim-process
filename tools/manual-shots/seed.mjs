@@ -47,7 +47,9 @@ const sewNext = await receive('SC69112', 'ทีมวอลเลย์บอ�
 await pass(prod, sewNext); await pass(prod, sewNext); await pass(prod, sewNext)
 const [spare] = await sql("select m.code from public.sewing_machines m where m.status = 'ready' and not exists (select 1 from public.machine_assignments x where x.machine_id = m.id and x.released_at is null) order by m.code desc limit 1")
 await as(prod, "public.set_machine_status(p_machine_code => $2, p_status => 'broken', p_note => 'เข็มหัก รอช่างมาเปลี่ยน', p_repair_eta => now() + interval '1 day')", [spare.code])
-await as(prod, "public.book_machines(p_job => $2::uuid, p_starts => date_trunc('day', now()) + interval '1 day 2 hours', p_ends => date_trunc('day', now()) + interval '1 day 6 hours')", [sewNext])
+// พรุ่งนี้เป็นวันอาทิตย์ (รันวันเสาร์) จองไม่ได้ จึงเลื่อนไปวันจันทร์
+const nextWorkDay = "date_trunc('day', now()) + interval '1 day' * (case when extract(dow from now() + interval '1 day') = 0 then 2 else 1 end)"
+await as(prod, `public.book_machines(p_job => $2::uuid, p_starts => ${nextWorkDay} + interval '2 hours', p_ends => ${nextWorkDay} + interval '6 hours')`, [sewNext])
 
 await pass(prod, f); await pass(prod, f); await start(prod, f)
 await pass(prod, c); await start(prod, c)
