@@ -13,7 +13,7 @@ export function boot(search='', { session = null, store = new Map(), timeout = (
     sessionStorage: session && {getItem:k=>session.has(k)?session.get(k):null,setItem:(k,v)=>session.set(k,String(v)),removeItem:k=>session.delete(k)}, setInterval:()=>0,
     CSS:{escape:s=>s}, alerts:[], confirmRet:true, toastMsgs:[], window:{open:()=>({})}, Image:class{}, URLSearchParams, setTimeout:timeout, clearTimeout(){} }
   const fn=new Function(...Object.keys(g),'alert','confirm', js+`
-;return { get state(){return state}, set state(v){state=v}, staleLinks, linksReady, applyRelink, requestRelink, scope, totalQty, validate, renderDoc, saveToSystem, loadData, startOver, coRefs, coDocHTML, valText, allFields, visible, takeNew, takeInbox, revising, changedLabels, PRODUCTS, setViewOnly(x){viewOnly=x}, rerender, fieldIssue, jobSnapshot, shrunk, fieldHTML, HEADER, systemCopy, sizeCols, keepSizeQty };`)
+;return { get state(){return state}, set state(v){state=v}, lineSummary, openLine, staleLinks, linksReady, applyRelink, requestRelink, scope, totalQty, validate, renderDoc, saveToSystem, loadData, startOver, coRefs, coDocHTML, valText, allFields, visible, takeNew, takeInbox, revising, changedLabels, PRODUCTS, setViewOnly(x){viewOnly=x}, rerender, fieldIssue, jobSnapshot, shrunk, fieldHTML, HEADER, systemCopy, sizeCols, keepSizeQty };`)
   const api=fn(...Object.values(g), m=>g.alerts.push(m), ()=>g.confirmRet)
   const fire=(type, ev)=>(listeners[type]??[]).forEach(f=>f(ev))
   return { api, g, store, document, els, fire, created, imgs }

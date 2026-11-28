@@ -29,7 +29,7 @@ import { StationPhotoPanel } from './StationPhotos'
 import { photoBlock } from '../data/stationPhotos'
 import { loadFormData } from '../data/jobForm'
 import { needsRevisionAck } from '../data/revisions'
-import { RevisionBanner, ViewConfirmation } from './Revision'
+import { LineSummaryButton, RevisionBanner, ViewConfirmation } from './Revision'
 import { MaterialsCheck } from './MaterialsCheck'
 import { CustomerSignaturePanel } from './CustomerSignature'
 import type { MaterialItem, MaterialPhoto } from '../data/materialsCheck'
@@ -122,6 +122,7 @@ export function JobActions({ job: j, queueHead, role, myStations = [], version, 
     // แผงนี้อยู่ในรายละเอียดงานที่ตั้งตัวอักษรเล็ก แต่ข้อความหลักต้อง ≥ 16 px
     <div className="grid gap-4 text-base">
       {j.revision ? <RevisionBanner job={j} canAck={canStation && inStation} busy={busy} act={act} /> : <ViewConfirmation job={j} />}
+      {(admin || floor) && <LineSummaryButton job={j} />}
       {d.pdfPath ? <OpenPdf path={d.pdfPath} /> : admin && <AttachPdf job={j} refresh={refresh} />}
       {admin && <CustomerSignaturePanel key={j.id} job={j} attached={d.pdfPath} />}
       {admin && <SetMockup job={j} refresh={refresh} />}
