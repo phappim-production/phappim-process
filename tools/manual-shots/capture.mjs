@@ -115,7 +115,7 @@ const SHOTS = {
   },
   'owner-settings-users.jpg': async () => { await open('owner', '#/users', PHONE); await page.waitText('แอดมิน 1 จำลอง') },
   'owner-settings-stations.jpg': async () => { await open('owner', '#/settings', PHONE); await page.waitText('รูปยืนยันงานที่สถานี') },
-  'owner-settings-segments.jpg': settingsTab('เวลามาตรฐาน'),
+  'owner-settings-leadtime.jpg': settingsTab('เวลาผลิต'),
   'owner-settings-materials.jpg': settingsTab('วัตถุดิบ'),
   'owner-settings-reasons.jpg': settingsTab('สาเหตุ'),
   'owner-settings-machines.jpg': async () => { await settingsTab('จักร')(); await page.waitText('ชนิดจักร') },

@@ -92,7 +92,7 @@ export async function runSimulation(client, { seed = 1, days = 10, browser = nul
       }
 
       const live = await client.sql(`
-        select l.id, l.confirmation_no, l.phase, l.current_station, l.station_status, l.route_code, l.qty, l.dtf_film_received_at, j.stage_entered_at
+        select l.id, l.confirmation_no, l.phase, l.current_station, l.station_status, l.route_code, l.qty, l.dtf_film_received_at, j.stage_entered_at, j.is_rework
         from public.job_live l join public.jobs j on j.id = l.id
         where l.phase not in ('done', 'cancelled') order by l.queue_seq`)
       for (const j of rng.shuffle(live)) await advanceJob(j)
@@ -225,7 +225,7 @@ export async function runSimulation(client, { seed = 1, days = 10, browser = nul
         })
         return
       }
-      if (!stats.splits && Number(j.qty) >= 120 && j.current_station !== 'qc_pack' && j.current_station !== 'sew') {
+      if (!stats.splits && j.phase === 'production' && !j.is_rework && Number(j.qty) >= 120 && j.current_station !== 'qc_pack' && j.current_station !== 'sew') {
         await step({ actor: 'admin1', action: 'split_job', jobNo: no }, async () => {
           must(await client.rpc('admin1', 'split_job', { p_job: j.id, p_qty: Math.floor(Number(j.qty) / 3) }), 'split_job')
           stats.splits++
