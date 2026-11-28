@@ -2391,12 +2391,15 @@ function applyGrid(box,figs,ars,g,minH){
   box.style.maxWidth=(g.cols*Math.max(...widths)+(g.cols-1)*2.5+1).toFixed(1)+'mm';
   box.style.marginInline='auto';
 }
-// ฉบับโรงงาน: ลองทุกแบบ (ต่อจากรายละเอียด / ล้นไปหน้าถัดไป / ขึ้นหน้าใหม่ · ตัวอักษรปกติ / ย่อ) แล้วเลือกแบบที่ใช้กระดาษน้อยสุด ภาพใหญ่สุด · ภาพมีจุดกำกับต้องสูงพอให้อ่านชื่อจุด
-const FACT_MIN_H=40, FACT_CO_MIN_H=50;
+// ฉบับโรงงาน: ลองทุกแบบ (ต่อจากรายละเอียด / ล้นไปหน้าถัดไป / ขึ้นหน้าใหม่ · ตัวอักษรปกติ / ย่อ) แล้วเลือกแบบที่ใช้กระดาษน้อยสุด ภาพใหญ่สุด · ด้านยาวของภาพ (ไม่นับขอบชื่อจุด) ต้องพอให้หน้างานเห็นรายละเอียด
+const FACT_MIN_H=40, FACT_CO_MIN_H=50, FACT_SIDE=90, FACT_MAX_H=170;
+const factNeedH=(co,a)=>co
+  ? Math.max(FACT_CO_MIN_H, a*(1+2*CO_MY)>=1+2*CO_MX ? FACT_SIDE*(1+2*CO_MX)/a : FACT_SIDE*(1+2*CO_MY))
+  : Math.max(FACT_MIN_H, FACT_SIDE/Math.max(1,a));
 function fitFactoryPage(){
   const d=$('#doc'), t=d.querySelector('table.pg'), mp=d.querySelector('.fd-mock'), box=mp&&mp.querySelector('.d-imgs'); if(!t||!box) return;
   const figs=[...box.querySelectorAll('figure[data-ar]')], ars=figs.map(f=>+f.dataset.ar||4/3);
-  const minH=figs.some(f=>f.dataset.co)?FACT_CO_MIN_H:FACT_MIN_H;
+  const minH=Math.max(...figs.map((f,i)=>factNeedH(!!f.dataset.co,ars[i])));
   const prev=d.style.display; d.style.display='block'; t.style.width='190mm';
   const mm=docMM(), width=box.clientWidth/mm-1, close=d.querySelector('.close');
   const per=CUST_PAGE_MM-t.tHead.offsetHeight/mm;
@@ -2412,7 +2415,7 @@ function fitFactoryPage(){
     d.classList.toggle('tight',tight);
     const m=measure();
     for(const [room,fresh] of plans){
-      const g=mockupGrid(ars,room(m),width,130);
+      const g=mockupGrid(ars,room(m),width,FACT_MAX_H);
       if(g.h<minH) continue;
       mp.style.breakBefore=fresh?'page':'';
       applyGrid(box,figs,ars,g,minH);
