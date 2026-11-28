@@ -2256,12 +2256,12 @@ function kvHTML(fs,v){
 function renderDoc(){
   const h=state.h, v=scope('p'), P=prod(), forCustomer=customerCopy();
   const qty=`${totalQty().toLocaleString()} ${P.unit}`;
-  // หัวกระดาษ (พิมพ์ซ้ำทุกหน้า): โลโก้ + เลขที่ใบ + ลูกค้า + งาน เพื่อให้หยิบหน้าไหนก็รู้ว่าเป็นของงานอะไร
+  // หัวกระดาษ (พิมพ์ซ้ำทุกหน้า): โลโก้ + เลขที่ใบ + ลูกค้า + งาน เพื่อให้หยิบหน้าไหนก็รู้ว่าเป็นของงานอะไร · กำหนดส่งพิมพ์เฉพาะฉบับโรงงาน (ฉบับลูกค้าไม่บอกวันส่ง)
   const head=`<div class="ph">
     <img class="logo" src="${COMPANY.logo}" alt="${esc(COMPANY.name)}">
     <div class="tt">ใบยืนยันการผลิต<small>${esc(forCustomer?productType(v):P.name)}${forCustomer?'':' · ฉบับโรงงาน'}</small></div>
     <div class="no"><span class="big">${esc(h.doc_no||'—')}</span>${num(h.rev)>0?`<span class="rev">แก้ไขครั้งที่ ${esc(h.rev)}</span>`:''}</div>
-    <div class="job"><span>ลูกค้า <b>${esc(h.customer||'—')}</b></span><span>งาน <b>${esc(h.job_name||'—')}</b></span><span>จำนวน <b>${qty}</b></span></div>
+    <div class="job"><span>ลูกค้า <b>${esc(h.customer||'—')}</b></span><span>งาน <b>${esc(h.job_name||'—')}</b></span><span>จำนวน <b>${qty}</b></span>${!forCustomer&&h.due_date?`<span>กำหนดส่งงาน <b>${thDate(h.due_date)}</b></span>`:''}</div>
   </div>`;
 
   const hk=(label,val,w)=>isNone(val)?'':`<div${w?' class="w"':''}><span>${label}</span><b>${esc(val)}</b></div>`;
@@ -2270,7 +2270,7 @@ function renderDoc(){
   const address=needsAddress(h.delivery)?hk('ที่อยู่จัดส่ง',hv('address'),true):'';
   const spare=num(v.spare)>0?` (+ เผื่อเสีย ${v.spare} ${P.unit})`:'';
   const hItems=forCustomer?[hk('ประเภทสินค้า',productType(v)), hk('จำนวนที่สั่ง',qty), hk('วันที่สั่งงาน',h.issue_date?thDate(h.issue_date):''), hk('ผู้ประสานงาน',coordinator), hk('การจัดส่ง',h.delivery), address].join(''):[hk('จำนวนรวม',qty+spare), hk('ผู้ติดต่อ',hv('contact')), hk('เบอร์โทร',hv('phone')),
-    hk('วันที่ออกใบ',h.issue_date?thDate(h.issue_date):''), hk('วันนัดส่งตัวอย่าง',sampleDateShown(h)&&h.sample_date?thDate(h.sample_date):''),
+    hk('วันที่ออกใบ',h.issue_date?thDate(h.issue_date):''), hk('กำหนดส่งงาน',h.due_date?thDate(h.due_date):''), hk('วันนัดส่งตัวอย่าง',sampleDateShown(h)&&h.sample_date?thDate(h.sample_date):''),
     hk('การรับสินค้า',h.delivery), hk('แอดมินผู้ดูแล',coordinator), address].join('');
   let x=forCustomer?'':`<section class="ds"><div class="kv">${hItems}</div></section>`;
 

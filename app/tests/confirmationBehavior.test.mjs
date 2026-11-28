@@ -458,6 +458,25 @@ test('ฟอร์มใบยืนยัน: ใบลูกค้าไม่
 
 const signBoxes = html => [...html.matchAll(/<div class="t">([^<]*)<\/div>/g)].map(m => m[1])
 
+test('ฟอร์มใบยืนยัน: ฉบับลูกค้าไม่พิมพ์กำหนดส่ง (วันส่งใช้ภายใน)', () => {
+  const { api, els } = filled()
+  api.renderDoc()
+  const doc = els.get('#doc').innerHTML
+  assert.doesNotMatch(doc, /กำหนดส่งงาน/)
+  assert.doesNotMatch(doc, /10\/12\/2569/)
+  assert.match(doc, /วันที่สั่งงาน<\/span><b>24\/11\/2569/)
+})
+
+test('ฟอร์มใบยืนยัน: ฉบับโรงงานแสดงกำหนดส่งที่หัวกระดาษทุกหน้าและในข้อมูลใบงาน', () => {
+  const { api, store, els } = boot()
+  store.set('pp142.confirmation.inbox', JSON.stringify({ view: true, h: { doc_no: 'SC-DUE', customer: 'ลูกค้า', issue_date: '2026-11-24', due_date: '2026-12-10' }, product: 'tshirt', p: { tshirt: {} } }))
+  api.takeInbox()
+  const doc = els.get('#doc').innerHTML
+  assert.match(doc, /<div class="job">.*<span>กำหนดส่งงาน <b>10\/12\/2569<\/b><\/span><\/div>/s)
+  assert.match(doc, /<thead>.*กำหนดส่งงาน.*<\/thead>/s)
+  assert.match(doc, /<span>กำหนดส่งงาน<\/span><b>10\/12\/2569<\/b>/)
+})
+
 test('ฟอร์มใบยืนยัน: ฉบับลูกค้ามีช่องเซ็น ลูกค้า + ผู้อนุมัติ', () => {
   const { api, els } = filled()
   api.renderDoc()

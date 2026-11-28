@@ -75,10 +75,8 @@ test('ฟอร์มใบยืนยัน: เปิดแบบใบให
   assert.equal(plain.ctx.replaced, null)
 })
 
-test('ฟอร์มใบยืนยัน: PDF ที่ลูกค้าเซ็นไม่พิมพ์กำหนดส่ง (วันส่งใช้ภายใน)', () => {
-  const js = scripts.join('\n')
-  assert.doesNotMatch(js, /thDate\(h\.due_date\)/)
-  assert.match(js, /data-act="next"/)
+test('ฟอร์มใบยืนยัน: มีปุ่มทำสินค้าถัดไป (ใช้ข้อมูลลูกค้าเดิม)', () => {
+  assert.match(scripts.join('\n'), /data-act="next"/)
 })
 
 test('ฟอร์มใบยืนยัน: ช่องขนาดเลือกหน่วย ซม. / นิ้ว ได้ · ค่าเดิมที่ไม่ได้เลือกใช้หน่วยตั้งต้นของช่อง', () => {
