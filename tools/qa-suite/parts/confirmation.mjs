@@ -362,6 +362,22 @@ export async function runConfirmationTests(client, browser, fixtures, { seed = 1
     if (save.ok || !/เปลี่ยน "?เลขที่ใบ/.test(String(save.body?.message))) fail(`PR241: บันทึกใบด้วยเลขของงานที่รับแล้ว ข้อความไม่บอกให้เปลี่ยนเลขที่ใบ: ${JSON.stringify(save.body)}`)
   })
 
+  await check('R22-01-case-duplicate-doc-no', async () => {
+    const dupNo = `F-CASE-${seed}`
+    const first = await client.rpc('admin1', 'receive_job', {
+      p_confirmation_no: dupNo, p_customer_name: 'ลูกค้าเดิม', p_job_name: 'งานตัวใหญ่',
+      p_product_type_code: 'tshirt', p_qty: 10, p_unit: 'ตัว', p_due_date: '2099-01-20',
+      p_route_code: 'cut_only', p_confirmation_pdf_path: null, p_needs_sample: false,
+    })
+    if (!first.ok) fail(`รับงาน ${dupNo} ไม่ได้: ${JSON.stringify(first.body)}`)
+    const lower = await client.rpc('admin1', 'receive_job', {
+      p_confirmation_no: dupNo.toLowerCase(), p_customer_name: 'ลูกค้าซ้ำ', p_job_name: 'งานซ้ำตัวเล็ก',
+      p_product_type_code: 'tshirt', p_qty: 10, p_unit: 'ตัว', p_due_date: '2099-01-20',
+      p_route_code: 'cut_only', p_confirmation_pdf_path: null, p_needs_sample: false,
+    })
+    if (lower.ok) fail(`R22-01: รับงานด้วยเลขตัวพิมพ์เล็ก (${dupNo.toLowerCase()}) ซ้ำกับ ${dupNo} ไม่ได้รับการปฏิเสธ`)
+  })
+
   await check('PR226-infinity-date', async () => {
     const inf = await client.rpc('admin1', 'receive_job', {
       p_confirmation_no: `F-INF-${seed}`, p_customer_name: 'Inf', p_job_name: 'Inf',
